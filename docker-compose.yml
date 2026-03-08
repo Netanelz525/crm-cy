@@ -1,0 +1,38 @@
+services:
+  crm-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crm-app
+    restart: unless-stopped
+    expose:
+      - "3000"
+    env_file:
+      - .env
+    networks:
+      - crm-net
+
+  caddy:
+    image: caddy:2
+    container_name: crm-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - crm-app
+    networks:
+      - crm-net
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  crm-net:

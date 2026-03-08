@@ -1,0 +1,19 @@
+# Do not commit secrets
+.env
+.env.local
+.env.production.local
+
+# Next / Node
+node_modules
+.next
+.vercel
+
+# Legacy local files (migration compatibility)
+users.local.json
+sessions.local.json
+students.internal.local.json
+
+# Build/artifacts
+*.zip
+server.out.log
+server.err.log

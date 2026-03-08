@@ -1,0 +1,9 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$CRM_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy crm-app:3000
+}
+

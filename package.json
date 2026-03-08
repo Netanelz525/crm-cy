@@ -1,0 +1,23 @@
+{
+  "name": "crm-vercel-app",
+  "version": "2.0.0",
+  "private": true,
+  "description": "CRM management app for Twenty, deployed on Vercel with Clerk + Neon",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.19.3",
+    "@neondatabase/serverless": "^0.10.4",
+    "next": "^15.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "typescript": "5.9.3"
+  }
+}
