@@ -200,6 +200,8 @@ export default async function HomePage({ searchParams }) {
           <Link href="/admin">מעבר לאישור משתמשים</Link>
           {" | "}
           <Link href="/finder">איתור תלמיד</Link>
+          {" | "}
+          <Link href="/students/new">יצירת תלמיד</Link>
         </p>
       </div>
 
@@ -307,3 +309,5 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
+

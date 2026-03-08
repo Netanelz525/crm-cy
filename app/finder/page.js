@@ -112,6 +112,8 @@ export default async function FinderPage({ searchParams }) {
         <p className="muted">בחר בדיוק איזה פרט אתה מחפש ועל מי הוא שייך.</p>
         <p>
           <Link href="/">חזרה למסך הראשי</Link>
+          {" | "}
+          <Link href="/students/new">יצירת תלמיד</Link>
         </p>
       </div>
 
@@ -176,3 +178,5 @@ export default async function FinderPage({ searchParams }) {
     </>
   );
 }
+
+
