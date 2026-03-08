@@ -29,6 +29,21 @@ function phoneText(phoneObj) {
   return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
 }
 
+function phoneHref(phoneObj) {
+  const number = clean(phoneObj?.primaryPhoneNumber).replace(/[^\d]/g, "");
+  if (!number) return "";
+  const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d+]/g, "");
+  const prefix = calling || "+";
+  return `tel:${prefix}${number}`.replace(/\s+/g, "");
+}
+
+function PhoneLink({ phoneObj }) {
+  const text = phoneText(phoneObj);
+  if (text === "-") return "-";
+  const href = phoneHref(phoneObj);
+  if (!href) return text;
+  return <a href={href}>{text}</a>;
+}
 function ageOf(dateValue) {
   if (!dateValue) return null;
   const d = new Date(dateValue);
@@ -183,7 +198,7 @@ export default async function HomePage({ searchParams }) {
                   <td>{s.label}</td>
                   <td>{s.tznum || "-"}</td>
                   <td>{ageOf(s.dateofbirth) ?? "-"}</td>
-                  <td>{phoneText(s.phone)}</td>
+                  <td><PhoneLink phoneObj={s.phone} /></td>
                   <td>
                     <div style={{ display: "grid", gap: 8 }}>
                       <Link href={`/students/${s.id}`}>כרטיס תלמיד</Link>
@@ -229,4 +244,5 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
 

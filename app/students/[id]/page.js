@@ -24,8 +24,27 @@ function formatDate(value) {
   return d.toLocaleDateString("he-IL");
 }
 
+function phoneText(phoneObj) {
+  if (!phoneObj?.primaryPhoneNumber) return "-";
+  return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
+}
+
+function phoneHref(phoneObj) {
+  const number = clean(phoneObj?.primaryPhoneNumber).replace(/[^\d]/g, "");
+  if (!number) return "";
+  const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d+]/g, "");
+  const prefix = calling || "+";
+  return `tel:${prefix}${number}`.replace(/\s+/g, "");
+}
+
 function formatDisplayValue(field, value) {
   if (!hasDisplayValue(value)) return "-";
+  if (field.type === "phone") {
+    const text = phoneText(value);
+    const href = phoneHref(value);
+    if (!href || text === "-") return text;
+    return <a href={href}>{text}</a>;
+  }
   if (Array.isArray(value)) return value.join(", ");
   if (field.type === "date") return formatDate(value);
   if (field.enum && ENUM_LABELS[field.enum]) return ENUM_LABELS[field.enum][String(value)] || String(value);
@@ -43,15 +62,35 @@ function boolLabel(v) {
   return "-";
 }
 
+const PHONE_GROUPS = [
+  { prefix: "phone", label: "טלפון תלמיד" },
+  { prefix: "dadPhone", label: "טלפון אב" },
+  { prefix: "momPhone", label: "טלפון אם" }
+];
+
+function isPhoneSubField(key) {
+  return /^(phone|dadPhone|momPhone)\./.test(String(key || ""));
+}
+
 function visibleSections(student) {
   return FIELD_SECTIONS.map((section) => {
-    const fields = section.fields
+    const normalFields = section.fields
+      .filter((field) => !isPhoneSubField(field.key))
       .map((field) => ({ field, value: getByPath(student, field.key) }))
       .filter((row) => hasDisplayValue(row.value));
+
+    const phoneFields = PHONE_GROUPS
+      .filter((group) => section.fields.some((f) => String(f.key).startsWith(`${group.prefix}.`)))
+      .map((group) => ({
+        field: { key: `${group.prefix}.__combined`, label: group.label, type: "phone" },
+        value: getByPath(student, group.prefix)
+      }))
+      .filter((row) => hasDisplayValue(row.value?.primaryPhoneNumber));
+
+    const fields = [...normalFields, ...phoneFields];
     return { ...section, fields };
   }).filter((section) => section.fields.length > 0);
 }
-
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     return (
@@ -200,3 +239,5 @@ export default async function StudentPage({ params, searchParams }) {
     </>
   );
 }
+
+
