@@ -210,6 +210,8 @@ export default async function HomePage({ searchParams }) {
 
       <div className="card">
         <form className="grid" method="GET">
+          <input name="q" defaultValue={q} placeholder="חיפוש כללי לפי שם תלמיד" />
+          <input name="tz" defaultValue={tz} placeholder="חיפוש כללי לפי תעודת זהות" />
           <select name="institution" defaultValue={institution}>
             <option value="">בחר מוסד</option>
             {Object.entries(INSTITUTIONS).map(([value, label]) => (
@@ -223,7 +225,7 @@ export default async function HomePage({ searchParams }) {
             <input type="checkbox" name="missingOnly" value="1" defaultChecked={missingOnly} style={{ width: 16 }} />
             הצג רק תלמידים עם מידע חסר
           </label>
-          <button type="submit">הצג מוסד</button>
+          <button type="submit">חפש</button>
         </form>
 
         <details style={{ marginTop: 12 }}>
@@ -324,3 +326,5 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
+
