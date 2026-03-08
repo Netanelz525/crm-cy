@@ -1,22 +1,23 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getNotesByStudentIds, upsertStudentNote } from "../lib/notes";
-import { getCurrentAppUser, requireTeamUser } from "../lib/rbac";
+import { getNotesByStudentIds } from "../lib/notes";
+import { getCurrentAppUser } from "../lib/rbac";
+import { quickUpdateNoteAction } from "./actions";
 import { getStudentsByInstitution, searchStudentsByText, searchStudentsByTz } from "../lib/twenty";
 
 const NOTE_STATUSES = {
-  NOT_RELEVANT: "לא רלוונטי",
-  OTHER: "אחר",
-  CONTACTED: "דיברו"
+  NOT_RELEVANT: "׳׳ ׳¨׳׳•׳•׳ ׳˜׳™",
+  OTHER: "׳׳—׳¨",
+  CONTACTED: "׳“׳™׳‘׳¨׳•"
 };
 
 const INSTITUTIONS = {
-  YR: "יחי ראובן",
-  OE: "אור אפרים",
-  CY: "חכמי ירושלים",
-  BOGER: "בוגר",
-  BOGERNCONTACT: "בוגר ללא יצירת קשר",
-  TEST: "טסט"
+  YR: "׳™׳—׳™ ׳¨׳׳•׳‘׳",
+  OE: "׳׳•׳¨ ׳׳₪׳¨׳™׳",
+  CY: "׳—׳›׳׳™ ׳™׳¨׳•׳©׳׳™׳",
+  BOGER: "׳‘׳•׳’׳¨",
+  BOGERNCONTACT: "׳‘׳•׳’׳¨ ׳׳׳ ׳™׳¦׳™׳¨׳× ׳§׳©׳¨",
+  TEST: "׳˜׳¡׳˜"
 };
 
 function clean(v) {
@@ -24,7 +25,7 @@ function clean(v) {
 }
 
 function phoneText(phoneObj) {
-  if (!phoneObj?.primaryPhoneNumber) return "—";
+  if (!phoneObj?.primaryPhoneNumber) return "ג€”";
   return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
 }
 
@@ -48,26 +49,6 @@ function buildNextPath(params) {
   return sp.toString() ? `/?${sp.toString()}` : "/";
 }
 
-export async function quickUpdateNoteAction(formData) {
-  "use server";
-  const user = await requireTeamUser();
-  const studentId = clean(formData.get("studentId"));
-  const noteText = clean(formData.get("noteText"));
-  const noteStatus = clean(formData.get("noteStatus"));
-  const directDebitActive = clean(formData.get("directDebitActive"));
-  const next = clean(formData.get("next")) || "/";
-
-  await upsertStudentNote({
-    studentId,
-    noteText,
-    noteStatus,
-    directDebitActive,
-    signedByUserId: user.clerk_user_id
-  });
-
-  redirect(next.includes("?") ? `${next}&quickUpdated=1` : `${next}?quickUpdated=1`);
-}
-
 export default async function HomePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
@@ -81,11 +62,11 @@ export default async function HomePage({ searchParams }) {
     const approvedUnknown = String(currentUser.access_status || "") === "approved";
     return (
       <div className="card">
-        <h1>{approvedUnknown ? "אין כרטיס תלמיד מקושר" : "הגישה ממתינה לאישור"}</h1>
+        <h1>{approvedUnknown ? "׳׳™׳ ׳›׳¨׳˜׳™׳¡ ׳×׳׳׳™׳“ ׳׳§׳•׳©׳¨" : "׳”׳’׳™׳©׳” ׳׳׳×׳™׳ ׳” ׳׳׳™׳©׳•׳¨"}</h1>
         <p className="muted">
           {approvedUnknown
-            ? "המשתמש אושר, אך אין תלמיד תואם לאימייל שלך במערכת CRM. יש לעדכן אימייל תלמיד או לפנות למשתמש TEAM."
-            : "לא נמצא תלמיד תואם לאימייל שלך כרגע. משתמשי TEAM יכולים לאשר משתמשים לא מוכרים."}
+            ? "׳”׳׳©׳×׳׳© ׳׳•׳©׳¨, ׳׳ ׳׳™׳ ׳×׳׳׳™׳“ ׳×׳•׳׳ ׳׳׳™׳׳™׳™׳ ׳©׳׳ ׳‘׳׳¢׳¨׳›׳× CRM. ׳™׳© ׳׳¢׳“׳›׳ ׳׳™׳׳™׳™׳ ׳×׳׳׳™׳“ ׳׳• ׳׳₪׳ ׳•׳× ׳׳׳©׳×׳׳© TEAM."
+            : "׳׳ ׳ ׳׳¦׳ ׳×׳׳׳™׳“ ׳×׳•׳׳ ׳׳׳™׳׳™׳™׳ ׳©׳׳ ׳›׳¨׳’׳¢. ׳׳©׳×׳׳©׳™ TEAM ׳™׳›׳•׳׳™׳ ׳׳׳©׳¨ ׳׳©׳×׳׳©׳™׳ ׳׳ ׳׳•׳›׳¨׳™׳."}
         </p>
       </div>
     );
@@ -137,28 +118,28 @@ export default async function HomePage({ searchParams }) {
   return (
     <>
       <div className="card">
-        <h1>ניהול תלמידים - TEAM</h1>
-        <p className="muted">גישה מלאה לחיפוש, עדכון ואישור משתמשים לא מוכרים.</p>
+        <h1>׳ ׳™׳”׳•׳ ׳×׳׳׳™׳“׳™׳ - TEAM</h1>
+        <p className="muted">׳’׳™׳©׳” ׳׳׳׳” ׳׳—׳™׳₪׳•׳©, ׳¢׳“׳›׳•׳ ׳•׳׳™׳©׳•׳¨ ׳׳©׳×׳׳©׳™׳ ׳׳ ׳׳•׳›׳¨׳™׳.</p>
         <p>
-          <Link href="/admin">מעבר לאישור משתמשים</Link>
+          <Link href="/admin">׳׳¢׳‘׳¨ ׳׳׳™׳©׳•׳¨ ׳׳©׳×׳׳©׳™׳</Link>
         </p>
       </div>
 
       <div className="card">
         <form className="grid" method="GET">
-          <input name="q" defaultValue={q} placeholder="חיפוש לפי שם תלמיד" />
-          <input name="tz" defaultValue={tz} placeholder='חיפוש לפי ת"ז' />
+          <input name="q" defaultValue={q} placeholder="׳—׳™׳₪׳•׳© ׳׳₪׳™ ׳©׳ ׳×׳׳׳™׳“" />
+          <input name="tz" defaultValue={tz} placeholder='׳—׳™׳₪׳•׳© ׳׳₪׳™ ׳×"׳–' />
           <select name="institution" defaultValue={institution}>
-            <option value="">בחר מוסד</option>
+            <option value="">׳‘׳—׳¨ ׳׳•׳¡׳“</option>
             {Object.entries(INSTITUTIONS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
           </select>
-          <input name="institutionSearch" defaultValue={institutionSearch} placeholder="חיפוש בתוך מוסד" />
+          <input name="institutionSearch" defaultValue={institutionSearch} placeholder="׳—׳™׳₪׳•׳© ׳‘׳×׳•׳ ׳׳•׳¡׳“" />
           <select name="internalStatus" defaultValue={internalStatus}>
-            <option value="">סנן לפי סטטוס פנימי</option>
+            <option value="">׳¡׳ ׳ ׳׳₪׳™ ׳¡׳˜׳˜׳•׳¡ ׳₪׳ ׳™׳׳™</option>
             {Object.entries(NOTE_STATUSES).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -166,54 +147,54 @@ export default async function HomePage({ searchParams }) {
             ))}
           </select>
           <select name="directDebit" defaultValue={directDebit}>
-            <option value="all">הוראת קבע: הכל</option>
-            <option value="yes">עם הוראת קבע</option>
-            <option value="no">בלי הוראת קבע</option>
+            <option value="all">׳”׳•׳¨׳׳× ׳§׳‘׳¢: ׳”׳›׳</option>
+            <option value="yes">׳¢׳ ׳”׳•׳¨׳׳× ׳§׳‘׳¢</option>
+            <option value="no">׳‘׳׳™ ׳”׳•׳¨׳׳× ׳§׳‘׳¢</option>
           </select>
-          <input name="signerFilter" defaultValue={signerFilter} placeholder="סינון לפי חותם" />
-          <button type="submit">חפש</button>
+          <input name="signerFilter" defaultValue={signerFilter} placeholder="׳¡׳™׳ ׳•׳ ׳׳₪׳™ ׳—׳•׳×׳" />
+          <button type="submit">׳—׳₪׳©</button>
         </form>
       </div>
 
-      {quickUpdated ? <div className="ok">המידע נשמר בהצלחה.</div> : null}
+      {quickUpdated ? <div className="ok">׳”׳׳™׳“׳¢ ׳ ׳©׳׳¨ ׳‘׳”׳¦׳׳—׳”.</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
       <div className="card">
         <table>
           <thead>
             <tr>
-              <th>שם</th>
-              <th>ת"ז</th>
-              <th>גיל</th>
-              <th>טלפון תלמיד</th>
-              <th>פעולות</th>
+              <th>׳©׳</th>
+              <th>׳×"׳–</th>
+              <th>׳’׳™׳</th>
+              <th>׳˜׳׳₪׳•׳ ׳×׳׳׳™׳“</th>
+              <th>׳₪׳¢׳•׳׳•׳×</th>
             </tr>
           </thead>
           <tbody>
             {!students.length ? (
               <tr>
                 <td colSpan={5} className="muted">
-                  אין תוצאות
+                  ׳׳™׳ ׳×׳•׳¦׳׳•׳×
                 </td>
               </tr>
             ) : (
               students.map((s) => (
                 <tr key={s.id}>
                   <td>{s.label}</td>
-                  <td>{s.tznum || "—"}</td>
-                  <td>{ageOf(s.dateofbirth) ?? "—"}</td>
+                  <td>{s.tznum || "ג€”"}</td>
+                  <td>{ageOf(s.dateofbirth) ?? "ג€”"}</td>
                   <td>{phoneText(s.phone)}</td>
                   <td>
                     <div style={{ display: "grid", gap: 8 }}>
-                      <Link href={`/students/${s.id}`}>כרטיס תלמיד</Link>
+                      <Link href={`/students/${s.id}`}>׳›׳¨׳˜׳™׳¡ ׳×׳׳׳™׳“</Link>
                       <details>
-                        <summary>עריכה פנימית מהירה</summary>
+                        <summary>׳¢׳¨׳™׳›׳” ׳₪׳ ׳™׳׳™׳× ׳׳”׳™׳¨׳”</summary>
                         <form action={quickUpdateNoteAction}>
                           <input type="hidden" name="studentId" value={s.id} />
                           <input type="hidden" name="next" value={next} />
-                          <textarea name="noteText" defaultValue={s.note?.note_text || ""} placeholder="הערה פנימית" />
+                          <textarea name="noteText" defaultValue={s.note?.note_text || ""} placeholder="׳”׳¢׳¨׳” ׳₪׳ ׳™׳׳™׳×" />
                           <select name="noteStatus" defaultValue={s.note?.note_status || ""}>
-                            <option value="">סטטוס</option>
+                            <option value="">׳¡׳˜׳˜׳•׳¡</option>
                             {Object.entries(NOTE_STATUSES).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
@@ -230,11 +211,11 @@ export default async function HomePage({ searchParams }) {
                                   : ""
                             }
                           >
-                            <option value="">הוראת קבע</option>
-                            <option value="true">כן</option>
-                            <option value="false">לא</option>
+                            <option value="">׳”׳•׳¨׳׳× ׳§׳‘׳¢</option>
+                            <option value="true">׳›׳</option>
+                            <option value="false">׳׳</option>
                           </select>
-                          <button type="submit">שמור</button>
+                          <button type="submit">׳©׳׳•׳¨</button>
                         </form>
                       </details>
                     </div>
@@ -248,3 +229,6 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
+
+
