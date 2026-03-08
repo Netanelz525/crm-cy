@@ -2,7 +2,6 @@
 import { redirect } from "next/navigation";
 import { getNotesByStudentIds } from "../lib/notes";
 import { getCurrentAppUser } from "../lib/rbac";
-import { quickUpdateNoteAction } from "./actions";
 import { getStudentsByInstitution, searchStudentsByText, searchStudentsByTz } from "../lib/twenty";
 
 const NOTE_STATUSES = {
@@ -114,14 +113,6 @@ function missingContactItems(student) {
   return out;
 }
 
-function buildNextPath(params) {
-  const sp = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) {
-    if (clean(v)) sp.set(k, clean(v));
-  }
-  return sp.toString() ? `/?${sp.toString()}` : "/";
-}
-
 export default async function HomePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
@@ -148,8 +139,6 @@ export default async function HomePage({ searchParams }) {
   const institution = clean(resolvedSearchParams?.institution);
   const institutionSearch = clean(resolvedSearchParams?.institutionSearch);
   const missingOnly = clean(resolvedSearchParams?.missingOnly) === "1";
-  const quickUpdated = clean(resolvedSearchParams?.quickUpdated) === "1";
-
   const finderTz = clean(resolvedSearchParams?.finderTz).replace(/[^\d]/g, "");
   const finderEmail = clean(resolvedSearchParams?.finderEmail);
   const finderPhone = clean(resolvedSearchParams?.finderPhone);
@@ -195,7 +184,6 @@ export default async function HomePage({ searchParams }) {
   const notesMap = await getNotesByStudentIds(students.map((s) => s.id));
   students = students.map((s) => ({ ...s, note: notesMap[s.id] || null, missingItems: s.missingItems || [] }));
 
-  const next = buildNextPath({ institution, institutionSearch, missingOnly: missingOnly ? "1" : "", q, tz });
   const institutionCount = institution ? students.length : 0;
 
   return (
@@ -240,8 +228,7 @@ export default async function HomePage({ searchParams }) {
       </div>
 
       {institution ? <div className="card">סה"כ תלמידים במוסד: <b>{institutionCount}</b></div> : null}
-      {quickUpdated ? <div className="ok">המידע הפנימי נשמר.</div> : null}
-      {error ? <div className="card muted">{error}</div> : null}
+            {error ? <div className="card muted">{error}</div> : null}
 
       <div className="card">
         <table>
@@ -283,37 +270,7 @@ export default async function HomePage({ searchParams }) {
                     <td>
                       <div style={{ display: "grid", gap: 8 }}>
                         <Link href={`/students/${s.id}`}>כרטיס תלמיד</Link>
-                        <details>
-                          <summary>עריכה פנימית מהירה</summary>
-                          <form action={quickUpdateNoteAction}>
-                            <input type="hidden" name="studentId" value={s.id} />
-                            <input type="hidden" name="next" value={next} />
-                            <textarea name="noteText" defaultValue={s.note?.note_text || ""} placeholder="הערה פנימית" />
-                            <select name="noteStatus" defaultValue={s.note?.note_status || ""}>
-                              <option value="">סטטוס</option>
-                              {Object.entries(NOTE_STATUSES).map(([value, label]) => (
-                                <option key={value} value={value}>
-                                  {label}
-                                </option>
-                              ))}
-                            </select>
-                            <select
-                              name="directDebitActive"
-                              defaultValue={
-                                s.note?.direct_debit_active === true
-                                  ? "true"
-                                  : s.note?.direct_debit_active === false
-                                    ? "false"
-                                    : ""
-                              }
-                            >
-                              <option value="">הוראת קבע</option>
-                              <option value="true">כן</option>
-                              <option value="false">לא</option>
-                            </select>
-                            <button type="submit">שמור</button>
-                          </form>
-                        </details>
+                        
                       </div>
                     </td>
                   </tr>
@@ -326,5 +283,7 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
+
 
 
