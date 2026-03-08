@@ -1,14 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getNotesByStudentIds } from "../lib/notes";
 import { getCurrentAppUser } from "../lib/rbac";
 import { getStudentsByInstitution, searchStudentsByText, searchStudentsByTz } from "../lib/twenty";
-
-const NOTE_STATUSES = {
-  NOT_RELEVANT: "לא רלוונטי",
-  OTHER: "אחר",
-  CONTACTED: "דיברו"
-};
 
 const INSTITUTIONS = {
   YR: "יחי ראובן",
@@ -45,13 +38,36 @@ function clean(v) {
   return String(v || "").trim();
 }
 
+function normalizeDigits(v) {
+  return clean(v).replace(/[^\d]/g, "");
+}
+
+function hasPhone(obj) {
+  return Boolean(clean(obj?.primaryPhoneNumber));
+}
+
+function hasEmail(obj) {
+  return Boolean(clean(obj?.primaryEmail));
+}
+
+function hasCompleteParentContact(student) {
+  const dadComplete = hasPhone(student?.dadPhone) && hasEmail(student?.fatherEmail);
+  const momComplete = hasPhone(student?.momPhone) && hasEmail(student?.motherEmail);
+  return dadComplete || momComplete;
+}
+
+function missingContactItems(student) {
+  if (hasCompleteParentContact(student)) return [];
+  return ["חסר הורה עם טלפון+אימייל"];
+}
+
 function phoneText(phoneObj) {
   if (!phoneObj?.primaryPhoneNumber) return "-";
   return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
 }
 
 function phoneHref(phoneObj) {
-  const number = clean(phoneObj?.primaryPhoneNumber).replace(/[^\d]/g, "");
+  const number = normalizeDigits(phoneObj?.primaryPhoneNumber);
   if (!number) return "";
   const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d+]/g, "");
   const prefix = calling || "+";
@@ -104,13 +120,12 @@ function classLabel(value) {
   return CLASS_LABELS[key] || (value || "-");
 }
 
-function missingContactItems(student) {
-  const out = [];
-  if (!clean(student?.dadPhone?.primaryPhoneNumber)) out.push("טלפון אב");
-  if (!clean(student?.momPhone?.primaryPhoneNumber)) out.push("טלפון אם");
-  if (!clean(student?.fatherEmail?.primaryEmail)) out.push("אימייל אב");
-  if (!clean(student?.motherEmail?.primaryEmail)) out.push("אימייל אם");
-  return out;
+function buildNextPath(params) {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (clean(v)) sp.set(k, clean(v));
+  }
+  return sp.toString() ? `/?${sp.toString()}` : "/";
 }
 
 export default async function HomePage({ searchParams }) {
@@ -139,23 +154,9 @@ export default async function HomePage({ searchParams }) {
   const institution = clean(resolvedSearchParams?.institution);
   const institutionSearch = clean(resolvedSearchParams?.institutionSearch);
   const missingOnly = clean(resolvedSearchParams?.missingOnly) === "1";
-  const finderTz = clean(resolvedSearchParams?.finderTz).replace(/[^\d]/g, "");
-  const finderEmail = clean(resolvedSearchParams?.finderEmail);
-  const finderPhone = clean(resolvedSearchParams?.finderPhone);
 
-  let tz = clean(resolvedSearchParams?.tz).replace(/[^\d]/g, "");
-  let q = clean(resolvedSearchParams?.q);
-
-  if (finderTz) {
-    tz = finderTz;
-    q = "";
-  } else if (finderEmail) {
-    q = finderEmail;
-    tz = "";
-  } else if (finderPhone) {
-    q = finderPhone;
-    tz = "";
-  }
+  const tz = normalizeDigits(resolvedSearchParams?.tz);
+  const q = clean(resolvedSearchParams?.q);
 
   let students = [];
   let error = "";
@@ -181,9 +182,13 @@ export default async function HomePage({ searchParams }) {
     error = e.message || "Search failed";
   }
 
-  const notesMap = await getNotesByStudentIds(students.map((s) => s.id));
-  students = students.map((s) => ({ ...s, note: notesMap[s.id] || null, missingItems: s.missingItems || [] }));
-
+  const toggleMissingPath = buildNextPath({
+    institution,
+    institutionSearch,
+    q,
+    tz,
+    missingOnly: institution ? (missingOnly ? "" : "1") : ""
+  });
   const institutionCount = institution ? students.length : 0;
 
   return (
@@ -193,6 +198,8 @@ export default async function HomePage({ searchParams }) {
         <p className="muted">גישה מלאה לחיפוש, עדכון מידע ואישור משתמשים לא מוכרים.</p>
         <p>
           <Link href="/admin">מעבר לאישור משתמשים</Link>
+          {" | "}
+          <Link href="/finder">איתור תלמיד</Link>
         </p>
       </div>
 
@@ -209,26 +216,22 @@ export default async function HomePage({ searchParams }) {
             ))}
           </select>
           <input name="institutionSearch" defaultValue={institutionSearch} placeholder="חיפוש בתוך מוסד" />
-          <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px" }}>
-            <input type="checkbox" name="missingOnly" value="1" defaultChecked={missingOnly} style={{ width: 16 }} />
-            הצג רק תלמידים עם מידע חסר
-          </label>
           <button type="submit">חפש</button>
         </form>
-
-        <details style={{ marginTop: 12 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 700 }}>איתור תלמיד</summary>
-          <form className="grid" method="GET" style={{ marginTop: 10 }}>
-            <input name="finderTz" defaultValue={finderTz || tz} placeholder="איתור לפי תעודת זהות" />
-            <input name="finderEmail" defaultValue={finderEmail} placeholder="איתור לפי אימייל תלמיד/הורים" />
-            <input name="finderPhone" defaultValue={finderPhone} placeholder="איתור לפי טלפון תלמיד/הורים" />
-            <button type="submit">אתר תלמיד</button>
-          </form>
-        </details>
       </div>
 
-      {institution ? <div className="card">סה"כ תלמידים במוסד: <b>{institutionCount}</b></div> : null}
-            {error ? <div className="card muted">{error}</div> : null}
+      {institution ? (
+        <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div>
+            סה"כ תלמידים במוסד: <b>{institutionCount}</b>
+          </div>
+          <Link href={toggleMissingPath}>
+            {missingOnly ? "הצג את כולם" : "הצג רק חסרים"}
+          </Link>
+        </div>
+      ) : null}
+
+      {error ? <div className="card muted">{error}</div> : null}
 
       <div className="card">
         <table>
@@ -242,13 +245,12 @@ export default async function HomePage({ searchParams }) {
               <th>טלפון אב</th>
               <th>טלפון אם</th>
               <th>חוסרים</th>
-              <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
             {!students.length ? (
               <tr>
-                <td colSpan={9} className="muted">
+                <td colSpan={8} className="muted">
                   אין תוצאות
                 </td>
               </tr>
@@ -257,7 +259,9 @@ export default async function HomePage({ searchParams }) {
                 const hasMissing = (s.missingItems || []).length > 0;
                 return (
                   <tr key={s.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
-                    <td>{s.label}</td>
+                    <td>
+                      <Link href={`/students/${s.id}`}>{s.label}</Link>
+                    </td>
                     <td>{classLabel(s.class)}</td>
                     <td>{s.tznum || "-"}</td>
                     <td>{ageOf(s.dateofbirth) ?? "-"}</td>
@@ -267,23 +271,13 @@ export default async function HomePage({ searchParams }) {
                     <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>
                       {hasMissing ? s.missingItems.join(", ") : "-"}
                     </td>
-                    <td>
-                      <div style={{ display: "grid", gap: 8 }}>
-                        <Link href={`/students/${s.id}`}>כרטיס תלמיד</Link>
-                        
-                      </div>
-                    </td>
                   </tr>
                 );
               })
             )}
           </tbody>
         </table>
-      </div>
-    </>
+      </div>`r`n    </>
   );
 }
-
-
-
 
