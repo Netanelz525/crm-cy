@@ -9,31 +9,31 @@ export default async function AdminPage() {
   return (
     <>
       <div className="card">
-        <h1>TEAM Management</h1>
+        <h1>ניהול TEAM</h1>
         <p className="muted">
-          Only TEAM users can approve unknown users and update permissions.
+          רק משתמשי TEAM יכולים לאשר משתמשים לא מוכרים ולעדכן הרשאות.
           <br />
-          Signed in as: {currentUser.display_name}
+          מחובר: {currentUser.display_name}
         </p>
       </div>
 
       <div className="card">
-        <h2>Pending unknown users</h2>
+        <h2>משתמשים לא מוכרים שממתינים לאישור</h2>
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Can Edit</th>
-              <th>Action</th>
+              <th>שם</th>
+              <th>אימייל</th>
+              <th>סטטוס</th>
+              <th>עריכה</th>
+              <th>פעולה</th>
             </tr>
           </thead>
           <tbody>
             {!pendingUsers.length ? (
               <tr>
                 <td colSpan={5} className="muted">
-                  No pending users.
+                  אין משתמשים ממתינים.
                 </td>
               </tr>
             ) : (
@@ -42,18 +42,18 @@ export default async function AdminPage() {
                   <td>{u.display_name}</td>
                   <td>{u.email}</td>
                   <td>{u.access_status}</td>
-                  <td>{u.can_edit_own_card ? "Yes" : "No"}</td>
+                  <td>{u.can_edit_own_card ? "כן" : "לא"}</td>
                   <td>
                     <div style={{ display: "grid", gap: 8 }}>
                       <form action={approveUserAction}>
                         <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
                         <input type="hidden" name="withEdit" value="0" />
-                        <button type="submit">Approve user</button>
+                        <button type="submit">אשר משתמש</button>
                       </form>
                       <form action={approveUserAction}>
                         <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
                         <input type="hidden" name="withEdit" value="1" />
-                        <button type="submit">Approve + edit</button>
+                        <button type="submit">אשר + עריכה</button>
                       </form>
                     </div>
                   </td>
@@ -65,24 +65,24 @@ export default async function AdminPage() {
       </div>
 
       <div className="card">
-        <h2>All users</h2>
+        <h2>כל המשתמשים</h2>
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Linked Student</th>
-              <th>Class</th>
-              <th>Own Card Edit</th>
-              <th>Action</th>
+              <th>שם</th>
+              <th>אימייל</th>
+              <th>סטטוס</th>
+              <th>תלמיד מקושר</th>
+              <th>שיעור</th>
+              <th>עריכת כרטיס עצמי</th>
+              <th>פעולה</th>
             </tr>
           </thead>
           <tbody>
             {!users.length ? (
               <tr>
                 <td colSpan={7} className="muted">
-                  No data
+                  אין נתונים
                 </td>
               </tr>
             ) : (
@@ -93,7 +93,7 @@ export default async function AdminPage() {
                   <td>{u.access_status}</td>
                   <td>{u.linked_student_id || "-"}</td>
                   <td>{u.linked_student_class || "-"}</td>
-                  <td>{u.can_edit_own_card ? "Yes" : "No"}</td>
+                  <td>{u.can_edit_own_card ? "כן" : "לא"}</td>
                   <td>
                     {String(u.linked_student_class || "").toUpperCase() === "TEAM" ? (
                       "-"
@@ -101,7 +101,7 @@ export default async function AdminPage() {
                       <form action={setEditPermissionAction}>
                         <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
                         <input type="hidden" name="enabled" value={u.can_edit_own_card ? "0" : "1"} />
-                        <button type="submit">{u.can_edit_own_card ? "Disable edit" : "Enable edit"}</button>
+                        <button type="submit">{u.can_edit_own_card ? "בטל עריכה" : "אפשר עריכה"}</button>
                       </form>
                     )}
                   </td>

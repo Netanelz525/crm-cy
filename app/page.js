@@ -6,18 +6,18 @@ import { quickUpdateNoteAction } from "./actions";
 import { getStudentsByInstitution, searchStudentsByText, searchStudentsByTz } from "../lib/twenty";
 
 const NOTE_STATUSES = {
-  NOT_RELEVANT: "Not relevant",
-  OTHER: "Other",
-  CONTACTED: "Contacted"
+  NOT_RELEVANT: "לא רלוונטי",
+  OTHER: "אחר",
+  CONTACTED: "דיברו"
 };
 
 const INSTITUTIONS = {
-  YR: "Yechi Reuven",
-  OE: "Or Ephraim",
-  CY: "Chachmei Yerushalayim",
-  BOGER: "Graduate",
-  BOGERNCONTACT: "Graduate - no contact",
-  TEST: "Test"
+  YR: "יחי ראובן",
+  OE: "אור אפרים",
+  CY: "חכמי ירושלים",
+  BOGER: "בוגר",
+  BOGERNCONTACT: "בוגר ללא יצירת קשר",
+  TEST: "טסט"
 };
 
 function clean(v) {
@@ -62,11 +62,11 @@ export default async function HomePage({ searchParams }) {
     const approvedUnknown = String(currentUser.access_status || "") === "approved";
     return (
       <div className="card">
-        <h1>{approvedUnknown ? "No linked student card" : "Access pending approval"}</h1>
+        <h1>{approvedUnknown ? "אין כרטיס תלמיד מקושר" : "הגישה ממתינה לאישור"}</h1>
         <p className="muted">
           {approvedUnknown
-            ? "Your user is approved, but no student record is linked to your email in the CRM. Please contact a TEAM user."
-            : "No matching student was found for your email. A TEAM user must approve unknown users."}
+            ? "המשתמש אושר, אך אין כרטיס תלמיד המשויך למייל שלך במערכת. יש לפנות למשתמש TEAM."
+            : "לא נמצא תלמיד תואם למייל שלך. משתמש TEAM צריך לאשר משתמשים לא מוכרים."}
         </p>
       </div>
     );
@@ -118,28 +118,28 @@ export default async function HomePage({ searchParams }) {
   return (
     <>
       <div className="card">
-        <h1>Students Management - TEAM</h1>
-        <p className="muted">Full access to search, updates, and unknown-user approvals.</p>
+        <h1>ניהול תלמידים - TEAM</h1>
+        <p className="muted">גישה מלאה לחיפוש, עדכון מידע ואישור משתמשים לא מוכרים.</p>
         <p>
-          <Link href="/admin">Open user approvals</Link>
+          <Link href="/admin">מעבר לאישור משתמשים</Link>
         </p>
       </div>
 
       <div className="card">
         <form className="grid" method="GET">
-          <input name="q" defaultValue={q} placeholder="Search by student name" />
-          <input name="tz" defaultValue={tz} placeholder="Search by ID number" />
+          <input name="q" defaultValue={q} placeholder="חיפוש לפי שם תלמיד" />
+          <input name="tz" defaultValue={tz} placeholder="חיפוש לפי תעודת זהות" />
           <select name="institution" defaultValue={institution}>
-            <option value="">Select institution</option>
+            <option value="">בחר מוסד</option>
             {Object.entries(INSTITUTIONS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
           </select>
-          <input name="institutionSearch" defaultValue={institutionSearch} placeholder="Search inside institution" />
+          <input name="institutionSearch" defaultValue={institutionSearch} placeholder="חיפוש בתוך מוסד" />
           <select name="internalStatus" defaultValue={internalStatus}>
-            <option value="">Filter by internal status</option>
+            <option value="">סינון לפי סטטוס פנימי</option>
             {Object.entries(NOTE_STATUSES).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -147,34 +147,34 @@ export default async function HomePage({ searchParams }) {
             ))}
           </select>
           <select name="directDebit" defaultValue={directDebit}>
-            <option value="all">Direct debit: all</option>
-            <option value="yes">With direct debit</option>
-            <option value="no">Without direct debit</option>
+            <option value="all">הוראת קבע: הכל</option>
+            <option value="yes">עם הוראת קבע</option>
+            <option value="no">בלי הוראת קבע</option>
           </select>
-          <input name="signerFilter" defaultValue={signerFilter} placeholder="Filter by signed-by user" />
-          <button type="submit">Search</button>
+          <input name="signerFilter" defaultValue={signerFilter} placeholder="סינון לפי חותם" />
+          <button type="submit">חפש</button>
         </form>
       </div>
 
-      {quickUpdated ? <div className="ok">Internal data saved.</div> : null}
+      {quickUpdated ? <div className="ok">המידע הפנימי נשמר.</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
       <div className="card">
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>ID</th>
-              <th>Age</th>
-              <th>Student Phone</th>
-              <th>Actions</th>
+              <th>שם</th>
+              <th>ת"ז</th>
+              <th>גיל</th>
+              <th>טלפון תלמיד</th>
+              <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
             {!students.length ? (
               <tr>
                 <td colSpan={5} className="muted">
-                  No results
+                  אין תוצאות
                 </td>
               </tr>
             ) : (
@@ -186,15 +186,15 @@ export default async function HomePage({ searchParams }) {
                   <td>{phoneText(s.phone)}</td>
                   <td>
                     <div style={{ display: "grid", gap: 8 }}>
-                      <Link href={`/students/${s.id}`}>Student card</Link>
+                      <Link href={`/students/${s.id}`}>כרטיס תלמיד</Link>
                       <details>
-                        <summary>Quick internal edit</summary>
+                        <summary>עריכה פנימית מהירה</summary>
                         <form action={quickUpdateNoteAction}>
                           <input type="hidden" name="studentId" value={s.id} />
                           <input type="hidden" name="next" value={next} />
-                          <textarea name="noteText" defaultValue={s.note?.note_text || ""} placeholder="Internal note" />
+                          <textarea name="noteText" defaultValue={s.note?.note_text || ""} placeholder="הערה פנימית" />
                           <select name="noteStatus" defaultValue={s.note?.note_status || ""}>
-                            <option value="">Status</option>
+                            <option value="">סטטוס</option>
                             {Object.entries(NOTE_STATUSES).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
@@ -211,11 +211,11 @@ export default async function HomePage({ searchParams }) {
                                   : ""
                             }
                           >
-                            <option value="">Direct debit</option>
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
+                            <option value="">הוראת קבע</option>
+                            <option value="true">כן</option>
+                            <option value="false">לא</option>
                           </select>
-                          <button type="submit">Save</button>
+                          <button type="submit">שמור</button>
                         </form>
                       </details>
                     </div>

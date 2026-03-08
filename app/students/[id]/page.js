@@ -5,9 +5,9 @@ import { getStudentById } from "../../../lib/twenty";
 import { updateNoteAction } from "./actions";
 
 const NOTE_STATUSES = {
-  NOT_RELEVANT: "Not relevant",
-  OTHER: "Other",
-  CONTACTED: "Contacted"
+  NOT_RELEVANT: "לא רלוונטי",
+  OTHER: "אחר",
+  CONTACTED: "דיברו"
 };
 
 function clean(v) {
@@ -24,8 +24,8 @@ function noteStatusLabel(v) {
 }
 
 function boolLabel(v) {
-  if (v === true) return "Yes";
-  if (v === false) return "No";
+  if (v === true) return "כן";
+  if (v === false) return "לא";
   return "-";
 }
 
@@ -48,39 +48,39 @@ export default async function StudentPage({ params }) {
   return (
     <>
       <div className="card">
-        <h1>Student Card</h1>
+        <h1>כרטיס תלמיד</h1>
         <p className="muted">
-          {student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | ID: {studentId}
+          {student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | מזהה: {studentId}
         </p>
       </div>
 
       <div className="card">
         <div className="grid">
           <div>
-            <b>TZ:</b> {student.tznum || "-"}
+            <b>ת"ז:</b> {student.tznum || "-"}
           </div>
           <div>
-            <b>Class:</b> {student.class || "-"}
+            <b>שיעור:</b> {student.class || "-"}
           </div>
           <div>
-            <b>Institution:</b> {student.currentInstitution || "-"}
+            <b>מוסד:</b> {student.currentInstitution || "-"}
           </div>
           <div>
-            <b>Student phone:</b> {phoneText(student.phone)}
+            <b>טלפון תלמיד:</b> {phoneText(student.phone)}
           </div>
           <div>
-            <b>Father phone:</b> {phoneText(student.dadPhone)}
+            <b>טלפון אב:</b> {phoneText(student.dadPhone)}
           </div>
           <div>
-            <b>Mother phone:</b> {phoneText(student.momPhone)}
+            <b>טלפון אם:</b> {phoneText(student.momPhone)}
           </div>
         </div>
       </div>
 
       <div className="card">
-        <h3>Internal Info</h3>
+        <h3>מידע פנימי</h3>
         <p className="muted">
-          Status: {noteStatusLabel(note?.note_status)} | Direct debit: {boolLabel(note?.direct_debit_active)} | Signed by:{" "}
+          סטטוס: {noteStatusLabel(note?.note_status)} | הוראת קבע: {boolLabel(note?.direct_debit_active)} | חתם: {" "}
           {note?.signed_by_display_name || note?.signed_by_email || "-"}
         </p>
         <p>{note?.note_text || "-"}</p>
@@ -88,10 +88,10 @@ export default async function StudentPage({ params }) {
         {canEditStudentCard(currentUser, studentId) && (
           <form action={updateNoteAction}>
             <input type="hidden" name="studentId" value={studentId} />
-            <textarea name="noteText" defaultValue={note?.note_text || ""} placeholder="Internal note" />
+            <textarea name="noteText" defaultValue={note?.note_text || ""} placeholder="הערה פנימית" />
             <div className="grid">
               <select name="noteStatus" defaultValue={note?.note_status || ""}>
-                <option value="">Select status</option>
+                <option value="">בחר סטטוס</option>
                 {Object.entries(NOTE_STATUSES).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -104,12 +104,12 @@ export default async function StudentPage({ params }) {
                   note?.direct_debit_active === true ? "true" : note?.direct_debit_active === false ? "false" : ""
                 }
               >
-                <option value="">Direct debit</option>
-                <option value="true">Yes</option>
-                <option value="false">No</option>
+                <option value="">הוראת קבע</option>
+                <option value="true">כן</option>
+                <option value="false">לא</option>
               </select>
             </div>
-            <button type="submit">Save internal info</button>
+            <button type="submit">שמור מידע פנימי</button>
           </form>
         )}
       </div>
