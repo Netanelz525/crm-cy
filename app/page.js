@@ -6,18 +6,18 @@ import { quickUpdateNoteAction } from "./actions";
 import { getStudentsByInstitution, searchStudentsByText, searchStudentsByTz } from "../lib/twenty";
 
 const NOTE_STATUSES = {
-  NOT_RELEVANT: "׳׳ ׳¨׳׳•׳•׳ ׳˜׳™",
-  OTHER: "׳׳—׳¨",
-  CONTACTED: "׳“׳™׳‘׳¨׳•"
+  NOT_RELEVANT: "Not relevant",
+  OTHER: "Other",
+  CONTACTED: "Contacted"
 };
 
 const INSTITUTIONS = {
-  YR: "׳™׳—׳™ ׳¨׳׳•׳‘׳",
-  OE: "׳׳•׳¨ ׳׳₪׳¨׳™׳",
-  CY: "׳—׳›׳׳™ ׳™׳¨׳•׳©׳׳™׳",
-  BOGER: "׳‘׳•׳’׳¨",
-  BOGERNCONTACT: "׳‘׳•׳’׳¨ ׳׳׳ ׳™׳¦׳™׳¨׳× ׳§׳©׳¨",
-  TEST: "׳˜׳¡׳˜"
+  YR: "Yechi Reuven",
+  OE: "Or Ephraim",
+  CY: "Chachmei Yerushalayim",
+  BOGER: "Graduate",
+  BOGERNCONTACT: "Graduate - no contact",
+  TEST: "Test"
 };
 
 function clean(v) {
@@ -25,7 +25,7 @@ function clean(v) {
 }
 
 function phoneText(phoneObj) {
-  if (!phoneObj?.primaryPhoneNumber) return "ג€”";
+  if (!phoneObj?.primaryPhoneNumber) return "-";
   return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
 }
 
@@ -62,11 +62,11 @@ export default async function HomePage({ searchParams }) {
     const approvedUnknown = String(currentUser.access_status || "") === "approved";
     return (
       <div className="card">
-        <h1>{approvedUnknown ? "׳׳™׳ ׳›׳¨׳˜׳™׳¡ ׳×׳׳׳™׳“ ׳׳§׳•׳©׳¨" : "׳”׳’׳™׳©׳” ׳׳׳×׳™׳ ׳” ׳׳׳™׳©׳•׳¨"}</h1>
+        <h1>{approvedUnknown ? "No linked student card" : "Access pending approval"}</h1>
         <p className="muted">
           {approvedUnknown
-            ? "׳”׳׳©׳×׳׳© ׳׳•׳©׳¨, ׳׳ ׳׳™׳ ׳×׳׳׳™׳“ ׳×׳•׳׳ ׳׳׳™׳׳™׳™׳ ׳©׳׳ ׳‘׳׳¢׳¨׳›׳× CRM. ׳™׳© ׳׳¢׳“׳›׳ ׳׳™׳׳™׳™׳ ׳×׳׳׳™׳“ ׳׳• ׳׳₪׳ ׳•׳× ׳׳׳©׳×׳׳© TEAM."
-            : "׳׳ ׳ ׳׳¦׳ ׳×׳׳׳™׳“ ׳×׳•׳׳ ׳׳׳™׳׳™׳™׳ ׳©׳׳ ׳›׳¨׳’׳¢. ׳׳©׳×׳׳©׳™ TEAM ׳™׳›׳•׳׳™׳ ׳׳׳©׳¨ ׳׳©׳×׳׳©׳™׳ ׳׳ ׳׳•׳›׳¨׳™׳."}
+            ? "Your user is approved, but no student record is linked to your email in the CRM. Please contact a TEAM user."
+            : "No matching student was found for your email. A TEAM user must approve unknown users."}
         </p>
       </div>
     );
@@ -118,28 +118,28 @@ export default async function HomePage({ searchParams }) {
   return (
     <>
       <div className="card">
-        <h1>׳ ׳™׳”׳•׳ ׳×׳׳׳™׳“׳™׳ - TEAM</h1>
-        <p className="muted">׳’׳™׳©׳” ׳׳׳׳” ׳׳—׳™׳₪׳•׳©, ׳¢׳“׳›׳•׳ ׳•׳׳™׳©׳•׳¨ ׳׳©׳×׳׳©׳™׳ ׳׳ ׳׳•׳›׳¨׳™׳.</p>
+        <h1>Students Management - TEAM</h1>
+        <p className="muted">Full access to search, updates, and unknown-user approvals.</p>
         <p>
-          <Link href="/admin">׳׳¢׳‘׳¨ ׳׳׳™׳©׳•׳¨ ׳׳©׳×׳׳©׳™׳</Link>
+          <Link href="/admin">Open user approvals</Link>
         </p>
       </div>
 
       <div className="card">
         <form className="grid" method="GET">
-          <input name="q" defaultValue={q} placeholder="׳—׳™׳₪׳•׳© ׳׳₪׳™ ׳©׳ ׳×׳׳׳™׳“" />
-          <input name="tz" defaultValue={tz} placeholder='׳—׳™׳₪׳•׳© ׳׳₪׳™ ׳×"׳–' />
+          <input name="q" defaultValue={q} placeholder="Search by student name" />
+          <input name="tz" defaultValue={tz} placeholder="Search by ID number" />
           <select name="institution" defaultValue={institution}>
-            <option value="">׳‘׳—׳¨ ׳׳•׳¡׳“</option>
+            <option value="">Select institution</option>
             {Object.entries(INSTITUTIONS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
           </select>
-          <input name="institutionSearch" defaultValue={institutionSearch} placeholder="׳—׳™׳₪׳•׳© ׳‘׳×׳•׳ ׳׳•׳¡׳“" />
+          <input name="institutionSearch" defaultValue={institutionSearch} placeholder="Search inside institution" />
           <select name="internalStatus" defaultValue={internalStatus}>
-            <option value="">׳¡׳ ׳ ׳׳₪׳™ ׳¡׳˜׳˜׳•׳¡ ׳₪׳ ׳™׳׳™</option>
+            <option value="">Filter by internal status</option>
             {Object.entries(NOTE_STATUSES).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -147,54 +147,54 @@ export default async function HomePage({ searchParams }) {
             ))}
           </select>
           <select name="directDebit" defaultValue={directDebit}>
-            <option value="all">׳”׳•׳¨׳׳× ׳§׳‘׳¢: ׳”׳›׳</option>
-            <option value="yes">׳¢׳ ׳”׳•׳¨׳׳× ׳§׳‘׳¢</option>
-            <option value="no">׳‘׳׳™ ׳”׳•׳¨׳׳× ׳§׳‘׳¢</option>
+            <option value="all">Direct debit: all</option>
+            <option value="yes">With direct debit</option>
+            <option value="no">Without direct debit</option>
           </select>
-          <input name="signerFilter" defaultValue={signerFilter} placeholder="׳¡׳™׳ ׳•׳ ׳׳₪׳™ ׳—׳•׳×׳" />
-          <button type="submit">׳—׳₪׳©</button>
+          <input name="signerFilter" defaultValue={signerFilter} placeholder="Filter by signed-by user" />
+          <button type="submit">Search</button>
         </form>
       </div>
 
-      {quickUpdated ? <div className="ok">׳”׳׳™׳“׳¢ ׳ ׳©׳׳¨ ׳‘׳”׳¦׳׳—׳”.</div> : null}
+      {quickUpdated ? <div className="ok">Internal data saved.</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
       <div className="card">
         <table>
           <thead>
             <tr>
-              <th>׳©׳</th>
-              <th>׳×"׳–</th>
-              <th>׳’׳™׳</th>
-              <th>׳˜׳׳₪׳•׳ ׳×׳׳׳™׳“</th>
-              <th>׳₪׳¢׳•׳׳•׳×</th>
+              <th>Name</th>
+              <th>ID</th>
+              <th>Age</th>
+              <th>Student Phone</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {!students.length ? (
               <tr>
                 <td colSpan={5} className="muted">
-                  ׳׳™׳ ׳×׳•׳¦׳׳•׳×
+                  No results
                 </td>
               </tr>
             ) : (
               students.map((s) => (
                 <tr key={s.id}>
                   <td>{s.label}</td>
-                  <td>{s.tznum || "ג€”"}</td>
-                  <td>{ageOf(s.dateofbirth) ?? "ג€”"}</td>
+                  <td>{s.tznum || "-"}</td>
+                  <td>{ageOf(s.dateofbirth) ?? "-"}</td>
                   <td>{phoneText(s.phone)}</td>
                   <td>
                     <div style={{ display: "grid", gap: 8 }}>
-                      <Link href={`/students/${s.id}`}>׳›׳¨׳˜׳™׳¡ ׳×׳׳׳™׳“</Link>
+                      <Link href={`/students/${s.id}`}>Student card</Link>
                       <details>
-                        <summary>׳¢׳¨׳™׳›׳” ׳₪׳ ׳™׳׳™׳× ׳׳”׳™׳¨׳”</summary>
+                        <summary>Quick internal edit</summary>
                         <form action={quickUpdateNoteAction}>
                           <input type="hidden" name="studentId" value={s.id} />
                           <input type="hidden" name="next" value={next} />
-                          <textarea name="noteText" defaultValue={s.note?.note_text || ""} placeholder="׳”׳¢׳¨׳” ׳₪׳ ׳™׳׳™׳×" />
+                          <textarea name="noteText" defaultValue={s.note?.note_text || ""} placeholder="Internal note" />
                           <select name="noteStatus" defaultValue={s.note?.note_status || ""}>
-                            <option value="">׳¡׳˜׳˜׳•׳¡</option>
+                            <option value="">Status</option>
                             {Object.entries(NOTE_STATUSES).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
@@ -211,11 +211,11 @@ export default async function HomePage({ searchParams }) {
                                   : ""
                             }
                           >
-                            <option value="">׳”׳•׳¨׳׳× ׳§׳‘׳¢</option>
-                            <option value="true">׳›׳</option>
-                            <option value="false">׳׳</option>
+                            <option value="">Direct debit</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
                           </select>
-                          <button type="submit">׳©׳׳•׳¨</button>
+                          <button type="submit">Save</button>
                         </form>
                       </details>
                     </div>
@@ -229,6 +229,3 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
-
-
-
