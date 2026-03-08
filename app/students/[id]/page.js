@@ -91,6 +91,15 @@ function visibleSections(student) {
   }).filter((section) => section.fields.length > 0);
 }
 
+function institutionLabel(value) {
+  const key = clean(value).toUpperCase();
+  return ENUM_LABELS.currentInstitution?.[key] || clean(value) || "-";
+}
+
+function registrationLabel(value) {
+  const key = clean(value).toUpperCase();
+  return ENUM_LABELS.registration?.[key] || clean(value) || "-";
+}
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     return (
@@ -148,9 +157,7 @@ export default async function StudentPage({ params, searchParams }) {
         <div className="student-topbar">
           <div>
             <h1>כרטיס תלמיד</h1>
-            <p className="muted">
-              {student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | מזהה: {studentId}
-            </p>
+            <p className="muted">מוסד לימודים: {institutionLabel(student?.currentInstitution)} | רישום: {registrationLabel(student?.registration)}</p>
           </div>
           <div className="student-actions">
             <Link className="btn btn-ghost" href="/">חזרה לרשימה</Link>
@@ -161,6 +168,11 @@ export default async function StudentPage({ params, searchParams }) {
             ) : null}
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>מידע תלמיד</h3>
+        <p className="muted">{student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | מזהה: {studentId}</p>
       </div>
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
@@ -251,3 +263,5 @@ export default async function StudentPage({ params, searchParams }) {
     </>
   );
 }
+
+

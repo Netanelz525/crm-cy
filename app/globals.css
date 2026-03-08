@@ -255,3 +255,15 @@ td {
     top: 58px;
   }
 }
+
+.student-link {
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.student-link:hover {
+  color: #083e70;
+}
+

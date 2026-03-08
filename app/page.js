@@ -261,7 +261,7 @@ export default async function HomePage({ searchParams }) {
                 const hasMissing = (s.missingItems || []).length > 0;
                 return (
                   <tr key={s.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
-                    <td><Link href={`/students/${s.id}`}>{s.label}</Link></td>
+                    <td><Link className="student-link" href={`/students/${s.id}`}>{s.label}</Link></td>
                     <td>{classLabel(s.class)}</td>
                     <td>{s.tznum || "-"}</td>
                     <td>{ageOf(s.dateofbirth) ?? "-"}</td>
@@ -288,7 +288,7 @@ export default async function HomePage({ searchParams }) {
             return (
               <div key={s.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
                 <div className="student-mobile-head">
-                  <Link href={`/students/${s.id}`}>{s.label}</Link>
+                  <Link className="student-link" href={`/students/${s.id}`}>{s.label}</Link>
                   <span>{classLabel(s.class)}</span>
                 </div>
                 <div className="student-mobile-grid">
@@ -309,5 +309,6 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
 
 
