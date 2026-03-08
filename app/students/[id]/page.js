@@ -87,10 +87,10 @@ function visibleSections(student) {
       }))
       .filter((row) => hasDisplayValue(row.value?.primaryPhoneNumber));
 
-    const fields = [...normalFields, ...phoneFields];
-    return { ...section, fields };
+    return { ...section, fields: [...normalFields, ...phoneFields] };
   }).filter((section) => section.fields.length > 0);
 }
+
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     return (
@@ -144,16 +144,23 @@ export default async function StudentPage({ params, searchParams }) {
 
   return (
     <>
-      <div className="card">
-        <h1>כרטיס תלמיד</h1>
-        <p className="muted">
-          {student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | מזהה: {studentId}
-        </p>
-        <p>
-          <Link href="/">חזרה לרשימה</Link>
-          {" | "}
-          {editMode ? <Link href={`/students/${studentId}`}>חזרה לתצוגה</Link> : canEdit ? <Link href={`/students/${studentId}?edit=1`}>עריכת שדות</Link> : "תצוגה בלבד"}
-        </p>
+      <div className="card glass">
+        <div className="student-topbar">
+          <div>
+            <h1>כרטיס תלמיד</h1>
+            <p className="muted">
+              {student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | מזהה: {studentId}
+            </p>
+          </div>
+          <div className="student-actions">
+            <Link className="btn btn-ghost" href="/">חזרה לרשימה</Link>
+            {editMode ? (
+              <Link className="btn btn-primary" href={`/students/${studentId}`}>ביטול עריכה</Link>
+            ) : canEdit ? (
+              <Link className="btn btn-primary" href={`/students/${studentId}?edit=1`}>עריכת שדות</Link>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
@@ -161,22 +168,27 @@ export default async function StudentPage({ params, searchParams }) {
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       {editMode ? (
-        <form action={updateStudentAction} className="card">
-          <input type="hidden" name="studentId" value={studentId} />
-          {FIELD_SECTIONS.map((section) => (
-            <div key={section.title} className="card" style={{ marginBottom: 12 }}>
-              <h3>{section.title}</h3>
-              <div className="grid">
-                {section.fields.map((field) => (
-                  <div key={field.key}>
-                    <label>{field.label}</label>
-                    <EditField field={field} value={editValues[field.key] || ""} />
-                  </div>
-                ))}
+        <form action={updateStudentAction}>
+          <div className="sticky-save-bar">
+            <input type="hidden" name="studentId" value={studentId} />
+            <button className="btn btn-save" type="submit">שמור שינויים</button>
+          </div>
+
+          <div className="card">
+            {FIELD_SECTIONS.map((section) => (
+              <div key={section.title} className="card" style={{ marginBottom: 12 }}>
+                <h3>{section.title}</h3>
+                <div className="grid">
+                  {section.fields.map((field) => (
+                    <div key={field.key}>
+                      <label>{field.label}</label>
+                      <EditField field={field} value={editValues[field.key] || ""} />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-          <button type="submit">שמור שינויים ב-CRM</button>
+            ))}
+          </div>
         </form>
       ) : (
         <div className="card">
@@ -239,5 +251,3 @@ export default async function StudentPage({ params, searchParams }) {
     </>
   );
 }
-
-

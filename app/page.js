@@ -193,7 +193,7 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <>
-      <div className="card">
+      <div className="card glass">
         <h1>ניהול תלמידים - TEAM</h1>
         <p className="muted">גישה מלאה לחיפוש, עדכון מידע ואישור משתמשים לא מוכרים.</p>
         <p>
@@ -203,7 +203,7 @@ export default async function HomePage({ searchParams }) {
         </p>
       </div>
 
-      <div className="card">
+      <div className="card glass">
         <form className="grid" method="GET">
           <input name="q" defaultValue={q} placeholder="חיפוש כללי לפי שם תלמיד" />
           <input name="tz" defaultValue={tz} placeholder="חיפוש כללי לפי תעודת זהות" />
@@ -221,11 +221,11 @@ export default async function HomePage({ searchParams }) {
       </div>
 
       {institution ? (
-        <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div className="card summary-row">
           <div>
             סה"כ תלמידים במוסד: <b>{institutionCount}</b>
           </div>
-          <Link href={toggleMissingPath}>
+          <Link className="chip-link" href={toggleMissingPath}>
             {missingOnly ? "הצג את כולם" : "הצג רק חסרים"}
           </Link>
         </div>
@@ -233,7 +233,7 @@ export default async function HomePage({ searchParams }) {
 
       {error ? <div className="card muted">{error}</div> : null}
 
-      <div className="card">
+      <div className="card desktop-table">
         <table>
           <thead>
             <tr>
@@ -259,9 +259,7 @@ export default async function HomePage({ searchParams }) {
                 const hasMissing = (s.missingItems || []).length > 0;
                 return (
                   <tr key={s.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
-                    <td>
-                      <Link href={`/students/${s.id}`}>{s.label}</Link>
-                    </td>
+                    <td><Link href={`/students/${s.id}`}>{s.label}</Link></td>
                     <td>{classLabel(s.class)}</td>
                     <td>{s.tznum || "-"}</td>
                     <td>{ageOf(s.dateofbirth) ?? "-"}</td>
@@ -277,7 +275,35 @@ export default async function HomePage({ searchParams }) {
             )}
           </tbody>
         </table>
-      </div>`r`n    </>
+      </div>
+
+      <div className="mobile-student-list">
+        {!students.length ? (
+          <div className="card muted">אין תוצאות</div>
+        ) : (
+          students.map((s) => {
+            const hasMissing = (s.missingItems || []).length > 0;
+            return (
+              <div key={s.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
+                <div className="student-mobile-head">
+                  <Link href={`/students/${s.id}`}>{s.label}</Link>
+                  <span>{classLabel(s.class)}</span>
+                </div>
+                <div className="student-mobile-grid">
+                  <div><b>ת"ז:</b> {s.tznum || "-"}</div>
+                  <div><b>גיל:</b> {ageOf(s.dateofbirth) ?? "-"}</div>
+                  <div><b>טלפון תלמיד:</b> <PhoneLink phoneObj={s.phone} /></div>
+                  <div><b>טלפון אב:</b> <PhoneLink phoneObj={s.dadPhone} /></div>
+                  <div><b>טלפון אם:</b> <PhoneLink phoneObj={s.momPhone} /></div>
+                </div>
+                <div className="student-mobile-missing">
+                  <b>חוסרים:</b> {hasMissing ? s.missingItems.join(", ") : "-"}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </>
   );
 }
-

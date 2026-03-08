@@ -1,11 +1,14 @@
-:root {
-  --bg: #f7fafc;
+﻿:root {
+  --bg: #f3f6fb;
   --card: #ffffff;
-  --line: #d9e2ec;
-  --text: #102a43;
-  --muted: #486581;
-  --primary: #0f4c81;
-  --success: #e6f4ea;
+  --line: #d7e1ef;
+  --text: #10243f;
+  --muted: #5a6f89;
+  --primary: #0b4f8c;
+  --primary-2: #1769aa;
+  --success: #e8f8ed;
+  --danger-bg: #fff1f2;
+  --shadow: 0 10px 28px rgba(13, 37, 76, 0.08);
 }
 
 * {
@@ -15,8 +18,10 @@
 body {
   margin: 0;
   font-family: "Rubik", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 15% 20%, #dbeafe, transparent 30%),
-    radial-gradient(circle at 85% 80%, #dcfce7, transparent 30%), var(--bg);
+  background:
+    radial-gradient(circle at 8% 12%, #dceeff, transparent 30%),
+    radial-gradient(circle at 85% 80%, #dff8ec, transparent 30%),
+    var(--bg);
   color: var(--text);
 }
 
@@ -31,19 +36,21 @@ a {
   align-items: center;
   padding: 14px 20px;
   border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
+  z-index: 100;
 }
 
 .nav {
   display: flex;
   gap: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 24px 16px 40px;
 }
@@ -51,9 +58,29 @@ a {
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 16px;
   margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.86));
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.chip-link {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  font-weight: 600;
 }
 
 .grid {
@@ -68,20 +95,73 @@ textarea,
 button {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 9px 10px;
+  border-radius: 12px;
+  padding: 10px 12px;
   font: inherit;
+  background: #fff;
 }
 
 textarea {
-  min-height: 80px;
+  min-height: 90px;
 }
 
 button {
   cursor: pointer;
-  background: var(--primary);
+  background: linear-gradient(180deg, var(--primary-2), var(--primary));
   color: #fff;
   border: 0;
+  font-weight: 700;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--primary-2), var(--primary));
+  color: #fff;
+}
+
+.btn-ghost {
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.btn-save {
+  width: auto;
+  min-width: 180px;
+}
+
+.student-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.student-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sticky-save-bar {
+  position: sticky;
+  top: 68px;
+  z-index: 90;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
 }
 
 table {
@@ -97,6 +177,46 @@ td {
   vertical-align: top;
 }
 
+.desktop-table {
+  display: block;
+}
+
+.mobile-student-list {
+  display: none;
+}
+
+.student-mobile-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.student-mobile-card.missing {
+  background: var(--danger-bg);
+}
+
+.student-mobile-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.student-mobile-grid {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.student-mobile-missing {
+  color: #b42318;
+  font-weight: 700;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -105,7 +225,33 @@ td {
   background: var(--success);
   border: 1px solid #99d6a8;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 12px;
   margin-bottom: 10px;
 }
 
+@media (max-width: 900px) {
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  .student-topbar {
+    flex-direction: column;
+  }
+
+  .desktop-table {
+    display: none;
+  }
+
+  .mobile-student-list {
+    display: block;
+  }
+
+  .summary-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sticky-save-bar {
+    top: 58px;
+  }
+}
