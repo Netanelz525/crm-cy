@@ -1,8 +1,10 @@
-﻿import { notFound, redirect } from "next/navigation";
+﻿import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { getNoteByStudentId } from "../../../lib/notes";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
+import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../lib/student-fields";
 import { getStudentById } from "../../../lib/twenty";
-import { updateNoteAction } from "./actions";
+import { updateNoteAction, updateStudentAction } from "./actions";
 
 const NOTE_STATUSES = {
   NOT_RELEVANT: "לא רלוונטי",
@@ -14,9 +16,21 @@ function clean(v) {
   return String(v || "").trim();
 }
 
-function phoneText(phoneObj) {
-  if (!phoneObj?.primaryPhoneNumber) return "-";
-  return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
+function formatDate(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString("he-IL");
+}
+
+function formatDisplayValue(field, value) {
+  if (!hasDisplayValue(value)) return "-";
+  if (Array.isArray(value)) return value.join(", ");
+  if (field.type === "date") return formatDate(value);
+  if (field.enum && ENUM_LABELS[field.enum]) return ENUM_LABELS[field.enum][String(value)] || String(value);
+  if (typeof value === "boolean") return value ? "כן" : "לא";
+  return String(value);
 }
 
 function noteStatusLabel(v) {
@@ -29,9 +43,44 @@ function boolLabel(v) {
   return "-";
 }
 
-export default async function StudentPage({ params }) {
+function visibleSections(student) {
+  return FIELD_SECTIONS.map((section) => {
+    const fields = section.fields
+      .map((field) => ({ field, value: getByPath(student, field.key) }))
+      .filter((row) => hasDisplayValue(row.value));
+    return { ...section, fields };
+  }).filter((section) => section.fields.length > 0);
+}
+
+function EditField({ field, value }) {
+  if (field.enum && ENUM_LABELS[field.enum]) {
+    return (
+      <select name={field.key} defaultValue={value || ""}>
+        <option value="">בחר</option>
+        {Object.entries(ENUM_LABELS[field.enum]).map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (field.type === "date") {
+    return <input type="date" name={field.key} defaultValue={value || ""} />;
+  }
+
+  if (field.isList) {
+    return <textarea name={field.key} defaultValue={value || ""} placeholder="הפרדה בפסיק או שורה חדשה" />;
+  }
+
+  return <input name={field.key} defaultValue={value || ""} />;
+}
+
+export default async function StudentPage({ params, searchParams }) {
   const currentUser = await requireAuthenticatedUser();
   const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const studentId = resolvedParams.id;
 
   if (!assertStudentAccess(currentUser, studentId)) {
@@ -43,7 +92,16 @@ export default async function StudentPage({ params }) {
 
   const student = await getStudentById(studentId);
   if (!student) notFound();
+
   const note = await getNoteByStudentId(studentId);
+  const canEdit = canEditStudentCard(currentUser, studentId);
+  const editMode = canEdit && clean(resolvedSearchParams?.edit) === "1";
+  const updated = clean(resolvedSearchParams?.updated) === "1";
+  const internalUpdated = clean(resolvedSearchParams?.internalUpdated) === "1";
+  const errorText = clean(resolvedSearchParams?.error);
+
+  const sections = visibleSections(student);
+  const editValues = studentToFormValues(student);
 
   return (
     <>
@@ -52,30 +110,56 @@ export default async function StudentPage({ params }) {
         <p className="muted">
           {student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | מזהה: {studentId}
         </p>
+        <p>
+          <Link href="/">חזרה לרשימה</Link>
+          {" | "}
+          {editMode ? <Link href={`/students/${studentId}`}>חזרה לתצוגה</Link> : canEdit ? <Link href={`/students/${studentId}?edit=1`}>עריכת שדות</Link> : "תצוגה בלבד"}
+        </p>
       </div>
 
-      <div className="card">
-        <div className="grid">
-          <div>
-            <b>ת"ז:</b> {student.tznum || "-"}
-          </div>
-          <div>
-            <b>שיעור:</b> {student.class || "-"}
-          </div>
-          <div>
-            <b>מוסד:</b> {student.currentInstitution || "-"}
-          </div>
-          <div>
-            <b>טלפון תלמיד:</b> {phoneText(student.phone)}
-          </div>
-          <div>
-            <b>טלפון אב:</b> {phoneText(student.dadPhone)}
-          </div>
-          <div>
-            <b>טלפון אם:</b> {phoneText(student.momPhone)}
-          </div>
+      {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
+      {internalUpdated ? <div className="ok">המידע הפנימי נשמר בהצלחה.</div> : null}
+      {errorText ? <div className="card muted">{errorText}</div> : null}
+
+      {editMode ? (
+        <form action={updateStudentAction} className="card">
+          <input type="hidden" name="studentId" value={studentId} />
+          {FIELD_SECTIONS.map((section) => (
+            <div key={section.title} className="card" style={{ marginBottom: 12 }}>
+              <h3>{section.title}</h3>
+              <div className="grid">
+                {section.fields.map((field) => (
+                  <div key={field.key}>
+                    <label>{field.label}</label>
+                    <EditField field={field} value={editValues[field.key] || ""} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button type="submit">שמור שינויים ב-CRM</button>
+        </form>
+      ) : (
+        <div className="card">
+          <h3>פרטי הכרטיס (רק שדות עם מידע)</h3>
+          {!sections.length ? (
+            <div className="muted">לא נמצא מידע להצגה.</div>
+          ) : (
+            sections.map((section) => (
+              <div key={section.title} className="card" style={{ marginBottom: 12 }}>
+                <h4>{section.title}</h4>
+                <div className="grid">
+                  {section.fields.map(({ field, value }) => (
+                    <div key={field.key}>
+                      <b>{field.label}:</b> {formatDisplayValue(field, value)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </div>
+      )}
 
       <div className="card">
         <h3>מידע פנימי</h3>
@@ -85,7 +169,7 @@ export default async function StudentPage({ params }) {
         </p>
         <p>{note?.note_text || "-"}</p>
 
-        {canEditStudentCard(currentUser, studentId) && (
+        {canEdit && (
           <form action={updateNoteAction}>
             <input type="hidden" name="studentId" value={studentId} />
             <textarea name="noteText" defaultValue={note?.note_text || ""} placeholder="הערה פנימית" />

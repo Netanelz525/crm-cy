@@ -55,7 +55,7 @@ export default async function HomePage({ searchParams }) {
 
   const resolvedSearchParams = await searchParams;
 
-  if (!currentUser.is_team_member) {
+  if (!currentUser.is_team_member && !currentUser.is_manager) {
     if (currentUser.linked_student_id) {
       redirect(`/students/${currentUser.linked_student_id}`);
     }
@@ -229,3 +229,4 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
