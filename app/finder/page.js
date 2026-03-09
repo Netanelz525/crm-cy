@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "../../lib/rbac";
-import { listAllStudents, searchStudentsByTz } from "../../lib/twenty";
+import { listAllStudents } from "../../lib/twenty";
 
 function clean(v) {
   return String(v || "").trim();
@@ -60,16 +60,19 @@ function ownerFields(fieldType, owner) {
     return owner === "any" ? all : all.filter((f) => f.key === owner);
   }
 
+  if (fieldType === "tz") {
+    const all = [
+      { key: "student", label: "תעודת זהות תלמיד", get: (s) => normPhone(s?.tznum) },
+      { key: "father", label: "תעודת זהות אב", get: (s) => normPhone(s?.tzaba) },
+      { key: "mother", label: "תעודת זהות אם", get: (s) => normPhone(s?.tzMotherNum) }
+    ];
+    return owner === "any" ? all : all.filter((f) => f.key === owner);
+  }
+
   return [];
 }
 
 function matchSources(student, fieldType, owner, value) {
-  if (fieldType === "tz") {
-    const tz = normPhone(student?.tznum);
-    const q = normPhone(value);
-    return containsValue(tz, q) ? ["תעודת זהות"] : [];
-  }
-
   const fields = ownerFields(fieldType, owner);
   const q = fieldType === "email" ? normEmail(value) : normPhone(value);
   return fields
@@ -92,14 +95,10 @@ export default async function FinderPage({ searchParams }) {
 
   if (value) {
     try {
-      if (fieldType === "tz") {
-        students = await searchStudentsByTz(normPhone(value));
-      } else {
-        const all = await listAllStudents(200, 20);
-        students = all
-          .map((s) => ({ ...s, _matchedBy: matchSources(s, fieldType, owner, value) }))
-          .filter((s) => s._matchedBy.length > 0);
-      }
+      const all = await listAllStudents(200, 20);
+      students = all
+        .map((s) => ({ ...s, _matchedBy: matchSources(s, fieldType, owner, value) }))
+        .filter((s) => s._matchedBy.length > 0);
     } catch (e) {
       error = e.message || "חיפוש נכשל";
     }

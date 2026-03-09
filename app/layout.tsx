@@ -1,4 +1,4 @@
-import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+﻿import { ClerkProvider, SignedIn, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import "./globals.css";
 
@@ -18,10 +18,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/admin">ניהול</Link>
             </nav>
             <div style={{ display: "flex", gap: 8 }}>
-              <SignedOut>
-                <SignInButton />
-                <SignUpButton />
-              </SignedOut>
               <SignedIn>
                 <UserButton />
               </SignedIn>

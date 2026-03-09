@@ -157,12 +157,14 @@ export default async function HomePage({ searchParams }) {
 
   const tz = normalizeDigits(resolvedSearchParams?.tz);
   const q = clean(resolvedSearchParams?.q);
+  const modeParam = clean(resolvedSearchParams?.mode).toLowerCase();
+  const mode = modeParam || (institution || institutionSearch || missingOnly ? "institution" : q || tz ? "search" : "");
 
   let students = [];
   let error = "";
 
   try {
-    if (institution) {
+    if (mode === "institution" && institution) {
       students = await getStudentsByInstitution(institution);
       if (institutionSearch) {
         const s = institutionSearch.toLowerCase();
@@ -173,23 +175,24 @@ export default async function HomePage({ searchParams }) {
         students = students.filter((s) => (s.missingItems || []).length > 0);
       }
       students.sort(compareInstitutionStudents);
-    } else if (tz) {
-      students = await searchStudentsByTz(tz);
-    } else if (q) {
-      students = await searchStudentsByText(q);
+    } else if (mode === "search") {
+      if (tz) {
+        students = (await searchStudentsByTz(tz)).slice(0, 10);
+      } else if (q) {
+        students = await searchStudentsByText(q, 10);
+      }
     }
   } catch (e) {
     error = e.message || "Search failed";
   }
 
   const toggleMissingPath = buildNextPath({
+    mode: "institution",
     institution,
     institutionSearch,
-    q,
-    tz,
     missingOnly: institution ? (missingOnly ? "" : "1") : ""
   });
-  const institutionCount = institution ? students.length : 0;
+  const institutionCount = mode === "institution" && institution ? students.length : 0;
 
   return (
     <>
@@ -204,10 +207,20 @@ export default async function HomePage({ searchParams }) {
       </div>
 
       <div className="card glass">
+        <h3>חיפוש כללי תלמידים</h3>
         <form className="grid" method="GET">
-          <input name="q" defaultValue={q} placeholder="חיפוש כללי לפי שם תלמיד" />
-          <input name="tz" defaultValue={tz} placeholder="חיפוש כללי לפי תעודת זהות" />
-          <select name="institution" defaultValue={institution}>
+          <input type="hidden" name="mode" value="search" />
+          <input name="q" defaultValue={mode === "search" ? q : ""} placeholder="חיפוש לפי שם תלמיד" />
+          <input name="tz" defaultValue={mode === "search" ? tz : ""} placeholder="חיפוש לפי תעודת זהות" />
+          <button type="submit">חפש תלמיד</button>
+        </form>
+      </div>
+
+      <div className="card glass">
+        <h3>תצוגת מוסד</h3>
+        <form className="grid" method="GET">
+          <input type="hidden" name="mode" value="institution" />
+          <select name="institution" defaultValue={mode === "institution" ? institution : ""}>
             <option value="">בחר מוסד</option>
             {Object.entries(INSTITUTIONS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -215,12 +228,16 @@ export default async function HomePage({ searchParams }) {
               </option>
             ))}
           </select>
-          <input name="institutionSearch" defaultValue={institutionSearch} placeholder="חיפוש בתוך מוסד" />
-          <button type="submit">חפש</button>
+          <input
+            name="institutionSearch"
+            defaultValue={mode === "institution" ? institutionSearch : ""}
+            placeholder="חיפוש בתוך מוסד"
+          />
+          <button type="submit">הצג מוסד</button>
         </form>
       </div>
 
-      {institution ? (
+      {mode === "institution" && institution ? (
         <div className="card summary-row">
           <div>
             סה"כ תלמידים במוסד: <b>{institutionCount}</b>
@@ -307,9 +324,4 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
-
-
-
-
-
 

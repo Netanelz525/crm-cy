@@ -76,6 +76,10 @@ function isPhoneSubField(key) {
   return /^(phone|dadPhone|momPhone)\./.test(String(key || ""));
 }
 
+function isAdvancedOnlyField(fieldKey) {
+  return /\.additional(Phones|Emails)$/.test(String(fieldKey || ""));
+}
+
 function visibleSections(student) {
   return FIELD_SECTIONS.map((section) => {
     const normalFields = section.fields
@@ -154,6 +158,7 @@ export default async function StudentPage({ params, searchParams }) {
   const note = await getNoteByStudentId(studentId);
   const canEdit = canEditStudentCard(currentUser, studentId);
   const editMode = canEdit && clean(resolvedSearchParams?.edit) === "1";
+  const advancedMode = editMode && clean(resolvedSearchParams?.advanced) === "1";
   const updated = clean(resolvedSearchParams?.updated) === "1";
   const internalUpdated = clean(resolvedSearchParams?.internalUpdated) === "1";
   const errorText = clean(resolvedSearchParams?.error);
@@ -177,7 +182,15 @@ export default async function StudentPage({ params, searchParams }) {
           <div className="student-actions">
             <Link className="btn btn-ghost" href="/">חזרה לרשימה</Link>
             {editMode ? (
-              <Link className="btn btn-primary" href={`/students/${studentId}`}>ביטול עריכה</Link>
+              <>
+                <Link
+                  className="btn btn-ghost"
+                  href={advancedMode ? `/students/${studentId}?edit=1` : `/students/${studentId}?edit=1&advanced=1`}
+                >
+                  {advancedMode ? "מעבר לעריכה רגילה" : "עריכה מתקדמת"}
+                </Link>
+                <Link className="btn btn-primary" href={`/students/${studentId}`}>ביטול עריכה</Link>
+              </>
             ) : canEdit ? (
               <Link className="btn btn-primary" href={`/students/${studentId}?edit=1`}>עריכת שדות</Link>
             ) : null}
@@ -211,11 +224,18 @@ export default async function StudentPage({ params, searchParams }) {
                 </div>
               ))}
             </div>
+            <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+              טלפונים ואימיילים נוספים מוסתרים כברירת מחדל. להצגה שלהם בחר "עריכה מתקדמת".
+            </p>
           </div>
 
           <div className="card">
             {FIELD_SECTIONS.map((section) => {
-              const sectionFields = section.fields.filter((field) => !TOP_EDIT_KEYS.has(field.key));
+              const sectionFields = section.fields.filter((field) => {
+                if (TOP_EDIT_KEYS.has(field.key)) return false;
+                if (!advancedMode && isAdvancedOnlyField(field.key)) return false;
+                return true;
+              });
               if (!sectionFields.length) return null;
 
               return (
