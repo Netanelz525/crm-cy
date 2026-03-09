@@ -1,16 +1,9 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getNoteByStudentId } from "../../../lib/notes";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../lib/student-fields";
 import { getStudentById } from "../../../lib/twenty";
-import { updateNoteAction, updateStudentAction } from "./actions";
-
-const NOTE_STATUSES = {
-  NOT_RELEVANT: "לא רלוונטי",
-  OTHER: "אחר",
-  CONTACTED: "דיברו"
-};
+import { updateStudentAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -54,16 +47,6 @@ function formatDisplayValue(field, value) {
   if (field.enum && ENUM_LABELS[field.enum]) return ENUM_LABELS[field.enum][String(value)] || String(value);
   if (typeof value === "boolean") return value ? "כן" : "לא";
   return String(value);
-}
-
-function noteStatusLabel(v) {
-  return NOTE_STATUSES[clean(v)] || "-";
-}
-
-function boolLabel(v) {
-  if (v === true) return "כן";
-  if (v === false) return "לא";
-  return "-";
 }
 
 const PHONE_GROUPS = [
@@ -155,12 +138,10 @@ export default async function StudentPage({ params, searchParams }) {
   const student = await getStudentById(studentId);
   if (!student) notFound();
 
-  const note = await getNoteByStudentId(studentId);
   const canEdit = canEditStudentCard(currentUser, studentId);
   const editMode = canEdit && clean(resolvedSearchParams?.edit) === "1";
   const advancedMode = editMode && clean(resolvedSearchParams?.advanced) === "1";
   const updated = clean(resolvedSearchParams?.updated) === "1";
-  const internalUpdated = clean(resolvedSearchParams?.internalUpdated) === "1";
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
@@ -204,7 +185,6 @@ export default async function StudentPage({ params, searchParams }) {
       </div>
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
-      {internalUpdated ? <div className="ok">המידע הפנימי נשמר בהצלחה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       {editMode ? (
@@ -275,43 +255,6 @@ export default async function StudentPage({ params, searchParams }) {
           )}
         </div>
       )}
-
-      <div className="card">
-        <h3>מידע פנימי</h3>
-        <p className="muted">
-          סטטוס: {noteStatusLabel(note?.note_status)} | הוראת קבע: {boolLabel(note?.direct_debit_active)} | חתם:{" "}
-          {note?.signed_by_display_name || note?.signed_by_email || "-"}
-        </p>
-        <p>{note?.note_text || "-"}</p>
-
-        {canEdit && (
-          <form action={updateNoteAction}>
-            <input type="hidden" name="studentId" value={studentId} />
-            <textarea name="noteText" defaultValue={note?.note_text || ""} placeholder="הערה פנימית" />
-            <div className="grid">
-              <select name="noteStatus" defaultValue={note?.note_status || ""}>
-                <option value="">בחר סטטוס</option>
-                {Object.entries(NOTE_STATUSES).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="directDebitActive"
-                defaultValue={
-                  note?.direct_debit_active === true ? "true" : note?.direct_debit_active === false ? "false" : ""
-                }
-              >
-                <option value="">הוראת קבע</option>
-                <option value="true">כן</option>
-                <option value="false">לא</option>
-              </select>
-            </div>
-            <button type="submit">שמור מידע פנימי</button>
-          </form>
-        )}
-      </div>
     </>
   );
 }

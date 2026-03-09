@@ -369,3 +369,28 @@ td {
   color: #083e70;
 }
 
+
+.column-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.column-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.column-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.column-item input {
+  width: auto;
+}

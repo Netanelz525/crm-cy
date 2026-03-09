@@ -4,8 +4,14 @@ import { ENUM_LABELS, FIELD_SECTIONS } from "../../../lib/student-fields";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
 import { createStudentAction } from "./actions";
 
+const TOP_CREATE_KEYS = new Set(["currentInstitution", "class", "registration"]);
+
 function clean(v) {
   return String(v || "").trim();
+}
+
+function isAdvancedOnlyField(fieldKey) {
+  return /\.additional(Phones|Emails)$/.test(String(fieldKey || ""));
 }
 
 function FieldInput({ field }) {
@@ -39,6 +45,7 @@ export default async function NewStudentPage({ searchParams }) {
 
   const sp = await searchParams;
   const errorText = clean(sp?.error);
+  const advancedMode = clean(sp?.advanced) === "1";
 
   return (
     <>
@@ -50,6 +57,9 @@ export default async function NewStudentPage({ searchParams }) {
           </div>
           <div className="student-actions">
             <Link className="btn btn-ghost" href="/">חזרה לרשימה</Link>
+            <Link className="btn btn-ghost" href={advancedMode ? "/students/new" : "/students/new?advanced=1"}>
+              {advancedMode ? "מעבר ליצירה רגילה" : "יצירה מתקדמת"}
+            </Link>
           </div>
         </div>
       </div>
@@ -61,19 +71,45 @@ export default async function NewStudentPage({ searchParams }) {
           <button className="btn btn-save" type="submit">צור תלמיד</button>
         </div>
 
-        {FIELD_SECTIONS.map((section) => (
-          <div key={section.title} className="card">
-            <h3>{section.title}</h3>
-            <div className="grid">
-              {section.fields.map((field) => (
+        <div className="card edit-focus-card">
+          <h3 className="edit-focus-title">פרטי מסגרת לימוד</h3>
+          <div className="grid">
+            {FIELD_SECTIONS.flatMap((section) => section.fields)
+              .filter((field) => TOP_CREATE_KEYS.has(field.key))
+              .map((field) => (
                 <div key={field.key}>
                   <label>{field.label}</label>
                   <FieldInput field={field} />
                 </div>
               ))}
-            </div>
           </div>
-        ))}
+          <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+            טלפונים ואימיילים נוספים מוסתרים כברירת מחדל. להצגה שלהם בחר "יצירה מתקדמת".
+          </p>
+        </div>
+
+        {FIELD_SECTIONS.map((section) => {
+          const sectionFields = section.fields.filter((field) => {
+            if (TOP_CREATE_KEYS.has(field.key)) return false;
+            if (!advancedMode && isAdvancedOnlyField(field.key)) return false;
+            return true;
+          });
+          if (!sectionFields.length) return null;
+
+          return (
+            <div key={section.title} className="card">
+              <h3>{section.title}</h3>
+              <div className="grid">
+                {sectionFields.map((field) => (
+                  <div key={field.key}>
+                    <label>{field.label}</label>
+                    <FieldInput field={field} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </form>
     </>
   );

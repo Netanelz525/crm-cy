@@ -34,12 +34,40 @@ const CLASS_ORDER = {
   TEAM: 8
 };
 
+const INSTITUTION_COLUMNS = [
+  { key: "name", label: "שם", defaultSelected: true },
+  { key: "class", label: "שיעור", defaultSelected: true },
+  { key: "tznum", label: "ת\"ז", defaultSelected: true },
+  { key: "age", label: "גיל", defaultSelected: true },
+  { key: "studentPhone", label: "טלפון תלמיד", defaultSelected: true },
+  { key: "dadPhone", label: "טלפון אב", defaultSelected: true },
+  { key: "momPhone", label: "טלפון אם", defaultSelected: true },
+  { key: "studentEmail", label: "אימייל תלמיד", defaultSelected: false },
+  { key: "fatherEmail", label: "אימייל אב", defaultSelected: false },
+  { key: "motherEmail", label: "אימייל אם", defaultSelected: false },
+  { key: "institution", label: "מוסד", defaultSelected: false },
+  { key: "registration", label: "רישום", defaultSelected: false },
+  { key: "macAddress", label: "macAddress", defaultSelected: false },
+  { key: "missing", label: "חוסרים", defaultSelected: true }
+];
+
+const INSTITUTION_COLUMN_MAP = Object.fromEntries(INSTITUTION_COLUMNS.map((c) => [c.key, c]));
+const DEFAULT_INSTITUTION_COLUMN_KEYS = INSTITUTION_COLUMNS.filter((c) => c.defaultSelected).map((c) => c.key);
+
 function clean(v) {
   return String(v || "").trim();
 }
 
 function normalizeDigits(v) {
   return clean(v).replace(/[^\d]/g, "");
+}
+
+function parseListParam(value) {
+  if (Array.isArray(value)) return value.map(clean).filter(Boolean);
+  const raw = clean(value);
+  if (!raw) return [];
+  if (raw.includes(",")) return raw.split(",").map(clean).filter(Boolean);
+  return [raw];
 }
 
 function hasPhone(obj) {
@@ -56,9 +84,24 @@ function hasCompleteParentContact(student) {
   return dadComplete || momComplete;
 }
 
-function missingContactItems(student) {
-  if (hasCompleteParentContact(student)) return [];
-  return ["חסר הורה עם טלפון+אימייל"];
+function buildMissingState(student) {
+  const hasContactMissing = !hasCompleteParentContact(student);
+  const hasIdentityMissing = !clean(student?.tznum) || !clean(student?.dateofbirth);
+  const items = [];
+  if (hasContactMissing) items.push("חסר הורה עם טלפון+אימייל");
+  if (hasIdentityMissing) items.push("חסר ת\"ז או תאריך לידה");
+  return {
+    items,
+    flags: {
+      contact: hasContactMissing,
+      identity: hasIdentityMissing
+    }
+  };
+}
+
+function matchesMissingFilter(missingState, missingType) {
+  if (!missingType) return true;
+  return Boolean(missingState?.flags?.[missingType]);
 }
 
 function phoneText(phoneObj) {
@@ -123,9 +166,63 @@ function classLabel(value) {
 function buildNextPath(params) {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
+    if (Array.isArray(v)) {
+      v.map(clean).filter(Boolean).forEach((item) => sp.append(k, item));
+      continue;
+    }
     if (clean(v)) sp.set(k, clean(v));
   }
   return sp.toString() ? `/?${sp.toString()}` : "/";
+}
+
+function columnText(student, columnKey) {
+  switch (columnKey) {
+    case "name":
+      return clean(student?.label) || "-";
+    case "class":
+      return classLabel(student?.class);
+    case "tznum":
+      return clean(student?.tznum) || "-";
+    case "age":
+      return String(ageOf(student?.dateofbirth) ?? "-");
+    case "studentPhone":
+      return phoneText(student?.phone);
+    case "dadPhone":
+      return phoneText(student?.dadPhone);
+    case "momPhone":
+      return phoneText(student?.momPhone);
+    case "studentEmail":
+      return clean(student?.email?.primaryEmail) || "-";
+    case "fatherEmail":
+      return clean(student?.fatherEmail?.primaryEmail) || "-";
+    case "motherEmail":
+      return clean(student?.motherEmail?.primaryEmail) || "-";
+    case "institution":
+      return clean(student?.currentInstitution) || "-";
+    case "registration":
+      return clean(student?.registration) || "-";
+    case "macAddress":
+      return clean(student?.macAddress) || "-";
+    case "missing":
+      return (student?.missingItems || []).length ? student.missingItems.join(", ") : "-";
+    default:
+      return "-";
+  }
+}
+
+function columnNode(student, columnKey) {
+  switch (columnKey) {
+    case "name":
+      return <Link className="student-link" href={`/students/${student.id}`}>{clean(student?.label) || "-"}</Link>;
+    case "studentPhone":
+      return <PhoneLink phoneObj={student?.phone} />;
+    case "dadPhone":
+      return <PhoneLink phoneObj={student?.dadPhone} />;
+    case "momPhone":
+      return <PhoneLink phoneObj={student?.momPhone} />;
+    default:
+      return columnText(student, columnKey);
+  }
 }
 
 export default async function HomePage({ searchParams }) {
@@ -154,11 +251,19 @@ export default async function HomePage({ searchParams }) {
   const institution = clean(resolvedSearchParams?.institution);
   const institutionSearch = clean(resolvedSearchParams?.institutionSearch);
   const missingOnly = clean(resolvedSearchParams?.missingOnly) === "1";
+  const missingTypeParam = clean(resolvedSearchParams?.missingType).toLowerCase();
+  const missingType = ["contact", "identity"].includes(missingTypeParam)
+    ? missingTypeParam
+    : (missingOnly ? "contact" : "");
 
   const tz = normalizeDigits(resolvedSearchParams?.tz);
   const q = clean(resolvedSearchParams?.q);
   const modeParam = clean(resolvedSearchParams?.mode).toLowerCase();
-  const mode = modeParam || (institution || institutionSearch || missingOnly ? "institution" : q || tz ? "search" : "");
+  const mode = modeParam || (institution || institutionSearch || missingOnly || missingType ? "institution" : q || tz ? "search" : "");
+
+  const parsedColumnKeys = parseListParam(resolvedSearchParams?.cols).filter((k) => INSTITUTION_COLUMN_MAP[k]);
+  const selectedColumnKeys = parsedColumnKeys.length ? parsedColumnKeys : DEFAULT_INSTITUTION_COLUMN_KEYS;
+  const selectedColumns = selectedColumnKeys.map((k) => INSTITUTION_COLUMN_MAP[k]).filter(Boolean);
 
   let students = [];
   let error = "";
@@ -170,9 +275,12 @@ export default async function HomePage({ searchParams }) {
         const s = institutionSearch.toLowerCase();
         students = students.filter((x) => clean(x.label).toLowerCase().includes(s));
       }
-      students = students.map((s) => ({ ...s, missingItems: missingContactItems(s) }));
-      if (missingOnly) {
-        students = students.filter((s) => (s.missingItems || []).length > 0);
+      students = students.map((s) => {
+        const missingState = buildMissingState(s);
+        return { ...s, missingItems: missingState.items, missingFlags: missingState.flags };
+      });
+      if (missingType) {
+        students = students.filter((s) => matchesMissingFilter({ flags: s.missingFlags }, missingType));
       }
       students.sort(compareInstitutionStudents);
     } else if (mode === "search") {
@@ -190,9 +298,19 @@ export default async function HomePage({ searchParams }) {
     mode: "institution",
     institution,
     institutionSearch,
-    missingOnly: institution ? (missingOnly ? "" : "1") : ""
+    missingOnly: "",
+    missingType: "",
+    cols: selectedColumnKeys
   });
+
   const institutionCount = mode === "institution" && institution ? students.length : 0;
+
+  const exportParams = new URLSearchParams();
+  if (institution) exportParams.set("institution", institution);
+  if (institutionSearch) exportParams.set("institutionSearch", institutionSearch);
+  if (missingType) exportParams.set("missingType", missingType);
+  selectedColumnKeys.forEach((k) => exportParams.append("cols", k));
+  const exportHref = `/api/export/institution?${exportParams.toString()}`;
 
   return (
     <>
@@ -238,14 +356,44 @@ export default async function HomePage({ searchParams }) {
       </div>
 
       {mode === "institution" && institution ? (
-        <div className="card summary-row">
-          <div>
-            סה"כ תלמידים במוסד: <b>{institutionCount}</b>
+        <>
+          <div className="card summary-row">
+            <div>
+              סה"כ תלמידים במוסד: <b>{institutionCount}</b>
+            </div>
+            <div className="quick-actions" style={{ marginTop: 0 }}>
+              <Link className="chip-link" href={toggleMissingPath}>
+                נקה סינון חוסרים
+              </Link>
+              <a className="chip-link" href={exportHref}>ייצוא אקסל</a>
+            </div>
           </div>
-          <Link className="chip-link" href={toggleMissingPath}>
-            {missingOnly ? "הצג את כולם" : "הצג רק חסרים"}
-          </Link>
-        </div>
+
+          <div className="card">
+            <h3>בחירת עמודות בתצוגה</h3>
+            <form method="GET" className="column-picker">
+              <input type="hidden" name="mode" value="institution" />
+              <input type="hidden" name="institution" value={institution} />
+              <input type="hidden" name="institutionSearch" value={institutionSearch} />
+              <div className="grid">
+                <select name="missingType" defaultValue={missingType}>
+                  <option value="">ללא סינון חוסרים</option>
+                  <option value="contact">חוסר בהורה (טלפון+מייל)</option>
+                  <option value="identity">חוסר בת"ז או תאריך לידה</option>
+                </select>
+              </div>
+              <div className="column-grid">
+                {INSTITUTION_COLUMNS.map((col) => (
+                  <label key={col.key} className="column-item">
+                    <input type="checkbox" name="cols" value={col.key} defaultChecked={selectedColumnKeys.includes(col.key)} />
+                    <span>{col.label}</span>
+                  </label>
+                ))}
+              </div>
+              <button type="submit">עדכן תצוגה</button>
+            </form>
+          </div>
+        </>
       ) : null}
 
       {error ? <div className="card muted">{error}</div> : null}
@@ -253,24 +401,48 @@ export default async function HomePage({ searchParams }) {
       <div className="card desktop-table">
         <table>
           <thead>
-            <tr>
-              <th>שם</th>
-              <th>שיעור</th>
-              <th>ת"ז</th>
-              <th>גיל</th>
-              <th>טלפון תלמיד</th>
-              <th>טלפון אב</th>
-              <th>טלפון אם</th>
-              <th>חוסרים</th>
-            </tr>
+            {mode === "institution" && institution ? (
+              <tr>
+                {selectedColumns.map((col) => (
+                  <th key={col.key}>{col.label}</th>
+                ))}
+              </tr>
+            ) : (
+              <tr>
+                <th>שם</th>
+                <th>שיעור</th>
+                <th>ת"ז</th>
+                <th>גיל</th>
+                <th>טלפון תלמיד</th>
+                <th>טלפון אב</th>
+                <th>טלפון אם</th>
+                <th>חוסרים</th>
+              </tr>
+            )}
           </thead>
           <tbody>
             {!students.length ? (
               <tr>
-                <td colSpan={8} className="muted">
+                <td colSpan={mode === "institution" && institution ? Math.max(selectedColumns.length, 1) : 8} className="muted">
                   אין תוצאות
                 </td>
               </tr>
+            ) : mode === "institution" && institution ? (
+              students.map((s) => {
+                const hasMissing = (s.missingItems || []).length > 0;
+                return (
+                  <tr key={s.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
+                    {selectedColumns.map((col) => (
+                      <td
+                        key={col.key}
+                        style={col.key === "missing" && hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}
+                      >
+                        {columnNode(s, col.key)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
             ) : (
               students.map((s) => {
                 const hasMissing = (s.missingItems || []).length > 0;
@@ -297,6 +469,24 @@ export default async function HomePage({ searchParams }) {
       <div className="mobile-student-list">
         {!students.length ? (
           <div className="card muted">אין תוצאות</div>
+        ) : mode === "institution" && institution ? (
+          students.map((s) => {
+            const hasMissing = (s.missingItems || []).length > 0;
+            return (
+              <div key={s.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
+                <div className="student-mobile-head">
+                  <Link className="student-link" href={`/students/${s.id}`}>{s.label}</Link>
+                </div>
+                <div className="student-mobile-grid">
+                  {selectedColumns.map((col) => (
+                    <div key={col.key}>
+                      <b>{col.label}:</b> {columnNode(s, col.key)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })
         ) : (
           students.map((s) => {
             const hasMissing = (s.missingItems || []).length > 0;
@@ -324,4 +514,15 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
