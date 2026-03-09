@@ -196,13 +196,11 @@ export default async function HomePage({ searchParams }) {
       <div className="card glass">
         <h1>ניהול תלמידים - TEAM</h1>
         <p className="muted">גישה מלאה לחיפוש, עדכון מידע ואישור משתמשים לא מוכרים.</p>
-        <p>
-          <Link href="/admin">מעבר לאישור משתמשים</Link>
-          {" | "}
-          <Link href="/finder">איתור תלמיד</Link>
-          {" | "}
-          <Link href="/students/new">יצירת תלמיד</Link>
-        </p>
+        <div className="quick-actions">
+          <Link className="quick-action-btn quick-action-outline" href="/admin">מעבר לאישור משתמשים</Link>
+          <Link className="quick-action-btn quick-action-outline" href="/finder">איתור תלמיד</Link>
+          <Link className="quick-action-btn quick-action-primary" href="/students/new">יצירת תלמיד</Link>
+        </div>
       </div>
 
       <div className="card glass">
@@ -309,6 +307,9 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
+
+
 
 
 

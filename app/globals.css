@@ -83,6 +83,41 @@ a {
   font-weight: 600;
 }
 
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.quick-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(13, 37, 76, 0.14);
+}
+
+.quick-action-outline {
+  background: #fff;
+  color: var(--text);
+}
+
+.quick-action-primary {
+  background: linear-gradient(180deg, var(--primary-2), var(--primary));
+  color: #fff;
+  border-color: transparent;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -144,6 +179,42 @@ button {
   gap: 12px;
 }
 
+
+.student-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.meta-chip-strong {
+  background: linear-gradient(180deg, #0f5fa4, #0b4f8c);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 800;
+}
+
+.edit-focus-card {
+  border: 1px solid #9bc2e7;
+  background: linear-gradient(180deg, #f6fbff, #eef6ff);
+}
+
+.edit-focus-title {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #0b4f8c;
+}
 .student-actions {
   display: flex;
   gap: 8px;
@@ -185,6 +256,10 @@ td {
   display: none;
 }
 
+.mobile-generic-list {
+  display: none;
+}
+
 .student-mobile-card {
   background: #fff;
   border: 1px solid var(--line);
@@ -217,6 +292,25 @@ td {
   font-weight: 700;
 }
 
+.generic-mobile-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.generic-mobile-head {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.generic-mobile-grid {
+  display: grid;
+  gap: 6px;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -246,9 +340,17 @@ td {
     display: block;
   }
 
+  .mobile-generic-list {
+    display: block;
+  }
+
   .summary-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .quick-action-btn {
+    width: 100%;
   }
 
   .sticky-save-bar {

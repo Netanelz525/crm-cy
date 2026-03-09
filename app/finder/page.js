@@ -139,7 +139,7 @@ export default async function FinderPage({ searchParams }) {
 
       {error ? <div className="card muted">{error}</div> : null}
 
-      <div className="card">
+      <div className="card desktop-table">
         <table>
           <thead>
             <tr>
@@ -161,7 +161,7 @@ export default async function FinderPage({ searchParams }) {
             ) : (
               students.map((s) => (
                 <tr key={s.id}>
-                  <td><Link href={`/students/${s.id}`}>{s.label}</Link></td>
+                  <td><Link className="student-link" href={`/students/${s.id}`}>{s.label}</Link></td>
                   <td>{(s._matchedBy || []).join(", ") || "-"}</td>
                   <td>{s.class || "-"}</td>
                   <td>{s.currentInstitution || "-"}</td>
@@ -175,8 +175,29 @@ export default async function FinderPage({ searchParams }) {
           </tbody>
         </table>
       </div>
+
+      <div className="mobile-generic-list">
+        {!students.length ? (
+          <div className="card muted">{value ? "לא נמצאו תוצאות" : "הזן נתון לחיפוש"}</div>
+        ) : (
+          students.map((s) => (
+            <div key={s.id} className="generic-mobile-card">
+              <div className="generic-mobile-head">
+                <Link className="student-link" href={`/students/${s.id}`}>{s.label}</Link>
+              </div>
+              <div className="generic-mobile-grid">
+                <div><b>נמצא לפי:</b> {(s._matchedBy || []).join(", ") || "-"}</div>
+                <div><b>שיעור:</b> {s.class || "-"}</div>
+                <div><b>מוסד:</b> {s.currentInstitution || "-"}</div>
+                <div><b>ת"ז:</b> {s.tznum || "-"}</div>
+                <div><b>טלפון תלמיד:</b> <PhoneLink phoneObj={s.phone} /></div>
+                <div><b>טלפון אב:</b> <PhoneLink phoneObj={s.dadPhone} /></div>
+                <div><b>טלפון אם:</b> <PhoneLink phoneObj={s.momPhone} /></div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </>
   );
 }
-
-

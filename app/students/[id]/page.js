@@ -12,6 +12,10 @@ const NOTE_STATUSES = {
   CONTACTED: "דיברו"
 };
 
+const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
+const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
+const TOP_EDIT_FIELDS = ALL_FIELDS.filter((field) => TOP_EDIT_KEYS.has(field.key));
+
 function clean(v) {
   return String(v || "").trim();
 }
@@ -100,6 +104,12 @@ function registrationLabel(value) {
   const key = clean(value).toUpperCase();
   return ENUM_LABELS.registration?.[key] || clean(value) || "-";
 }
+
+function classLabel(value) {
+  const key = clean(value).toUpperCase();
+  return ENUM_LABELS.class?.[key] || clean(value) || "-";
+}
+
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     return (
@@ -150,6 +160,7 @@ export default async function StudentPage({ params, searchParams }) {
 
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
+  const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
 
   return (
     <>
@@ -157,7 +168,11 @@ export default async function StudentPage({ params, searchParams }) {
         <div className="student-topbar">
           <div>
             <h1>כרטיס תלמיד</h1>
-            <p className="muted">מוסד לימודים: {institutionLabel(student?.currentInstitution)} | רישום: {registrationLabel(student?.registration)}</p>
+            <div className="student-meta-line">
+              <span className="meta-chip">מוסד: {institutionLabel(student?.currentInstitution)}</span>
+              <span className="meta-chip">רישום: {registrationLabel(student?.registration)}</span>
+              <span className="meta-chip meta-chip-strong">שיעור: {classLabel(student?.class)}</span>
+            </div>
           </div>
           <div className="student-actions">
             <Link className="btn btn-ghost" href="/">חזרה לרשימה</Link>
@@ -172,7 +187,7 @@ export default async function StudentPage({ params, searchParams }) {
 
       <div className="card">
         <h3>מידע תלמיד</h3>
-        <p className="muted">{student?.fullName?.firstName || ""} {student?.fullName?.lastName || ""} | מזהה: {studentId}</p>
+        <p className="muted">{studentName}</p>
       </div>
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
@@ -186,20 +201,37 @@ export default async function StudentPage({ params, searchParams }) {
             <button className="btn btn-save" type="submit">שמור שינויים</button>
           </div>
 
-          <div className="card">
-            {FIELD_SECTIONS.map((section) => (
-              <div key={section.title} className="card" style={{ marginBottom: 12 }}>
-                <h3>{section.title}</h3>
-                <div className="grid">
-                  {section.fields.map((field) => (
-                    <div key={field.key}>
-                      <label>{field.label}</label>
-                      <EditField field={field} value={editValues[field.key] || ""} />
-                    </div>
-                  ))}
+          <div className="card edit-focus-card">
+            <h3 className="edit-focus-title">עריכה מהירה</h3>
+            <div className="grid">
+              {TOP_EDIT_FIELDS.map((field) => (
+                <div key={field.key}>
+                  <label>{field.label}</label>
+                  <EditField field={field} value={editValues[field.key] || ""} />
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            {FIELD_SECTIONS.map((section) => {
+              const sectionFields = section.fields.filter((field) => !TOP_EDIT_KEYS.has(field.key));
+              if (!sectionFields.length) return null;
+
+              return (
+                <div key={section.title} className="card" style={{ marginBottom: 12 }}>
+                  <h3>{section.title}</h3>
+                  <div className="grid">
+                    {sectionFields.map((field) => (
+                      <div key={field.key}>
+                        <label>{field.label}</label>
+                        <EditField field={field} value={editValues[field.key] || ""} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </form>
       ) : (
@@ -227,7 +259,7 @@ export default async function StudentPage({ params, searchParams }) {
       <div className="card">
         <h3>מידע פנימי</h3>
         <p className="muted">
-          סטטוס: {noteStatusLabel(note?.note_status)} | הוראת קבע: {boolLabel(note?.direct_debit_active)} | חתם: {" "}
+          סטטוס: {noteStatusLabel(note?.note_status)} | הוראת קבע: {boolLabel(note?.direct_debit_active)} | חתם:{" "}
           {note?.signed_by_display_name || note?.signed_by_email || "-"}
         </p>
         <p>{note?.note_text || "-"}</p>
@@ -263,5 +295,3 @@ export default async function StudentPage({ params, searchParams }) {
     </>
   );
 }
-
-
