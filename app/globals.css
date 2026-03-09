@@ -394,3 +394,36 @@ td {
 .column-item input {
   width: auto;
 }
+
+.display-settings {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 8px 10px;
+}
+
+.display-settings summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--text);
+  list-style: none;
+}
+
+.display-settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.display-settings summary::before {
+  content: "▾";
+  display: inline-block;
+  margin-inline-start: 8px;
+  transition: transform 0.15s ease;
+}
+
+.display-settings[open] summary::before {
+  transform: rotate(180deg);
+}
+
+.display-settings .column-picker {
+  margin-top: 10px;
+}

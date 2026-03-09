@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
+import { ENUM_LABELS, FIELD_SECTIONS, getByPath } from "../../../../lib/student-fields";
 import { getStudentsByInstitution } from "../../../../lib/twenty";
 
 const CLASS_LABELS = {
@@ -24,7 +25,10 @@ const CLASS_ORDER = {
   TEAM: 8
 };
 
-const COLUMN_DEFS = {
+const SYSTEM_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
+const FIELD_DEF_MAP = Object.fromEntries(SYSTEM_FIELDS.map((field) => [field.key, field]));
+
+const BASE_COLUMN_DEFS = {
   name: "שם",
   class: "שיעור",
   tznum: "ת\"ז",
@@ -39,6 +43,15 @@ const COLUMN_DEFS = {
   registration: "רישום",
   macAddress: "macAddress",
   missing: "חוסרים"
+};
+
+const DYNAMIC_COLUMN_DEFS = Object.fromEntries(
+  SYSTEM_FIELDS.map((field) => [`field:${field.key}`, field.label])
+);
+
+const COLUMN_DEFS = {
+  ...BASE_COLUMN_DEFS,
+  ...DYNAMIC_COLUMN_DEFS
 };
 
 const DEFAULT_COLS = ["name", "class", "tznum", "age", "studentPhone", "dadPhone", "momPhone", "missing"];
@@ -103,6 +116,20 @@ function classLabel(value) {
   return CLASS_LABELS[key] || clean(value) || "-";
 }
 
+function enumLabel(enumName, value) {
+  const key = clean(value);
+  if (!key) return "-";
+  return ENUM_LABELS?.[enumName]?.[key] || key;
+}
+
+function formatDate(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString("he-IL");
+}
+
 function getLastName(student) {
   const fromFullName = clean(student?.fullName?.lastName);
   if (fromFullName) return fromFullName;
@@ -124,7 +151,35 @@ function compareInstitutionStudents(a, b) {
   return clean(a.label).localeCompare(clean(b.label), "he", { sensitivity: "base" });
 }
 
+function valueByDynamicField(student, fieldKey) {
+  const fieldDef = FIELD_DEF_MAP[fieldKey];
+  if (!fieldDef) return "-";
+  const raw = getByPath(student, fieldKey);
+  if (raw === null || raw === undefined || raw === "") return "-";
+
+  if (fieldDef.key.endsWith(".primaryPhoneNumber")) {
+    const root = fieldDef.key.slice(0, -".primaryPhoneNumber".length);
+    const number = clean(getByPath(student, fieldDef.key));
+    const calling = clean(getByPath(student, `${root}.primaryPhoneCallingCode`));
+    return [calling, number].filter(Boolean).join(" ") || number || "-";
+  }
+
+  if (fieldDef.isList) {
+    if (!Array.isArray(raw) || raw.length === 0) return "-";
+    return raw.map((v) => clean(v)).filter(Boolean).join(", ") || "-";
+  }
+
+  if (fieldDef.type === "date") return formatDate(raw);
+  if (fieldDef.enum) return enumLabel(fieldDef.enum, raw);
+  if (typeof raw === "object") return JSON.stringify(raw);
+  return clean(raw) || "-";
+}
+
 function valueByColumn(student, key) {
+  if (key.startsWith("field:")) {
+    return valueByDynamicField(student, key.slice("field:".length));
+  }
+
   switch (key) {
     case "name":
       return clean(student?.label) || "-";
@@ -147,9 +202,9 @@ function valueByColumn(student, key) {
     case "motherEmail":
       return clean(student?.motherEmail?.primaryEmail) || "-";
     case "institution":
-      return clean(student?.currentInstitution) || "-";
+      return enumLabel("currentInstitution", student?.currentInstitution);
     case "registration":
-      return clean(student?.registration) || "-";
+      return enumLabel("registration", student?.registration);
     case "macAddress":
       return clean(student?.macAddress) || "-";
     case "missing":
@@ -224,10 +279,3 @@ export async function GET(request) {
     }
   });
 }
-
-
-
-
-
-
-

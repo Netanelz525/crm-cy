@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "../lib/rbac";
+import { ENUM_LABELS, FIELD_SECTIONS, getByPath } from "../lib/student-fields";
 import { getStudentsByInstitution, searchStudentsByText, searchStudentsByTz } from "../lib/twenty";
 
 const INSTITUTIONS = {
@@ -51,8 +52,21 @@ const INSTITUTION_COLUMNS = [
   { key: "missing", label: "חוסרים", defaultSelected: true }
 ];
 
-const INSTITUTION_COLUMN_MAP = Object.fromEntries(INSTITUTION_COLUMNS.map((c) => [c.key, c]));
-const DEFAULT_INSTITUTION_COLUMN_KEYS = INSTITUTION_COLUMNS.filter((c) => c.defaultSelected).map((c) => c.key);
+const SYSTEM_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
+const FIELD_DEF_MAP = Object.fromEntries(SYSTEM_FIELDS.map((field) => [field.key, field]));
+const SYSTEM_FIELD_COLUMNS = SYSTEM_FIELDS.map((field) => ({
+  key: `field:${field.key}`,
+  label: field.label,
+  defaultSelected: false
+}));
+
+const INSTITUTION_COLUMNS_FULL = [
+  ...INSTITUTION_COLUMNS,
+  ...SYSTEM_FIELD_COLUMNS.filter((col) => !INSTITUTION_COLUMNS.some((base) => base.key === col.key))
+];
+
+const INSTITUTION_COLUMN_MAP = Object.fromEntries(INSTITUTION_COLUMNS_FULL.map((c) => [c.key, c]));
+const DEFAULT_INSTITUTION_COLUMN_KEYS = INSTITUTION_COLUMNS_FULL.filter((c) => c.defaultSelected).map((c) => c.key);
 
 function clean(v) {
   return String(v || "").trim();
@@ -163,6 +177,58 @@ function classLabel(value) {
   return CLASS_LABELS[key] || (value || "-");
 }
 
+function enumLabel(enumName, value) {
+  const key = clean(value);
+  if (!key) return "-";
+  return ENUM_LABELS?.[enumName]?.[key] || key;
+}
+
+function formatDate(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString("he-IL");
+}
+
+function formatFieldColumn(student, fieldKey) {
+  const fieldDef = FIELD_DEF_MAP[fieldKey];
+  if (!fieldDef) return "-";
+  const raw = getByPath(student, fieldKey);
+  if (raw === null || raw === undefined || raw === "") return "-";
+
+  if (fieldDef.key.endsWith(".primaryPhoneNumber")) {
+    const phoneRoot = fieldDef.key.slice(0, -".primaryPhoneNumber".length);
+    const number = clean(raw);
+    const calling = clean(getByPath(student, `${phoneRoot}.primaryPhoneCallingCode`));
+    return [calling, number].filter(Boolean).join(" ") || number || "-";
+  }
+
+  if (fieldDef.isList) {
+    if (!Array.isArray(raw) || raw.length === 0) return "-";
+    return raw.map((v) => clean(v)).filter(Boolean).join(", ") || "-";
+  }
+
+  if (fieldDef.type === "date") return formatDate(raw);
+  if (fieldDef.enum) return enumLabel(fieldDef.enum, raw);
+  if (typeof raw === "object") return JSON.stringify(raw);
+  return clean(raw) || "-";
+}
+
+function normalizePhoneForTel(value) {
+  return clean(value).replace(/[^\d]/g, "");
+}
+
+function fieldPhoneHref(student, fieldKey) {
+  const fieldDef = FIELD_DEF_MAP[fieldKey];
+  if (!fieldDef || !fieldDef.key.endsWith(".primaryPhoneNumber")) return "";
+  const phoneRoot = fieldDef.key.slice(0, -".primaryPhoneNumber".length);
+  const number = normalizePhoneForTel(getByPath(student, fieldDef.key));
+  const calling = clean(getByPath(student, `${phoneRoot}.primaryPhoneCallingCode`)).replace(/[^\d+]/g, "");
+  if (!number) return "";
+  return `tel:${(calling || "+")}${number}`.replace(/\s+/g, "");
+}
+
 function buildNextPath(params) {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -176,6 +242,10 @@ function buildNextPath(params) {
 }
 
 function columnText(student, columnKey) {
+  if (columnKey.startsWith("field:")) {
+    return formatFieldColumn(student, columnKey.slice("field:".length));
+  }
+
   switch (columnKey) {
     case "name":
       return clean(student?.label) || "-";
@@ -198,9 +268,9 @@ function columnText(student, columnKey) {
     case "motherEmail":
       return clean(student?.motherEmail?.primaryEmail) || "-";
     case "institution":
-      return clean(student?.currentInstitution) || "-";
+      return enumLabel("currentInstitution", student?.currentInstitution);
     case "registration":
-      return clean(student?.registration) || "-";
+      return enumLabel("registration", student?.registration);
     case "macAddress":
       return clean(student?.macAddress) || "-";
     case "missing":
@@ -211,9 +281,26 @@ function columnText(student, columnKey) {
 }
 
 function columnNode(student, columnKey) {
+  if (columnKey.startsWith("field:")) {
+    const fieldKey = columnKey.slice("field:".length);
+    const value = columnText(student, columnKey);
+    if (value === "-") return "-";
+
+    const fieldDef = FIELD_DEF_MAP[fieldKey];
+    if (fieldDef?.key.endsWith(".primaryPhoneNumber")) {
+      const href = fieldPhoneHref(student, fieldKey);
+      return href ? <a href={href}>{value}</a> : value;
+    }
+    if (fieldDef?.key.endsWith(".primaryEmail")) {
+      const email = clean(getByPath(student, fieldKey));
+      return email ? <a href={"mailto:" + email}>{email}</a> : value;
+    }
+    return value;
+  }
+
   switch (columnKey) {
     case "name":
-      return <Link className="student-link" href={`/students/${student.id}`}>{clean(student?.label) || "-"}</Link>;
+      return <Link className="student-link" href={"/students/" + student.id}>{clean(student?.label) || "-"}</Link>;
     case "studentPhone":
       return <PhoneLink phoneObj={student?.phone} />;
     case "dadPhone":
@@ -370,28 +457,30 @@ export default async function HomePage({ searchParams }) {
           </div>
 
           <div className="card">
-            <h3>בחירת עמודות בתצוגה</h3>
-            <form method="GET" className="column-picker">
-              <input type="hidden" name="mode" value="institution" />
-              <input type="hidden" name="institution" value={institution} />
-              <input type="hidden" name="institutionSearch" value={institutionSearch} />
-              <div className="grid">
-                <select name="missingType" defaultValue={missingType}>
-                  <option value="">ללא סינון חוסרים</option>
-                  <option value="contact">חוסר בהורה (טלפון+מייל)</option>
-                  <option value="identity">חוסר בת"ז או תאריך לידה</option>
-                </select>
-              </div>
-              <div className="column-grid">
-                {INSTITUTION_COLUMNS.map((col) => (
-                  <label key={col.key} className="column-item">
-                    <input type="checkbox" name="cols" value={col.key} defaultChecked={selectedColumnKeys.includes(col.key)} />
-                    <span>{col.label}</span>
-                  </label>
-                ))}
-              </div>
-              <button type="submit">עדכן תצוגה</button>
-            </form>
+            <details className="display-settings">
+              <summary>ניהול תצוגה וסינון</summary>
+              <form method="GET" className="column-picker">
+                <input type="hidden" name="mode" value="institution" />
+                <input type="hidden" name="institution" value={institution} />
+                <input type="hidden" name="institutionSearch" value={institutionSearch} />
+                <div className="grid">
+                  <select name="missingType" defaultValue={missingType}>
+                    <option value="">ללא סינון חוסרים</option>
+                    <option value="contact">חוסר בהורה (טלפון+מייל)</option>
+                    <option value="identity">חוסר בת"ז או תאריך לידה</option>
+                  </select>
+                </div>
+                <div className="column-grid">
+                  {INSTITUTION_COLUMNS_FULL.map((col) => (
+                    <label key={col.key} className="column-item">
+                      <input type="checkbox" name="cols" value={col.key} defaultChecked={selectedColumnKeys.includes(col.key)} />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <button type="submit">עדכן תצוגה</button>
+              </form>
+            </details>
           </div>
         </>
       ) : null}
@@ -514,6 +603,14 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
+
+
+
+
+
+
+
+
 
 
 
