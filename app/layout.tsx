@@ -15,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <header className="topbar">
             <nav className="nav">
               <Link href="/">תלמידים</Link>
+              <Link href="/views">תצוגות</Link>
               <Link href="/admin">ניהול</Link>
             </nav>
             <div style={{ display: "flex", gap: 8 }}>
@@ -29,3 +30,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+

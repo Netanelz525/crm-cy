@@ -1,219 +1,28 @@
 ﻿import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
-import { ENUM_LABELS, FIELD_SECTIONS, getByPath } from "../../../../lib/student-fields";
-import { getStudentsByInstitution } from "../../../../lib/twenty";
+import {
+  buildMissingState,
+  columnText,
+  DEFAULT_INSTITUTION_COLUMN_KEYS,
+  INSTITUTIONS,
+  INSTITUTION_COLUMN_MAP,
+  matchesMissingFilter,
+  parseAdvancedFilters,
+  parseSortLevels,
+  sortStudents,
+  applyAdvancedFilters,
+  clean
+} from "../../../../lib/student-view";
+import { getStudentsByInstitution, listAllStudents } from "../../../../lib/twenty";
 
-const CLASS_LABELS = {
-  Z: "אברך",
-  A: "שיעור א",
-  B: "שיעור ב",
-  C: "שיעור ג",
-  D: "שיעור ד",
-  E: "שיעור ה",
-  X: "קיבוץ",
-  TEAM: "צוות"
-};
-
-const CLASS_ORDER = {
-  A: 1,
-  B: 2,
-  C: 3,
-  D: 4,
-  E: 5,
-  X: 6,
-  Z: 7,
-  TEAM: 8
-};
-
-const SYSTEM_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
-const FIELD_DEF_MAP = Object.fromEntries(SYSTEM_FIELDS.map((field) => [field.key, field]));
-
-const BASE_COLUMN_DEFS = {
-  name: "שם",
-  class: "שיעור",
-  tznum: "ת\"ז",
-  age: "גיל",
-  studentPhone: "טלפון תלמיד",
-  dadPhone: "טלפון אב",
-  momPhone: "טלפון אם",
-  studentEmail: "אימייל תלמיד",
-  fatherEmail: "אימייל אב",
-  motherEmail: "אימייל אם",
-  institution: "מוסד",
-  registration: "רישום",
-  macAddress: "macAddress",
-  missing: "חוסרים"
-};
-
-const DYNAMIC_COLUMN_DEFS = Object.fromEntries(
-  SYSTEM_FIELDS.map((field) => [`field:${field.key}`, field.label])
-);
-
-const COLUMN_DEFS = {
-  ...BASE_COLUMN_DEFS,
-  ...DYNAMIC_COLUMN_DEFS
-};
-
-const DEFAULT_COLS = ["name", "class", "tznum", "age", "studentPhone", "dadPhone", "momPhone", "missing"];
-
-function clean(v) {
-  return String(v || "").trim();
-}
-
-function hasPhone(obj) {
-  return Boolean(clean(obj?.primaryPhoneNumber));
-}
-
-function hasEmail(obj) {
-  return Boolean(clean(obj?.primaryEmail));
-}
-
-function hasCompleteParentContact(student) {
-  const dadComplete = hasPhone(student?.dadPhone) && hasEmail(student?.fatherEmail);
-  const momComplete = hasPhone(student?.momPhone) && hasEmail(student?.motherEmail);
-  return dadComplete || momComplete;
-}
-
-function buildMissingState(student) {
-  const hasContactMissing = !hasCompleteParentContact(student);
-  const hasIdentityMissing = !clean(student?.tznum) || !clean(student?.dateofbirth);
-  const items = [];
-  if (hasContactMissing) items.push("חסר הורה עם טלפון+אימייל");
-  if (hasIdentityMissing) items.push("חסר ת\"ז או תאריך לידה");
-  return {
-    items,
-    flags: {
-      contact: hasContactMissing,
-      identity: hasIdentityMissing
-    }
-  };
-}
-
-function matchesMissingFilter(missingState, missingType) {
-  if (!missingType) return true;
-  return Boolean(missingState?.flags?.[missingType]);
-}
-
-function phoneText(phoneObj) {
-  if (!phoneObj?.primaryPhoneNumber) return "-";
-  return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
-}
-
-function ageOf(dateValue) {
-  if (!dateValue) return null;
-  const d = new Date(dateValue);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  const day = now.getDate() - d.getDate();
-  if (m < 0 || (m === 0 && day < 0)) age -= 1;
-  return age >= 0 ? age : null;
-}
-
-function classLabel(value) {
-  const key = clean(value).toUpperCase();
-  return CLASS_LABELS[key] || clean(value) || "-";
-}
-
-function enumLabel(enumName, value) {
-  const key = clean(value);
-  if (!key) return "-";
-  return ENUM_LABELS?.[enumName]?.[key] || key;
-}
-
-function formatDate(value) {
-  const raw = clean(value);
-  if (!raw) return "-";
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  return d.toLocaleDateString("he-IL");
-}
-
-function getLastName(student) {
-  const fromFullName = clean(student?.fullName?.lastName);
-  if (fromFullName) return fromFullName;
-  const label = clean(student?.label);
-  if (!label) return "";
-  const parts = label.split(/\s+/).filter(Boolean);
-  return clean(parts[parts.length - 1]);
-}
-
-function compareInstitutionStudents(a, b) {
-  const aClass = clean(a.class).toUpperCase();
-  const bClass = clean(b.class).toUpperCase();
-  const aRank = CLASS_ORDER[aClass] ?? 999;
-  const bRank = CLASS_ORDER[bClass] ?? 999;
-  if (aRank !== bRank) return aRank - bRank;
-
-  const lastCmp = getLastName(a).localeCompare(getLastName(b), "he", { sensitivity: "base" });
-  if (lastCmp !== 0) return lastCmp;
-  return clean(a.label).localeCompare(clean(b.label), "he", { sensitivity: "base" });
-}
-
-function valueByDynamicField(student, fieldKey) {
-  const fieldDef = FIELD_DEF_MAP[fieldKey];
-  if (!fieldDef) return "-";
-  const raw = getByPath(student, fieldKey);
-  if (raw === null || raw === undefined || raw === "") return "-";
-
-  if (fieldDef.key.endsWith(".primaryPhoneNumber")) {
-    const root = fieldDef.key.slice(0, -".primaryPhoneNumber".length);
-    const number = clean(getByPath(student, fieldDef.key));
-    const calling = clean(getByPath(student, `${root}.primaryPhoneCallingCode`));
-    return [calling, number].filter(Boolean).join(" ") || number || "-";
+function findInstitutionCode(value) {
+  const normalized = clean(value).toLowerCase();
+  if (!normalized) return "";
+  for (const [code, label] of Object.entries(INSTITUTIONS || {})) {
+    if (clean(code).toLowerCase() === normalized || clean(label).toLowerCase() === normalized) return code;
   }
-
-  if (fieldDef.isList) {
-    if (!Array.isArray(raw) || raw.length === 0) return "-";
-    return raw.map((v) => clean(v)).filter(Boolean).join(", ") || "-";
-  }
-
-  if (fieldDef.type === "date") return formatDate(raw);
-  if (fieldDef.enum) return enumLabel(fieldDef.enum, raw);
-  if (typeof raw === "object") return JSON.stringify(raw);
-  return clean(raw) || "-";
+  return "";
 }
-
-function valueByColumn(student, key) {
-  if (key.startsWith("field:")) {
-    return valueByDynamicField(student, key.slice("field:".length));
-  }
-
-  switch (key) {
-    case "name":
-      return clean(student?.label) || "-";
-    case "class":
-      return classLabel(student?.class);
-    case "tznum":
-      return clean(student?.tznum) || "-";
-    case "age":
-      return String(ageOf(student?.dateofbirth) ?? "-");
-    case "studentPhone":
-      return phoneText(student?.phone);
-    case "dadPhone":
-      return phoneText(student?.dadPhone);
-    case "momPhone":
-      return phoneText(student?.momPhone);
-    case "studentEmail":
-      return clean(student?.email?.primaryEmail) || "-";
-    case "fatherEmail":
-      return clean(student?.fatherEmail?.primaryEmail) || "-";
-    case "motherEmail":
-      return clean(student?.motherEmail?.primaryEmail) || "-";
-    case "institution":
-      return enumLabel("currentInstitution", student?.currentInstitution);
-    case "registration":
-      return enumLabel("registration", student?.registration);
-    case "macAddress":
-      return clean(student?.macAddress) || "-";
-    case "missing":
-      return (student?.missingItems || []).length ? student.missingItems.join(", ") : "-";
-    default:
-      return "-";
-  }
-}
-
 function csvEscape(value) {
   const text = String(value ?? "");
   if (text.includes('"') || text.includes(",") || text.includes("\n")) {
@@ -236,40 +45,59 @@ export async function GET(request) {
   const missingType = ["contact", "identity"].includes(missingTypeParam)
     ? missingTypeParam
     : (missingOnly ? "contact" : "");
+  const sortLevels = parseSortLevels({
+    sby: url.searchParams.getAll("sby"),
+    sdir: url.searchParams.getAll("sdir"),
+    sortBy: url.searchParams.get("sortBy"),
+    sortDir: url.searchParams.get("sortDir")
+  });
+  const filters = parseAdvancedFilters({
+    ff: url.searchParams.getAll("ff"),
+    fo: url.searchParams.getAll("fo"),
+    fv: url.searchParams.getAll("fv"),
+    fj: url.searchParams.getAll("fj"),
+    fg: url.searchParams.getAll("fg"),
+    gj: url.searchParams.getAll("gj")
+  });
 
-  if (!institution) {
-    return NextResponse.json({ error: "Missing institution" }, { status: 400 });
-  }
+
 
   const requestedCols = url.searchParams.getAll("cols").map(clean).filter(Boolean);
-  const selectedCols = (requestedCols.length ? requestedCols : DEFAULT_COLS).filter((k) => COLUMN_DEFS[k]);
+  const selectedCols = (requestedCols.length ? requestedCols : DEFAULT_INSTITUTION_COLUMN_KEYS).filter((k) => INSTITUTION_COLUMN_MAP[k]);
 
-  let students = await getStudentsByInstitution(institution);
+  const scopedInstitutionCode = institution || findInstitutionCode(
+    filters.find((filter) => clean(filter.field) === "institution" && filter.operator === "equals")?.value
+  );
+
+  let students = scopedInstitutionCode ? await getStudentsByInstitution(scopedInstitutionCode) : await listAllStudents();
   if (institutionSearch) {
     const s = institutionSearch.toLowerCase();
     students = students.filter((x) => clean(x.label).toLowerCase().includes(s));
   }
 
-  students = students.map((s) => {
-    const missingState = buildMissingState(s);
-    return { ...s, missingItems: missingState.items, missingFlags: missingState.flags };
+  students = students.map((student) => {
+    const missingState = buildMissingState(student);
+    return { ...student, missingItems: missingState.items, missingFlags: missingState.flags };
   });
+
   if (missingType) {
-    students = students.filter((s) => matchesMissingFilter({ flags: s.missingFlags }, missingType));
+    students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
   }
 
-  students.sort(compareInstitutionStudents);
+  students = applyAdvancedFilters(students, filters);
+  students = sortStudents(students, sortLevels);
 
-  const header = selectedCols.map((c) => COLUMN_DEFS[c]);
-  const rows = students.map((student) => selectedCols.map((c) => valueByColumn(student, c)));
+  const header = selectedCols.map((columnKey) => INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey);
+  const rows = students.map((student) => selectedCols.map((columnKey) => columnText(student, columnKey)));
 
   const csv = [
     header.map(csvEscape).join(","),
-    ...rows.map((r) => r.map(csvEscape).join(","))
+    ...rows.map((row) => row.map(csvEscape).join(","))
   ].join("\n");
 
   const bom = "\uFEFF";
-  const filename = `students-${institution}-${new Date().toISOString().slice(0, 10)}.csv`;
+  const filenameScope = scopedInstitutionCode || "filtered";
+  const filename = `students-${filenameScope}-${new Date().toISOString().slice(0, 10)}.csv`;
 
   return new NextResponse(bom + csv, {
     status: 200,
@@ -279,3 +107,8 @@ export async function GET(request) {
     }
   });
 }
+
+
+
+
+
