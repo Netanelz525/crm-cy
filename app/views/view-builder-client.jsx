@@ -113,6 +113,55 @@ function flattenGroups(groups) {
   );
 }
 
+function normalizeOptionText(value) {
+  return clean(value).toLowerCase();
+}
+
+function SearchableFieldPicker({ options, value, onSelect, placeholder, listId }) {
+  const [query, setQuery] = useState("");
+  const activeOption = useMemo(
+    () => options.find((option) => option.key === value) || null,
+    [options, value]
+  );
+  const inputValue = query || activeOption?.label || value || "";
+  const filteredOptions = useMemo(() => {
+    const term = normalizeOptionText(query);
+    if (!term) return options.slice(0, 12);
+    return options
+      .filter((option) => normalizeOptionText(`${option.label} ${option.key}`).includes(term))
+      .slice(0, 12);
+  }, [options, query]);
+
+  function applySelection(rawValue) {
+    const normalized = normalizeOptionText(rawValue);
+    const match = options.find((option) => normalizeOptionText(option.label) === normalized || normalizeOptionText(option.key) === normalized);
+    if (match) {
+      onSelect(match.key);
+      setQuery("");
+      return;
+    }
+    setQuery(rawValue);
+  }
+
+  return (
+    <div className="searchable-field-picker">
+      <input
+        list={listId}
+        value={inputValue}
+        onChange={(event) => applySelection(event.target.value)}
+        onBlur={() => setQuery("")}
+        placeholder={placeholder}
+      />
+      <datalist id={listId}>
+        {filteredOptions.map((option) => (
+          <option key={option.key} value={option.label}>{option.key}</option>
+        ))}
+      </datalist>
+      {query ? <div className="searchable-field-hint">{filteredOptions.length ? filteredOptions.map((option) => option.label).join(" | ") : "לא נמצאה התאמה"}</div> : null}
+    </div>
+  );
+}
+
 export default function ViewBuilderClient({
   savedViews,
   currentViewId,
@@ -427,9 +476,13 @@ export default function ViewBuilderClient({
                     <strong>רמה {index + 1}</strong>
                     <button type="button" className="danger-btn" onClick={() => removeSortLevel(index)}>הסר</button>
                   </div>
-                  <select value={level.sortBy} onChange={(event) => updateSortLevel(index, { sortBy: event.target.value })}>
-                    {sortOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
-                  </select>
+                  <SearchableFieldPicker
+                    options={sortOptions}
+                    value={level.sortBy}
+                    onSelect={(nextValue) => updateSortLevel(index, { sortBy: nextValue })}
+                    placeholder="חפש שדה למיון"
+                    listId={`sort-options-${level.id}`}
+                  />
                   <select value={level.sortDir} onChange={(event) => updateSortLevel(index, { sortDir: event.target.value })}>
                     <option value="asc">מהקטן לגדול</option>
                     <option value="desc">מהגדול לקטן</option>
@@ -506,10 +559,13 @@ export default function ViewBuilderClient({
                             )}
 
                             <div className="builder-filter-card">
-                              <input list={`filter-fields-${group.id}-${filterIndex}`} value={filter.field} onChange={(event) => updateFilter(groupIndex, filterIndex, { field: event.target.value, value: "" })} placeholder="חפש או בחר שדה" />
-                              <datalist id={`filter-fields-${group.id}-${filterIndex}`}>
-                                {filterFieldOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
-                              </datalist>
+                              <SearchableFieldPicker
+                                options={filterFieldOptions}
+                                value={filter.field}
+                                onSelect={(nextValue) => updateFilter(groupIndex, filterIndex, { field: nextValue, value: "" })}
+                                placeholder="חפש או בחר שדה"
+                                listId={`filter-fields-${group.id}-${filterIndex}`}
+                              />
                               <select value={filter.operator} onChange={(event) => updateFilter(groupIndex, filterIndex, { operator: event.target.value, value: ["empty", "not_empty"].includes(event.target.value) ? "" : filter.value })}>
                                 {Object.entries(filterOperatorOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                               </select>
@@ -629,3 +685,5 @@ export default function ViewBuilderClient({
     </div>
   );
 }
+
+

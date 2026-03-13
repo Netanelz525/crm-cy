@@ -1173,3 +1173,14 @@ td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.searchable-field-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.searchable-field-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
