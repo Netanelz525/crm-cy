@@ -3,10 +3,14 @@
 import { redirect } from "next/navigation";
 import { toFormData } from "../../../lib/student-fields";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
-import { createStudentByData } from "../../../lib/twenty";
+import { createStudentByData, getStudentByPrimaryEmail, listAllStudents, searchStudentsByTz } from "../../../lib/twenty";
 
 function clean(v) {
   return String(v || "").trim();
+}
+
+function normalizePhone(v) {
+  return clean(v).replace(/[^\d]/g, "");
 }
 
 function buildStudentUrl(studentId) {
@@ -76,6 +80,43 @@ async function notifyWebhook(payload) {
   }
 }
 
+async function findDuplicateStudent(raw) {
+  const tznum = clean(raw.tznum);
+  if (tznum) {
+    const tzMatches = await searchStudentsByTz(tznum);
+    if (tzMatches.length) {
+      return { student: tzMatches[0], reason: 'כבר קיים תלמיד עם אותה ת"ז' };
+    }
+  }
+
+  const primaryEmail = clean(raw["email.primaryEmail"]).toLowerCase();
+  if (primaryEmail) {
+    const emailMatch = await getStudentByPrimaryEmail(primaryEmail);
+    if (emailMatch?.id) {
+      return { student: emailMatch, reason: "כבר קיים תלמיד עם אותו אימייל" };
+    }
+  }
+
+  const studentPhone = normalizePhone(raw["phone.primaryPhoneNumber"]);
+  const firstName = clean(raw["fullName.firstName"]);
+  const lastName = clean(raw["fullName.lastName"]);
+  if (studentPhone && firstName && lastName) {
+    const students = await listAllStudents(200, 10);
+    const phoneMatch = students.find((student) => {
+      const existingPhone = normalizePhone(student?.phone?.primaryPhoneNumber);
+      const existingFirst = clean(student?.fullName?.firstName);
+      const existingLast = clean(student?.fullName?.lastName);
+      return existingPhone && existingPhone === studentPhone && existingFirst === firstName && existingLast === lastName;
+    });
+
+    if (phoneMatch?.id) {
+      return { student: phoneMatch, reason: "כבר קיים תלמיד עם אותו שם וטלפון" };
+    }
+  }
+
+  return null;
+}
+
 export async function createStudentAction(formData) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
@@ -93,6 +134,12 @@ export async function createStudentAction(formData) {
 
   if (!Object.keys(data).length) {
     redirect("/students/new?error=לא הוזנו נתונים לשמירה");
+  }
+
+  const duplicate = await findDuplicateStudent(raw);
+  if (duplicate?.student?.id) {
+    const reason = encodeURIComponent(duplicate.reason || "נמצאה כפילות אפשרית");
+    redirect(`/students/new?error=${reason}&existingStudentId=${encodeURIComponent(duplicate.student.id)}&duplicate=1`);
   }
 
   const created = await createStudentByData(data);

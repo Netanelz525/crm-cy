@@ -1184,3 +1184,103 @@ td {
   font-size: 0.82rem;
   line-height: 1.4;
 }
+
+.btn-danger {
+  background: linear-gradient(180deg, #c74343, #a92c2c);
+  color: #fff;
+  border: 1px solid #962323;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.03);
+}
+
+.student-actions-wrap {
+  flex-wrap: wrap;
+}
+
+.student-delete-form {
+  display: inline-flex;
+}
+
+@media (max-width: 900px) {
+  .views-sidebar {
+    padding: 14px;
+  }
+
+  .views-sidebar-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .views-sidebar-actions > * {
+    width: 100%;
+    text-align: center;
+  }
+
+  .views-panel-surface {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .views-sort-card,
+  .views-folder-card,
+  .views-summary-item,
+  .views-summary-card,
+  .views-preview-summary-card {
+    border-radius: 14px;
+  }
+
+  .views-folder-head {
+    align-items: flex-start;
+  }
+
+  .views-topbar-card {
+    display: grid;
+    gap: 12px;
+  }
+
+  .views-topbar-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .views-editor-card {
+    padding: 14px;
+  }
+
+  .desktop-table {
+    display: none;
+  }
+
+  .mobile-student-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .views-panel-tabs {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .views-sidebar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .views-folder-head {
+    flex-direction: row;
+  }
+
+  .student-actions-wrap,
+  .student-delete-form {
+    width: 100%;
+  }
+
+  .student-actions-wrap .btn,
+  .student-delete-form .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

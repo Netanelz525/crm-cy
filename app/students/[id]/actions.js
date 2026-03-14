@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { upsertStudentNote } from "../../../lib/notes";
 import { canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { toFormData } from "../../../lib/student-fields";
-import { updateStudentById } from "../../../lib/twenty";
+import { deleteStudentById, updateStudentById } from "../../../lib/twenty";
 
 function clean(v) {
   return String(v || "").trim();
@@ -27,6 +27,28 @@ export async function updateStudentAction(formData) {
 
   await updateStudentById(studentId, data);
   redirect(`/students/${studentId}?updated=1`);
+}
+
+export async function deleteStudentAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  if (!studentId) {
+    redirect("/?error=לא נבחר תלמיד למחיקה");
+  }
+
+  try {
+    await deleteStudentById(studentId);
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "מחיקת התלמיד נכשלה");
+    redirect(`/students/${studentId}?error=${message}`);
+  }
+
+  redirect("/?deleted=1");
 }
 
 export async function updateNoteAction(formData) {

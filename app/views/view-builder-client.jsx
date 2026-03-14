@@ -410,8 +410,8 @@ export default function ViewBuilderClient({
               <span className="muted">תיקיות וחיפוש</span>
             </div>
 
-            {(status?.saved === "1" || status?.updated === "1" || status?.deleted === "1") ? (
-              <div className="ok">{status?.saved === "1" ? "התצוגה נשמרה." : status?.updated === "1" ? "התצוגה עודכנה." : "התצוגה נמחקה."}</div>
+            {(status?.saved === "1" || status?.updated === "1" || status?.deleted === "1" || status?.duplicate === "1") ? (
+              <div className={status?.duplicate === "1" ? "card muted" : "ok"}>{status?.duplicate === "1" ? "כבר קיימת תצוגה זהה או עם אותו שם בתיקיה זו." : status?.saved === "1" ? "התצוגה נשמרה." : status?.updated === "1" ? "התצוגה עודכנה." : "התצוגה נמחקה."}</div>
             ) : null}
 
             <input className="views-search-input" value={viewSearch} onChange={(event) => setViewSearch(event.target.value)} placeholder="חיפוש תצוגות או תיקיות" />
@@ -685,5 +685,7 @@ export default function ViewBuilderClient({
     </div>
   );
 }
+
+
 
 

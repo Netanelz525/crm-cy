@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { upsertStudentNote } from "../lib/notes";
 import { getCurrentAppUser, requireTeamUser } from "../lib/rbac";
-import { createSavedView, deleteSavedView, updateSavedView } from "../lib/saved-views";
+import { createSavedView, deleteSavedView, findDuplicateSavedView, updateSavedView } from "../lib/saved-views";
 import { sanitizeQueryString } from "../lib/student-view";
 
 function clean(v) {
@@ -50,6 +50,18 @@ export async function saveStudentViewAction(formData) {
     redirect(`${returnPath}${returnPath.includes("?") ? "&" : "?"}saved=0`);
   }
 
+  const duplicateView = await findDuplicateSavedView({
+    ownerUserId: user.clerk_user_id,
+    name,
+    folderName,
+    queryString: nextQuery,
+    excludeId: viewId
+  });
+
+  if (duplicateView && !viewId) {
+    redirect(`${returnPath}${returnPath.includes("?") ? "&" : "?"}savedViewId=${duplicateView.id}&duplicate=1`);
+  }
+
   const finalViewId = viewId || crypto.randomUUID();
   if (viewId) {
     await updateSavedView({ id: finalViewId, ownerUserId: user.clerk_user_id, name, folderName, queryString: nextQuery });
@@ -78,4 +90,3 @@ export async function deleteStudentViewAction(formData) {
 
   redirect(`${returnPath}${returnPath.includes("?") ? "&" : "?"}deleted=1`);
 }
-

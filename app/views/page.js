@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import ViewBuilderClient from "./view-builder-client";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { listSavedViewsForUser } from "../../lib/saved-views";
@@ -93,7 +93,7 @@ async function buildPreview(resolvedSearchParams) {
 
   const previewRows = students.slice(0, 30).map((student) => ({
     id: student.id,
-    label: clean(student.label) || "��� ��",
+    label: clean(student.label) || "ן¿½ן¿½ן¿½ ן¿½ן¿½",
     classLabel: classLabel(student.class),
     hasMissing: Array.isArray(student.missingItems) && student.missingItems.length > 0,
     missingText: Array.isArray(student.missingItems) && student.missingItems.length ? student.missingItems.join(", ") : "-",
@@ -135,7 +135,8 @@ export default async function ViewsPage({ searchParams }) {
       status={{
         saved: clean(resolvedSearchParams?.saved),
         updated: clean(resolvedSearchParams?.updated),
-        deleted: clean(resolvedSearchParams?.deleted)
+        deleted: clean(resolvedSearchParams?.deleted),
+        duplicate: clean(resolvedSearchParams?.duplicate)
       }}
       currentQueryString={currentQueryString}
       exportHref={exportHref}
@@ -153,4 +154,6 @@ export default async function ViewsPage({ searchParams }) {
     />
   );
 }
+
+
 

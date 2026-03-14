@@ -46,6 +46,8 @@ export default async function NewStudentPage({ searchParams }) {
   const sp = await searchParams;
   const errorText = clean(sp?.error);
   const advancedMode = clean(sp?.advanced) === "1";
+  const existingStudentId = clean(sp?.existingStudentId);
+  const duplicate = clean(sp?.duplicate) === "1";
 
   return (
     <>
@@ -64,7 +66,12 @@ export default async function NewStudentPage({ searchParams }) {
         </div>
       </div>
 
-      {errorText ? <div className="card muted">{errorText}</div> : null}
+      {errorText ? (
+        <div className="card muted">
+          <div>{errorText}</div>
+          {duplicate && existingStudentId ? <div style={{ marginTop: 10 }}><Link className="chip-link" href={`/students/${existingStudentId}`}>פתח תלמיד קיים</Link></div> : null}
+        </div>
+      ) : null}
 
       <form action={createStudentAction}>
         <div className="sticky-save-bar">

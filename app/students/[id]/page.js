@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../lib/student-fields";
 import { getStudentById } from "../../../lib/twenty";
-import { updateStudentAction } from "./actions";
+import { deleteStudentAction, updateStudentAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -139,6 +139,7 @@ export default async function StudentPage({ params, searchParams }) {
   if (!student) notFound();
 
   const canEdit = canEditStudentCard(currentUser, studentId);
+  const canDelete = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
   const editMode = canEdit && clean(resolvedSearchParams?.edit) === "1";
   const advancedMode = editMode && clean(resolvedSearchParams?.advanced) === "1";
   const updated = clean(resolvedSearchParams?.updated) === "1";
@@ -160,7 +161,7 @@ export default async function StudentPage({ params, searchParams }) {
               <span className="meta-chip meta-chip-strong">שיעור: {classLabel(student?.class)}</span>
             </div>
           </div>
-          <div className="student-actions">
+          <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/">חזרה לרשימה</Link>
             {editMode ? (
               <>
@@ -174,6 +175,12 @@ export default async function StudentPage({ params, searchParams }) {
               </>
             ) : canEdit ? (
               <Link className="btn btn-primary" href={`/students/${studentId}?edit=1`}>עריכת שדות</Link>
+            ) : null}
+            {canDelete ? (
+              <form action={deleteStudentAction} className="student-delete-form">
+                <input type="hidden" name="studentId" value={studentId} />
+                <button className="btn btn-danger" type="submit">מחק תלמיד</button>
+              </form>
             ) : null}
           </div>
         </div>
