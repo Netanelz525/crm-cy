@@ -93,7 +93,7 @@ async function buildPreview(resolvedSearchParams) {
 
   const previewRows = students.slice(0, 30).map((student) => ({
     id: student.id,
-    label: clean(student.label) || "ן¿½ן¿½ן¿½ ן¿½ן¿½",
+    label: clean(student.label) || "ללא שם",
     classLabel: classLabel(student.class),
     hasMissing: Array.isArray(student.missingItems) && student.missingItems.length > 0,
     missingText: Array.isArray(student.missingItems) && student.missingItems.length ? student.missingItems.join(", ") : "-",
@@ -154,6 +154,7 @@ export default async function ViewsPage({ searchParams }) {
     />
   );
 }
+
 
 
 
