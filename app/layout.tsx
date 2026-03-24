@@ -15,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <header className="topbar">
             <nav className="nav">
               <Link href="/">תלמידים</Link>
+              <Link href="/neon">Neon Beta</Link>
               <Link href="/views">תצוגות</Link>
               <Link href="/admin">ניהול</Link>
             </nav>
@@ -30,4 +31,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-

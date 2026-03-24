@@ -14,6 +14,7 @@ import {
   clean
 } from "../../../../lib/student-view";
 import { getStudentsByInstitution, listAllStudents } from "../../../../lib/twenty";
+import { getNeonStudentsByInstitution, listAllNeonStudents } from "../../../../lib/neon-students";
 
 function findInstitutionCode(value) {
   const normalized = clean(value).toLowerCase();
@@ -38,6 +39,7 @@ export async function GET(request) {
   }
 
   const url = new URL(request.url);
+  const source = clean(url.searchParams.get("source")).toLowerCase();
   const institution = clean(url.searchParams.get("institution"));
   const institutionSearch = clean(url.searchParams.get("institutionSearch"));
   const missingOnly = clean(url.searchParams.get("missingOnly")) === "1";
@@ -69,7 +71,12 @@ export async function GET(request) {
     filters.find((filter) => clean(filter.field) === "institution" && filter.operator === "equals")?.value
   );
 
-  let students = scopedInstitutionCode ? await getStudentsByInstitution(scopedInstitutionCode) : await listAllStudents();
+  let students;
+  if (source === "neon") {
+    students = scopedInstitutionCode ? await getNeonStudentsByInstitution(scopedInstitutionCode) : await listAllNeonStudents();
+  } else {
+    students = scopedInstitutionCode ? await getStudentsByInstitution(scopedInstitutionCode) : await listAllStudents();
+  }
   if (institutionSearch) {
     const s = institutionSearch.toLowerCase();
     students = students.filter((x) => clean(x.label).toLowerCase().includes(s));
@@ -97,7 +104,8 @@ export async function GET(request) {
 
   const bom = "\uFEFF";
   const filenameScope = scopedInstitutionCode || "filtered";
-  const filename = `students-${filenameScope}-${new Date().toISOString().slice(0, 10)}.csv`;
+  const filenamePrefix = source === "neon" ? "students-neon" : "students";
+  const filename = `${filenamePrefix}-${filenameScope}-${new Date().toISOString().slice(0, 10)}.csv`;
 
   return new NextResponse(bom + csv, {
     status: 200,
@@ -107,7 +115,6 @@ export async function GET(request) {
     }
   });
 }
-
 
 
 

@@ -1,6 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentAppUser } from "../lib/rbac";
+import { getCurrentAppUser } from "../../lib/rbac";
 import {
   applyAdvancedFilters,
   ageOf,
@@ -21,8 +21,15 @@ import {
   phoneText,
   sanitizeQueryString,
   sortStudents
-} from "../lib/student-view";
-import { getStudentsByInstitution, listAllStudents, searchStudentsByText, searchStudentsByTz } from "../lib/twenty";
+} from "../../lib/student-view";
+import {
+  getNeonStudentsByInstitution,
+  getNeonStudentsStats,
+  listAllNeonStudents,
+  searchNeonStudentsByText,
+  searchNeonStudentsByTz
+} from "../../lib/neon-students";
+import { syncNeonStudentsAction } from "./actions";
 
 function PhoneLink({ phoneObj }) {
   const text = phoneText(phoneObj);
@@ -61,7 +68,7 @@ function columnNode(student, columnKey) {
 
   switch (columnKey) {
     case "name":
-      return <Link className="student-link" href={"/students/" + student.id}>{clean(student?.label) || "-"}</Link>;
+      return <Link className="student-link" href={`/neon/students/${student.id}`}>{clean(student?.label) || "-"}</Link>;
     case "studentPhone":
       return <PhoneLink phoneObj={student?.phone} />;
     case "dadPhone":
@@ -100,7 +107,7 @@ function buildQueryString(params) {
 
 function buildNextPath(params) {
   const query = buildQueryString(params);
-  return query ? `/?${query}` : "/";
+  return query ? `/neon?${query}` : "/neon";
 }
 
 function findInstitutionCode(value) {
@@ -116,25 +123,15 @@ function hasInstitutionScopedFilter(filters) {
   return filters.some((filter) => clean(filter.field) === "institution");
 }
 
-export default async function HomePage({ searchParams }) {
+export default async function NeonPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
 
   const resolvedSearchParams = await searchParams;
 
   if (!currentUser.is_team_member && !currentUser.is_manager) {
-    if (currentUser.linked_student_id) redirect(`/students/${currentUser.linked_student_id}`);
-    const approvedUnknown = String(currentUser.access_status || "") === "approved";
-    return (
-      <div className="card">
-        <h1>{approvedUnknown ? "אין כרטיס תלמיד מקושר" : "הגישה ממתינה לאישור"}</h1>
-        <p className="muted">
-          {approvedUnknown
-            ? "המשתמש אושר, אך אין כרטיס תלמיד המשויך למייל שלך במערכת. יש לפנות למשתמש TEAM."
-            : "לא נמצא תלמיד תואם למייל שלך. משתמש TEAM צריך לאשר משתמשים לא מוכרים."}
-        </p>
-      </div>
-    );
+    if (currentUser.linked_student_id) redirect(`/neon/students/${currentUser.linked_student_id}`);
+    redirect("/unauthorized");
   }
 
   const currentQueryString = sanitizeQueryString(buildQueryString(resolvedSearchParams));
@@ -145,6 +142,8 @@ export default async function HomePage({ searchParams }) {
   const missingType = ["contact", "identity"].includes(missingTypeParam) ? missingTypeParam : (missingOnly ? "contact" : "");
   const sortLevels = parseSortLevels(resolvedSearchParams);
   const advancedFilters = parseAdvancedFilters(resolvedSearchParams);
+  const synced = clean(resolvedSearchParams?.synced) === "1";
+  const syncCount = clean(resolvedSearchParams?.count);
 
   const tz = clean(resolvedSearchParams?.tz).replace(/[^\d]/g, "");
   const q = clean(resolvedSearchParams?.q);
@@ -165,9 +164,9 @@ export default async function HomePage({ searchParams }) {
       );
 
       if (scopedInstitutionCode) {
-        students = await getStudentsByInstitution(scopedInstitutionCode);
+        students = await getNeonStudentsByInstitution(scopedInstitutionCode);
       } else {
-        students = await listAllStudents();
+        students = await listAllNeonStudents();
       }
 
       if (institutionSearch) {
@@ -184,35 +183,44 @@ export default async function HomePage({ searchParams }) {
       students = applyAdvancedFilters(students, advancedFilters);
       students = sortStudents(students, sortLevels);
     } else if (mode === "search") {
-      if (tz) students = (await searchStudentsByTz(tz)).slice(0, 10);
-      else if (q) students = await searchStudentsByText(q, 10);
+      if (tz) students = (await searchNeonStudentsByTz(tz)).slice(0, 10);
+      else if (q) students = await searchNeonStudentsByText(q, 10);
     }
   } catch (e) {
     error = e.message || "Search failed";
   }
 
+  const stats = await getNeonStudentsStats();
   const clearInstitutionFiltersPath = buildNextPath({ mode: "institution", institution, cols: selectedColumnKeys });
-  const exportHref = currentQueryString ? `/api/export/institution?${currentQueryString}` : "/api/export/institution";
-  const builderHref = currentQueryString ? `/views?${currentQueryString}` : "/views";
+  const exportHref = currentQueryString ? `/api/export/institution?source=neon&${currentQueryString}` : "/api/export/institution?source=neon";
   const hasInstitutionFilter = hasInstitutionScopedFilter(advancedFilters);
   const institutionCount = students.length;
 
   return (
     <>
       <div className="card glass">
-        <h1>ניהול תלמידים - TEAM</h1>
-        <p className="muted">גישה מלאה לחיפוש, עדכון מידע ואישור משתמשים לא מוכרים.</p>
-        <div className="quick-actions">
-          <Link className="quick-action-btn quick-action-outline" href="/neon">מעבר ל-Neon Beta</Link>
-          <Link className="quick-action-btn quick-action-outline" href="/admin">מעבר לאישור משתמשים</Link>
-          <Link className="quick-action-btn quick-action-outline" href="/finder">איתור תלמיד</Link>
-          <Link className="quick-action-btn quick-action-outline" href="/views">תצוגות</Link>
-          <Link className="quick-action-btn quick-action-primary" href="/students/new">יצירת תלמיד</Link>
+        <div className="student-topbar">
+          <div>
+            <h1>Neon Students Beta</h1>
+            <p className="muted">טאב מקביל שעובד מול עותק הנתונים ב-Neon, עם עריכה שמסנכרנת חזרה ל-Twenty.</p>
+          </div>
+          <div className="student-actions student-actions-wrap">
+            <Link className="btn btn-ghost" href="/">חזרה לגרסה הראשית</Link>
+            <form action={syncNeonStudentsAction}>
+              <button className="btn btn-primary" type="submit">סנכרון מ-Twenty</button>
+            </form>
+          </div>
+        </div>
+        <div className="student-meta-line">
+          <span className="meta-chip">תלמידים במראה: {stats.total || 0}</span>
+          <span className="meta-chip">סנכרון אחרון: {stats.last_synced_at ? new Date(stats.last_synced_at).toLocaleString("he-IL") : "עדיין לא בוצע"}</span>
         </div>
       </div>
 
+      {synced ? <div className="ok">הסנכרון הושלם. עודכנו {syncCount || 0} תלמידים.</div> : null}
+
       <div className="card glass">
-        <h3>חיפוש כללי תלמידים</h3>
+        <h3>חיפוש כללי תלמידים - Neon</h3>
         <form className="grid" method="GET">
           <input type="hidden" name="mode" value="search" />
           <input name="q" defaultValue={mode === "search" ? q : ""} placeholder="חיפוש לפי שם תלמיד" />
@@ -222,7 +230,7 @@ export default async function HomePage({ searchParams }) {
       </div>
 
       <div className="card glass">
-        <h3>תצוגת מוסד</h3>
+        <h3>תצוגת מוסד - Neon</h3>
         <form className="grid" method="GET">
           <input type="hidden" name="mode" value="institution" />
           <select name="institution" defaultValue={mode === "institution" ? institution : ""}>
@@ -242,7 +250,6 @@ export default async function HomePage({ searchParams }) {
             <div>סה"כ תלמידים בתצוגה: <b>{institutionCount}</b></div>
             <div className="quick-actions" style={{ marginTop: 0 }}>
               <Link className="chip-link" href={clearInstitutionFiltersPath}>נקה סינונים</Link>
-              <Link className="chip-link" href={builderHref}>פתח תצוגות</Link>
               <a className="chip-link" href={exportHref}>ייצוא אקסל</a>
             </div>
           </div>
@@ -338,7 +345,7 @@ export default async function HomePage({ searchParams }) {
                 const hasMissing = missingState.items.length > 0;
                 return (
                   <tr key={student.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
-                    <td><Link className="student-link" href={"/students/" + student.id}>{student.label}</Link></td>
+                    <td><Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link></td>
                     <td>{classLabel(student.class)}</td>
                     <td>{student.tznum || "-"}</td>
                     <td>{ageOf(student.dateofbirth) ?? "-"}</td>
@@ -363,7 +370,7 @@ export default async function HomePage({ searchParams }) {
             return (
               <div key={student.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
                 <div className="student-mobile-head">
-                  <Link className="student-link" href={"/students/" + student.id}>{student.label}</Link>
+                  <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                 </div>
                 <div className="student-mobile-grid">
                   {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
@@ -378,7 +385,7 @@ export default async function HomePage({ searchParams }) {
             return (
               <div key={student.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
                 <div className="student-mobile-head">
-                  <Link className="student-link" href={"/students/" + student.id}>{student.label}</Link>
+                  <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                   <span>{classLabel(student.class)}</span>
                 </div>
                 <div className="student-mobile-grid">
@@ -397,6 +404,3 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
-
-
-

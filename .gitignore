@@ -17,3 +17,4 @@ students.internal.local.json
 *.zip
 server.out.log
 server.err.log
+.env*.local
