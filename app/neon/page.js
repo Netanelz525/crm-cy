@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser } from "../../lib/rbac";
