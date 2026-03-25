@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser } from "../../lib/rbac";
 import {
   applyAdvancedFilters,
@@ -123,6 +124,13 @@ function hasInstitutionScopedFilter(filters) {
   return filters.some((filter) => clean(filter.field) === "institution");
 }
 
+function matchesQuickValue(studentValue, filterValue) {
+  const left = clean(studentValue).toUpperCase();
+  const right = clean(filterValue).toUpperCase();
+  if (!right) return true;
+  return left === right;
+}
+
 export default async function NeonPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
@@ -144,11 +152,14 @@ export default async function NeonPage({ searchParams }) {
   const advancedFilters = parseAdvancedFilters(resolvedSearchParams);
   const synced = clean(resolvedSearchParams?.synced) === "1";
   const syncCount = clean(resolvedSearchParams?.count);
+  const quickClass = clean(resolvedSearchParams?.quickClass).toUpperCase();
+  const quickRegistration = clean(resolvedSearchParams?.quickRegistration).toUpperCase();
+  const quickFamilyStatus = clean(resolvedSearchParams?.quickFamilyStatus).toUpperCase();
 
   const tz = clean(resolvedSearchParams?.tz).replace(/[^\d]/g, "");
   const q = clean(resolvedSearchParams?.q);
   const modeParam = clean(resolvedSearchParams?.mode).toLowerCase();
-  const mode = modeParam || (institution || institutionSearch || missingOnly || missingType || advancedFilters.length ? "institution" : q || tz ? "search" : "");
+  const mode = modeParam || (institution || institutionSearch || missingOnly || missingType || quickClass || quickRegistration || quickFamilyStatus || advancedFilters.length ? "institution" : q || tz ? "search" : "");
 
   const parsedColumnKeys = parseListParam(resolvedSearchParams?.cols).filter((key) => INSTITUTION_COLUMN_MAP[key]);
   const selectedColumnKeys = parsedColumnKeys.length ? parsedColumnKeys : DEFAULT_INSTITUTION_COLUMN_KEYS;
@@ -158,7 +169,7 @@ export default async function NeonPage({ searchParams }) {
   let error = "";
 
   try {
-    if (mode === "institution" && (institution || advancedFilters.length)) {
+    if (mode === "institution" && (institution || quickClass || quickRegistration || quickFamilyStatus || advancedFilters.length)) {
       const scopedInstitutionCode = institution || findInstitutionCode(
         advancedFilters.find((filter) => clean(filter.field) === "institution" && filter.operator === "equals")?.value
       );
@@ -180,6 +191,9 @@ export default async function NeonPage({ searchParams }) {
       });
 
       if (missingType) students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
+      if (quickClass) students = students.filter((student) => matchesQuickValue(student?.class, quickClass));
+      if (quickRegistration) students = students.filter((student) => matchesQuickValue(student?.registration, quickRegistration));
+      if (quickFamilyStatus) students = students.filter((student) => matchesQuickValue(student?.famliystatus, quickFamilyStatus));
       students = applyAdvancedFilters(students, advancedFilters);
       students = sortStudents(students, sortLevels);
     } else if (mode === "search") {
@@ -195,6 +209,8 @@ export default async function NeonPage({ searchParams }) {
   const exportHref = currentQueryString ? `/api/export/institution?source=neon&${currentQueryString}` : "/api/export/institution?source=neon";
   const hasInstitutionFilter = hasInstitutionScopedFilter(advancedFilters);
   const institutionCount = students.length;
+  const hasQuickFilters = Boolean(quickClass || quickRegistration || quickFamilyStatus);
+  const showInstitutionView = mode === "institution" && (institution || hasInstitutionFilter || hasQuickFilters || advancedFilters.length);
 
   return (
     <>
@@ -244,7 +260,7 @@ export default async function NeonPage({ searchParams }) {
         </form>
       </div>
 
-      {mode === "institution" && (institution || hasInstitutionFilter || advancedFilters.length) ? (
+      {showInstitutionView ? (
         <>
           <div className="card summary-row">
             <div>סה"כ תלמידים בתצוגה: <b>{institutionCount}</b></div>
@@ -255,12 +271,89 @@ export default async function NeonPage({ searchParams }) {
           </div>
 
           <div className="card">
+            <details className="display-settings" open={Boolean(quickClass || quickRegistration || quickFamilyStatus)}>
+              <summary>סינון מהיר</summary>
+              <form method="GET" className="column-picker">
+                <input type="hidden" name="mode" value="institution" />
+                <input type="hidden" name="institution" value={institution} />
+                <input type="hidden" name="institutionSearch" value={institutionSearch} />
+                {selectedColumnKeys.map((key) => (
+                  <input key={`col-${key}`} type="hidden" name="cols" value={key} />
+                ))}
+                {sortLevels.map((level, index) => (
+                  <div key={`quick-sort-${index}`}>
+                    <input type="hidden" name="sby" value={level.sortBy} />
+                    <input type="hidden" name="sdir" value={level.sortDir} />
+                  </div>
+                ))}
+                {advancedFilters.map((filter, index) => (
+                  <div key={`quick-filter-${index}`}>
+                    <input type="hidden" name="ff" value={filter.field} />
+                    <input type="hidden" name="fo" value={filter.operator} />
+                    <input type="hidden" name="fv" value={filter.value} />
+                    <input type="hidden" name="fj" value={filter.joiner} />
+                    <input type="hidden" name="fg" value={filter.groupId || "group-1"} />
+                    <input type="hidden" name="gj" value={filter.groupJoiner || "AND"} />
+                  </div>
+                ))}
+                {missingType ? <input type="hidden" name="missingType" value={missingType} /> : null}
+                <div className="grid">
+                  <select name="quickClass" defaultValue={quickClass}>
+                    <option value="">כל השיעורים</option>
+                    {Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  <select name="quickRegistration" defaultValue={quickRegistration}>
+                    <option value="">כל מצבי הרישום</option>
+                    {Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  <select name="quickFamilyStatus" defaultValue={quickFamilyStatus}>
+                    <option value="">כל הסטטוסים המשפחתיים</option>
+                    {Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="quick-actions">
+                  <button type="submit">החל סינון מהיר</button>
+                  <Link
+                    className="chip-link"
+                    href={buildNextPath({
+                      mode: "institution",
+                      institution,
+                      institutionSearch,
+                      cols: selectedColumnKeys,
+                      missingType,
+                      sby: sortLevels.map((level) => level.sortBy),
+                      sdir: sortLevels.map((level) => level.sortDir),
+                      ff: advancedFilters.map((filter) => filter.field),
+                      fo: advancedFilters.map((filter) => filter.operator),
+                      fv: advancedFilters.map((filter) => filter.value),
+                      fj: advancedFilters.map((filter) => filter.joiner),
+                      fg: advancedFilters.map((filter) => filter.groupId || "group-1"),
+                      gj: advancedFilters.map((filter) => filter.groupJoiner || "AND")
+                    })}
+                  >
+                    נקה סינון מהיר
+                  </Link>
+                </div>
+              </form>
+            </details>
+          </div>
+
+          <div className="card">
             <details className="display-settings">
               <summary>שדות וחוסרים</summary>
               <form method="GET" className="column-picker">
                 <input type="hidden" name="mode" value="institution" />
                 <input type="hidden" name="institution" value={institution} />
                 <input type="hidden" name="institutionSearch" value={institutionSearch} />
+                <input type="hidden" name="quickClass" value={quickClass} />
+                <input type="hidden" name="quickRegistration" value={quickRegistration} />
+                <input type="hidden" name="quickFamilyStatus" value={quickFamilyStatus} />
                 {sortLevels.map((level, index) => (
                   <div key={`sort-${index}`}>
                     <input type="hidden" name="sby" value={level.sortBy} />
@@ -304,7 +397,7 @@ export default async function NeonPage({ searchParams }) {
       <div className="card desktop-table">
         <table>
           <thead>
-            {mode === "institution" && (institution || hasInstitutionFilter || advancedFilters.length) ? (
+            {showInstitutionView ? (
               <tr>
                 {selectedColumns.map((col) => <th key={col.key}>{col.label}</th>)}
               </tr>
@@ -324,9 +417,9 @@ export default async function NeonPage({ searchParams }) {
           <tbody>
             {!students.length ? (
               <tr>
-                <td colSpan={mode === "institution" && (institution || hasInstitutionFilter || advancedFilters.length) ? Math.max(selectedColumns.length, 1) : 8} className="muted">אין תוצאות</td>
+                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length, 1) : 8} className="muted">אין תוצאות</td>
               </tr>
-            ) : mode === "institution" && (institution || hasInstitutionFilter || advancedFilters.length) ? (
+            ) : showInstitutionView ? (
               students.map((student) => {
                 const hasMissing = (student.missingItems || []).length > 0;
                 return (
@@ -364,7 +457,7 @@ export default async function NeonPage({ searchParams }) {
       <div className="mobile-student-list">
         {!students.length ? (
           <div className="card muted">אין תוצאות</div>
-        ) : mode === "institution" && (institution || hasInstitutionFilter || advancedFilters.length) ? (
+        ) : showInstitutionView ? (
           students.map((student) => {
             const hasMissing = (student.missingItems || []).length > 0;
             return (
