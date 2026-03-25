@@ -97,6 +97,10 @@ function classLabel(value) {
   return ENUM_LABELS.class?.[key] || clean(value) || "-";
 }
 
+function isMarried(value) {
+  return clean(value).toUpperCase() === "MARRIED";
+}
+
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     return (
@@ -145,6 +149,8 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
+  const showChildrenCount = isMarried(student?.famliystatus);
+  const childrenCountValue = student?.childrenCount ?? "";
 
   return (
     <>
@@ -203,6 +209,18 @@ export default async function NeonStudentPage({ params, searchParams }) {
                   <EditField field={field} value={editValues[field.key] || ""} />
                 </div>
               ))}
+              {showChildrenCount ? (
+                <div>
+                  <label>מספר ילדים</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    name="childrenCount"
+                    defaultValue={childrenCountValue}
+                  />
+                </div>
+              ) : null}
             </div>
             <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
               טלפונים ואימיילים נוספים מוסתרים כברירת מחדל. להצגה שלהם בחר "עריכה מתקדמת".
@@ -237,6 +255,16 @@ export default async function NeonStudentPage({ params, searchParams }) {
       ) : (
         <div className="card">
           <h3>פרטי הכרטיס</h3>
+          {showChildrenCount ? (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <h4>מידע משפחתי מקומי</h4>
+              <div className="grid">
+                <div>
+                  <b>מספר ילדים:</b> {childrenCountValue === "" ? "-" : String(childrenCountValue)}
+                </div>
+              </div>
+            </div>
+          ) : null}
           {!sections.length ? (
             <div className="muted">לא נמצא מידע להצגה.</div>
           ) : (
