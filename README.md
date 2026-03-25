@@ -81,6 +81,8 @@ Endpoints ראשוניים:
 - `GET /api/crm/students?institution=CY`
 - `GET /api/crm/students?tz=123456789`
 - `GET /api/crm/students/{id}`
+- `GET /api/crm/export?resource=all`
+- `GET /api/crm/export?resource=neon_students`
 - `POST /api/crm/students`
 - `PATCH /api/crm/students/{id}`
 - `DELETE /api/crm/students/{id}`
@@ -109,6 +111,9 @@ curl -X PATCH \
 curl -X DELETE \
   -H "Authorization: Bearer <TOKEN>" \
   "http://localhost:3000/api/crm/students/<student-id>"
+
+curl -H "Authorization: Bearer <BACKUP_TOKEN>" \
+  "http://localhost:3000/api/crm/export?resource=all"
 ```
 
 Scopes:
@@ -116,6 +121,7 @@ Scopes:
 - `students:read`
 - `students:write`
 - `students:delete`
+- `backup:read`
 
 כרגע token מסוג:
 
@@ -123,6 +129,7 @@ Scopes:
 - `write` נותן `students:read, students:write`
 - `delete` נותן `students:read, students:delete`
 - `full` נותן `students:read, students:write, students:delete`
+- `backup` נותן `backup:read`
 
 מגבלות נוכחיות:
 
@@ -135,6 +142,21 @@ Scopes:
 - אובייקטים עתידיים כמו פניות/לידים עדיין לא נחשפו, אבל מבנה ה־`resource` וה־`scopes` הוכן לזה
 
 ## גיבוי JSON
+
+דרך API:
+
+```bash
+curl -H "Authorization: Bearer <BACKUP_TOKEN>" \
+  "http://localhost:3000/api/crm/export?resource=all"
+```
+
+או להורדה כקובץ:
+
+```bash
+curl -L -H "Authorization: Bearer <BACKUP_TOKEN>" \
+  "http://localhost:3000/api/crm/export?resource=all&download=1" \
+  -o crm-export.json
+```
 
 פקודת גיבוי מלאה של מאגר ה־CRM ב־Neon ל־`stdout`:
 

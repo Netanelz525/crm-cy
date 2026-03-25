@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { neon } from "@neondatabase/serverless";
+import { exportCrmData } from "../lib/crm-export.js";
 
 function readEnvFile(filePath) {
   const out = {};
@@ -65,34 +65,8 @@ if (!env.DATABASE_URL) {
   process.exit(1);
 }
 
-const sql = neon(env.DATABASE_URL);
-
-const [appUsers, notes, savedViews, neonStudents, apiTokens] = await Promise.all([
-  sql`SELECT * FROM app_users ORDER BY created_at ASC`,
-  sql`SELECT * FROM student_internal_notes ORDER BY updated_at DESC`,
-  sql`SELECT * FROM saved_student_views ORDER BY updated_at DESC`,
-  sql`SELECT * FROM neon_students ORDER BY full_name ASC`,
-  sql`SELECT * FROM api_tokens ORDER BY created_at DESC`
-]);
-
-const payload = {
-  exportedAt: new Date().toISOString(),
-  source: "crm-neon",
-  counts: {
-    app_users: appUsers.length,
-    student_internal_notes: notes.length,
-    saved_student_views: savedViews.length,
-    neon_students: neonStudents.length,
-    api_tokens: apiTokens.length
-  },
-  data: {
-    app_users: appUsers,
-    student_internal_notes: notes,
-    saved_student_views: savedViews,
-    neon_students: neonStudents,
-    api_tokens: apiTokens
-  }
-};
+process.env.DATABASE_URL = env.DATABASE_URL;
+const payload = await exportCrmData("all");
 
 const json = JSON.stringify(payload, null, cliArgs.pretty ? 2 : 0);
 

@@ -35,7 +35,8 @@ export async function createApiTokenAction(_prevState, formData) {
     read: [`${resource}:read`],
     write: [`${resource}:read`, `${resource}:write`],
     delete: [`${resource}:read`, `${resource}:delete`],
-    full: [`${resource}:read`, `${resource}:write`, `${resource}:delete`]
+    full: [`${resource}:read`, `${resource}:write`, `${resource}:delete`],
+    backup: ["backup:read"]
   };
 
   try {

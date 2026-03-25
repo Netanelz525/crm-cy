@@ -44,12 +44,14 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         <input name="label" placeholder="שם פנימי לטוקן" />
         <select name="resource" defaultValue="students">
           <option value="students">students</option>
+          <option value="backup">backup</option>
         </select>
         <select name="access" defaultValue="read">
           <option value="read">read</option>
           <option value="write">write</option>
           <option value="delete">delete</option>
           <option value="full">full</option>
+          <option value="backup">backup</option>
         </select>
         <button type="submit" disabled={pending}>{pending ? "יוצר..." : "צור טוקן API"}</button>
       </form>
@@ -85,6 +87,8 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div><code>GET</code> <span>{`${baseUrl}/api/crm/students?q=...&limit=10&offset=0&minScore=0.42`}</span></div>
             <div><code>GET</code> <span>{`${baseUrl}/api/crm/students?institution=CY&limit=20`}</span></div>
             <div><code>GET</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
+            <div><code>GET</code> <span>{`${baseUrl}/api/crm/export?resource=all`}</span></div>
+            <div><code>GET</code> <span>{`${baseUrl}/api/crm/export?resource=neon_students`}</span></div>
             <div><code>POST</code> <span>{`${baseUrl}/api/crm/students`}</span></div>
             <div><code>PATCH</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
             <div><code>DELETE</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
@@ -111,11 +115,12 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div><b>students:read</b>: `GET` list/detail</div>
             <div><b>students:write</b>: `POST` + `PATCH`</div>
             <div><b>students:delete</b>: `DELETE`</div>
+            <div><b>backup:read</b>: `GET /api/crm/export`</div>
           </div>
         </DocBlock>
 
         <DocBlock title="Examples">
-          <pre className="token-box">{`curl -H "Authorization: Bearer <TOKEN>" \\\n  "${baseUrl}/api/crm/students?q=כהן&limit=10&minScore=0.55"\n\ncurl -H "Authorization: Bearer <TOKEN>" \\\n  "${baseUrl}/api/crm/students?institution=CY&limit=5"\n\ncurl -X POST \\\n  -H "Authorization: Bearer <TOKEN>" \\\n  -H "Content-Type: application/json" \\\n  -d '{"fullName":{"firstName":"אברהם","lastName":"כהן"},"currentInstitution":"CY","class":"A"}' \\\n  "${baseUrl}/api/crm/students"`}</pre>
+          <pre className="token-box">{`curl -H "Authorization: Bearer <TOKEN>" \\\n  "${baseUrl}/api/crm/students?q=כהן&limit=10&minScore=0.55"\n\ncurl -H "Authorization: Bearer <TOKEN>" \\\n  "${baseUrl}/api/crm/students?institution=CY&limit=5"\n\ncurl -H "Authorization: Bearer <BACKUP_TOKEN>" \\\n  "${baseUrl}/api/crm/export?resource=all"\n\ncurl -X POST \\\n  -H "Authorization: Bearer <TOKEN>" \\\n  -H "Content-Type: application/json" \\\n  -d '{"fullName":{"firstName":"אברהם","lastName":"כהן"},"currentInstitution":"CY","class":"A"}' \\\n  "${baseUrl}/api/crm/students"`}</pre>
         </DocBlock>
 
         <DocBlock title="מגבלות נוכחיות">
