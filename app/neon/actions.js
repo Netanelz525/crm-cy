@@ -26,12 +26,13 @@ export async function importNeonStudentsFromExcelAction(formData) {
   }
 
   const file = formData.get("file");
+  const matchFields = formData.getAll("matchFields").map((value) => String(value || "").trim()).filter(Boolean);
   if (!file || typeof file.arrayBuffer !== "function") {
     redirect("/neon?importError=לא נבחר קובץ");
   }
 
   try {
-    const result = await importStudentsFromExcelFile(file);
+    const result = await importStudentsFromExcelFile(file, matchFields);
     revalidatePath("/neon");
     revalidatePath("/neon/students");
     const params = new URLSearchParams({

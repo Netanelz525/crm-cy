@@ -222,6 +222,23 @@ export default async function NeonPage({ searchParams }) {
           אפשר להשתמש גם בערכי תצוגה בעברית כמו `נשוי`, `שיעור א`, `חכמי ירושלים`.
         </p>
         <form action={importNeonStudentsFromExcelAction} className="grid">
+          <div className="bulk-field-card" style={{ gridColumn: "1 / -1" }}>
+            <div className="muted" style={{ marginBottom: 8 }}>שדות התאמה לזיהוי תלמיד. המערכת תבצע התאמה של 100% לפי כל השדות שתסמן כאן.</div>
+            <div className="quick-actions" style={{ marginTop: 0 }}>
+              <label className="column-item">
+                <input type="checkbox" name="matchFields" value="id" defaultChecked />
+                <span>מזהה תלמיד</span>
+              </label>
+              <label className="column-item">
+                <input type="checkbox" name="matchFields" value="tznum" defaultChecked />
+                <span>תעודת זהות</span>
+              </label>
+              <label className="column-item">
+                <input type="checkbox" name="matchFields" value="email" />
+                <span>מייל</span>
+              </label>
+            </div>
+          </div>
           <input type="file" name="file" accept=".xlsx,.xls,.csv" />
           <button type="submit">ייבוא ועדכון מאקסל</button>
         </form>
