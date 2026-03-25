@@ -98,6 +98,7 @@ export default async function NewStudentPage({ searchParams }) {
         {FIELD_SECTIONS.map((section) => {
           const sectionFields = section.fields.filter((field) => {
             if (TOP_CREATE_KEYS.has(field.key)) return false;
+            if (field.neonOnly) return false;
             if (!advancedMode && isAdvancedOnlyField(field.key)) return false;
             return true;
           });

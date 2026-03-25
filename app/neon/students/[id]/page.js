@@ -67,6 +67,7 @@ function visibleSections(student) {
   return FIELD_SECTIONS.map((section) => {
     const normalFields = section.fields
       .filter((field) => !isPhoneSubField(field.key))
+      .filter((field) => field.key !== "childrenCount" || isMarried(student?.famliystatus))
       .map((field) => ({ field, value: getByPath(student, field.key) }))
       .filter((row) => hasDisplayValue(row.value));
 
@@ -119,6 +120,10 @@ function EditField({ field, value }) {
     return <input type="date" name={field.key} defaultValue={value || ""} />;
   }
 
+  if (field.type === "number") {
+    return <input type="number" min="0" step="1" name={field.key} defaultValue={value ?? ""} />;
+  }
+
   if (field.isList) {
     return <textarea name={field.key} defaultValue={value || ""} placeholder="הפרדה בפסיק או שורה חדשה" />;
   }
@@ -150,7 +155,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const showChildrenCount = isMarried(student?.famliystatus);
-  const childrenCountValue = student?.childrenCount ?? "";
 
   return (
     <>
@@ -209,18 +213,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
                   <EditField field={field} value={editValues[field.key] || ""} />
                 </div>
               ))}
-              {showChildrenCount ? (
-                <div>
-                  <label>מספר ילדים</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    name="childrenCount"
-                    defaultValue={childrenCountValue}
-                  />
-                </div>
-              ) : null}
             </div>
             <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
               טלפונים ואימיילים נוספים מוסתרים כברירת מחדל. להצגה שלהם בחר "עריכה מתקדמת".
@@ -231,6 +223,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             {FIELD_SECTIONS.map((section) => {
               const sectionFields = section.fields.filter((field) => {
                 if (TOP_EDIT_KEYS.has(field.key)) return false;
+                if (field.key === "childrenCount" && !showChildrenCount) return false;
                 if (!advancedMode && isAdvancedOnlyField(field.key)) return false;
                 return true;
               });
@@ -255,16 +248,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
       ) : (
         <div className="card">
           <h3>פרטי הכרטיס</h3>
-          {showChildrenCount ? (
-            <div className="card" style={{ marginBottom: 12 }}>
-              <h4>מידע משפחתי מקומי</h4>
-              <div className="grid">
-                <div>
-                  <b>מספר ילדים:</b> {childrenCountValue === "" ? "-" : String(childrenCountValue)}
-                </div>
-              </div>
-            </div>
-          ) : null}
           {!sections.length ? (
             <div className="muted">לא נמצא מידע להצגה.</div>
           ) : (

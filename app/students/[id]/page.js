@@ -63,10 +63,16 @@ function isAdvancedOnlyField(fieldKey) {
   return /\.additional(Phones|Emails)$/.test(String(fieldKey || ""));
 }
 
+function isMarried(value) {
+  return clean(value).toUpperCase() === "MARRIED";
+}
+
 function visibleSections(student) {
   return FIELD_SECTIONS.map((section) => {
     const normalFields = section.fields
       .filter((field) => !isPhoneSubField(field.key))
+      .filter((field) => !field.neonOnly)
+      .filter((field) => field.key !== "childrenCount" || isMarried(student?.famliystatus))
       .map((field) => ({ field, value: getByPath(student, field.key) }))
       .filter((row) => hasDisplayValue(row.value));
 
@@ -220,6 +226,7 @@ export default async function StudentPage({ params, searchParams }) {
             {FIELD_SECTIONS.map((section) => {
               const sectionFields = section.fields.filter((field) => {
                 if (TOP_EDIT_KEYS.has(field.key)) return false;
+                if (field.neonOnly) return false;
                 if (!advancedMode && isAdvancedOnlyField(field.key)) return false;
                 return true;
               });
