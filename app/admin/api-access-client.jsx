@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { createApiTokenAction } from "./actions";
 
 const initialState = {
@@ -24,9 +24,103 @@ function DocBlock({ title, children }) {
   );
 }
 
+function CopyButton({ value, label = "העתק" }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <button type="button" className="api-copy-btn" onClick={handleCopy}>
+      {copied ? "הועתק" : label}
+    </button>
+  );
+}
+
+function ExampleCard({ title, subtitle, url, curl, body }) {
+  return (
+    <div className="api-example-card">
+      <div className="api-example-head">
+        <div>
+          <strong>{title}</strong>
+          {subtitle ? <div className="muted">{subtitle}</div> : null}
+        </div>
+        <div className="api-copy-row">
+          <CopyButton value={url} label="העתק URL" />
+          <CopyButton value={curl} label="העתק cURL" />
+        </div>
+      </div>
+      {body ? (
+        <div className="api-request-body">
+          <div className="api-inline-head">
+            <span>Body</span>
+            <CopyButton value={body} label="העתק JSON" />
+          </div>
+          <pre className="token-box">{body}</pre>
+        </div>
+      ) : null}
+      <pre className="token-box">{curl}</pre>
+    </div>
+  );
+}
+
 export default function ApiAccessClient({ apiBaseUrl }) {
   const [state, formAction, pending] = useActionState(createApiTokenAction, initialState);
+  const [baseUrlInput, setBaseUrlInput] = useState(cleanBaseUrl(apiBaseUrl) || "http://localhost:3000");
+  const [tokenInput, setTokenInput] = useState("");
   const baseUrl = cleanBaseUrl(apiBaseUrl) || "http://localhost:3000";
+  const activeBaseUrl = cleanBaseUrl(baseUrlInput) || baseUrl;
+
+  useEffect(() => {
+    if (state.token) {
+      setTokenInput(state.token);
+    }
+  }, [state.token]);
+
+  const examples = useMemo(() => {
+    const authHeader = tokenInput ? `Authorization: Bearer ${tokenInput}` : "Authorization: Bearer <TOKEN>";
+    const studentsSearchUrl = `${activeBaseUrl}/api/crm/students?q=${encodeURIComponent("כהן")}&limit=10&minScore=0.55`;
+    const studentsInstitutionUrl = `${activeBaseUrl}/api/crm/students?institution=CY&limit=5`;
+    const exportUrl = `${activeBaseUrl}/api/crm/export?resource=all`;
+    const studentBody = JSON.stringify(
+      {
+        fullName: { firstName: "אברהם", lastName: "כהן" },
+        currentInstitution: "CY",
+        class: "A",
+        email: { primaryEmail: "avraham@example.com" }
+      },
+      null,
+      2
+    );
+    const createUrl = `${activeBaseUrl}/api/crm/students`;
+
+    return {
+      search: {
+        url: studentsSearchUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${studentsSearchUrl}"`
+      },
+      institution: {
+        url: studentsInstitutionUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${studentsInstitutionUrl}"`
+      },
+      exportAll: {
+        url: exportUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${exportUrl}"`
+      },
+      createStudent: {
+        url: createUrl,
+        body: studentBody,
+        curl: `curl -X POST \\\n  -H "${authHeader}" \\\n  -H "Content-Type: application/json" \\\n  -d '${studentBody.replace(/\n/g, "\n  ")}' \\\n  "${createUrl}"`
+      }
+    };
+  }, [activeBaseUrl, tokenInput]);
 
   return (
     <div className="card">
@@ -62,7 +156,10 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           {state.token ? (
             <div style={{ marginTop: 8 }}>
               <b>Token:</b>
-              <pre className="token-box">{state.token}</pre>
+              <div className="api-token-result">
+                <pre className="token-box">{state.token}</pre>
+                <CopyButton value={state.token} />
+              </div>
             </div>
           ) : null}
         </div>
@@ -78,6 +175,32 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div className="api-env-row">
               <span className="api-env-key">Base API URL</span>
               <code className="api-env-value">{`${baseUrl}/api/crm`}</code>
+            </div>
+            <div className="api-env-row">
+              <span className="api-env-key">Playground URL</span>
+              <code className="api-env-value">{`${activeBaseUrl}/api/crm`}</code>
+            </div>
+          </div>
+          <div className="api-playground">
+            <label className="api-field">
+              <span>כתובת אתר</span>
+              <input
+                value={baseUrlInput}
+                onChange={(event) => setBaseUrlInput(event.target.value)}
+                placeholder="http://localhost:3000"
+              />
+            </label>
+            <label className="api-field">
+              <span>טוקן לבדיקה</span>
+              <textarea
+                value={tokenInput}
+                onChange={(event) => setTokenInput(event.target.value)}
+                placeholder="crm_xxx"
+              />
+            </label>
+            <div className="api-inline-head">
+              <span className="muted">מכאן כל הדוגמאות נבנות אוטומטית ל-cURL/Yaak/Postman.</span>
+              <CopyButton value={tokenInput} label="העתק טוקן" />
             </div>
           </div>
         </DocBlock>
@@ -120,7 +243,33 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         </DocBlock>
 
         <DocBlock title="Examples">
-          <pre className="token-box">{`curl -H "Authorization: Bearer <TOKEN>" \\\n  "${baseUrl}/api/crm/students?q=כהן&limit=10&minScore=0.55"\n\ncurl -H "Authorization: Bearer <TOKEN>" \\\n  "${baseUrl}/api/crm/students?institution=CY&limit=5"\n\ncurl -H "Authorization: Bearer <BACKUP_TOKEN>" \\\n  "${baseUrl}/api/crm/export?resource=all"\n\ncurl -X POST \\\n  -H "Authorization: Bearer <TOKEN>" \\\n  -H "Content-Type: application/json" \\\n  -d '{"fullName":{"firstName":"אברהם","lastName":"כהן"},"currentInstitution":"CY","class":"A"}' \\\n  "${baseUrl}/api/crm/students"`}</pre>
+          <div className="api-example-grid">
+            <ExampleCard
+              title="חיפוש תלמידים"
+              subtitle="GET /students?q=כהן"
+              url={examples.search.url}
+              curl={examples.search.curl}
+            />
+            <ExampleCard
+              title="שליפה לפי מוסד"
+              subtitle="GET /students?institution=CY"
+              url={examples.institution.url}
+              curl={examples.institution.curl}
+            />
+            <ExampleCard
+              title="Export מלא"
+              subtitle="GET /export?resource=all"
+              url={examples.exportAll.url}
+              curl={examples.exportAll.curl}
+            />
+            <ExampleCard
+              title="יצירת תלמיד"
+              subtitle="POST /students"
+              url={examples.createStudent.url}
+              curl={examples.createStudent.curl}
+              body={examples.createStudent.body}
+            />
+          </div>
         </DocBlock>
 
         <DocBlock title="מגבלות נוכחיות">
