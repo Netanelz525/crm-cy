@@ -24,6 +24,14 @@ function findInstitutionCode(value) {
   }
   return "";
 }
+
+function matchesQuickValue(studentValue, filterValue) {
+  const left = clean(studentValue).toUpperCase();
+  const right = clean(filterValue).toUpperCase();
+  if (!right) return true;
+  return left === right;
+}
+
 function csvEscape(value) {
   const text = String(value ?? "");
   if (text.includes('"') || text.includes(",") || text.includes("\n")) {
@@ -47,6 +55,9 @@ export async function GET(request) {
   const missingType = ["contact", "identity"].includes(missingTypeParam)
     ? missingTypeParam
     : (missingOnly ? "contact" : "");
+  const quickClass = clean(url.searchParams.get("quickClass")).toUpperCase();
+  const quickRegistration = clean(url.searchParams.get("quickRegistration")).toUpperCase();
+  const quickFamilyStatus = clean(url.searchParams.get("quickFamilyStatus")).toUpperCase();
   const sortLevels = parseSortLevels({
     sby: url.searchParams.getAll("sby"),
     sdir: url.searchParams.getAll("sdir"),
@@ -91,6 +102,18 @@ export async function GET(request) {
     students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
   }
 
+  if (quickClass) {
+    students = students.filter((student) => matchesQuickValue(student?.class, quickClass));
+  }
+
+  if (quickRegistration) {
+    students = students.filter((student) => matchesQuickValue(student?.registration, quickRegistration));
+  }
+
+  if (quickFamilyStatus) {
+    students = students.filter((student) => matchesQuickValue(student?.famliystatus, quickFamilyStatus));
+  }
+
   students = applyAdvancedFilters(students, filters);
   students = sortStudents(students, sortLevels);
 
@@ -115,7 +138,6 @@ export async function GET(request) {
     }
   });
 }
-
 
 
 
