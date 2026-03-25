@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { applyNeonStudentsImportAction } from "../../actions";
-import { buildSuggestedMappings, MATCH_FIELD_OPTIONS } from "../../../../lib/excel-student-import";
+import { MATCH_FIELD_OPTIONS } from "../../../../lib/excel-student-import";
 import { getImportSession } from "../../../../lib/import-sessions";
 import { FIELD_SECTIONS } from "../../../../lib/student-fields";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
@@ -35,7 +35,6 @@ export default async function NeonImportMappingPage({ params, searchParams }) {
 
   const mappingError = clean(resolvedSearchParams?.error);
   const fields = allImportFields();
-  const suggestions = buildSuggestedMappings(session.headers || []);
 
   return (
     <>
@@ -74,7 +73,7 @@ export default async function NeonImportMappingPage({ params, searchParams }) {
             {MATCH_FIELD_OPTIONS.map((option) => (
               <div key={option.key}>
                 <label>{option.label}</label>
-                <select name={`match_${option.key}`} defaultValue={suggestions.matchMapping?.[option.key] || ""}>
+                <select name={`match_${option.key}`} defaultValue="">
                   <option value="">לא להשתמש</option>
                   {(session.headers || []).map((header) => (
                     <option key={header} value={header}>{header}</option>
@@ -96,7 +95,7 @@ export default async function NeonImportMappingPage({ params, searchParams }) {
                 {sectionFields.map((field) => (
                   <div key={field.key}>
                     <label>{field.label}</label>
-                    <select name={`map_${field.key}`} defaultValue={suggestions.fieldMapping?.[field.key] || ""}>
+                    <select name={`map_${field.key}`} defaultValue="">
                       <option value="">לא לעדכן</option>
                       {(session.headers || []).map((header) => (
                         <option key={header} value={header}>{header}</option>

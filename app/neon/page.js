@@ -220,7 +220,7 @@ export default async function NeonPage({ searchParams }) {
         <h3>עדכון מרוכז מאקסל</h3>
         <p className="muted">
           העלה קובץ `xlsx`/`xls`/`csv`. בשלב הבא תועבר לעמוד מיפוי שבו תבחר איזו עמודה מזהה תלמיד ואיזו עמודה מעדכנת כל שדה.
-          אפשר להשתמש גם בערכי תצוגה בעברית כמו `נשוי`, `שיעור א`, `חכמי ירושלים`.
+          אין מיפוי אוטומטי חובה: כל קובץ יכול להגיע במבנה אחר, ואת ההתאמות תבחר ידנית.
         </p>
         <form action={prepareNeonStudentsImportAction} className="grid">
           <input type="file" name="file" accept=".xlsx,.xls,.csv" />
