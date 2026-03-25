@@ -292,6 +292,76 @@ td {
   font-weight: 700;
 }
 
+.selection-cell {
+  width: 44px;
+  text-align: center;
+}
+
+.selection-cell input,
+.bulk-mobile-select input,
+.bulk-field-toggle input {
+  width: auto;
+}
+
+.bulk-trigger-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bulk-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 23, 43, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 300;
+}
+
+.bulk-modal {
+  width: min(980px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(10, 31, 59, 0.2);
+  padding: 18px;
+}
+
+.bulk-form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.bulk-field-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #f9fbff;
+}
+
+.bulk-field-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.bulk-field-body.disabled {
+  opacity: 0.55;
+}
+
+.bulk-mobile-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
 .generic-mobile-card {
   background: #fff;
   border: 1px solid var(--line);

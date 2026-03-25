@@ -1,25 +1,17 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser } from "../../lib/rbac";
 import {
   applyAdvancedFilters,
-  ageOf,
   buildMissingState,
-  classLabel,
   clean,
-  columnText,
   DEFAULT_INSTITUTION_COLUMN_KEYS,
-  FIELD_DEF_MAP,
-  getByPath,
   INSTITUTIONS,
   INSTITUTION_COLUMN_MAP,
   matchesMissingFilter,
   parseAdvancedFilters,
   parseListParam,
   parseSortLevels,
-  phoneHref,
-  phoneText,
   sanitizeQueryString,
   sortStudents
 } from "../../lib/student-view";
@@ -31,67 +23,7 @@ import {
   searchNeonStudentsByTz
 } from "../../lib/neon-students";
 import { importNeonStudentsFromExcelAction, syncNeonStudentsAction } from "./actions";
-
-function PhoneLink({ phoneObj }) {
-  const text = phoneText(phoneObj);
-  if (text === "-") return "-";
-  const href = phoneHref(phoneObj);
-  if (!href) return text;
-  return <a href={href}>{text}</a>;
-}
-
-function fieldPhoneHref(student, fieldKey) {
-  const fieldDef = FIELD_DEF_MAP[fieldKey];
-  if (!fieldDef || !fieldDef.key.endsWith(".primaryPhoneNumber")) return "";
-  const phoneRoot = fieldDef.key.slice(0, -".primaryPhoneNumber".length);
-  return phoneHref({
-    primaryPhoneNumber: getByPath(student, fieldDef.key),
-    primaryPhoneCallingCode: getByPath(student, `${phoneRoot}.primaryPhoneCallingCode`)
-  });
-}
-
-function columnNode(student, columnKey) {
-  if (columnKey.startsWith("field:")) {
-    const fieldKey = columnKey.slice("field:".length);
-    const value = columnText(student, columnKey);
-    if (value === "-") return "-";
-    const fieldDef = FIELD_DEF_MAP[fieldKey];
-    if (fieldDef?.key.endsWith(".primaryPhoneNumber")) {
-      const href = fieldPhoneHref(student, fieldKey);
-      return href ? <a href={href}>{value}</a> : value;
-    }
-    if (fieldDef?.key.endsWith(".primaryEmail")) {
-      const email = clean(getByPath(student, fieldKey));
-      return email ? <a href={"mailto:" + email}>{email}</a> : value;
-    }
-    return value;
-  }
-
-  switch (columnKey) {
-    case "name":
-      return <Link className="student-link" href={`/neon/students/${student.id}`}>{clean(student?.label) || "-"}</Link>;
-    case "studentPhone":
-      return <PhoneLink phoneObj={student?.phone} />;
-    case "dadPhone":
-      return <PhoneLink phoneObj={student?.dadPhone} />;
-    case "momPhone":
-      return <PhoneLink phoneObj={student?.momPhone} />;
-    case "studentEmail": {
-      const email = clean(student?.email?.primaryEmail);
-      return email ? <a href={"mailto:" + email}>{email}</a> : "-";
-    }
-    case "fatherEmail": {
-      const email = clean(student?.fatherEmail?.primaryEmail);
-      return email ? <a href={"mailto:" + email}>{email}</a> : "-";
-    }
-    case "motherEmail": {
-      const email = clean(student?.motherEmail?.primaryEmail);
-      return email ? <a href={"mailto:" + email}>{email}</a> : "-";
-    }
-    default:
-      return columnText(student, columnKey);
-  }
-}
+import BulkStudentsClient from "./bulk-students-client";
 
 function buildQueryString(params) {
   const sp = new URLSearchParams();
@@ -158,6 +90,10 @@ export default async function NeonPage({ searchParams }) {
   const importedFailed = clean(resolvedSearchParams?.failed);
   const importMessage = clean(resolvedSearchParams?.importMessage);
   const importError = clean(resolvedSearchParams?.importError);
+  const bulkUpdated = clean(resolvedSearchParams?.bulkUpdated) === "1";
+  const bulkUpdatedCount = clean(resolvedSearchParams?.updated);
+  const bulkFailedCount = clean(resolvedSearchParams?.failed);
+  const bulkMessage = clean(resolvedSearchParams?.bulkMessage);
   const quickClass = clean(resolvedSearchParams?.quickClass).toUpperCase();
   const quickRegistration = clean(resolvedSearchParams?.quickRegistration).toUpperCase();
   const quickFamilyStatus = clean(resolvedSearchParams?.quickFamilyStatus).toUpperCase();
@@ -247,6 +183,12 @@ export default async function NeonPage({ searchParams }) {
         </div>
       ) : null}
       {importError ? <div className="card muted">{importError}</div> : null}
+      {bulkUpdated ? (
+        <div className="ok">
+          העדכון המרוכז הושלם. עודכנו {bulkUpdatedCount || 0}, נכשלו {bulkFailedCount || 0}.
+          {bulkMessage ? <div style={{ marginTop: 8 }}>{bulkMessage}</div> : null}
+        </div>
+      ) : null}
 
       <div className="card glass">
         <h3>חיפוש כללי תלמידים - Neon</h3>
@@ -419,106 +361,7 @@ export default async function NeonPage({ searchParams }) {
 
       {error ? <div className="card muted">{error}</div> : null}
 
-      <div className="card desktop-table">
-        <table>
-          <thead>
-            {showInstitutionView ? (
-              <tr>
-                {selectedColumns.map((col) => <th key={col.key}>{col.label}</th>)}
-              </tr>
-            ) : (
-              <tr>
-                <th>שם</th>
-                <th>שיעור</th>
-                <th>ת"ז</th>
-                <th>גיל</th>
-                <th>טלפון תלמיד</th>
-                <th>טלפון אב</th>
-                <th>טלפון אם</th>
-                <th>חוסרים</th>
-              </tr>
-            )}
-          </thead>
-          <tbody>
-            {!students.length ? (
-              <tr>
-                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length, 1) : 8} className="muted">אין תוצאות</td>
-              </tr>
-            ) : showInstitutionView ? (
-              students.map((student) => {
-                const hasMissing = (student.missingItems || []).length > 0;
-                return (
-                  <tr key={student.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
-                    {selectedColumns.map((col) => (
-                      <td key={col.key} style={col.key === "missing" && hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>
-                        {columnNode(student, col.key)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })
-            ) : (
-              students.map((student) => {
-                const missingState = buildMissingState(student);
-                const hasMissing = missingState.items.length > 0;
-                return (
-                  <tr key={student.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
-                    <td><Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link></td>
-                    <td>{classLabel(student.class)}</td>
-                    <td>{student.tznum || "-"}</td>
-                    <td>{ageOf(student.dateofbirth) ?? "-"}</td>
-                    <td><PhoneLink phoneObj={student.phone} /></td>
-                    <td><PhoneLink phoneObj={student.dadPhone} /></td>
-                    <td><PhoneLink phoneObj={student.momPhone} /></td>
-                    <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>{hasMissing ? missingState.items.join(", ") : "-"}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mobile-student-list">
-        {!students.length ? (
-          <div className="card muted">אין תוצאות</div>
-        ) : showInstitutionView ? (
-          students.map((student) => {
-            const hasMissing = (student.missingItems || []).length > 0;
-            return (
-              <div key={student.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
-                <div className="student-mobile-head">
-                  <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
-                </div>
-                <div className="student-mobile-grid">
-                  {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          students.map((student) => {
-            const missingState = buildMissingState(student);
-            const hasMissing = missingState.items.length > 0;
-            return (
-              <div key={student.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
-                <div className="student-mobile-head">
-                  <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
-                  <span>{classLabel(student.class)}</span>
-                </div>
-                <div className="student-mobile-grid">
-                  <div><b>ת"ז:</b> {student.tznum || "-"}</div>
-                  <div><b>גיל:</b> {ageOf(student.dateofbirth) ?? "-"}</div>
-                  <div><b>טלפון תלמיד:</b> <PhoneLink phoneObj={student.phone} /></div>
-                  <div><b>טלפון אב:</b> <PhoneLink phoneObj={student.dadPhone} /></div>
-                  <div><b>טלפון אם:</b> <PhoneLink phoneObj={student.momPhone} /></div>
-                </div>
-                <div className="student-mobile-missing"><b>חוסרים:</b> {hasMissing ? missingState.items.join(", ") : "-"}</div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      <BulkStudentsClient students={students} selectedColumns={selectedColumns} showInstitutionView={showInstitutionView} />
     </>
   );
 }
