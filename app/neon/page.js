@@ -23,7 +23,7 @@ import {
   searchNeonStudentsByText,
   searchNeonStudentsByTz
 } from "../../lib/neon-students";
-import { importNeonStudentsFromExcelAction, syncNeonStudentsAction } from "./actions";
+import { prepareNeonStudentsImportAction, syncNeonStudentsAction } from "./actions";
 import BulkStudentsClient from "./bulk-students-client";
 
 function buildQueryString(params) {
@@ -219,29 +219,12 @@ export default async function NeonPage({ searchParams }) {
       <div className="card glass">
         <h3>עדכון מרוכז מאקסל</h3>
         <p className="muted">
-          העלה קובץ `xlsx`/`xls`/`csv` עם עמודת מזהה (`id` / `student_id` / `מזהה תלמיד`) או `ת"ז`, ועוד עמודות לפי שם השדה או שם התצוגה שלו.
+          העלה קובץ `xlsx`/`xls`/`csv`. בשלב הבא תועבר לעמוד מיפוי שבו תבחר איזו עמודה מזהה תלמיד ואיזו עמודה מעדכנת כל שדה.
           אפשר להשתמש גם בערכי תצוגה בעברית כמו `נשוי`, `שיעור א`, `חכמי ירושלים`.
         </p>
-        <form action={importNeonStudentsFromExcelAction} className="grid">
-          <div className="bulk-field-card" style={{ gridColumn: "1 / -1" }}>
-            <div className="muted" style={{ marginBottom: 8 }}>שדות התאמה לזיהוי תלמיד. המערכת תבצע התאמה של 100% לפי כל השדות שתסמן כאן.</div>
-            <div className="quick-actions" style={{ marginTop: 0 }}>
-              <label className="column-item">
-                <input type="checkbox" name="matchFields" value="id" defaultChecked />
-                <span>מזהה תלמיד</span>
-              </label>
-              <label className="column-item">
-                <input type="checkbox" name="matchFields" value="tznum" defaultChecked />
-                <span>תעודת זהות</span>
-              </label>
-              <label className="column-item">
-                <input type="checkbox" name="matchFields" value="email" />
-                <span>מייל</span>
-              </label>
-            </div>
-          </div>
+        <form action={prepareNeonStudentsImportAction} className="grid">
           <input type="file" name="file" accept=".xlsx,.xls,.csv" />
-          <button type="submit">ייבוא ועדכון מאקסל</button>
+          <button type="submit">המשך לעמוד מיפוי אקסל</button>
         </form>
       </div>
 

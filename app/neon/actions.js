@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { importStudentsFromExcelFile } from "../../lib/excel-student-import";
+import { parseExcelFile, importStudentsFromRowsWithMapping } from "../../lib/excel-student-import";
+import { createImportSession, deleteImportSession, getImportSession } from "../../lib/import-sessions";
 import { normalizeStudentInput } from "../../lib/student-fields";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { syncStudentsToNeon } from "../../lib/neon-students";
@@ -19,32 +20,26 @@ export async function syncNeonStudentsAction() {
   redirect(`/neon?synced=1&count=${result.syncedCount}`);
 }
 
-export async function importNeonStudentsFromExcelAction(formData) {
+export async function prepareNeonStudentsImportAction(formData) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
     redirect("/unauthorized");
   }
 
   const file = formData.get("file");
-  const matchFields = formData.getAll("matchFields").map((value) => String(value || "").trim()).filter(Boolean);
   if (!file || typeof file.arrayBuffer !== "function") {
     redirect("/neon?importError=לא נבחר קובץ");
   }
 
   try {
-    const result = await importStudentsFromExcelFile(file, matchFields);
-    revalidatePath("/neon");
-    revalidatePath("/neon/students");
-    const params = new URLSearchParams({
-      imported: "1",
-      updated: String(result.updated || 0),
-      skipped: String(result.skipped || 0),
-      failed: String(result.failed || 0)
+    const parsed = await parseExcelFile(file);
+    const sessionId = await createImportSession({
+      createdByUserId: user.clerk_user_id,
+      fileName: parsed.fileName,
+      headers: parsed.headers,
+      rows: parsed.rows
     });
-    if (result.errors?.length) {
-      params.set("importMessage", result.errors.slice(0, 5).join(" | "));
-    }
-    redirect(`/neon?${params.toString()}`);
+    redirect(`/neon/import/${sessionId}`);
   } catch (error) {
     const message = encodeURIComponent(error?.message || "ייבוא האקסל נכשל");
     redirect(`/neon?importError=${message}`);
@@ -114,4 +109,55 @@ export async function bulkUpdateNeonStudentsAction(formData) {
     params.set("bulkMessage", errors.slice(0, 5).join(" | "));
   }
   redirect(`/neon?${params.toString()}`);
+}
+
+export async function applyNeonStudentsImportAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) {
+    redirect("/neon?importError=לא נמצא session לייבוא");
+  }
+
+  const session = await getImportSession(sessionId);
+  if (!session || clean(session.created_by_user_id) !== clean(user.clerk_user_id)) {
+    redirect("/neon?importError=Session הייבוא לא נמצא או לא שייך למשתמש הנוכחי");
+  }
+
+  const matchMapping = {
+    id: clean(formData.get("match_id")),
+    tznum: clean(formData.get("match_tznum")),
+    email: clean(formData.get("match_email"))
+  };
+
+  const fieldMapping = {};
+  for (const [key, value] of formData.entries()) {
+    if (!String(key).startsWith("map_")) continue;
+    const fieldKey = String(key).slice(4);
+    const header = clean(value);
+    if (header) fieldMapping[fieldKey] = header;
+  }
+
+  try {
+    const result = await importStudentsFromRowsWithMapping(session.rows, { matchMapping, fieldMapping });
+    await deleteImportSession(sessionId);
+    revalidatePath("/neon");
+    revalidatePath("/neon/students");
+    const params = new URLSearchParams({
+      imported: "1",
+      updated: String(result.updated || 0),
+      skipped: String(result.skipped || 0),
+      failed: String(result.failed || 0)
+    });
+    if (result.errors?.length) {
+      params.set("importMessage", result.errors.slice(0, 5).join(" | "));
+    }
+    redirect(`/neon?${params.toString()}`);
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "עיבוד הייבוא נכשל");
+    redirect(`/neon/import/${sessionId}?error=${message}`);
+  }
 }
