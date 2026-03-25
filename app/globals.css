@@ -487,6 +487,90 @@ td {
   background: linear-gradient(180deg, #c2410c, #9a3412);
 }
 
+.token-box {
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.api-doc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.api-doc-badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #eaf4ff, #d8ebff);
+  border: 1px solid #b6d4f2;
+  font-weight: 800;
+  color: #0b4f8c;
+  white-space: nowrap;
+}
+
+.api-doc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.api-doc-block {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.api-doc-block h3 {
+  margin: 0 0 10px;
+}
+
+.api-env-card,
+.api-endpoint-list,
+.api-param-list {
+  display: grid;
+  gap: 8px;
+}
+
+.api-env-row {
+  display: grid;
+  gap: 6px;
+}
+
+.api-env-key {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.api-env-value {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  word-break: break-all;
+}
+
+.api-endpoint-list code {
+  display: inline-block;
+  min-width: 56px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #eaf4ff;
+  color: #0b4f8c;
+  font-weight: 800;
+  margin-inline-end: 8px;
+}
+
 @media (max-width: 900px) {
   .saved-views-head {
     flex-direction: column;
@@ -495,6 +579,10 @@ td {
   .saved-view-form,
   .advanced-filter-row {
     grid-template-columns: 1fr;
+  }
+
+  .api-doc-head {
+    flex-direction: column;
   }
 }
 
