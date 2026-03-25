@@ -51,12 +51,15 @@ export async function GET(request, { params }) {
   const q = clean(url.searchParams.get("q"));
   const tz = clean(url.searchParams.get("tz"));
   const institution = clean(url.searchParams.get("institution"));
+  const classCode = clean(url.searchParams.get("class"));
+  const registration = clean(url.searchParams.get("registration"));
+  const famliystatus = clean(url.searchParams.get("famliystatus"));
   const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 50, 500));
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
   const minScore = Math.max(0, Math.min(Number(url.searchParams.get("minScore")) || 0.42, 1));
 
-  const students = q || tz || institution
-    ? await searchNeonStudents({ q, tz, institution, minScore })
+  const students = q || tz || institution || classCode || registration || famliystatus
+    ? await searchNeonStudents({ q, tz, institution, class: classCode, registration, famliystatus, minScore })
     : await listAllNeonStudents();
 
   const items = students.slice(offset, offset + limit);
@@ -73,6 +76,14 @@ export async function GET(request, { params }) {
     limit,
     offset,
     minScore,
+    filters: {
+      q: q || null,
+      tz: tz || null,
+      institution: institution || null,
+      class: classCode || null,
+      registration: registration || null,
+      famliystatus: famliystatus || null
+    },
     names,
     items
   });

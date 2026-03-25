@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { createApiTokenAction } from "./actions";
+import { ENUM_LABELS } from "../../lib/student-fields";
 
 const initialState = {
   ok: false,
@@ -22,6 +23,19 @@ function DocBlock({ title, children }) {
       {children}
     </section>
   );
+}
+
+function enumOptions(enumName) {
+  return Object.entries(ENUM_LABELS?.[enumName] || {}).map(([value, label]) => ({ value, label }));
+}
+
+function buildUrlWithParams(base, params) {
+  const url = new URL(base);
+  for (const [key, value] of Object.entries(params)) {
+    if (value === null || value === undefined || String(value).trim() === "") continue;
+    url.searchParams.set(key, String(value).trim());
+  }
+  return url.toString();
 }
 
 function CopyButton({ value, label = "העתק" }) {
@@ -75,6 +89,15 @@ export default function ApiAccessClient({ apiBaseUrl }) {
   const [state, formAction, pending] = useActionState(createApiTokenAction, initialState);
   const [baseUrlInput, setBaseUrlInput] = useState(cleanBaseUrl(apiBaseUrl) || "http://localhost:3000");
   const [tokenInput, setTokenInput] = useState("");
+  const [builderQ, setBuilderQ] = useState("");
+  const [builderTz, setBuilderTz] = useState("");
+  const [builderInstitution, setBuilderInstitution] = useState("");
+  const [builderClass, setBuilderClass] = useState("");
+  const [builderRegistration, setBuilderRegistration] = useState("");
+  const [builderFamilyStatus, setBuilderFamilyStatus] = useState("");
+  const [builderLimit, setBuilderLimit] = useState("50");
+  const [builderOffset, setBuilderOffset] = useState("0");
+  const [builderMinScore, setBuilderMinScore] = useState("0.42");
   const baseUrl = cleanBaseUrl(apiBaseUrl) || "http://localhost:3000";
   const activeBaseUrl = cleanBaseUrl(baseUrlInput) || baseUrl;
 
@@ -121,6 +144,48 @@ export default function ApiAccessClient({ apiBaseUrl }) {
       }
     };
   }, [activeBaseUrl, tokenInput]);
+
+  const requestBuilder = useMemo(() => {
+    const authHeader = tokenInput ? `Authorization: Bearer ${tokenInput}` : "Authorization: Bearer <TOKEN>";
+    const requestUrl = buildUrlWithParams(`${activeBaseUrl}/api/crm/students`, {
+      q: builderQ,
+      tz: builderTz,
+      institution: builderInstitution,
+      class: builderClass,
+      registration: builderRegistration,
+      famliystatus: builderFamilyStatus,
+      limit: builderLimit,
+      offset: builderOffset,
+      minScore: builderQ ? builderMinScore : ""
+    });
+    const activeParams = [
+      builderInstitution ? `מוסד: ${ENUM_LABELS.currentInstitution?.[builderInstitution] || builderInstitution}` : "",
+      builderClass ? `שיעור: ${ENUM_LABELS.class?.[builderClass] || builderClass}` : "",
+      builderRegistration ? `רישום: ${ENUM_LABELS.registration?.[builderRegistration] || builderRegistration}` : "",
+      builderFamilyStatus ? `סטטוס משפחתי: ${ENUM_LABELS.familystatus?.[builderFamilyStatus] || builderFamilyStatus}` : "",
+      builderQ ? `חיפוש: ${builderQ}` : "",
+      builderTz ? `ת"ז: ${builderTz}` : ""
+    ].filter(Boolean);
+
+    return {
+      url: requestUrl,
+      curl: `curl -H "${authHeader}" \\\n  "${requestUrl}"`,
+      header: authHeader,
+      summary: activeParams.length ? activeParams.join(" | ") : "אין עדיין פרמטרים פעילים"
+    };
+  }, [
+    activeBaseUrl,
+    tokenInput,
+    builderQ,
+    builderTz,
+    builderInstitution,
+    builderClass,
+    builderRegistration,
+    builderFamilyStatus,
+    builderLimit,
+    builderOffset,
+    builderMinScore
+  ]);
 
   return (
     <div className="card">
@@ -222,6 +287,9 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           <div className="api-param-list">
             <div><b>q</b>: חיפוש משוער בשם פרטי/משפחה עם score</div>
             <div><b>institution</b>: סינון לפי מוסד, למשל `CY`</div>
+            <div><b>class</b>: סינון לפי שיעור, למשל `A`</div>
+            <div><b>registration</b>: סינון לפי סטטוס רישום</div>
+            <div><b>famliystatus</b>: סינון לפי סטטוס משפחתי</div>
             <div><b>tz</b>: חיפוש לפי ת"ז תלמיד/אב/אם</div>
             <div><b>limit</b>: עד `500` תוצאות</div>
             <div><b>offset</b>: דילוג לפאג'ינציה</div>
@@ -229,8 +297,82 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           </div>
         </DocBlock>
 
+        <DocBlock title="Request Builder">
+          <div className="api-builder-grid">
+            <label className="api-field">
+              <span>חיפוש חופשי</span>
+              <input value={builderQ} onChange={(event) => setBuilderQ(event.target.value)} placeholder="למשל כהן" />
+            </label>
+            <label className="api-field">
+              <span>תעודת זהות</span>
+              <input value={builderTz} onChange={(event) => setBuilderTz(event.target.value)} placeholder="123456789" />
+            </label>
+            <label className="api-field">
+              <span>מוסד</span>
+              <select value={builderInstitution} onChange={(event) => setBuilderInstitution(event.target.value)}>
+                <option value="">כל המוסדות</option>
+                {enumOptions("currentInstitution").map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="api-field">
+              <span>שיעור</span>
+              <select value={builderClass} onChange={(event) => setBuilderClass(event.target.value)}>
+                <option value="">כל השיעורים</option>
+                {enumOptions("class").map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="api-field">
+              <span>רישום</span>
+              <select value={builderRegistration} onChange={(event) => setBuilderRegistration(event.target.value)}>
+                <option value="">כל הסטטוסים</option>
+                {enumOptions("registration").map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="api-field">
+              <span>סטטוס משפחתי</span>
+              <select value={builderFamilyStatus} onChange={(event) => setBuilderFamilyStatus(event.target.value)}>
+                <option value="">הכל</option>
+                {enumOptions("familystatus").map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="api-field">
+              <span>Limit</span>
+              <input value={builderLimit} onChange={(event) => setBuilderLimit(event.target.value)} />
+            </label>
+            <label className="api-field">
+              <span>Offset</span>
+              <input value={builderOffset} onChange={(event) => setBuilderOffset(event.target.value)} />
+            </label>
+            <label className="api-field">
+              <span>Min Score</span>
+              <input value={builderMinScore} onChange={(event) => setBuilderMinScore(event.target.value)} />
+            </label>
+          </div>
+          <div className="api-builder-output">
+            <div className="api-inline-head">
+              <strong>בקשה מוכנה</strong>
+              <div className="api-copy-row">
+                <CopyButton value={requestBuilder.header} label="העתק Header" />
+                <CopyButton value={requestBuilder.url} label="העתק URL" />
+                <CopyButton value={requestBuilder.curl} label="העתק cURL" />
+              </div>
+            </div>
+            <div className="muted">{requestBuilder.summary}</div>
+            <pre className="token-box">{requestBuilder.url}</pre>
+            <pre className="token-box">{requestBuilder.curl}</pre>
+          </div>
+        </DocBlock>
+
         <DocBlock title="Response Shape">
-          <pre className="token-box">{`{\n  "resource": "students",\n  "count": 2,\n  "total": 51,\n  "limit": 2,\n  "offset": 0,\n  "minScore": 0.42,\n  "names": [\n    { "id": "...", "name": "אברהם כהן", "matchScore": 1 }\n  ],\n  "items": [\n    { "...": "full student objects" }\n  ]\n}`}</pre>
+          <pre className="token-box">{`{\n  "resource": "students",\n  "count": 2,\n  "total": 51,\n  "limit": 2,\n  "offset": 0,\n  "minScore": 0.42,\n  "filters": {\n    "institution": "CY",\n    "class": "A",\n    "registration": null,\n    "famliystatus": "MARRIED"\n  },\n  "names": [\n    { "id": "...", "name": "אברהם כהן", "matchScore": 1 }\n  ],\n  "items": [\n    { "...": "full student objects" }\n  ]\n}`}</pre>
         </DocBlock>
 
         <DocBlock title="Scopes">
@@ -255,6 +397,12 @@ export default function ApiAccessClient({ apiBaseUrl }) {
               subtitle="GET /students?institution=CY"
               url={examples.institution.url}
               curl={examples.institution.curl}
+            />
+            <ExampleCard
+              title="מוסד + שיעור + סטטוס משפחתי"
+              subtitle="GET /students?institution=CY&class=A&famliystatus=MARRIED"
+              url={buildUrlWithParams(`${activeBaseUrl}/api/crm/students`, { institution: "CY", class: "A", famliystatus: "MARRIED", limit: 10 })}
+              curl={`curl -H "${tokenInput ? `Authorization: Bearer ${tokenInput}` : "Authorization: Bearer <TOKEN>"}" \\\n  "${buildUrlWithParams(`${activeBaseUrl}/api/crm/students`, { institution: "CY", class: "A", famliystatus: "MARRIED", limit: 10 })}"`}
             />
             <ExampleCard
               title="Export מלא"
