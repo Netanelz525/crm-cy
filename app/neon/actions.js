@@ -8,6 +8,10 @@ import { normalizeStudentInput } from "../../lib/student-fields";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { syncStudentsToNeon } from "../../lib/neon-students";
 
+function isRedirectError(error) {
+  return Boolean(error?.digest && String(error.digest).startsWith("NEXT_REDIRECT"));
+}
+
 export async function syncNeonStudentsAction() {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
@@ -41,6 +45,7 @@ export async function prepareNeonStudentsImportAction(formData) {
     });
     redirect(`/neon/import/${sessionId}`);
   } catch (error) {
+    if (isRedirectError(error)) throw error;
     const message = encodeURIComponent(error?.message || "ייבוא האקסל נכשל");
     redirect(`/neon?importError=${message}`);
   }
@@ -157,6 +162,7 @@ export async function applyNeonStudentsImportAction(formData) {
     }
     redirect(`/neon?${params.toString()}`);
   } catch (error) {
+    if (isRedirectError(error)) throw error;
     const message = encodeURIComponent(error?.message || "עיבוד הייבוא נכשל");
     redirect(`/neon/import/${sessionId}?error=${message}`);
   }
