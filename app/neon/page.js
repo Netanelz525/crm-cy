@@ -30,7 +30,7 @@ import {
   searchNeonStudentsByText,
   searchNeonStudentsByTz
 } from "../../lib/neon-students";
-import { syncNeonStudentsAction } from "./actions";
+import { importNeonStudentsFromExcelAction, syncNeonStudentsAction } from "./actions";
 
 function PhoneLink({ phoneObj }) {
   const text = phoneText(phoneObj);
@@ -152,6 +152,12 @@ export default async function NeonPage({ searchParams }) {
   const advancedFilters = parseAdvancedFilters(resolvedSearchParams);
   const synced = clean(resolvedSearchParams?.synced) === "1";
   const syncCount = clean(resolvedSearchParams?.count);
+  const imported = clean(resolvedSearchParams?.imported) === "1";
+  const importedUpdated = clean(resolvedSearchParams?.updated);
+  const importedSkipped = clean(resolvedSearchParams?.skipped);
+  const importedFailed = clean(resolvedSearchParams?.failed);
+  const importMessage = clean(resolvedSearchParams?.importMessage);
+  const importError = clean(resolvedSearchParams?.importError);
   const quickClass = clean(resolvedSearchParams?.quickClass).toUpperCase();
   const quickRegistration = clean(resolvedSearchParams?.quickRegistration).toUpperCase();
   const quickFamilyStatus = clean(resolvedSearchParams?.quickFamilyStatus).toUpperCase();
@@ -234,6 +240,13 @@ export default async function NeonPage({ searchParams }) {
       </div>
 
       {synced ? <div className="ok">הסנכרון הושלם. עודכנו {syncCount || 0} תלמידים.</div> : null}
+      {imported ? (
+        <div className="ok">
+          ייבוא האקסל הושלם. עודכנו {importedUpdated || 0}, דולגו {importedSkipped || 0}, נכשלו {importedFailed || 0}.
+          {importMessage ? <div style={{ marginTop: 8 }}>{importMessage}</div> : null}
+        </div>
+      ) : null}
+      {importError ? <div className="card muted">{importError}</div> : null}
 
       <div className="card glass">
         <h3>חיפוש כללי תלמידים - Neon</h3>
@@ -257,6 +270,18 @@ export default async function NeonPage({ searchParams }) {
           </select>
           <input name="institutionSearch" defaultValue={mode === "institution" ? institutionSearch : ""} placeholder="חיפוש בתוך מוסד" />
           <button type="submit">הצג מוסד</button>
+        </form>
+      </div>
+
+      <div className="card glass">
+        <h3>עדכון מרוכז מאקסל</h3>
+        <p className="muted">
+          העלה קובץ `xlsx`/`xls`/`csv` עם עמודת מזהה (`id` / `student_id` / `מזהה תלמיד`) או `ת"ז`, ועוד עמודות לפי שם השדה או שם התצוגה שלו.
+          אפשר להשתמש גם בערכי תצוגה בעברית כמו `נשוי`, `שיעור א`, `חכמי ירושלים`.
+        </p>
+        <form action={importNeonStudentsFromExcelAction} className="grid">
+          <input type="file" name="file" accept=".xlsx,.xls,.csv" />
+          <button type="submit">ייבוא ועדכון מאקסל</button>
         </form>
       </div>
 
