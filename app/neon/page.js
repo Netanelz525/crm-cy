@@ -17,9 +17,8 @@ import {
   sortStudents
 } from "../../lib/student-view";
 import {
-  getNeonStudentsByInstitution,
   getNeonStudentsStats,
-  listAllNeonStudents,
+  listNeonStudentsByFilters,
   searchNeonStudentsByText,
   searchNeonStudentsByTz
 } from "../../lib/neon-students";
@@ -55,13 +54,6 @@ function findInstitutionCode(value) {
 
 function hasInstitutionScopedFilter(filters) {
   return filters.some((filter) => clean(filter.field) === "institution");
-}
-
-function matchesQuickValue(studentValue, filterValue) {
-  const left = clean(studentValue).toUpperCase();
-  const right = clean(filterValue).toUpperCase();
-  if (!right) return true;
-  return left === right;
 }
 
 export default async function NeonPage({ searchParams }) {
@@ -117,16 +109,13 @@ export default async function NeonPage({ searchParams }) {
         advancedFilters.find((filter) => clean(filter.field) === "institution" && filter.operator === "equals")?.value
       );
 
-      if (scopedInstitutionCode) {
-        students = await getNeonStudentsByInstitution(scopedInstitutionCode);
-      } else {
-        students = await listAllNeonStudents();
-      }
-
-      if (institutionSearch) {
-        const term = institutionSearch.toLowerCase();
-        students = students.filter((student) => clean(student.label).toLowerCase().includes(term));
-      }
+      students = await listNeonStudentsByFilters({
+        institution: scopedInstitutionCode,
+        institutionSearch,
+        class: quickClass,
+        registration: quickRegistration,
+        famliystatus: quickFamilyStatus
+      });
 
       students = students.map((student) => {
         const missingState = buildMissingState(student);
@@ -134,9 +123,6 @@ export default async function NeonPage({ searchParams }) {
       });
 
       if (missingType) students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
-      if (quickClass) students = students.filter((student) => matchesQuickValue(student?.class, quickClass));
-      if (quickRegistration) students = students.filter((student) => matchesQuickValue(student?.registration, quickRegistration));
-      if (quickFamilyStatus) students = students.filter((student) => matchesQuickValue(student?.famliystatus, quickFamilyStatus));
       students = applyAdvancedFilters(students, advancedFilters);
       students = sortStudents(students, sortLevels);
     } else if (mode === "search") {

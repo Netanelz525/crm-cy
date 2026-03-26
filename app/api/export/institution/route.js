@@ -14,7 +14,7 @@ import {
   clean
 } from "../../../../lib/student-view";
 import { getStudentsByInstitution, listAllStudents } from "../../../../lib/twenty";
-import { getNeonStudentsByInstitution, listAllNeonStudents } from "../../../../lib/neon-students";
+import { listNeonStudentsByFilters } from "../../../../lib/neon-students";
 
 function findInstitutionCode(value) {
   const normalized = clean(value).toLowerCase();
@@ -23,13 +23,6 @@ function findInstitutionCode(value) {
     if (clean(code).toLowerCase() === normalized || clean(label).toLowerCase() === normalized) return code;
   }
   return "";
-}
-
-function matchesQuickValue(studentValue, filterValue) {
-  const left = clean(studentValue).toUpperCase();
-  const right = clean(filterValue).toUpperCase();
-  if (!right) return true;
-  return left === right;
 }
 
 function csvEscape(value) {
@@ -84,13 +77,19 @@ export async function GET(request) {
 
   let students;
   if (source === "neon") {
-    students = scopedInstitutionCode ? await getNeonStudentsByInstitution(scopedInstitutionCode) : await listAllNeonStudents();
+    students = await listNeonStudentsByFilters({
+      institution: scopedInstitutionCode,
+      institutionSearch,
+      class: quickClass,
+      registration: quickRegistration,
+      famliystatus: quickFamilyStatus
+    });
   } else {
     students = scopedInstitutionCode ? await getStudentsByInstitution(scopedInstitutionCode) : await listAllStudents();
-  }
-  if (institutionSearch) {
-    const s = institutionSearch.toLowerCase();
-    students = students.filter((x) => clean(x.label).toLowerCase().includes(s));
+    if (institutionSearch) {
+      const s = institutionSearch.toLowerCase();
+      students = students.filter((x) => clean(x.label).toLowerCase().includes(s));
+    }
   }
 
   students = students.map((student) => {
@@ -102,16 +101,18 @@ export async function GET(request) {
     students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
   }
 
-  if (quickClass) {
-    students = students.filter((student) => matchesQuickValue(student?.class, quickClass));
-  }
+  if (source !== "neon") {
+    if (quickClass) {
+      students = students.filter((student) => clean(student?.class).toUpperCase() === quickClass);
+    }
 
-  if (quickRegistration) {
-    students = students.filter((student) => matchesQuickValue(student?.registration, quickRegistration));
-  }
+    if (quickRegistration) {
+      students = students.filter((student) => clean(student?.registration).toUpperCase() === quickRegistration);
+    }
 
-  if (quickFamilyStatus) {
-    students = students.filter((student) => matchesQuickValue(student?.famliystatus, quickFamilyStatus));
+    if (quickFamilyStatus) {
+      students = students.filter((student) => clean(student?.famliystatus).toUpperCase() === quickFamilyStatus);
+    }
   }
 
   students = applyAdvancedFilters(students, filters);
@@ -138,6 +139,4 @@ export async function GET(request) {
     }
   });
 }
-
-
 
