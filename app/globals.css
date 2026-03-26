@@ -363,6 +363,20 @@ td {
   padding: 18px;
 }
 
+.bulk-close-btn {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  font-size: 1.1rem;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
 .bulk-form-grid {
   display: grid;
   gap: 12px;
@@ -393,6 +407,61 @@ td {
   gap: 8px;
   margin-bottom: 10px;
   font-weight: 700;
+}
+
+.bulk-submit-shell {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid #b6d4f2;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f5fbff, #eef6ff);
+}
+
+.bulk-submit-shell.pending {
+  border-color: #8cbce7;
+}
+
+.bulk-submit-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.bulk-submit-actions {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+.bulk-cancel-btn {
+  width: auto;
+  min-width: 120px;
+}
+
+.bulk-progress-shell {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(11, 79, 140, 0.12);
+}
+
+.bulk-progress-bar {
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #58a6e7, #0b4f8c, #58a6e7);
+  animation: bulk-progress-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes bulk-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(240%);
+  }
 }
 
 .generic-mobile-card {

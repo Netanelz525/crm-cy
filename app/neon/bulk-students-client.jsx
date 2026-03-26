@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
 import { bulkUpdateNeonStudentsAction } from "./actions";
@@ -80,6 +81,36 @@ function BulkField({ name, label, children }) {
   );
 }
 
+function BulkSubmitBar({ selectedCount, onClose }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <div className={`bulk-submit-shell${pending ? " pending" : ""}`}>
+      <div className="bulk-submit-copy">
+        <strong>בחירת השדות לעדכון</strong>
+        <div className="muted">
+          {pending
+            ? `מעדכן עכשיו ${selectedCount} רשומות. אפשר להמתין בחלון הזה עד להשלמת השמירה.`
+            : `לאחר הלחיצה יוחל עדכון זהה על ${selectedCount} רשומות שנבחרו בתצוגה.`}
+        </div>
+      </div>
+      {pending ? (
+        <div className="bulk-progress-shell" aria-hidden="true">
+          <div className="bulk-progress-bar" />
+        </div>
+      ) : null}
+      <div className="quick-actions bulk-submit-actions">
+        <button type="button" className="btn btn-ghost bulk-cancel-btn" onClick={onClose} disabled={pending}>
+          ביטול
+        </button>
+        <button type="submit" disabled={pending}>
+          {pending ? `מעדכן ${selectedCount} רשומות...` : `החל עדכון על ${selectedCount} רשומות`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, returnTo }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -117,7 +148,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
               בחר את כל {students.length} הרשומות בתצוגה
             </button>
             <button type="button" className="btn btn-ghost bulk-open-btn" disabled={!selectedIds.length} onClick={() => setBulkOpen(true)}>
-              פתח מסך עדכון שדות
+              המשך לבחירת השדות לעדכון
             </button>
             <button type="button" className="chip-link bulk-trigger-btn" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
               נקה בחירה
@@ -134,7 +165,9 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <h3>עדכון מרוכז לתלמידים נבחרים</h3>
                 <p className="muted">העדכון יחול על {selectedIds.length} רשומות. סמן רק את השדות שברצונך להחיל על כולן.</p>
               </div>
-              <button type="button" className="btn btn-ghost" onClick={closeBulk}>סגור</button>
+              <button type="button" className="bulk-close-btn" onClick={closeBulk} aria-label="סגור חלון עדכון שדות">
+                ✕
+              </button>
             </div>
             <form action={bulkUpdateNeonStudentsAction} className="bulk-form-grid">
               <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
@@ -201,9 +234,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <textarea name="note" disabled={!enabled} placeholder="הערה שתתווסף לכל הרשומות שנבחרו" />
                 )}
               </BulkField>
-              <div className="quick-actions">
-                <button type="submit">החל עדכון על {selectedIds.length} רשומות</button>
-              </div>
+              <BulkSubmitBar selectedCount={selectedIds.length} onClose={closeBulk} />
             </form>
           </div>
         </div>
