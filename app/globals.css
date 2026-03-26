@@ -331,6 +331,16 @@ td {
   min-width: 280px;
 }
 
+.bulk-open-btn {
+  width: auto;
+  min-width: 220px;
+}
+
+.bulk-open-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .bulk-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -771,6 +781,11 @@ td {
   }
 
   .bulk-primary-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .bulk-open-btn {
     width: 100%;
     min-width: 0;
   }

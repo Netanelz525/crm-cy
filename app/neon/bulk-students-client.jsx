@@ -116,8 +116,8 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
             <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(students.map((student) => student.id))}>
               בחר את כל {students.length} הרשומות בתצוגה
             </button>
-            <button type="button" className="chip-link bulk-trigger-btn" disabled={!selectedIds.length} onClick={() => setBulkOpen(true)}>
-              עדכון שדה מרוכז
+            <button type="button" className="btn btn-ghost bulk-open-btn" disabled={!selectedIds.length} onClick={() => setBulkOpen(true)}>
+              פתח מסך עדכון שדות
             </button>
             <button type="button" className="chip-link bulk-trigger-btn" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
               נקה בחירה
