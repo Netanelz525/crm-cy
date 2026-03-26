@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
+import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { updateNeonStudentAction } from "./actions";
 
@@ -165,6 +166,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <div className="student-meta-line">
               <span className="meta-chip">מוסד: {institutionLabel(student?.currentInstitution)}</span>
               <span className="meta-chip">רישום: {registrationLabel(student?.registration)}</span>
+              <span className="meta-chip">גיל: {ageOf(student?.dateofbirth) ?? "-"}</span>
               <span className="meta-chip meta-chip-strong">שיעור: {classLabel(student?.class)}</span>
             </div>
           </div>
