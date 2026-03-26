@@ -362,7 +362,12 @@ export default async function NeonPage({ searchParams }) {
 
       {error ? <div className="card muted">{error}</div> : null}
 
-      <BulkStudentsClient students={students} selectedColumns={selectedColumns} showInstitutionView={showInstitutionView} />
+      <BulkStudentsClient
+        students={students}
+        selectedColumns={selectedColumns}
+        showInstitutionView={showInstitutionView}
+        returnTo={currentQueryString ? `/neon?${currentQueryString}` : "/neon"}
+      />
     </>
   );
 }

@@ -62,6 +62,7 @@ export async function bulkUpdateNeonStudentsAction(formData) {
   }
 
   const studentIds = formData.getAll("studentIds").map(clean).filter(Boolean);
+  const returnTo = clean(formData.get("returnTo")) || "/neon";
   if (!studentIds.length) {
     redirect("/neon?bulkError=לא נבחרו תלמידים לעדכון");
   }
@@ -113,7 +114,7 @@ export async function bulkUpdateNeonStudentsAction(formData) {
   if (errors.length) {
     params.set("bulkMessage", errors.slice(0, 5).join(" | "));
   }
-  redirect(`/neon?${params.toString()}`);
+  redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}${params.toString()}`);
 }
 
 export async function applyNeonStudentsImportAction(formData) {

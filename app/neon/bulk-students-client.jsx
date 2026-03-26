@@ -80,7 +80,7 @@ function BulkField({ name, label, children }) {
   );
 }
 
-export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView }) {
+export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, returnTo }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -108,8 +108,11 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
     <>
       {students.length ? (
         <div className="card summary-row">
-          <div>נבחרו לעדכון מרוכז: <b>{selectedIds.length}</b></div>
+          <div>נבחרו לעדכון מרוכז: <b>{selectedIds.length}</b> מתוך <b>{students.length}</b> רשומות בתצוגה</div>
           <div className="quick-actions" style={{ marginTop: 0 }}>
+            <button type="button" className="chip-link bulk-trigger-btn" onClick={() => setSelectedIds(students.map((student) => student.id))}>
+              בחר את כל {students.length} הרשומות בתצוגה
+            </button>
             <button type="button" className="chip-link bulk-trigger-btn" disabled={!selectedIds.length} onClick={() => setBulkOpen(true)}>
               עדכון שדה מרוכז
             </button>
@@ -126,11 +129,12 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
             <div className="student-topbar">
               <div>
                 <h3>עדכון מרוכז לתלמידים נבחרים</h3>
-                <p className="muted">נבחרו {selectedIds.length} תלמידים. סמן רק את השדות שברצונך להחיל על כולם.</p>
+                <p className="muted">העדכון יחול על {selectedIds.length} רשומות. סמן רק את השדות שברצונך להחיל על כולן.</p>
               </div>
               <button type="button" className="btn btn-ghost" onClick={closeBulk}>סגור</button>
             </div>
             <form action={bulkUpdateNeonStudentsAction} className="bulk-form-grid">
+              <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
               {selectedIds.map((id) => (
                 <input key={id} type="hidden" name="studentIds" value={id} />
               ))}
@@ -195,7 +199,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 )}
               </BulkField>
               <div className="quick-actions">
-                <button type="submit">החל על הרשומות שנבחרו</button>
+                <button type="submit">החל עדכון על {selectedIds.length} רשומות</button>
               </div>
             </form>
           </div>
