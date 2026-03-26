@@ -107,10 +107,13 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
   return (
     <>
       {students.length ? (
-        <div className="card summary-row">
-          <div>נבחרו לעדכון מרוכז: <b>{selectedIds.length}</b> מתוך <b>{students.length}</b> רשומות בתצוגה</div>
-          <div className="quick-actions" style={{ marginTop: 0 }}>
-            <button type="button" className="chip-link bulk-trigger-btn" onClick={() => setSelectedIds(students.map((student) => student.id))}>
+        <div className="card bulk-toolbar">
+          <div className="bulk-toolbar-copy">
+            <strong>פעולות מרוכזות על התצוגה הנוכחית</strong>
+            <div className="muted">נבחרו לעדכון מרוכז: <b>{selectedIds.length}</b> מתוך <b>{students.length}</b> רשומות בתצוגה</div>
+          </div>
+          <div className="quick-actions bulk-toolbar-actions" style={{ marginTop: 0 }}>
+            <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(students.map((student) => student.id))}>
               בחר את כל {students.length} הרשומות בתצוגה
             </button>
             <button type="button" className="chip-link bulk-trigger-btn" disabled={!selectedIds.length} onClick={() => setBulkOpen(true)}>
