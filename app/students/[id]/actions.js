@@ -1,6 +1,7 @@
 ﻿"use server";
 
 import { redirect } from "next/navigation";
+import { removeNeonStudentById, syncNeonStudentFromTwentyById } from "../../../lib/neon-students";
 import { upsertStudentNote } from "../../../lib/notes";
 import { canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { toFormData } from "../../../lib/student-fields";
@@ -26,6 +27,7 @@ export async function updateStudentAction(formData) {
   }
 
   await updateStudentById(studentId, data);
+  await syncNeonStudentFromTwentyById(studentId);
   redirect(`/students/${studentId}?updated=1`);
 }
 
@@ -43,6 +45,7 @@ export async function deleteStudentAction(formData) {
 
   try {
     await deleteStudentById(studentId);
+    await removeNeonStudentById(studentId);
   } catch (error) {
     const message = encodeURIComponent(error?.message || "מחיקת התלמיד נכשלה");
     redirect(`/students/${studentId}?error=${message}`);

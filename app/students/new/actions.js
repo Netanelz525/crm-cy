@@ -1,6 +1,7 @@
 ﻿"use server";
 
 import { redirect } from "next/navigation";
+import { syncNeonStudentFromTwentyById } from "../../../lib/neon-students";
 import { toFormData } from "../../../lib/student-fields";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
 import { createStudentByData, getStudentByPrimaryEmail, listAllStudents, searchStudentsByTz } from "../../../lib/twenty";
@@ -148,6 +149,8 @@ export async function createStudentAction(formData) {
   if (!studentId) {
     redirect("/students/new?error=לא התקבל מזהה תלמיד לאחר שמירה");
   }
+
+  await syncNeonStudentFromTwentyById(studentId);
 
   try {
     const studentUrl = buildStudentUrl(studentId);
