@@ -16,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="nav">
               <Link href="/">תלמידים</Link>
               <Link href="/neon">Neon Beta</Link>
+              <Link href="/announcements">הודעות</Link>
               <Link href="/views">תצוגות</Link>
               <Link href="/admin">ניהול</Link>
             </nav>

@@ -464,6 +464,127 @@ td {
   }
 }
 
+.announcements-layout {
+  align-items: start;
+}
+
+.announcements-search-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.announcements-search-form input {
+  min-width: 220px;
+}
+
+.announcements-list {
+  display: grid;
+  gap: 12px;
+}
+
+.announcement-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
+}
+
+.announcement-row-meta {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  justify-items: end;
+}
+
+.announcement-preview-shell {
+  display: flex;
+  justify-content: center;
+}
+
+.announcement-sheet {
+  position: relative;
+  width: min(100%, 420px);
+  aspect-ratio: 210 / 297;
+  border: 1px solid #bfd4ea;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 20px 44px rgba(13, 37, 76, 0.12);
+}
+
+.announcement-sheet.with-background {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.announcement-region {
+  position: absolute;
+  right: 9%;
+  left: 9%;
+  text-align: center;
+  white-space: pre-wrap;
+}
+
+.announcement-header {
+  top: 9%;
+  font-size: clamp(1.1rem, 2vw, 1.8rem);
+  font-weight: 800;
+}
+
+.announcement-body {
+  top: 27%;
+  bottom: 18%;
+  right: 10%;
+  left: 10%;
+  overflow: hidden;
+  font-size: clamp(1rem, 1.9vw, 1.45rem);
+  line-height: 1.55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.announcement-footer {
+  bottom: 8%;
+  font-size: clamp(1rem, 1.8vw, 1.55rem);
+  font-weight: 800;
+}
+
+.announcement-print-page {
+  min-height: 100vh;
+  background: #eef5fb;
+}
+
+.announcement-print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 16px;
+  background: rgba(238, 245, 251, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.announcement-print-canvas {
+  display: flex;
+  justify-content: center;
+  padding: 16px 16px 48px;
+}
+
+.announcement-sheet-print {
+  width: min(100%, 794px);
+  border-radius: 0;
+}
+
+.announcement-print-btn {
+  width: auto;
+}
+
 .generic-mobile-card {
   background: #fff;
   border: 1px solid var(--line);
@@ -1620,6 +1741,20 @@ td {
     gap: 12px;
     margin-top: 14px;
   }
+
+  .announcement-row,
+  .announcements-search-form {
+    display: grid;
+  }
+
+  .announcement-row-meta {
+    justify-items: start;
+    text-align: right;
+  }
+
+  .announcement-sheet {
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1644,5 +1779,32 @@ td {
   .student-delete-form .btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+@media print {
+  .topbar,
+  .announcement-print-toolbar {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .container,
+  .announcement-print-page,
+  .announcement-print-canvas {
+    padding: 0;
+    margin: 0;
+    max-width: none;
+    background: #fff;
+  }
+
+  .announcement-sheet-print {
+    width: 210mm;
+    height: 297mm;
+    box-shadow: none;
+    border: 0;
   }
 }

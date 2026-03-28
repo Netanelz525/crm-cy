@@ -11,6 +11,7 @@
     "backup:json": "node scripts/backup-crm-json.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
     "@clerk/nextjs": "^6.19.3",
     "@neondatabase/serverless": "^0.10.4",
     "next": "^15.2.0",
