@@ -483,6 +483,12 @@ td {
   gap: 12px;
 }
 
+.template-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
 .announcement-row {
   display: flex;
   justify-content: space-between;
@@ -637,6 +643,11 @@ td {
 .announcement-sheet-print {
   width: min(100%, 794px);
   border-radius: 0;
+  break-inside: avoid;
+  break-after: avoid-page;
+  page-break-inside: avoid;
+  page-break-after: avoid;
+  overflow: hidden;
 }
 
 .announcement-print-btn {
@@ -1841,6 +1852,11 @@ td {
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
   .topbar,
   .announcement-print-toolbar {
     display: none !important;
@@ -1862,6 +1878,7 @@ td {
   .announcement-sheet-print {
     width: 210mm;
     height: 297mm;
+    min-height: 297mm;
     box-shadow: none;
     border: 0;
   }

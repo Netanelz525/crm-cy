@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getAnnouncementTemplateById } from "../../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
+import AnnouncementSheet from "../../announcement-sheet";
 import { updateAnnouncementTemplateAction } from "../../actions";
 
 function clean(value) {
@@ -61,6 +62,36 @@ export default async function AnnouncementTemplatePage({ params, searchParams })
               <label>כותרת תחתונה</label>
               <textarea name="footerText" defaultValue={template.footerText} />
             </div>
+            <div className="template-layout-grid">
+              <div>
+                <label>גודל פונט גוף</label>
+                <input type="number" name="bodyFontSize" min="14" max="48" defaultValue={template.layout?.body?.fontSize || 24} />
+              </div>
+              <div>
+                <label>ריווח שורות</label>
+                <input type="number" name="bodyLineHeight" min="1" max="2.4" step="0.05" defaultValue={template.layout?.body?.lineHeight || 1.55} />
+              </div>
+              <div>
+                <label>יישור גוף</label>
+                <select name="bodyAlign" defaultValue={template.layout?.body?.textAlign || "center"}>
+                  <option value="right">ימין</option>
+                  <option value="center">מרכז</option>
+                  <option value="left">שמאל</option>
+                </select>
+              </div>
+              <div>
+                <label>התחלת גוף (%)</label>
+                <input type="number" name="bodyTop" min="10" max="60" defaultValue={template.layout?.body?.top || 27} />
+              </div>
+              <div>
+                <label>סיום גוף מלמטה (%)</label>
+                <input type="number" name="bodyBottom" min="5" max="35" defaultValue={template.layout?.body?.bottom || 18} />
+              </div>
+              <div>
+                <label>גודל פונט כותרת תחתונה</label>
+                <input type="number" name="footerFontSize" min="14" max="48" defaultValue={template.layout?.footer?.fontSize || 26} />
+              </div>
+            </div>
             <div>
               <label>החלפת בלנק</label>
               <input type="file" name="blankFile" accept=".png,.jpg,.jpeg,.webp" />
@@ -72,14 +103,7 @@ export default async function AnnouncementTemplatePage({ params, searchParams })
         <div className="card glass">
           <h3>מקדימה לתבנית</h3>
           <div className="announcement-preview-shell">
-            <div className="announcement-sheet">
-              {template.blankObjectKey ? <img className="announcement-blank-image" src={`/api/announcements/templates/${template.id}/blank`} alt="" /> : null}
-              {template.headerText ? <div className="announcement-region announcement-header">{template.headerText}</div> : null}
-              <div className="announcement-region announcement-body announcement-rich-body">
-                <p>כאן יופיע גוף הטקסט של המודעה כשתשתמשו בתבנית הזו.</p>
-              </div>
-              {template.footerText ? <div className="announcement-region announcement-footer">{template.footerText}</div> : null}
-            </div>
+            <AnnouncementSheet template={template} placeholderText="כאן יופיע גוף הטקסט של המודעה כשתשתמשו בתבנית הזו." />
           </div>
         </div>
       </div>

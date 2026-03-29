@@ -69,6 +69,36 @@ export default async function AnnouncementsPage({ searchParams }) {
               <label>כותרת תחתונה קבועה</label>
               <textarea name="footerText" placeholder="למשל שם הרב / שורת סיום" />
             </div>
+            <div className="template-layout-grid">
+              <div>
+                <label>גודל פונט גוף</label>
+                <input type="number" name="bodyFontSize" min="14" max="48" defaultValue="24" />
+              </div>
+              <div>
+                <label>ריווח שורות</label>
+                <input type="number" name="bodyLineHeight" min="1" max="2.4" step="0.05" defaultValue="1.55" />
+              </div>
+              <div>
+                <label>יישור גוף</label>
+                <select name="bodyAlign" defaultValue="center">
+                  <option value="right">ימין</option>
+                  <option value="center">מרכז</option>
+                  <option value="left">שמאל</option>
+                </select>
+              </div>
+              <div>
+                <label>התחלת גוף (%)</label>
+                <input type="number" name="bodyTop" min="10" max="60" defaultValue="27" />
+              </div>
+              <div>
+                <label>סיום גוף מלמטה (%)</label>
+                <input type="number" name="bodyBottom" min="5" max="35" defaultValue="18" />
+              </div>
+              <div>
+                <label>גודל פונט כותרת תחתונה</label>
+                <input type="number" name="footerFontSize" min="14" max="48" defaultValue="26" />
+              </div>
+            </div>
             <div>
               <label>בלנק רקע</label>
               <input type="file" name="blankFile" accept=".png,.jpg,.jpeg,.webp" />

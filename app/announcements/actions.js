@@ -21,6 +21,41 @@ function getExtension(fileName, contentType) {
   return byType[clean(contentType).toLowerCase()] || "bin";
 }
 
+function numberFromForm(formData, key, fallback) {
+  const numeric = Number(clean(formData.get(key)));
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function layoutFromForm(formData) {
+  return {
+    header: {
+      top: 9,
+      left: 9,
+      right: 9,
+      fontSize: 30,
+      textAlign: "center",
+      fontWeight: 700
+    },
+    body: {
+      top: numberFromForm(formData, "bodyTop", 27),
+      left: 10,
+      right: 10,
+      bottom: numberFromForm(formData, "bodyBottom", 18),
+      fontSize: numberFromForm(formData, "bodyFontSize", 24),
+      lineHeight: numberFromForm(formData, "bodyLineHeight", 1.55),
+      textAlign: clean(formData.get("bodyAlign")) || "center"
+    },
+    footer: {
+      bottom: 8,
+      left: 9,
+      right: 9,
+      fontSize: numberFromForm(formData, "footerFontSize", 26),
+      textAlign: "center",
+      fontWeight: 700
+    }
+  };
+}
+
 async function uploadTemplateBlank(file, templateId) {
   if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) {
     return { key: "", contentType: "" };
@@ -73,6 +108,7 @@ export async function createAnnouncementTemplateAction(formData) {
       footerText,
       blankObjectKey: blank.key,
       blankContentType: blank.contentType,
+      layout: layoutFromForm(formData),
       createdByUserId: user.clerk_user_id
     });
   } catch (error) {
@@ -107,7 +143,8 @@ export async function updateAnnouncementTemplateAction(formData) {
       headerText: clean(formData.get("headerText")),
       footerText: clean(formData.get("footerText")),
       blankObjectKey,
-      blankContentType
+      blankContentType,
+      layout: layoutFromForm(formData)
     });
   } catch (error) {
     redirect(`/announcements/templates/${templateId}?error=${encodeURIComponent(error?.message || "עדכון התבנית נכשל")}`);
