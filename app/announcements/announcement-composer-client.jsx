@@ -25,7 +25,9 @@ export default function AnnouncementComposerClient({
   templates,
   initialAnnouncement = null,
   submitLabel,
-  submitDisabled = false
+  submitDisabled = false,
+  footerActions = null,
+  flowTitle = ""
 }) {
   const [templateId, setTemplateId] = useState(initialAnnouncement?.templateId || "");
   const [layout, setLayout] = useState(initialAnnouncement?.layoutOverride || DEFAULT_LAYOUT);
@@ -38,6 +40,16 @@ export default function AnnouncementComposerClient({
   return (
     <form action={action} className="grid">
       {initialAnnouncement?.id ? <input type="hidden" name="announcementId" value={initialAnnouncement.id} /> : null}
+
+      {flowTitle ? (
+        <div className="announcement-flow-bar">
+          <span className="announcement-flow-step active">1. פרטי מודעה</span>
+          <span className="announcement-flow-sep">/</span>
+          <span className="announcement-flow-step active">2. אזור טקסט</span>
+          <span className="announcement-flow-sep">/</span>
+          <span className="announcement-flow-step active">3. עריכה ושמירה</span>
+        </div>
+      ) : null}
 
       <div>
         <label>תבנית</label>
@@ -72,7 +84,13 @@ export default function AnnouncementComposerClient({
         />
       </div>
 
-      <button type="submit" disabled={submitDisabled}>{submitLabel}</button>
+      <div className="announcement-action-spacer" />
+      <div className="announcement-bottom-bar">
+        <div className="announcement-bottom-actions">
+          {footerActions}
+          <button type="submit" className="btn btn-primary announcement-bottom-submit" disabled={submitDisabled}>{submitLabel}</button>
+        </div>
+      </div>
     </form>
   );
 }

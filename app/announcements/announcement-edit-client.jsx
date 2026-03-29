@@ -20,6 +20,11 @@ export default function AnnouncementEditClient({ announcement, templates, initia
   return (
     <>
       <div className="card glass">
+        <div className="announcement-breadcrumbs">
+          <Link href="/announcements">הודעות</Link>
+          <span>/</span>
+          <span>{announcement.title}</span>
+        </div>
         <div className="student-topbar">
           <div>
             <h1>מודעה</h1>
@@ -47,6 +52,13 @@ export default function AnnouncementEditClient({ announcement, templates, initia
             templates={templates}
             initialAnnouncement={announcement}
             submitLabel="שמור שינויים"
+            flowTitle="עריכת מודעה"
+            footerActions={
+              <>
+                <Link className="btn btn-ghost" href="/announcements">חזרה לרשימה</Link>
+                <Link className="btn btn-ghost" href={`/api/announcements/${announcement.id}/pdf`} target="_blank">פתח PDF A4</Link>
+              </>
+            }
           />
         </div>
       </div>

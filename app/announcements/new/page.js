@@ -16,6 +16,11 @@ export default async function NewAnnouncementPage() {
   return (
     <>
       <div className="card glass">
+        <div className="announcement-breadcrumbs">
+          <Link href="/announcements">הודעות</Link>
+          <span>/</span>
+          <span>הודעה חדשה</span>
+        </div>
         <div className="student-topbar">
           <div>
             <h1>הודעה חדשה</h1>
@@ -40,6 +45,8 @@ export default async function NewAnnouncementPage() {
             action={createAnnouncementAction}
             templates={templates}
             submitLabel="צור מודעה"
+            flowTitle="מודעה חדשה"
+            footerActions={<Link className="btn btn-ghost" href="/announcements">חזרה להודעות</Link>}
           />
         )}
       </div>
