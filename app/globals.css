@@ -692,6 +692,15 @@ td {
   gap: 8px;
 }
 
+.announcement-toolbar-dock {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
+}
+
 .announcement-toolbar-label {
   font-size: 0.95rem;
   font-weight: 800;
@@ -702,6 +711,7 @@ td {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .announcement-tool-btn {
@@ -825,7 +835,7 @@ td {
 }
 
 .announcement-action-spacer {
-  height: 84px;
+  height: 132px;
 }
 
 .announcement-bottom-bar {
@@ -2067,6 +2077,12 @@ td {
 
   .announcement-sheet {
     width: 100%;
+  }
+
+  .announcement-toolbar-dock {
+    position: sticky;
+    bottom: 96px;
+    z-index: 19;
   }
 }
 
