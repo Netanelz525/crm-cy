@@ -52,7 +52,8 @@ export default async function AnnouncementPage({ params, searchParams }) {
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/announcements">חזרה להודעות</Link>
-            <Link className="btn btn-primary" href={`/announcements/${announcement.id}/print`} target="_blank">פתח להדפסה / PDF</Link>
+            <Link className="btn btn-primary" href={`/api/announcements/${announcement.id}/pdf`} target="_blank">פתח PDF A4</Link>
+            <Link className="btn btn-ghost" href={`/announcements/${announcement.id}/print`} target="_blank">תצוגת הדפסה ישנה</Link>
           </div>
         </div>
       </div>
