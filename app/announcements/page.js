@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import AnnouncementEditorClient from "./announcement-editor-client";
+import LayoutControlsClient from "./layout-controls-client";
 import { createAnnouncementAction, createAnnouncementTemplateAction } from "./actions";
 
 function clean(value) {
@@ -99,44 +100,7 @@ export default async function AnnouncementsPage({ searchParams }) {
               <label>גוף הטקסט</label>
               <AnnouncementEditorClient namePrefix="body" initialText="" initialHtml="" />
             </div>
-            <div className="template-layout-grid">
-              <div>
-                <label>גודל פונט</label>
-                <input type="number" name="bodyFontSize" min="14" max="56" defaultValue="24" />
-              </div>
-              <div>
-                <label>משקל פונט</label>
-                <input type="number" name="bodyFontWeight" min="300" max="900" step="100" defaultValue="400" />
-              </div>
-              <div>
-                <label>ריווח שורות</label>
-                <input type="number" name="bodyLineHeight" min="1" max="2.4" step="0.05" defaultValue="1.55" />
-              </div>
-              <div>
-                <label>יישור</label>
-                <select name="bodyAlign" defaultValue="center">
-                  <option value="right">ימין</option>
-                  <option value="center">מרכז</option>
-                  <option value="left">שמאל</option>
-                </select>
-              </div>
-              <div>
-                <label>התחלה מלמעלה (%)</label>
-                <input type="number" name="bodyTop" min="10" max="60" defaultValue="27" />
-              </div>
-              <div>
-                <label>סיום מלמטה (%)</label>
-                <input type="number" name="bodyBottom" min="5" max="35" defaultValue="18" />
-              </div>
-              <div>
-                <label>שול ימין (%)</label>
-                <input type="number" name="bodyRight" min="3" max="25" defaultValue="10" />
-              </div>
-              <div>
-                <label>שול שמאל (%)</label>
-                <input type="number" name="bodyLeft" min="3" max="25" defaultValue="10" />
-              </div>
-            </div>
+            <LayoutControlsClient initialLayout={{ body: { fontSize: 24, lineHeight: 1.55, textAlign: "center", top: 27, bottom: 18, right: 10, left: 10 } }} />
             <button type="submit" disabled={!templates.length}>צור מודעה</button>
           </form>
         </div>

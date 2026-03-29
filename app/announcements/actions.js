@@ -67,7 +67,7 @@ function announcementLayoutFromForm(formData) {
       fontSize: numberFromForm(formData, "bodyFontSize", 24),
       lineHeight: numberFromForm(formData, "bodyLineHeight", 1.55),
       textAlign: clean(formData.get("bodyAlign")) || "center",
-      fontWeight: numberFromForm(formData, "bodyFontWeight", 400)
+      fontWeight: 400
     }
   };
 }

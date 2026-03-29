@@ -7,11 +7,11 @@ function clean(value) {
 }
 
 const TOOLBAR_ACTIONS = [
-  { label: "B", title: "הדגשה", command: "bold" },
-  { label: "כותרת", title: "כותרת גדולה", command: "formatBlock", value: "H2" },
-  { label: "ימין", title: "יישור לימין", command: "justifyRight" },
-  { label: "מרכז", title: "מרכוז", command: "justifyCenter" },
-  { label: "שורות", title: "רשימה", command: "insertUnorderedList" }
+  { label: "🅱️", title: "הדגשה", command: "bold" },
+  { label: "🔠", title: "כותרת גדולה", command: "formatBlock", value: "H2" },
+  { label: "➡️", title: "יישור לימין", command: "justifyRight" },
+  { label: "↔️", title: "מרכוז", command: "justifyCenter" },
+  { label: "📝", title: "רשימה", command: "insertUnorderedList" }
 ];
 
 function escapeHtml(value) {

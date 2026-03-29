@@ -489,6 +489,31 @@ td {
   gap: 12px;
 }
 
+.layout-control-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.layout-control-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fbfdff;
+  padding: 0 12px 12px;
+}
+
+.layout-control-card summary {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+
+.layout-control-card summary::-webkit-details-marker {
+  display: none;
+}
+
 .announcement-row {
   display: flex;
   justify-content: space-between;
@@ -1902,5 +1927,12 @@ td {
     min-height: 297mm;
     box-shadow: none;
     border: 0;
+  }
+
+  @supports (-webkit-touch-callout: none) {
+    .announcement-sheet-print {
+      transform: scale(0.972);
+      transform-origin: top center;
+    }
   }
 }
