@@ -55,74 +55,8 @@ export default async function AnnouncementTemplatePage({ params, searchParams })
               <input name="name" defaultValue={template.name} required />
             </div>
             <div>
-              <label>כותרת עליונה</label>
-              <textarea name="headerText" defaultValue={template.headerText} />
-            </div>
-            <div>
-              <label>כותרת תחתונה</label>
-              <textarea name="footerText" defaultValue={template.footerText} />
-            </div>
-            <div className="template-layout-grid">
-              <div>
-                <label>גודל פונט כותרת עליונה</label>
-                <input type="number" name="headerFontSize" min="14" max="56" defaultValue={template.layout?.header?.fontSize || 30} />
-              </div>
-              <div>
-                <label>יישור כותרת עליונה</label>
-                <select name="headerAlign" defaultValue={template.layout?.header?.textAlign || "center"}>
-                  <option value="right">ימין</option>
-                  <option value="center">מרכז</option>
-                  <option value="left">שמאל</option>
-                </select>
-              </div>
-              <div>
-                <label>גודל פונט גוף</label>
-                <input type="number" name="bodyFontSize" min="14" max="48" defaultValue={template.layout?.body?.fontSize || 24} />
-              </div>
-              <div>
-                <label>משקל פונט גוף</label>
-                <input type="number" name="bodyFontWeight" min="300" max="900" step="100" defaultValue={template.layout?.body?.fontWeight || 400} />
-              </div>
-              <div>
-                <label>ריווח שורות</label>
-                <input type="number" name="bodyLineHeight" min="1" max="2.4" step="0.05" defaultValue={template.layout?.body?.lineHeight || 1.55} />
-              </div>
-              <div>
-                <label>יישור גוף</label>
-                <select name="bodyAlign" defaultValue={template.layout?.body?.textAlign || "center"}>
-                  <option value="right">ימין</option>
-                  <option value="center">מרכז</option>
-                  <option value="left">שמאל</option>
-                </select>
-              </div>
-              <div>
-                <label>התחלת גוף (%)</label>
-                <input type="number" name="bodyTop" min="10" max="60" defaultValue={template.layout?.body?.top || 27} />
-              </div>
-              <div>
-                <label>שול ימין גוף (%)</label>
-                <input type="number" name="bodyRight" min="3" max="25" defaultValue={template.layout?.body?.right || 10} />
-              </div>
-              <div>
-                <label>שול שמאל גוף (%)</label>
-                <input type="number" name="bodyLeft" min="3" max="25" defaultValue={template.layout?.body?.left || 10} />
-              </div>
-              <div>
-                <label>סיום גוף מלמטה (%)</label>
-                <input type="number" name="bodyBottom" min="5" max="35" defaultValue={template.layout?.body?.bottom || 18} />
-              </div>
-              <div>
-                <label>גודל פונט כותרת תחתונה</label>
-                <input type="number" name="footerFontSize" min="14" max="48" defaultValue={template.layout?.footer?.fontSize || 26} />
-              </div>
-              <div>
-                <label>יישור כותרת תחתונה</label>
-                <select name="footerAlign" defaultValue={template.layout?.footer?.textAlign || "center"}>
-                  <option value="right">ימין</option>
-                  <option value="center">מרכז</option>
-                  <option value="left">שמאל</option>
-                </select>
-              </div>
+              <label>שימוש</label>
+              <div className="muted">התבנית משמשת כרקע בלבד. את עיצוב הטקסט מגדירים בתוך כל מודעה בנפרד.</div>
             </div>
             <div>
               <label>החלפת בלנק</label>
@@ -135,7 +69,7 @@ export default async function AnnouncementTemplatePage({ params, searchParams })
         <div className="card glass">
           <h3>מקדימה לתבנית</h3>
           <div className="announcement-preview-shell">
-            <AnnouncementSheet template={template} placeholderText="כאן יופיע גוף הטקסט של המודעה כשתשתמשו בתבנית הזו." />
+            <AnnouncementSheet template={template} layout={{ body: { top: 27, bottom: 18, left: 10, right: 10, fontSize: 24, textAlign: "center", fontWeight: 400, lineHeight: 1.55 } }} placeholderText="כאן יופיע גוף הטקסט של המודעה כשתשתמשו בתבנית הזו." />
           </div>
         </div>
       </div>

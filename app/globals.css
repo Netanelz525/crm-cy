@@ -1857,6 +1857,13 @@ td {
     margin: 0;
   }
 
+  html,
+  body {
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
+  }
+
   .topbar,
   .announcement-print-toolbar {
     display: none !important;

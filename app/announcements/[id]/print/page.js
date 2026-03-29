@@ -27,7 +27,7 @@ export default async function AnnouncementPrintPage({ params }) {
         </div>
       </div>
       <div className="announcement-print-canvas">
-        <AnnouncementSheet template={template} bodyText={announcement.bodyText} bodyHtml={announcement.bodyHtml} printMode />
+        <AnnouncementSheet template={template} layout={announcement.layoutOverride} bodyText={announcement.bodyText} bodyHtml={announcement.bodyHtml} printMode />
       </div>
     </div>
   );

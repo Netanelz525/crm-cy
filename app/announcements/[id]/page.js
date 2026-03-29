@@ -89,6 +89,44 @@ export default async function AnnouncementPage({ params, searchParams }) {
                 initialHtml={announcement.bodyHtml}
               />
             </div>
+            <div className="template-layout-grid">
+              <div>
+                <label>גודל פונט</label>
+                <input type="number" name="bodyFontSize" min="14" max="56" defaultValue={announcement.layoutOverride?.body?.fontSize || 24} />
+              </div>
+              <div>
+                <label>משקל פונט</label>
+                <input type="number" name="bodyFontWeight" min="300" max="900" step="100" defaultValue={announcement.layoutOverride?.body?.fontWeight || 400} />
+              </div>
+              <div>
+                <label>ריווח שורות</label>
+                <input type="number" name="bodyLineHeight" min="1" max="2.4" step="0.05" defaultValue={announcement.layoutOverride?.body?.lineHeight || 1.55} />
+              </div>
+              <div>
+                <label>יישור</label>
+                <select name="bodyAlign" defaultValue={announcement.layoutOverride?.body?.textAlign || "center"}>
+                  <option value="right">ימין</option>
+                  <option value="center">מרכז</option>
+                  <option value="left">שמאל</option>
+                </select>
+              </div>
+              <div>
+                <label>התחלה מלמעלה (%)</label>
+                <input type="number" name="bodyTop" min="10" max="60" defaultValue={announcement.layoutOverride?.body?.top || 27} />
+              </div>
+              <div>
+                <label>סיום מלמטה (%)</label>
+                <input type="number" name="bodyBottom" min="5" max="35" defaultValue={announcement.layoutOverride?.body?.bottom || 18} />
+              </div>
+              <div>
+                <label>שול ימין (%)</label>
+                <input type="number" name="bodyRight" min="3" max="25" defaultValue={announcement.layoutOverride?.body?.right || 10} />
+              </div>
+              <div>
+                <label>שול שמאל (%)</label>
+                <input type="number" name="bodyLeft" min="3" max="25" defaultValue={announcement.layoutOverride?.body?.left || 10} />
+              </div>
+            </div>
             <button type="submit">שמור שינויים</button>
           </form>
         </div>
@@ -96,7 +134,7 @@ export default async function AnnouncementPage({ params, searchParams }) {
         <div className="card glass">
           <h3>תצוגה מקדימה</h3>
           <div className="announcement-preview-shell">
-            <AnnouncementSheet template={template} bodyText={announcement.bodyText} bodyHtml={announcement.bodyHtml} />
+            <AnnouncementSheet template={template} layout={announcement.layoutOverride} bodyText={announcement.bodyText} bodyHtml={announcement.bodyHtml} />
           </div>
         </div>
       </div>

@@ -36,37 +36,18 @@ function buildFallbackHtml(bodyText) {
   return `<p>${safe.replace(/\n/g, "<br>")}</p>`;
 }
 
-export default function AnnouncementSheet({ template, bodyText = "", bodyHtml = "", printMode = false, placeholderText = "" }) {
-  const layout = template?.layout || {};
-  const headerLayout = layout.header || {};
-  const bodyLayout = layout.body || {};
-  const footerLayout = layout.footer || {};
+export default function AnnouncementSheet({ template, bodyText = "", bodyHtml = "", layout = {}, printMode = false, placeholderText = "" }) {
+  const bodyLayout = layout?.body || {};
   const html = clean(bodyHtml) || buildFallbackHtml(bodyText || placeholderText);
 
   return (
     <div className={`announcement-sheet${printMode ? " announcement-sheet-print" : ""}`}>
       {template?.blankObjectKey ? <img className="announcement-blank-image" src={`/api/announcements/templates/${template.id}/blank`} alt="" /> : null}
-      {template?.headerText ? (
-        <div
-          className="announcement-region announcement-header"
-          style={regionStyle(headerLayout, { top: 9, left: 9, right: 9, fontSize: 30, textAlign: "center", fontWeight: 700, lineHeight: 1.3 })}
-        >
-          {template.headerText}
-        </div>
-      ) : null}
       <div
         className="announcement-region announcement-body announcement-rich-body"
         style={regionStyle(bodyLayout, { top: 27, bottom: 18, left: 10, right: 10, fontSize: 24, textAlign: "center", fontWeight: 400, lineHeight: 1.55 })}
         dangerouslySetInnerHTML={{ __html: html }}
       />
-      {template?.footerText ? (
-        <div
-          className="announcement-region announcement-footer"
-          style={regionStyle(footerLayout, { bottom: 8, left: 9, right: 9, fontSize: 26, textAlign: "center", fontWeight: 700, lineHeight: 1.3 })}
-        >
-          {template.footerText}
-        </div>
-      ) : null}
     </div>
   );
 }

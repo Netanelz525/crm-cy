@@ -57,6 +57,21 @@ function layoutFromForm(formData) {
   };
 }
 
+function announcementLayoutFromForm(formData) {
+  return {
+    body: {
+      top: numberFromForm(formData, "bodyTop", 27),
+      left: numberFromForm(formData, "bodyLeft", 10),
+      right: numberFromForm(formData, "bodyRight", 10),
+      bottom: numberFromForm(formData, "bodyBottom", 18),
+      fontSize: numberFromForm(formData, "bodyFontSize", 24),
+      lineHeight: numberFromForm(formData, "bodyLineHeight", 1.55),
+      textAlign: clean(formData.get("bodyAlign")) || "center",
+      fontWeight: numberFromForm(formData, "bodyFontWeight", 400)
+    }
+  };
+}
+
 async function uploadTemplateBlank(file, templateId) {
   if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) {
     return { key: "", contentType: "" };
@@ -167,6 +182,7 @@ export async function createAnnouncementAction(formData) {
       announcementDate: clean(formData.get("announcementDate")),
       bodyText: clean(formData.get("bodyText")),
       bodyHtml: clean(formData.get("bodyHtml")),
+      layoutOverride: announcementLayoutFromForm(formData),
       templateId: clean(formData.get("templateId")),
       createdByUserId: user.clerk_user_id
     });
@@ -188,6 +204,7 @@ export async function updateAnnouncementAction(formData) {
       announcementDate: clean(formData.get("announcementDate")),
       bodyText: clean(formData.get("bodyText")),
       bodyHtml: clean(formData.get("bodyHtml")),
+      layoutOverride: announcementLayoutFromForm(formData),
       templateId: clean(formData.get("templateId"))
     });
   } catch (error) {
