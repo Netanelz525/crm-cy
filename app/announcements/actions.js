@@ -29,29 +29,30 @@ function numberFromForm(formData, key, fallback) {
 function layoutFromForm(formData) {
   return {
     header: {
-      top: 9,
-      left: 9,
-      right: 9,
-      fontSize: 30,
-      textAlign: "center",
-      fontWeight: 700
+      top: numberFromForm(formData, "headerTop", 9),
+      left: numberFromForm(formData, "headerLeft", 9),
+      right: numberFromForm(formData, "headerRight", 9),
+      fontSize: numberFromForm(formData, "headerFontSize", 30),
+      textAlign: clean(formData.get("headerAlign")) || "center",
+      fontWeight: numberFromForm(formData, "headerFontWeight", 700)
     },
     body: {
       top: numberFromForm(formData, "bodyTop", 27),
-      left: 10,
-      right: 10,
+      left: numberFromForm(formData, "bodyLeft", 10),
+      right: numberFromForm(formData, "bodyRight", 10),
       bottom: numberFromForm(formData, "bodyBottom", 18),
       fontSize: numberFromForm(formData, "bodyFontSize", 24),
       lineHeight: numberFromForm(formData, "bodyLineHeight", 1.55),
-      textAlign: clean(formData.get("bodyAlign")) || "center"
+      textAlign: clean(formData.get("bodyAlign")) || "center",
+      fontWeight: numberFromForm(formData, "bodyFontWeight", 400)
     },
     footer: {
-      bottom: 8,
-      left: 9,
-      right: 9,
+      bottom: numberFromForm(formData, "footerBottom", 8),
+      left: numberFromForm(formData, "footerLeft", 9),
+      right: numberFromForm(formData, "footerRight", 9),
       fontSize: numberFromForm(formData, "footerFontSize", 26),
-      textAlign: "center",
-      fontWeight: 700
+      textAlign: clean(formData.get("footerAlign")) || "center",
+      fontWeight: numberFromForm(formData, "footerFontWeight", 700)
     }
   };
 }

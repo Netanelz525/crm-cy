@@ -71,8 +71,24 @@ export default async function AnnouncementsPage({ searchParams }) {
             </div>
             <div className="template-layout-grid">
               <div>
+                <label>גודל פונט כותרת עליונה</label>
+                <input type="number" name="headerFontSize" min="14" max="56" defaultValue="30" />
+              </div>
+              <div>
+                <label>יישור כותרת עליונה</label>
+                <select name="headerAlign" defaultValue="center">
+                  <option value="right">ימין</option>
+                  <option value="center">מרכז</option>
+                  <option value="left">שמאל</option>
+                </select>
+              </div>
+              <div>
                 <label>גודל פונט גוף</label>
                 <input type="number" name="bodyFontSize" min="14" max="48" defaultValue="24" />
+              </div>
+              <div>
+                <label>משקל פונט גוף</label>
+                <input type="number" name="bodyFontWeight" min="300" max="900" step="100" defaultValue="400" />
               </div>
               <div>
                 <label>ריווח שורות</label>
@@ -91,12 +107,28 @@ export default async function AnnouncementsPage({ searchParams }) {
                 <input type="number" name="bodyTop" min="10" max="60" defaultValue="27" />
               </div>
               <div>
+                <label>שול ימין גוף (%)</label>
+                <input type="number" name="bodyRight" min="3" max="25" defaultValue="10" />
+              </div>
+              <div>
+                <label>שול שמאל גוף (%)</label>
+                <input type="number" name="bodyLeft" min="3" max="25" defaultValue="10" />
+              </div>
+              <div>
                 <label>סיום גוף מלמטה (%)</label>
                 <input type="number" name="bodyBottom" min="5" max="35" defaultValue="18" />
               </div>
               <div>
                 <label>גודל פונט כותרת תחתונה</label>
                 <input type="number" name="footerFontSize" min="14" max="48" defaultValue="26" />
+              </div>
+              <div>
+                <label>יישור כותרת תחתונה</label>
+                <select name="footerAlign" defaultValue="center">
+                  <option value="right">ימין</option>
+                  <option value="center">מרכז</option>
+                  <option value="left">שמאל</option>
+                </select>
               </div>
             </div>
             <div>
