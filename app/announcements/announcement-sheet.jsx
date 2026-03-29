@@ -41,7 +41,7 @@ export default function AnnouncementSheet({ template, bodyText = "", bodyHtml = 
   const html = clean(bodyHtml) || buildFallbackHtml(bodyText || placeholderText);
 
   return (
-    <div className={`announcement-sheet${printMode ? " announcement-sheet-print" : ""}`}>
+    <div className={`announcement-sheet${printMode ? " announcement-sheet-print" : ""}`} dir="rtl">
       {template?.blankObjectKey ? <img className="announcement-blank-image" src={`/api/announcements/templates/${template.id}/blank`} alt="" /> : null}
       <div
         className="announcement-region announcement-body announcement-rich-body"

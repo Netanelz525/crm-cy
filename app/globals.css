@@ -591,13 +591,16 @@ td {
 
 .announcement-rich-body {
   text-align: inherit;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .announcement-rich-body p,
 .announcement-rich-body h1,
 .announcement-rich-body h2,
 .announcement-rich-body h3,
-.announcement-rich-body ul {
+.announcement-rich-body ul,
+.announcement-rich-body ol {
   margin: 0 0 0.55em;
 }
 
@@ -605,13 +608,52 @@ td {
 .announcement-rich-body h1:last-child,
 .announcement-rich-body h2:last-child,
 .announcement-rich-body h3:last-child,
-.announcement-rich-body ul:last-child {
+.announcement-rich-body ul:last-child,
+.announcement-rich-body ol:last-child {
   margin-bottom: 0;
+}
+
+.announcement-rich-body h2 {
+  font-size: 1.35em;
+  line-height: 1.25;
+}
+
+.announcement-rich-body h3 {
+  font-size: 1.15em;
+  line-height: 1.3;
+}
+
+.announcement-rich-body ul,
+.announcement-rich-body ol {
+  padding: 0 1.2em 0 0;
+}
+
+.announcement-rich-body [style*="text-align: left"] {
+  text-align: left;
+}
+
+.announcement-rich-body [style*="text-align: center"] {
+  text-align: center;
+}
+
+.announcement-rich-body [style*="text-align: right"] {
+  text-align: right;
 }
 
 .announcement-editor-shell {
   display: grid;
   gap: 10px;
+}
+
+.announcement-toolbar-group {
+  display: grid;
+  gap: 8px;
+}
+
+.announcement-toolbar-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #17365d;
 }
 
 .announcement-toolbar {
@@ -631,6 +673,12 @@ td {
   font-weight: 700;
 }
 
+.announcement-tool-btn.active {
+  border-color: #0c5fa8;
+  background: #eef6ff;
+  color: #0c5fa8;
+}
+
 .announcement-rich-editor {
   min-height: 260px;
   padding: 14px;
@@ -640,9 +688,39 @@ td {
   outline: none;
 }
 
-.announcement-rich-editor:focus {
+.announcement-rich-editor:focus,
+.announcement-rich-editor.ProseMirror-focused {
   border-color: #8cbce7;
   box-shadow: 0 0 0 3px rgba(88, 166, 231, 0.12);
+}
+
+.announcement-rich-editor p,
+.announcement-rich-editor h2,
+.announcement-rich-editor h3,
+.announcement-rich-editor ul,
+.announcement-rich-editor ol {
+  margin: 0 0 0.6em;
+}
+
+.announcement-rich-editor p:last-child,
+.announcement-rich-editor h2:last-child,
+.announcement-rich-editor h3:last-child,
+.announcement-rich-editor ul:last-child,
+.announcement-rich-editor ol:last-child {
+  margin-bottom: 0;
+}
+
+.announcement-rich-editor h2 {
+  font-size: 1.45rem;
+}
+
+.announcement-rich-editor h3 {
+  font-size: 1.2rem;
+}
+
+.announcement-rich-editor ul,
+.announcement-rich-editor ol {
+  padding: 0 1.25em 0 0;
 }
 
 .announcement-print-page {
