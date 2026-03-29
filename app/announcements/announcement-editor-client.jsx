@@ -41,7 +41,7 @@ function htmlToText(value) {
     .trim();
 }
 
-export default function AnnouncementEditorClient({ namePrefix = "body", initialText = "", initialHtml = "" }) {
+export default function AnnouncementEditorClient({ namePrefix = "body", initialText = "", initialHtml = "", onChange }) {
   const editorRef = useRef(null);
   const [html, setHtml] = useState(clean(initialHtml) || textToHtml(initialText));
   const [text, setText] = useState(clean(initialText) || htmlToText(initialHtml));
@@ -53,6 +53,10 @@ export default function AnnouncementEditorClient({ namePrefix = "body", initialT
       editor.innerHTML = html || "";
     }
   }, [html]);
+
+  useEffect(() => {
+    onChange?.({ html, text });
+  }, [html, text, onChange]);
 
   function syncFromEditor() {
     const editor = editorRef.current;
