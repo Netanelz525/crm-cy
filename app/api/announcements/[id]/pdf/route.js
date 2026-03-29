@@ -11,7 +11,7 @@ function clean(value) {
 
 function fileName(value) {
   return clean(value)
-    .replace(/[^\p{L}\p{N}\-_ ]/gu, "")
+    .replace(/[^A-Za-z0-9\-_ ]/g, "")
     .replace(/\s+/g, "-")
     .slice(0, 80) || "announcement";
 }
