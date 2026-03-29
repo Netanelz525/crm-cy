@@ -2,8 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
-import AnnouncementComposerClient from "./announcement-composer-client";
-import { createAnnouncementAction, createAnnouncementTemplateAction } from "./actions";
+import { createAnnouncementTemplateAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -48,6 +47,9 @@ export default async function AnnouncementsPage({ searchParams }) {
           <span className="meta-chip">תבניות פעילות: {templates.length}</span>
           <span className="meta-chip">מודעות שמורות: {announcements.length}</span>
         </div>
+        <div className="student-actions student-actions-wrap">
+          <Link className="btn btn-primary" href="/announcements/new">הודעה חדשה</Link>
+        </div>
       </div>
 
       {errorText ? <div className="card muted">{errorText}</div> : null}
@@ -75,14 +77,14 @@ export default async function AnnouncementsPage({ searchParams }) {
         </div>
 
         <div className="card glass">
-          <h3>מודעה חדשה</h3>
-          <p className="muted">בוחרים תבנית, מכוונים את אזור הטקסט, ועורכים ישירות על גבי המודעה החיה.</p>
-          <AnnouncementComposerClient
-            action={createAnnouncementAction}
-            templates={templates}
-            submitLabel="צור מודעה"
-            submitDisabled={!templates.length}
-          />
+          <h3>מודעות</h3>
+          <p className="muted">יצירת מודעה חדשה מתבצעת בעמוד ייעודי, כדי שכל ההגדרות והעריכה יהיו במקום אחד ברור.</p>
+          <div className="student-actions student-actions-wrap">
+            <Link className="btn btn-primary" href="/announcements/new">פתח עמוד מודעה חדשה</Link>
+          </div>
+          {!templates.length ? (
+            <div className="muted">כדי ליצור מודעה צריך קודם לשמור לפחות תבנית אחת.</div>
+          ) : null}
         </div>
       </div>
 
