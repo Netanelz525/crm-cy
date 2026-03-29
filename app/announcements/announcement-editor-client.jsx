@@ -7,6 +7,7 @@ import Underline from "@tiptap/extension-underline";
 import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { useEffect, useMemo, useState } from "react";
+import AnnouncementSheet from "./announcement-sheet";
 
 function clean(value) {
   return String(value || "");
@@ -44,12 +45,12 @@ function buildPlainText(html) {
 }
 
 const COLOR_OPTIONS = [
-  { label: "⚫", value: "#142642", title: "כהה" },
-  { label: "🔵", value: "#0c5fa8", title: "כחול" },
-  { label: "🔴", value: "#a43131", title: "אדום" }
+  { icon: "⚫", text: "כהה", value: "#142642" },
+  { icon: "🔵", text: "כחול", value: "#0c5fa8" },
+  { icon: "🔴", text: "אדום", value: "#a43131" }
 ];
 
-function ToolbarButton({ active = false, disabled = false, label, title, onClick }) {
+function ToolButton({ active = false, disabled = false, icon, text, title, onClick }) {
   return (
     <button
       type="button"
@@ -58,12 +59,21 @@ function ToolbarButton({ active = false, disabled = false, label, title, onClick
       onClick={onClick}
       disabled={disabled}
     >
-      {label}
+      <span>{icon}</span>
+      <span>{text}</span>
     </button>
   );
 }
 
-export default function AnnouncementEditorClient({ namePrefix = "body", initialText = "", initialHtml = "", onChange }) {
+export default function AnnouncementEditorClient({
+  namePrefix = "body",
+  initialText = "",
+  initialHtml = "",
+  template,
+  layout,
+  placeholderText = "הקלד כאן את גוף המודעה",
+  onChange
+}) {
   const initialContent = useMemo(() => clean(initialHtml) || textToHtml(initialText), [initialHtml, initialText]);
   const [html, setHtml] = useState(initialContent);
   const [text, setText] = useState(buildPlainText(initialContent));
@@ -86,7 +96,7 @@ export default function AnnouncementEditorClient({ namePrefix = "body", initialT
     content: initialContent,
     editorProps: {
       attributes: {
-        class: "announcement-rich-editor ProseMirror",
+        class: "announcement-rich-editor announcement-rich-editor-inline ProseMirror",
         dir: "rtl"
       }
     },
@@ -112,59 +122,60 @@ export default function AnnouncementEditorClient({ namePrefix = "body", initialT
   return (
     <div className="announcement-editor-shell">
       <div className="announcement-toolbar-group">
-        <div className="announcement-toolbar-label">📝 עיצוב טקסט</div>
+        <div className="announcement-toolbar-label">עריכה על גבי המודעה</div>
         <div className="announcement-toolbar">
-          <ToolbarButton
-            label="🅱️"
-            title="הדגשה"
+          <ToolButton
+            icon="🅱️"
+            text="הדגשה"
+            title="הדגשת הטקסט המסומן"
             disabled={!editor}
             active={editor?.isActive("bold")}
             onClick={() => editor?.chain().focus().toggleBold().run()}
           />
-          <ToolbarButton
-            label="〰️"
-            title="קו תחתון"
+          <ToolButton
+            icon="〰️"
+            text="קו תחתון"
+            title="קו תחתון לטקסט המסומן"
             disabled={!editor}
             active={editor?.isActive("underline")}
             onClick={() => editor?.chain().focus().toggleUnderline().run()}
           />
-          <ToolbarButton
-            label="🔠"
-            title="כותרת"
+          <ToolButton
+            icon="🔠"
+            text="כותרת"
+            title="הפיכת השורה לכותרת"
             disabled={!editor}
             active={editor?.isActive("heading", { level: 2 })}
             onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
           />
-          <ToolbarButton
-            label="•"
-            title="רשימה"
+          <ToolButton
+            icon="•"
+            text="רשימה"
+            title="רשימת נקודות"
             disabled={!editor}
             active={editor?.isActive("bulletList")}
             onClick={() => editor?.chain().focus().toggleBulletList().run()}
           />
-        </div>
-      </div>
-
-      <div className="announcement-toolbar-group">
-        <div className="announcement-toolbar-label">↔️ יישור לפסקה הנבחרת</div>
-        <div className="announcement-toolbar">
-          <ToolbarButton
-            label="➡️"
-            title="ימין"
+          <ToolButton
+            icon="➡️"
+            text="ימין"
+            title="יישור הפסקה הנבחרת לימין"
             disabled={!editor}
             active={editor?.isActive({ textAlign: "right" })}
             onClick={() => editor?.chain().focus().setTextAlign("right").run()}
           />
-          <ToolbarButton
-            label="↔️"
-            title="מרכז"
+          <ToolButton
+            icon="↔️"
+            text="מרכז"
+            title="יישור הפסקה הנבחרת למרכז"
             disabled={!editor}
             active={editor?.isActive({ textAlign: "center" })}
             onClick={() => editor?.chain().focus().setTextAlign("center").run()}
           />
-          <ToolbarButton
-            label="⬅️"
-            title="שמאל"
+          <ToolButton
+            icon="⬅️"
+            text="שמאל"
+            title="יישור הפסקה הנבחרת לשמאל"
             disabled={!editor}
             active={editor?.isActive({ textAlign: "left" })}
             onClick={() => editor?.chain().focus().setTextAlign("left").run()}
@@ -173,30 +184,40 @@ export default function AnnouncementEditorClient({ namePrefix = "body", initialT
       </div>
 
       <div className="announcement-toolbar-group">
-        <div className="announcement-toolbar-label">🎨 צבע לטקסט מסומן</div>
+        <div className="announcement-toolbar-label">צבע לטקסט מסומן</div>
         <div className="announcement-toolbar">
           {COLOR_OPTIONS.map((option) => (
-            <ToolbarButton
+            <ToolButton
               key={option.value}
-              label={option.label}
-              title={option.title}
+              icon={option.icon}
+              text={option.text}
+              title={`צבע ${option.text}`}
               disabled={!editor}
               onClick={() => editor?.chain().focus().setColor(option.value).run()}
             />
           ))}
-          <ToolbarButton
-            label="🧽"
-            title="נקה צבע"
+          <ToolButton
+            icon="🧽"
+            text="נקה צבע"
+            title="הסרת צבע מהטקסט המסומן"
             disabled={!editor}
             onClick={() => editor?.chain().focus().unsetColor().run()}
           />
         </div>
       </div>
 
-      <EditorContent editor={editor} />
+      <div className="announcement-preview-shell">
+        <AnnouncementSheet
+          template={template}
+          layout={layout}
+          editableContent={<EditorContent editor={editor} />}
+          placeholderText={placeholderText}
+        />
+      </div>
+
       <input type="hidden" name={`${namePrefix}Text`} value={text} />
       <input type="hidden" name={`${namePrefix}Html`} value={html} />
-      <div className="muted">בחר טקסט ואז החל עליו הדגשה, צבע, כותרת, רשימה או יישור. התצוגה המקדימה מתעדכנת מיד.</div>
+      <div className="muted">הטקסט נערך ישירות על גבי הבלנק. סמן מילים או שורות כדי להחיל עיצוב ולראות מיד את התוצאה.</div>
     </div>
   );
 }

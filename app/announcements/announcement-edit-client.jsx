@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import AnnouncementEditorClient from "./announcement-editor-client";
-import LayoutControlsClient from "./layout-controls-client";
-import AnnouncementSheet from "./announcement-sheet";
+import AnnouncementComposerClient from "./announcement-composer-client";
 import { updateAnnouncementAction } from "./actions";
 
 function clean(value) {
@@ -20,18 +17,6 @@ function formatDate(value) {
 }
 
 export default function AnnouncementEditClient({ announcement, templates, initialTemplate, created, updated, errorText }) {
-  const [templateId, setTemplateId] = useState(announcement.templateId);
-  const [editorState, setEditorState] = useState({
-    html: announcement.bodyHtml || "",
-    text: announcement.bodyText || ""
-  });
-  const [layout, setLayout] = useState(announcement.layoutOverride || {});
-
-  const selectedTemplate = useMemo(
-    () => templates.find((item) => item.id === templateId) || initialTemplate,
-    [templates, templateId, initialTemplate]
-  );
-
   return (
     <>
       <div className="card glass">
@@ -39,7 +24,7 @@ export default function AnnouncementEditClient({ announcement, templates, initia
           <div>
             <h1>מודעה</h1>
             <div className="student-meta-line">
-              <span className="meta-chip">תבנית: {selectedTemplate?.name || announcement.templateName}</span>
+              <span className="meta-chip">תבנית: {initialTemplate?.name || announcement.templateName}</span>
               <span className="meta-chip">תאריך: {formatDate(announcement.announcementDate)}</span>
             </div>
           </div>
@@ -57,48 +42,12 @@ export default function AnnouncementEditClient({ announcement, templates, initia
       <div className="grid announcements-layout">
         <div className="card glass">
           <h3>עריכת המודעה</h3>
-          <form action={updateAnnouncementAction} className="grid">
-            <input type="hidden" name="announcementId" value={announcement.id} />
-            <div>
-              <label>תבנית</label>
-              <select name="templateId" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
-                {templates.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label>כותרת לניהול</label>
-              <input name="title" defaultValue={announcement.title} required />
-            </div>
-            <div>
-              <label>תאריך</label>
-              <input type="date" name="announcementDate" defaultValue={clean(announcement.announcementDate)} />
-            </div>
-            <div>
-              <label>גוף הטקסט</label>
-              <AnnouncementEditorClient
-                namePrefix="body"
-                initialText={announcement.bodyText}
-                initialHtml={announcement.bodyHtml}
-                onChange={setEditorState}
-              />
-            </div>
-            <LayoutControlsClient initialLayout={announcement.layoutOverride} onChange={setLayout} />
-            <button type="submit">שמור שינויים</button>
-          </form>
-        </div>
-
-        <div className="card glass">
-          <h3>תצוגה מקדימה חיה</h3>
-          <div className="announcement-preview-shell">
-            <AnnouncementSheet
-              template={selectedTemplate}
-              layout={layout}
-              bodyText={editorState.text}
-              bodyHtml={editorState.html}
-            />
-          </div>
+          <AnnouncementComposerClient
+            action={updateAnnouncementAction}
+            templates={templates}
+            initialAnnouncement={announcement}
+            submitLabel="שמור שינויים"
+          />
         </div>
       </div>
     </>

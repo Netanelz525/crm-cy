@@ -31,6 +31,19 @@ function ChoiceButton({ active, label, emoji, onClick }) {
   );
 }
 
+function StepperControl({ label, value, min, max, step, suffix = "", onChange }) {
+  return (
+    <div className="layout-stepper">
+      <div className="layout-stepper-label">{label}</div>
+      <div className="layout-stepper-box">
+        <button type="button" className="layout-stepper-btn" onClick={() => onChange(Math.max(min, Number((value - step).toFixed(2))))}>−</button>
+        <div className="layout-stepper-value">{value}{suffix}</div>
+        <button type="button" className="layout-stepper-btn" onClick={() => onChange(Math.min(max, Number((value + step).toFixed(2))))}>+</button>
+      </div>
+    </div>
+  );
+}
+
 export default function LayoutControlsClient({ initialLayout, storageKey = "body", onChange }) {
   const [layout, setLayout] = useState(() => normalizeLayout(initialLayout));
 
@@ -56,11 +69,14 @@ export default function LayoutControlsClient({ initialLayout, storageKey = "body
     <div className="layout-control-stack">
       <details className="layout-control-card" open>
         <summary>🔤 פונט</summary>
-        <div className="layout-choice-row">
-          {[18, 20, 22, 24, 26, 28, 30, 32].map((size) => (
-            <ChoiceButton key={size} active={layout.body.fontSize === size} emoji="🔠" label={String(size)} onClick={() => updateBody("fontSize", size)} />
-          ))}
-        </div>
+        <StepperControl
+          label="גודל פונט כללי"
+          value={layout.body.fontSize}
+          min={12}
+          max={48}
+          step={1}
+          onChange={(next) => updateBody("fontSize", next)}
+        />
       </details>
 
       <details className="layout-control-card">
@@ -69,15 +85,6 @@ export default function LayoutControlsClient({ initialLayout, storageKey = "body
           {[1.2, 1.35, 1.55, 1.75, 2].map((value) => (
             <ChoiceButton key={value} active={layout.body.lineHeight === value} emoji="↕️" label={String(value)} onClick={() => updateBody("lineHeight", value)} />
           ))}
-        </div>
-      </details>
-
-      <details className="layout-control-card">
-        <summary>↔️ יישור</summary>
-        <div className="layout-choice-row">
-          <ChoiceButton active={layout.body.textAlign === "right"} emoji="➡️" label="ימין" onClick={() => updateBody("textAlign", "right")} />
-          <ChoiceButton active={layout.body.textAlign === "center"} emoji="↔️" label="מרכז" onClick={() => updateBody("textAlign", "center")} />
-          <ChoiceButton active={layout.body.textAlign === "left"} emoji="⬅️" label="שמאל" onClick={() => updateBody("textAlign", "left")} />
         </div>
       </details>
 

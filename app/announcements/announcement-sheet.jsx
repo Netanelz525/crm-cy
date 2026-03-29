@@ -14,16 +14,16 @@ function clampNumber(value, fallback, min, max) {
   return Math.min(max, Math.max(min, numeric));
 }
 
-function regionStyle(section, fallback, extras = {}) {
+export function announcementBodyStyle(section, extras = {}) {
   return {
-    top: section.top !== undefined ? `${clampPercent(section.top, fallback.top)}%` : undefined,
-    bottom: section.bottom !== undefined ? `${clampPercent(section.bottom, fallback.bottom)}%` : undefined,
-    right: `${clampPercent(section.right, fallback.right)}%`,
-    left: `${clampPercent(section.left, fallback.left)}%`,
-    fontSize: `${clampNumber(section.fontSize, fallback.fontSize, 12, 72)}px`,
-    lineHeight: clampNumber(section.lineHeight, fallback.lineHeight || 1.4, 1, 2.4),
-    textAlign: clean(section.textAlign) || fallback.textAlign,
-    fontWeight: clampNumber(section.fontWeight, fallback.fontWeight || 400, 300, 900),
+    top: `${clampPercent(section?.top, 27)}%`,
+    bottom: `${clampPercent(section?.bottom, 18)}%`,
+    right: `${clampPercent(section?.right, 10)}%`,
+    left: `${clampPercent(section?.left, 10)}%`,
+    fontSize: `${clampNumber(section?.fontSize, 24, 12, 72)}px`,
+    lineHeight: clampNumber(section?.lineHeight, 1.55, 1, 2.4),
+    textAlign: ["right", "center", "left"].includes(clean(section?.textAlign)) ? clean(section.textAlign) : "center",
+    fontWeight: clampNumber(section?.fontWeight, 400, 300, 900),
     ...extras
   };
 }
@@ -36,18 +36,25 @@ function buildFallbackHtml(bodyText) {
   return `<p>${safe.replace(/\n/g, "<br>")}</p>`;
 }
 
-export default function AnnouncementSheet({ template, bodyText = "", bodyHtml = "", layout = {}, printMode = false, placeholderText = "" }) {
+export default function AnnouncementSheet({ template, bodyText = "", bodyHtml = "", layout = {}, printMode = false, placeholderText = "", editableContent = null }) {
   const bodyLayout = layout?.body || {};
   const html = clean(bodyHtml) || buildFallbackHtml(bodyText || placeholderText);
+  const style = announcementBodyStyle(bodyLayout);
 
   return (
     <div className={`announcement-sheet${printMode ? " announcement-sheet-print" : ""}`} dir="rtl">
       {template?.blankObjectKey ? <img className="announcement-blank-image" src={`/api/announcements/templates/${template.id}/blank`} alt="" /> : null}
-      <div
-        className="announcement-region announcement-body announcement-rich-body"
-        style={regionStyle(bodyLayout, { top: 27, bottom: 18, left: 10, right: 10, fontSize: 24, textAlign: "center", fontWeight: 400, lineHeight: 1.55 })}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      {editableContent ? (
+        <div className="announcement-region announcement-body announcement-body-edit-host" style={style}>
+          {editableContent}
+        </div>
+      ) : (
+        <div
+          className="announcement-region announcement-body announcement-rich-body"
+          style={style}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      )}
     </div>
   );
 }

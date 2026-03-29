@@ -2,8 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
-import AnnouncementEditorClient from "./announcement-editor-client";
-import LayoutControlsClient from "./layout-controls-client";
+import AnnouncementComposerClient from "./announcement-composer-client";
 import { createAnnouncementAction, createAnnouncementTemplateAction } from "./actions";
 
 function clean(value) {
@@ -77,32 +76,13 @@ export default async function AnnouncementsPage({ searchParams }) {
 
         <div className="card glass">
           <h3>מודעה חדשה</h3>
-          <p className="muted">במודעה בוחרים תבנית קיימת ומזינים רק כותרת פנימית לניהול וגוף טקסט.</p>
-          <form action={createAnnouncementAction} className="grid">
-            <div>
-              <label>תבנית</label>
-              <select name="templateId" defaultValue="" required>
-                <option value="">בחר תבנית קיימת</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>{template.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label>כותרת לניהול</label>
-              <input name="title" placeholder="שם פנימי לחיפוש וניהול" required />
-            </div>
-            <div>
-              <label>תאריך</label>
-              <input type="date" name="announcementDate" />
-            </div>
-            <div>
-              <label>גוף הטקסט</label>
-              <AnnouncementEditorClient namePrefix="body" initialText="" initialHtml="" />
-            </div>
-            <LayoutControlsClient initialLayout={{ body: { fontSize: 24, lineHeight: 1.55, textAlign: "center", top: 27, bottom: 18, right: 10, left: 10 } }} />
-            <button type="submit" disabled={!templates.length}>צור מודעה</button>
-          </form>
+          <p className="muted">בוחרים תבנית, מכוונים את אזור הטקסט, ועורכים ישירות על גבי המודעה החיה.</p>
+          <AnnouncementComposerClient
+            action={createAnnouncementAction}
+            templates={templates}
+            submitLabel="צור מודעה"
+            submitDisabled={!templates.length}
+          />
         </div>
       </div>
 
