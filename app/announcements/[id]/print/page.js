@@ -26,12 +26,10 @@ export default async function AnnouncementPrintPage({ params }) {
         </div>
       </div>
       <div className="announcement-print-canvas">
-        <div
-          className={`announcement-sheet announcement-sheet-print${template.blankObjectKey ? " with-background" : ""}`}
-          style={template.blankObjectKey ? { backgroundImage: `url(/api/announcements/templates/${template.id}/blank)` } : undefined}
-        >
+        <div className="announcement-sheet announcement-sheet-print">
+          {template.blankObjectKey ? <img className="announcement-blank-image" src={`/api/announcements/templates/${template.id}/blank`} alt="" /> : null}
           {template.headerText ? <div className="announcement-region announcement-header">{template.headerText}</div> : null}
-          <div className="announcement-region announcement-body">{announcement.bodyText}</div>
+          <div className="announcement-region announcement-body announcement-rich-body" dangerouslySetInnerHTML={{ __html: announcement.bodyHtml || `<p>${announcement.bodyText}</p>` }} />
           {template.footerText ? <div className="announcement-region announcement-footer">{template.footerText}</div> : null}
         </div>
       </div>

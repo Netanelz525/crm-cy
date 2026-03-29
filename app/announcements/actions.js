@@ -128,6 +128,7 @@ export async function createAnnouncementAction(formData) {
       title: clean(formData.get("title")),
       announcementDate: clean(formData.get("announcementDate")),
       bodyText: clean(formData.get("bodyText")),
+      bodyHtml: clean(formData.get("bodyHtml")),
       templateId: clean(formData.get("templateId")),
       createdByUserId: user.clerk_user_id
     });
@@ -148,6 +149,7 @@ export async function updateAnnouncementAction(formData) {
       title: clean(formData.get("title")),
       announcementDate: clean(formData.get("announcementDate")),
       bodyText: clean(formData.get("bodyText")),
+      bodyHtml: clean(formData.get("bodyHtml")),
       templateId: clean(formData.get("templateId"))
     });
   } catch (error) {

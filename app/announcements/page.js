@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
+import AnnouncementEditorClient from "./announcement-editor-client";
 import { createAnnouncementAction, createAnnouncementTemplateAction } from "./actions";
 
 function clean(value) {
@@ -100,7 +101,7 @@ export default async function AnnouncementsPage({ searchParams }) {
             </div>
             <div>
               <label>גוף הטקסט</label>
-              <textarea name="bodyText" placeholder="זהו הטקסט היחיד שהמשתמש צריך להזין במצב הבסיסי" required />
+              <AnnouncementEditorClient namePrefix="body" initialText="" initialHtml="" />
             </div>
             <button type="submit" disabled={!templates.length}>צור מודעה</button>
           </form>

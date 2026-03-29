@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getAnnouncementById, getAnnouncementTemplateById, listAnnouncementTemplates } from "../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
+import AnnouncementEditorClient from "../announcement-editor-client";
 import { updateAnnouncementAction } from "../actions";
 
 function clean(value) {
@@ -81,7 +82,11 @@ export default async function AnnouncementPage({ params, searchParams }) {
             </div>
             <div>
               <label>גוף הטקסט</label>
-              <textarea name="bodyText" defaultValue={announcement.bodyText} required />
+              <AnnouncementEditorClient
+                namePrefix="body"
+                initialText={announcement.bodyText}
+                initialHtml={announcement.bodyHtml}
+              />
             </div>
             <button type="submit">שמור שינויים</button>
           </form>
@@ -90,12 +95,10 @@ export default async function AnnouncementPage({ params, searchParams }) {
         <div className="card glass">
           <h3>תצוגה מקדימה</h3>
           <div className="announcement-preview-shell">
-            <div
-              className={`announcement-sheet${template?.blankObjectKey ? " with-background" : ""}`}
-              style={template?.blankObjectKey ? { backgroundImage: `url(/api/announcements/templates/${template.id}/blank)` } : undefined}
-            >
+            <div className="announcement-sheet">
+              {template?.blankObjectKey ? <img className="announcement-blank-image" src={`/api/announcements/templates/${template.id}/blank`} alt="" /> : null}
               {template?.headerText ? <div className="announcement-region announcement-header">{template.headerText}</div> : null}
-              <div className="announcement-region announcement-body">{announcement.bodyText}</div>
+              <div className="announcement-region announcement-body announcement-rich-body" dangerouslySetInnerHTML={{ __html: announcement.bodyHtml || `<p>${announcement.bodyText}</p>` }} />
               {template?.footerText ? <div className="announcement-region announcement-footer">{template.footerText}</div> : null}
             </div>
           </div>

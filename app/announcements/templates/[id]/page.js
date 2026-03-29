@@ -72,12 +72,12 @@ export default async function AnnouncementTemplatePage({ params, searchParams })
         <div className="card glass">
           <h3>מקדימה לתבנית</h3>
           <div className="announcement-preview-shell">
-            <div
-              className={`announcement-sheet${template.blankObjectKey ? " with-background" : ""}`}
-              style={template.blankObjectKey ? { backgroundImage: `url(/api/announcements/templates/${template.id}/blank)` } : undefined}
-            >
+            <div className="announcement-sheet">
+              {template.blankObjectKey ? <img className="announcement-blank-image" src={`/api/announcements/templates/${template.id}/blank`} alt="" /> : null}
               {template.headerText ? <div className="announcement-region announcement-header">{template.headerText}</div> : null}
-              <div className="announcement-region announcement-body">כאן יופיע גוף הטקסט של המודעה כשתשתמשו בתבנית הזו.</div>
+              <div className="announcement-region announcement-body announcement-rich-body">
+                <p>כאן יופיע גוף הטקסט של המודעה כשתשתמשו בתבנית הזו.</p>
+              </div>
               {template.footerText ? <div className="announcement-region announcement-footer">{template.footerText}</div> : null}
             </div>
           </div>
