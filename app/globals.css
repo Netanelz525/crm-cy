@@ -535,6 +535,7 @@ td {
 .announcement-preview-shell {
   display: flex;
   justify-content: center;
+  width: 100%;
 }
 
 .announcement-breadcrumbs {
@@ -552,7 +553,7 @@ td {
 
 .announcement-sheet {
   position: relative;
-  width: min(100%, 420px);
+  width: min(100%, 794px);
   aspect-ratio: 210 / 297;
   border: 1px solid #bfd4ea;
   border-radius: 20px;
