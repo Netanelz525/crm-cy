@@ -554,12 +554,14 @@ td {
 .announcement-sheet {
   position: relative;
   width: min(100%, 794px);
+  max-width: 100%;
   aspect-ratio: 210 / 297;
   border: 1px solid #bfd4ea;
   border-radius: 20px;
   overflow: hidden;
   background: #fff;
   box-shadow: 0 20px 44px rgba(13, 37, 76, 0.12);
+  --announcement-sheet-scale: 1;
 }
 
 .announcement-blank-image {
@@ -703,22 +705,29 @@ td {
 }
 
 .announcement-toolbar-label {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 800;
   color: #17365d;
 }
 
 .announcement-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.announcement-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .announcement-tool-btn {
   width: auto;
-  min-width: 96px;
-  padding: 10px 12px;
+  min-width: 90px;
+  padding: 9px 11px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: #fff;
@@ -2084,6 +2093,10 @@ td {
     position: sticky;
     bottom: 96px;
     z-index: 19;
+  }
+
+  .announcement-tool-btn {
+    min-width: 82px;
   }
 }
 
