@@ -717,6 +717,28 @@ td {
   color: #5b7190;
 }
 
+.announcement-toolbar-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.announcement-tab-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #23486f;
+  font-weight: 800;
+}
+
+.announcement-tab-btn.active {
+  border-color: #0c5fa8;
+  background: #eef6ff;
+  color: #0c5fa8;
+}
+
 .announcement-toolbar-label {
   font-size: 0.88rem;
   font-weight: 800;
@@ -780,6 +802,14 @@ td {
 
 .announcement-toolbar-colors.open {
   display: flex;
+}
+
+.announcement-toolbar-panel {
+  display: none;
+}
+
+.announcement-toolbar-panel.open {
+  display: block;
 }
 
 .announcement-rich-editor {
