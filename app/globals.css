@@ -630,13 +630,15 @@ td {
 }
 
 .announcement-rich-body h2 {
-  font-size: 1.35em;
-  line-height: 1.25;
+  font-size: 1.12em;
+  line-height: 1.28;
+  font-weight: 800;
 }
 
 .announcement-rich-body h3 {
-  font-size: 1.15em;
+  font-size: 1.06em;
   line-height: 1.3;
+  font-weight: 800;
 }
 
 .announcement-rich-body ul,
@@ -838,11 +840,15 @@ td {
 }
 
 .announcement-rich-editor h2 {
-  font-size: 1.45rem;
+  font-size: 1.12em;
+  line-height: 1.28;
+  font-weight: 800;
 }
 
 .announcement-rich-editor h3 {
-  font-size: 1.2rem;
+  font-size: 1.06em;
+  line-height: 1.3;
+  font-weight: 800;
 }
 
 .announcement-rich-editor ul,
