@@ -814,6 +814,55 @@ td {
   display: block;
 }
 
+.announcement-inline-steppers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.announcement-mini-stepper {
+  display: grid;
+  gap: 6px;
+}
+
+.announcement-mini-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #5b7190;
+}
+
+.announcement-mini-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.announcement-mini-btn {
+  width: auto;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #f5f9ff;
+  color: #17365d;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.announcement-mini-value {
+  min-width: 48px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #17365d;
+}
+
 .announcement-rich-editor {
   outline: none;
 }

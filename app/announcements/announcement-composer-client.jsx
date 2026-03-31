@@ -81,6 +81,7 @@ export default function AnnouncementComposerClient({
           initialHtml={initialAnnouncement?.bodyHtml || ""}
           template={selectedTemplate}
           layout={layout}
+          onLayoutChange={setLayout}
         />
       </div>
 

@@ -71,6 +71,7 @@ export default function AnnouncementEditorClient({
   initialHtml = "",
   template,
   layout,
+  onLayoutChange,
   placeholderText = "הקלד כאן את גוף המודעה",
   onChange
 }) {
@@ -119,6 +120,18 @@ export default function AnnouncementEditorClient({
   useEffect(() => {
     onChange?.({ html, text });
   }, [html, text, onChange]);
+
+  const bodyLayout = layout?.body || {};
+
+  function updateBodyLayout(key, nextValue) {
+    onLayoutChange?.({
+      ...layout,
+      body: {
+        ...(layout?.body || {}),
+        [key]: nextValue
+      }
+    });
+  }
 
   return (
     <div className="announcement-editor-shell">
@@ -207,6 +220,24 @@ export default function AnnouncementEditorClient({
               active={editor?.isActive({ textAlign: "left" })}
               onClick={() => editor?.chain().focus().setTextAlign("left").run()}
             />
+          </div>
+          <div className="announcement-inline-steppers">
+            <div className="announcement-mini-stepper">
+              <span className="announcement-mini-label">פונט</span>
+              <div className="announcement-mini-box">
+                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.max(12, Number(bodyLayout.fontSize || 24) - 1))}>−</button>
+                <span className="announcement-mini-value">{Number(bodyLayout.fontSize || 24)}</span>
+                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.min(48, Number(bodyLayout.fontSize || 24) + 1))}>+</button>
+              </div>
+            </div>
+            <div className="announcement-mini-stepper">
+              <span className="announcement-mini-label">שורות</span>
+              <div className="announcement-mini-box">
+                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("lineHeight", Math.max(1, Number((Number(bodyLayout.lineHeight || 1.55) - 0.05).toFixed(2))))}>−</button>
+                <span className="announcement-mini-value">{Number(bodyLayout.lineHeight || 1.55).toFixed(2)}</span>
+                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("lineHeight", Math.min(2.4, Number((Number(bodyLayout.lineHeight || 1.55) + 0.05).toFixed(2))))}>+</button>
+              </div>
+            </div>
           </div>
         </div>
         <div className={`announcement-toolbar-panel${activePanel === "color" ? " open" : ""}`}>

@@ -22,28 +22,6 @@ function normalizeLayout(initialLayout) {
   };
 }
 
-function ChoiceButton({ active, label, emoji, onClick }) {
-  return (
-    <button type="button" className={`layout-choice-btn${active ? " active" : ""}`} onClick={onClick}>
-      <span>{emoji}</span>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function StepperControl({ label, value, min, max, step, suffix = "", onChange }) {
-  return (
-    <div className="layout-stepper">
-      <div className="layout-stepper-label">{label}</div>
-      <div className="layout-stepper-box">
-        <button type="button" className="layout-stepper-btn" onClick={() => onChange(Math.max(min, Number((value - step).toFixed(2))))}>−</button>
-        <div className="layout-stepper-value">{value}{suffix}</div>
-        <button type="button" className="layout-stepper-btn" onClick={() => onChange(Math.min(max, Number((value + step).toFixed(2))))}>+</button>
-      </div>
-    </div>
-  );
-}
-
 export default function LayoutControlsClient({ initialLayout, storageKey = "body", onChange }) {
   const [layout, setLayout] = useState(() => normalizeLayout(initialLayout));
 
@@ -68,27 +46,6 @@ export default function LayoutControlsClient({ initialLayout, storageKey = "body
   return (
     <div className="layout-control-stack">
       <details className="layout-control-card" open>
-        <summary>🔤 פונט</summary>
-        <StepperControl
-          label="גודל פונט כללי"
-          value={layout.body.fontSize}
-          min={12}
-          max={48}
-          step={1}
-          onChange={(next) => updateBody("fontSize", next)}
-        />
-      </details>
-
-      <details className="layout-control-card">
-        <summary>↕️ שורות</summary>
-        <div className="layout-choice-row">
-          {[1.2, 1.35, 1.55, 1.75, 2].map((value) => (
-            <ChoiceButton key={value} active={layout.body.lineHeight === value} emoji="↕️" label={String(value)} onClick={() => updateBody("lineHeight", value)} />
-          ))}
-        </div>
-      </details>
-
-      <details className="layout-control-card">
         <summary>📐 אזור טקסט</summary>
         <div className="template-layout-grid">
           <div>
