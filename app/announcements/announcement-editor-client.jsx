@@ -50,11 +50,11 @@ const COLOR_OPTIONS = [
   { icon: "🔴", text: "אדום", value: "#a43131" }
 ];
 
-function ToolButton({ active = false, disabled = false, icon, text, title, onClick }) {
+function ToolButton({ active = false, disabled = false, icon, text, title, onClick, compact = false }) {
   return (
     <button
       type="button"
-      className={`announcement-tool-btn${active ? " active" : ""}`}
+      className={`announcement-tool-btn${active ? " active" : ""}${compact ? " compact" : ""}`}
       title={title}
       onClick={onClick}
       disabled={disabled}
@@ -77,6 +77,7 @@ export default function AnnouncementEditorClient({
   const initialContent = useMemo(() => clean(initialHtml) || textToHtml(initialText), [initialHtml, initialText]);
   const [html, setHtml] = useState(initialContent);
   const [text, setText] = useState(buildPlainText(initialContent));
+  const [showColors, setShowColors] = useState(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -130,90 +131,108 @@ export default function AnnouncementEditorClient({
         />
       </div>
 
-      <div className="announcement-toolbar-dock">
-        <div className="announcement-toolbar-group">
-          <div className="announcement-toolbar-label">עיצוב טקסט</div>
-          <div className="announcement-toolbar">
-            <ToolButton
-              icon="🅱️"
-              text="הדגשה"
-              title="הדגשת הטקסט המסומן"
-              disabled={!editor}
-              active={editor?.isActive("bold")}
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-            />
-            <ToolButton
-              icon="〰️"
-              text="קו תחתון"
-              title="קו תחתון לטקסט המסומן"
-              disabled={!editor}
-              active={editor?.isActive("underline")}
-              onClick={() => editor?.chain().focus().toggleUnderline().run()}
-            />
-            <ToolButton
-              icon="🔠"
-              text="כותרת"
-              title="הפיכת השורה לכותרת"
-              disabled={!editor}
-              active={editor?.isActive("heading", { level: 2 })}
-              onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            />
-            <ToolButton
-              icon="•"
-              text="רשימה"
-              title="רשימת נקודות"
-              disabled={!editor}
-              active={editor?.isActive("bulletList")}
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            />
-            <ToolButton
-              icon="➡️"
-              text="ימין"
-              title="יישור הפסקה הנבחרת לימין"
-              disabled={!editor}
-              active={editor?.isActive({ textAlign: "right" })}
-              onClick={() => editor?.chain().focus().setTextAlign("right").run()}
-            />
-            <ToolButton
-              icon="↔️"
-              text="מרכז"
-              title="יישור הפסקה הנבחרת למרכז"
-              disabled={!editor}
-              active={editor?.isActive({ textAlign: "center" })}
-              onClick={() => editor?.chain().focus().setTextAlign("center").run()}
-            />
-            <ToolButton
-              icon="⬅️"
-              text="שמאל"
-              title="יישור הפסקה הנבחרת לשמאל"
-              disabled={!editor}
-              active={editor?.isActive({ textAlign: "left" })}
-              onClick={() => editor?.chain().focus().setTextAlign("left").run()}
-            />
-          </div>
+      <div className="announcement-toolbar-dock mobile-style">
+        <div className="announcement-toolbar-hint">בחר טקסט ואז השתמש בסרגל העריכה</div>
+        <div className="announcement-toolbar quick">
+          <ToolButton
+            compact
+            icon="🅱️"
+            text="הדגש"
+            title="הדגשת הטקסט המסומן"
+            disabled={!editor}
+            active={editor?.isActive("bold")}
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+          />
+          <ToolButton
+            compact
+            icon="〰️"
+            text="קו"
+            title="קו תחתון לטקסט המסומן"
+            disabled={!editor}
+            active={editor?.isActive("underline")}
+            onClick={() => editor?.chain().focus().toggleUnderline().run()}
+          />
+          <ToolButton
+            compact
+            icon="🔠"
+            text="כותרת"
+            title="הפיכת השורה לכותרת"
+            disabled={!editor}
+            active={editor?.isActive("heading", { level: 2 })}
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+          />
+          <ToolButton
+            compact
+            icon="•"
+            text="רשימה"
+            title="רשימת נקודות"
+            disabled={!editor}
+            active={editor?.isActive("bulletList")}
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+          />
+          <ToolButton
+            compact
+            icon="➡️"
+            text="ימין"
+            title="יישור הפסקה הנבחרת לימין"
+            disabled={!editor}
+            active={editor?.isActive({ textAlign: "right" })}
+            onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+          />
+          <ToolButton
+            compact
+            icon="↔️"
+            text="מרכז"
+            title="יישור הפסקה הנבחרת למרכז"
+            disabled={!editor}
+            active={editor?.isActive({ textAlign: "center" })}
+            onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+          />
+          <ToolButton
+            compact
+            icon="⬅️"
+            text="שמאל"
+            title="יישור הפסקה הנבחרת לשמאל"
+            disabled={!editor}
+            active={editor?.isActive({ textAlign: "left" })}
+            onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+          />
+          <ToolButton
+            compact
+            icon="🎨"
+            text="צבע"
+            title="פתיחת צבעי טקסט"
+            disabled={!editor}
+            active={showColors}
+            onClick={() => setShowColors((current) => !current)}
+          />
         </div>
-
-        <div className="announcement-toolbar-group">
-          <div className="announcement-toolbar-label">צבע לטקסט מסומן</div>
-          <div className="announcement-toolbar">
-            {COLOR_OPTIONS.map((option) => (
-              <ToolButton
-                key={option.value}
-                icon={option.icon}
-                text={option.text}
-                title={`צבע ${option.text}`}
-                disabled={!editor}
-                onClick={() => editor?.chain().focus().setColor(option.value).run()}
-              />
-            ))}
+        <div className={`announcement-toolbar-colors${showColors ? " open" : ""}`}>
+          {COLOR_OPTIONS.map((option) => (
             <ToolButton
-              icon="🧽"
-              text="נקה צבע"
-              title="הסרת צבע מהטקסט המסומן"
+              key={option.value}
+              compact
+              icon={option.icon}
+              text={option.text}
+              title={`צבע ${option.text}`}
               disabled={!editor}
-              onClick={() => editor?.chain().focus().unsetColor().run()}
+              onClick={() => {
+                editor?.chain().focus().setColor(option.value).run();
+                setShowColors(false);
+              }}
             />
-          </div>
+          ))}
+          <ToolButton
+            compact
+            icon="🧽"
+            text="נקה"
+            title="הסרת צבע מהטקסט המסומן"
+            disabled={!editor}
+            onClick={() => {
+              editor?.chain().focus().unsetColor().run();
+              setShowColors(false);
+            }}
+          />
         </div>
       </div>
 

@@ -704,6 +704,19 @@ td {
   background: linear-gradient(180deg, #ffffff, #f7fbff);
 }
 
+.announcement-toolbar-dock.mobile-style {
+  position: sticky;
+  bottom: 96px;
+  z-index: 19;
+  box-shadow: 0 10px 24px rgba(13, 37, 76, 0.08);
+}
+
+.announcement-toolbar-hint {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #5b7190;
+}
+
 .announcement-toolbar-label {
   font-size: 0.88rem;
   font-weight: 800;
@@ -739,10 +752,34 @@ td {
   gap: 6px;
 }
 
+.announcement-tool-btn.compact {
+  min-width: 74px;
+  padding: 8px 10px;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.86rem;
+}
+
 .announcement-tool-btn.active {
   border-color: #0c5fa8;
   background: #eef6ff;
   color: #0c5fa8;
+}
+
+.announcement-toolbar-colors {
+  display: none;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.announcement-toolbar-colors::-webkit-scrollbar {
+  display: none;
+}
+
+.announcement-toolbar-colors.open {
+  display: flex;
 }
 
 .announcement-rich-editor {
@@ -2087,12 +2124,6 @@ td {
 
   .announcement-sheet {
     width: 100%;
-  }
-
-  .announcement-toolbar-dock {
-    position: sticky;
-    bottom: 96px;
-    z-index: 19;
   }
 
   .announcement-tool-btn {
