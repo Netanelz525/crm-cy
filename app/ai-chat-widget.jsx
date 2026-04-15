@@ -15,6 +15,22 @@ function MessageCard({ message }) {
     <div className={`ai-chat-message ai-chat-message-${message.role}`}>
       <div className="ai-chat-message-label">{message.role === "user" ? "אתה" : "סוכן"}</div>
       <div className="ai-chat-message-body">{message.content}</div>
+      {message.documentInfo ? (
+        <div className="ai-chat-document-summary">
+          <strong>{message.documentInfo.documentName || "מסמך"}</strong>
+          <span>סוג: {message.documentInfo.documentType || "-"}</span>
+          <span>שם: {message.documentInfo.fullName || [message.documentInfo.firstName, message.documentInfo.lastName].filter(Boolean).join(" ") || "-"}</span>
+          <span>ת"ז: {message.documentInfo.tznum || "-"}</span>
+          {Array.isArray(message.updatableFields) && message.updatableFields.length ? (
+            <div className="ai-chat-field-list">
+              <b>שדות מוצעים לעדכון:</b>
+              {message.updatableFields.map((field) => (
+                <span key={`${field.field}-${field.value}`}>{field.label || field.field}: {field.value}</span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {message.exportUrl ? (
         <div>
           <a className="ai-chat-export-link" href={message.exportUrl}>הורדה לאקסל</a>
@@ -109,7 +125,9 @@ export default function AiChatWidget() {
           role: "assistant",
           content: data?.reply || "לא התקבלה תשובה.",
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
-          exportUrl: data?.exportUrl || ""
+          exportUrl: data?.exportUrl || "",
+          documentInfo: data?.documentInfo || null,
+          updatableFields: Array.isArray(data?.updatableFields) ? data.updatableFields : []
         }
       ]);
       setFile(null);

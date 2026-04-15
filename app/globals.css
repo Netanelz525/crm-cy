@@ -363,6 +363,21 @@ td {
   font-size: 0.9rem;
 }
 
+.ai-chat-document-summary,
+.ai-chat-field-list {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #cfe3d8;
+  background: linear-gradient(180deg, #f7fff9, #eefaf1);
+}
+
+.ai-chat-document-summary span,
+.ai-chat-field-list span {
+  font-size: 0.9rem;
+}
+
 .ai-chat-student-link {
   color: var(--primary);
   font-weight: 800;

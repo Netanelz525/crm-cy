@@ -195,7 +195,37 @@ async function fileToDataUrl(file) {
   return `data:${mime};base64,${bytes.toString("base64")}`;
 }
 
-async function extractStudentIdentityFromImage(file) {
+function normalizeExtractedFields(fields) {
+  if (!Array.isArray(fields)) return [];
+  const allowedFields = new Set([
+    "fullName.firstName",
+    "fullName.lastName",
+    "tznum",
+    "dateofbirth",
+    "adders.addressStreet1",
+    "adders.addressStreet2",
+    "adders.addressCity",
+    "adders.addressPostcode",
+    "phone.primaryPhoneNumber",
+    "email.primaryEmail",
+    "shmHb",
+    "shmHm",
+    "tzaba",
+    "tzMotherNum"
+  ]);
+
+  return fields
+    .map((field) => ({
+      field: clean(field?.field),
+      label: clean(field?.label),
+      value: clean(field?.value),
+      confidence: Number(field?.confidence) || null
+    }))
+    .filter((field) => allowedFields.has(field.field) && field.value)
+    .slice(0, 12);
+}
+
+async function extractStudentDocumentInfo(file) {
   if (!file) {
     throw new Error("לא התקבל מסמך.");
   }
@@ -203,10 +233,14 @@ async function extractStudentIdentityFromImage(file) {
   const contentType = clean(file.type).toLowerCase();
   if (!contentType.startsWith("image/")) {
     return {
+      documentName: clean(file.name),
+      documentType: contentType === "application/pdf" ? "PDF" : "מסמך",
+      documentSummary: "המסמך נשמר וניתן לשייך אותו לכרטיס תלמיד. חילוץ פרטים אוטומטי מ-PDF עדיין מוגבל.",
       firstName: "",
       lastName: "",
       fullName: "",
-      tznum: ""
+      tznum: "",
+      updatableFields: []
     };
   }
 
@@ -224,12 +258,20 @@ async function extractStudentIdentityFromImage(file) {
       messages: [
         {
           role: "system",
-          content: "Extract student identity details from the uploaded Israeli ID or student document. Return strict JSON with keys: firstName, lastName, fullName, tznum. Use empty strings if unknown."
+          content: [
+            "Extract structured CRM information from the uploaded student document.",
+            "Return strict JSON with keys:",
+            "documentName, documentType, documentSummary, firstName, lastName, fullName, tznum, updatableFields.",
+            "updatableFields must be an array of objects with field, label, value, confidence.",
+            "Only include CRM fields that can reasonably update the student card.",
+            "Supported field names: fullName.firstName, fullName.lastName, tznum, dateofbirth, adders.addressStreet1, adders.addressStreet2, adders.addressCity, adders.addressPostcode, phone.primaryPhoneNumber, email.primaryEmail, shmHb, shmHm, tzaba, tzMotherNum.",
+            "Use empty strings or empty arrays if unknown."
+          ].join(" ")
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "חלץ שם פרטי, שם משפחה ותעודת זהות אם קיימים." },
+            { type: "text", text: "נתח את המסמך והחזר סוג מסמך, תקציר, פרטי תלמיד ושדות CRM שאפשר לעדכן." },
             { type: "image_url", image_url: { url: imageUrl } }
           ]
         }
@@ -249,38 +291,77 @@ async function extractStudentIdentityFromImage(file) {
   }
 
   return {
+    documentName: clean(parsed.documentName) || clean(file.name),
+    documentType: clean(parsed.documentType) || "מסמך תלמיד",
+    documentSummary: clean(parsed.documentSummary),
     firstName: clean(parsed.firstName),
     lastName: clean(parsed.lastName),
     fullName: clean(parsed.fullName),
-    tznum: clean(parsed.tznum).replace(/[^\d]/g, "")
+    tznum: clean(parsed.tznum).replace(/[^\d]/g, ""),
+    updatableFields: normalizeExtractedFields(parsed.updatableFields)
   };
 }
 
+function buildDocumentAnalysisReply({ documentInfo, students, attachedDocument }) {
+  const matchedStudent = students.length === 1 ? students[0] : null;
+  const lines = [
+    `מסמך: ${documentInfo.documentName || "ללא שם"}`,
+    `סוג מסמך: ${documentInfo.documentType || "לא זוהה"}`,
+    `תקציר: ${documentInfo.documentSummary || "לא זוהה תקציר ברור."}`,
+    "",
+    "פרטי תלמיד שזוהו:",
+    `שם פרטי: ${documentInfo.firstName || "-"}`,
+    `שם משפחה: ${documentInfo.lastName || "-"}`,
+    `שם מלא: ${documentInfo.fullName || "-"}`,
+    `מספר זהות: ${documentInfo.tznum || "-"}`
+  ];
+
+  if (matchedStudent) {
+    lines.push("", `התאמה ב-CRM: ${matchedStudent.label}`, "המסמך נשמר בכרטיס התלמיד.");
+  } else if (students.length > 1) {
+    lines.push("", `נמצאו ${students.length} התאמות אפשריות. יש לבחור כרטיס תלמיד לפני שמירה אוטומטית.`);
+  } else {
+    lines.push("", "לא נמצאה התאמה ב-CRM. אפשר ליצור תלמיד חדש על בסיס הנתונים שזוהו.");
+  }
+
+  lines.push("", "שדות שאפשר לעדכן:");
+  if (documentInfo.updatableFields.length) {
+    documentInfo.updatableFields.forEach((field, index) => {
+      lines.push(`${index + 1}. ${field.label || field.field}: ${field.value}`);
+    });
+  } else {
+    lines.push("-");
+  }
+
+  if (attachedDocument?.id) {
+    lines.push("", `מזהה מסמך שנשמר: ${attachedDocument.id}`);
+  }
+
+  return lines.join("\n");
+}
+
 async function handleDocumentMatchFlow({ user, attachment, messageText }) {
-  const identity = await extractStudentIdentityFromImage(attachment);
-  let query = identity.tznum || identity.fullName || [identity.firstName, identity.lastName].filter(Boolean).join(" ");
+  const documentInfo = await extractStudentDocumentInfo(attachment);
+  let query = documentInfo.tznum || documentInfo.fullName || [documentInfo.firstName, documentInfo.lastName].filter(Boolean).join(" ");
   if (!query) query = clean(messageText);
 
-  const filters = identity.tznum ? [{ field: "tznum", operator: "equals", value: identity.tznum }] : [];
+  const filters = documentInfo.tznum ? [{ field: "tznum", operator: "equals", value: documentInfo.tznum }] : [];
   const { students, effectiveFilters } = await findStudentsForAgent({ query, filters, minScore: 0.22 });
   const finalStudentCards = students.slice(0, 10).map((student) => buildStudentSummary(student)).filter(Boolean);
   let attachedDocument = null;
 
-  let reply;
   if (students.length === 1) {
     attachedDocument = await createStudentDocument({
       studentId: students[0].id,
       uploadedByUserId: user.clerk_user_id,
       file: attachment,
-      documentKind: "id"
+      documentKind: "id",
+      displayName: documentInfo.documentName || clean(attachment.name),
+      noteText: documentInfo.documentSummary
     });
-    reply = `נמצאה התאמה לתלמיד ${students[0].label}. המסמך נשמר בכרטיס התלמיד.`;
-  } else if (students.length > 1) {
-    reply = `נמצאו ${students.length} התאמות אפשריות למסמך. בדוק את הרשימה ובחר את הכרטיס הנכון.`;
-  } else {
-    reply = "לא נמצאה התאמה למסמך. אפשר ליצור תלמיד חדש על בסיס הפרטים שבמסמך.";
   }
 
+  const reply = buildDocumentAnalysisReply({ documentInfo, students, attachedDocument });
   const exportUrl = effectiveFilters.length ? buildExportUrlForFilters(effectiveFilters) : "";
   await createAiChatMessage({
     clerkUserId: user.clerk_user_id,
@@ -295,8 +376,10 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
         studentCards: finalStudentCards,
         exportUrl,
         attachmentName: clean(attachment.name),
-        extractedIdentity: identity,
+        documentInfo,
+        extractedIdentity: documentInfo,
         attachedDocumentId: attachedDocument?.id || "",
+        updatableFields: documentInfo.updatableFields,
         suggestedAction: students.length ? "" : "create_student"
       }
     });
@@ -305,7 +388,9 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
     reply,
     studentCards: finalStudentCards,
     exportUrl,
-    extractedIdentity: identity,
+    documentInfo,
+    extractedIdentity: documentInfo,
+    updatableFields: documentInfo.updatableFields,
     attachedDocumentId: attachedDocument?.id || "",
     suggestedAction: students.length ? "" : "create_student"
   });
