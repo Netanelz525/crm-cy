@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const INITIAL_MESSAGES = [
   {
@@ -134,6 +134,7 @@ export default function AiChatWidget() {
   const [deciding, setDeciding] = useState(false);
   const [error, setError] = useState("");
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     if (!open || historyLoaded) return;
@@ -163,6 +164,17 @@ export default function AiChatWidget() {
       cancelled = true;
     };
   }, [open, historyLoaded]);
+
+  useEffect(() => {
+    if (!open) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [open, messages.length, loading, error]);
+
+  function handleInputKeyDown(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent?.isComposing) return;
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -264,12 +276,14 @@ export default function AiChatWidget() {
             ))}
             {loading ? <div className="ai-chat-status">מחפש במערכת...</div> : null}
             {error ? <div className="ai-chat-error">{error}</div> : null}
+            <div ref={messagesEndRef} />
           </div>
 
           <form className="ai-chat-form" onSubmit={handleSubmit}>
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleInputKeyDown}
               placeholder="למשל: מי גר בירושלים? אפשר גם להעלות צילום מסמך לזיהוי."
             />
             <label className="ai-chat-file-input">

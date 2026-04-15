@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/rbac";
-import { createStudentDocument } from "../../../../lib/student-documents";
+import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
 import { toFormData } from "../../../../lib/student-fields";
 import { updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
 
@@ -62,4 +62,28 @@ export async function uploadStudentDocumentAction(formData) {
   }
 
   redirect(`/neon/students/${studentId}?documentUploaded=1`);
+}
+
+export async function updateStudentDocumentNameAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+  const documentId = clean(formData.get("documentId"));
+  const displayName = clean(formData.get("displayName"));
+
+  if (!assertStudentAccess(user, studentId)) {
+    redirect("/unauthorized");
+  }
+
+  try {
+    const doc = await getStudentDocumentById(documentId);
+    if (!doc || doc.studentId !== studentId) {
+      throw new Error("המסמך לא נמצא בכרטיס התלמיד.");
+    }
+    await updateStudentDocumentName({ id: documentId, displayName });
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "עדכון שם המסמך נכשל");
+    redirect(`/neon/students/${studentId}?error=${message}`);
+  }
+
+  redirect(`/neon/students/${studentId}?documentRenamed=1`);
 }

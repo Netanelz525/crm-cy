@@ -221,6 +221,43 @@ button {
   flex-wrap: wrap;
 }
 
+.student-document-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.student-document-rename {
+  position: relative;
+}
+
+.student-document-rename summary {
+  list-style: none;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.student-document-rename summary::-webkit-details-marker {
+  display: none;
+}
+
+.student-document-rename-form {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+}
+
 .sticky-save-bar {
   position: sticky;
   top: 68px;

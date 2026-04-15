@@ -5,7 +5,7 @@ import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormV
 import { listStudentDocuments } from "../../../../lib/student-documents";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { updateNeonStudentAction, uploadStudentDocumentAction } from "./actions";
+import { updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -154,6 +154,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const advancedMode = editMode && clean(resolvedSearchParams?.advanced) === "1";
   const updated = clean(resolvedSearchParams?.updated) === "1";
   const documentUploaded = clean(resolvedSearchParams?.documentUploaded) === "1";
+  const documentRenamed = clean(resolvedSearchParams?.documentRenamed) === "1";
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
@@ -207,6 +208,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה ב-Twenty וב-Neon.</div> : null}
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
+      {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card">
@@ -232,14 +234,27 @@ export default async function NeonStudentPage({ params, searchParams }) {
         ) : (
           <div className="grid">
             {documents.map((doc) => (
-              <a key={doc.id} className="card" href={`/api/student-documents/${doc.id}`} target="_blank">
-                <b>{doc.name}</b>
+              <div key={doc.id} className="card">
+                <div className="student-document-title-row">
+                  <a href={`/api/student-documents/${doc.id}`} target="_blank"><b>{doc.name}</b></a>
+                  {canManageDocuments ? (
+                    <details className="student-document-rename">
+                      <summary title="ערוך שם מסמך">✎</summary>
+                      <form action={updateStudentDocumentNameAction} className="student-document-rename-form">
+                        <input type="hidden" name="studentId" value={studentId} />
+                        <input type="hidden" name="documentId" value={doc.id} />
+                        <input name="displayName" defaultValue={doc.name} aria-label="שם מסמך" />
+                        <button type="submit">שמור</button>
+                      </form>
+                    </details>
+                  ) : null}
+                </div>
                 <div className="muted">קובץ: {doc.fileName}</div>
                 <div className="muted">הועלה: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("he-IL") : "-"}</div>
                 <div className="muted">הערות: {doc.noteText || "-"}</div>
                 <div className="muted">סוג: {doc.documentKind}</div>
                 <div className="muted">פורמט: {doc.contentType}</div>
-              </a>
+              </div>
             ))}
           </div>
         )}
