@@ -162,6 +162,9 @@ function isCrmRelevant(text, hasAttachment = false) {
     "תלמיד",
     "תלמידים",
     "מוסד",
+    "לומד",
+    "לומדים",
+    "לומדות",
     "רישום",
     "סטטוס",
     "נשוי",
@@ -690,7 +693,8 @@ export async function POST(request) {
     }
 
     const lastUserMessage = extractLastUserMessage(conversation);
-    if (!isCrmRelevant(lastUserMessage, Boolean(attachment))) {
+    const inferredChoiceFilters = inferEnumFiltersFromQuery(lastUserMessage);
+    if (!isCrmRelevant(lastUserMessage, Boolean(attachment)) && !inferredChoiceFilters.length) {
       return NextResponse.json({ reply: CRM_SCOPE_MESSAGE, studentCards: [] });
     }
 
@@ -706,7 +710,6 @@ export async function POST(request) {
     const recentConversation = buildRecentConversationMessages(recentHistory);
     const requestedLimit = extractRequestedLimit(lastUserMessage);
     const quantitativeListRequest = isQuantitativeListRequest(lastUserMessage);
-    const inferredChoiceFilters = inferEnumFiltersFromQuery(lastUserMessage);
     const choiceFieldQuery = isChoiceFieldQuery(lastUserMessage) || inferredChoiceFilters.length > 0;
 
     if (quantitativeListRequest || choiceFieldQuery) {
