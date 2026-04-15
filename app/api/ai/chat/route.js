@@ -14,6 +14,7 @@ import {
   findStudentsForAgent,
   getStudentForAgent,
   getStudentSchemaCatalog,
+  inferEnumFiltersFromQuery,
   searchStudentsForAgent
 } from "../../../../lib/student-agent";
 
@@ -571,7 +572,7 @@ function buildQuantitativeReply({ query, students, requestedLimit }) {
     return "לא נמצאו תלמידים מתאימים.";
   }
 
-  const displayLimit = requestedLimit || Math.min(total, 50);
+  const displayLimit = requestedLimit || Math.min(total, 200);
   const displayed = students.slice(0, displayLimit);
   const lines = [
     `נמצאו ${total} תלמידים.`,
@@ -705,7 +706,8 @@ export async function POST(request) {
     const recentConversation = buildRecentConversationMessages(recentHistory);
     const requestedLimit = extractRequestedLimit(lastUserMessage);
     const quantitativeListRequest = isQuantitativeListRequest(lastUserMessage);
-    const choiceFieldQuery = isChoiceFieldQuery(lastUserMessage);
+    const inferredChoiceFilters = inferEnumFiltersFromQuery(lastUserMessage);
+    const choiceFieldQuery = isChoiceFieldQuery(lastUserMessage) || inferredChoiceFilters.length > 0;
 
     if (quantitativeListRequest || choiceFieldQuery) {
       const { students, effectiveFilters } = await findStudentsForAgent({

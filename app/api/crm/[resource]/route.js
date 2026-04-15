@@ -1,10 +1,29 @@
 import { NextResponse } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../lib/api-tokens";
-import { normalizeStudentInput } from "../../../../lib/student-fields";
+import { ENUM_LABELS, normalizeStudentInput } from "../../../../lib/student-fields";
 import { createNeonStudentViaTwenty, listAllNeonStudents, searchNeonStudents } from "../../../../lib/neon-students";
+import { findStudentsForAgent, normalizeChoiceFilterValue } from "../../../../lib/student-agent";
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function parseListParam(params, key) {
+  return params.getAll(key).map(clean).filter(Boolean);
+}
+
+function parseFieldFilters(params) {
+  const fields = parseListParam(params, "ff");
+  const operators = parseListParam(params, "fo");
+  const values = parseListParam(params, "fv");
+
+  return fields
+    .map((field, index) => ({
+      field,
+      operator: clean(operators[index]) || "equals",
+      value: clean(values[index])
+    }))
+    .filter((filter) => filter.field && filter.value);
 }
 
 function unauthorized() {
@@ -54,12 +73,29 @@ export async function GET(request, { params }) {
   const classCode = clean(url.searchParams.get("class"));
   const registration = clean(url.searchParams.get("registration"));
   const famliystatus = clean(url.searchParams.get("famliystatus"));
+  const healthInsurance = clean(url.searchParams.get("healthInsurance"));
   const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 50, 500));
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
   const minScore = Math.max(0, Math.min(Number(url.searchParams.get("minScore")) || 0.42, 1));
+  const fieldFilters = parseFieldFilters(url.searchParams);
 
-  const students = q || tz || institution || classCode || registration || famliystatus
-    ? await searchNeonStudents({ q, tz, institution, class: classCode, registration, famliystatus, minScore })
+  const filters = [
+    institution ? { field: "currentInstitution", operator: "equals", value: normalizeChoiceFilterValue("currentInstitution", institution) } : null,
+    classCode ? { field: "class", operator: "equals", value: normalizeChoiceFilterValue("class", classCode) } : null,
+    registration ? { field: "registration", operator: "equals", value: normalizeChoiceFilterValue("registration", registration) } : null,
+    famliystatus ? { field: "famliystatus", operator: "equals", value: normalizeChoiceFilterValue("famliystatus", famliystatus) } : null,
+    healthInsurance ? { field: "healthInsurance", operator: "equals", value: normalizeChoiceFilterValue("healthInsurance", healthInsurance) } : null,
+    ...fieldFilters.map((filter) => ({
+      ...filter,
+      value: normalizeChoiceFilterValue(filter.field, filter.value)
+    })),
+    tz ? { field: "tznum", operator: "contains", value: tz } : null
+  ].filter(Boolean);
+
+  const students = filters.length
+    ? (await findStudentsForAgent({ query: "", filters, minScore })).students
+    : q
+      ? await searchNeonStudents({ q, minScore })
     : await listAllNeonStudents();
 
   const items = students.slice(offset, offset + limit);
@@ -82,8 +118,11 @@ export async function GET(request, { params }) {
       institution: institution || null,
       class: classCode || null,
       registration: registration || null,
-      famliystatus: famliystatus || null
+      famliystatus: famliystatus || null,
+      healthInsurance: healthInsurance || null,
+      normalized: filters.length ? filters : null
     },
+    enumValues: ENUM_LABELS,
     names,
     items
   });
