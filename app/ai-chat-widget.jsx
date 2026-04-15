@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { INSTITUTION_COLUMNS_FULL } from "../lib/student-view";
 
 const INITIAL_MESSAGES = [
   {
@@ -10,23 +11,7 @@ const INITIAL_MESSAGES = [
   }
 ];
 
-const EXPORT_COLUMN_OPTIONS = [
-  { key: "name", label: "שם" },
-  { key: "tznum", label: "תעודת זהות" },
-  { key: "field:dateofbirth", label: "תאריך לידה" },
-  { key: "class", label: "שיעור" },
-  { key: "institution", label: "מוסד" },
-  { key: "registration", label: "רישום" },
-  { key: "studentPhone", label: "טלפון תלמיד" },
-  { key: "dadPhone", label: "טלפון אב" },
-  { key: "momPhone", label: "טלפון אם" },
-  { key: "studentEmail", label: "אימייל תלמיד" },
-  { key: "fatherEmail", label: "אימייל אב" },
-  { key: "motherEmail", label: "אימייל אם" },
-  { key: "field:adders.addressCity", label: "עיר" },
-  { key: "field:adders.addressStreet1", label: "כתובת" },
-  { key: "field:famliystatus", label: "סטטוס משפחתי" }
-];
+const EXPORT_COLUMN_OPTIONS = INSTITUTION_COLUMNS_FULL;
 
 const DEFAULT_EXPORT_COLUMNS = ["name", "tznum", "field:dateofbirth"];
 
@@ -41,8 +26,14 @@ function buildExportUrlWithColumns(exportUrl, columns) {
 
 function MessageCard({ message, onDecision, deciding }) {
   const [showColumns, setShowColumns] = useState(false);
+  const [columnSearch, setColumnSearch] = useState("");
   const [selectedColumns, setSelectedColumns] = useState(DEFAULT_EXPORT_COLUMNS);
   const customExportUrl = buildExportUrlWithColumns(message.exportUrl, selectedColumns);
+  const visibleColumnOptions = EXPORT_COLUMN_OPTIONS.filter((column) => {
+    const term = columnSearch.trim().toLowerCase();
+    if (!term) return true;
+    return column.label.toLowerCase().includes(term) || column.key.toLowerCase().includes(term);
+  });
 
   function toggleColumn(columnKey) {
     if (DEFAULT_EXPORT_COLUMNS.includes(columnKey)) return;
@@ -82,7 +73,13 @@ function MessageCard({ message, onDecision, deciding }) {
           {showColumns ? (
             <div className="ai-chat-columns-panel">
               <div className="muted">ברירת המחדל כוללת תמיד שם, תעודת זהות ותאריך לידה.</div>
-              {EXPORT_COLUMN_OPTIONS.map((column) => (
+              <input
+                className="ai-chat-column-search"
+                value={columnSearch}
+                onChange={(event) => setColumnSearch(event.target.value)}
+                placeholder="חיפוש שדה, לדוגמה: שם אב"
+              />
+              {visibleColumnOptions.map((column) => (
                 <label key={column.key} className="ai-chat-column-option">
                   <input
                     type="checkbox"
@@ -93,6 +90,7 @@ function MessageCard({ message, onDecision, deciding }) {
                   <span>{column.label}</span>
                 </label>
               ))}
+              {!visibleColumnOptions.length ? <div className="muted">לא נמצאו שדות מתאימים.</div> : null}
               <a className="ai-chat-export-link" href={customExportUrl}>הורד עם העמודות שנבחרו</a>
             </div>
           ) : null}
