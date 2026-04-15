@@ -394,6 +394,51 @@ td {
   font-weight: 800;
 }
 
+.ai-chat-export-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-chat-columns-btn {
+  width: auto;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--primary);
+  border: 1px solid #c9dbee;
+}
+
+.ai-chat-columns-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+}
+
+.ai-chat-column-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-chat-column-option input {
+  width: auto;
+}
+
+.ai-chat-decision-row {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 8px;
+}
+
+.ai-chat-reject-btn {
+  background: #fff;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+
 .ai-chat-form {
   display: grid;
   gap: 10px;

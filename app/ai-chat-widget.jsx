@@ -10,7 +10,49 @@ const INITIAL_MESSAGES = [
   }
 ];
 
-function MessageCard({ message }) {
+const EXPORT_COLUMN_OPTIONS = [
+  { key: "name", label: "שם" },
+  { key: "tznum", label: "תעודת זהות" },
+  { key: "field:dateofbirth", label: "תאריך לידה" },
+  { key: "class", label: "שיעור" },
+  { key: "institution", label: "מוסד" },
+  { key: "registration", label: "רישום" },
+  { key: "studentPhone", label: "טלפון תלמיד" },
+  { key: "dadPhone", label: "טלפון אב" },
+  { key: "momPhone", label: "טלפון אם" },
+  { key: "studentEmail", label: "אימייל תלמיד" },
+  { key: "fatherEmail", label: "אימייל אב" },
+  { key: "motherEmail", label: "אימייל אם" },
+  { key: "field:adders.addressCity", label: "עיר" },
+  { key: "field:adders.addressStreet1", label: "כתובת" },
+  { key: "field:famliystatus", label: "סטטוס משפחתי" }
+];
+
+const DEFAULT_EXPORT_COLUMNS = ["name", "tznum", "field:dateofbirth"];
+
+function buildExportUrlWithColumns(exportUrl, columns) {
+  if (!exportUrl) return "";
+  const [path, query = ""] = exportUrl.split("?");
+  const params = new URLSearchParams(query);
+  params.delete("cols");
+  columns.forEach((column) => params.append("cols", column));
+  return `${path}?${params.toString()}`;
+}
+
+function MessageCard({ message, onDecision, deciding }) {
+  const [showColumns, setShowColumns] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState(DEFAULT_EXPORT_COLUMNS);
+  const customExportUrl = buildExportUrlWithColumns(message.exportUrl, selectedColumns);
+
+  function toggleColumn(columnKey) {
+    if (DEFAULT_EXPORT_COLUMNS.includes(columnKey)) return;
+    setSelectedColumns((current) => (
+      current.includes(columnKey)
+        ? current.filter((item) => item !== columnKey)
+        : [...current, columnKey]
+    ));
+  }
+
   return (
     <div className={`ai-chat-message ai-chat-message-${message.role}`}>
       <div className="ai-chat-message-label">{message.role === "user" ? "אתה" : "סוכן"}</div>
@@ -32,8 +74,28 @@ function MessageCard({ message }) {
         </div>
       ) : null}
       {message.exportUrl ? (
-        <div>
+        <div className="ai-chat-export-actions">
           <a className="ai-chat-export-link" href={message.exportUrl}>הורדה לאקסל</a>
+          <button type="button" className="ai-chat-columns-btn" onClick={() => setShowColumns((value) => !value)}>
+            בחירת עמודות לאקסל
+          </button>
+          {showColumns ? (
+            <div className="ai-chat-columns-panel">
+              <div className="muted">ברירת המחדל כוללת תמיד שם, תעודת זהות ותאריך לידה.</div>
+              {EXPORT_COLUMN_OPTIONS.map((column) => (
+                <label key={column.key} className="ai-chat-column-option">
+                  <input
+                    type="checkbox"
+                    checked={selectedColumns.includes(column.key)}
+                    disabled={DEFAULT_EXPORT_COLUMNS.includes(column.key)}
+                    onChange={() => toggleColumn(column.key)}
+                  />
+                  <span>{column.label}</span>
+                </label>
+              ))}
+              <a className="ai-chat-export-link" href={customExportUrl}>הורד עם העמודות שנבחרו</a>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {Array.isArray(message.studentCards) && message.studentCards.length ? (
@@ -49,6 +111,16 @@ function MessageCard({ message }) {
           ))}
         </div>
       ) : null}
+      {message.pendingAction ? (
+        <div className="ai-chat-decision-row">
+          <button type="button" onClick={() => onDecision(message, "approve")} disabled={deciding}>
+            {message.pendingAction.type === "create_student" ? "אשר יצירת תלמיד ושיוך מסמך" : "אשר שיוך מסמך"}
+          </button>
+          <button type="button" className="ai-chat-reject-btn" onClick={() => onDecision(message, "reject")} disabled={deciding}>
+            סרב
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -59,6 +131,7 @@ export default function AiChatWidget() {
   const [file, setFile] = useState(null);
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [loading, setLoading] = useState(false);
+  const [deciding, setDeciding] = useState(false);
   const [error, setError] = useState("");
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
@@ -127,7 +200,8 @@ export default function AiChatWidget() {
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
           exportUrl: data?.exportUrl || "",
           documentInfo: data?.documentInfo || null,
-          updatableFields: Array.isArray(data?.updatableFields) ? data.updatableFields : []
+          updatableFields: Array.isArray(data?.updatableFields) ? data.updatableFields : [],
+          pendingAction: data?.pendingAction || null
         }
       ]);
       setFile(null);
@@ -136,6 +210,39 @@ export default function AiChatWidget() {
       setError(nextError?.message || "אירעה שגיאה");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDecision(message, decision) {
+    if (!message?.pendingAction || deciding) return;
+    setDeciding(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision,
+          pendingAction: message.pendingAction
+        })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "הפעולה נכשלה");
+
+      setMessages((current) => [
+        ...current.map((item) => item.id === message.id ? { ...item, pendingAction: null } : item),
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: data?.reply || "הפעולה הושלמה.",
+          studentCards: Array.isArray(data?.studentCards) ? data.studentCards : []
+        }
+      ]);
+    } catch (nextError) {
+      setError(nextError?.message || "הפעולה נכשלה");
+    } finally {
+      setDeciding(false);
     }
   }
 
@@ -152,7 +259,9 @@ export default function AiChatWidget() {
           </div>
 
           <div className="ai-chat-messages">
-            {messages.map((message) => <MessageCard key={message.id} message={message} />)}
+            {messages.map((message) => (
+              <MessageCard key={message.id} message={message} onDecision={handleDecision} deciding={deciding} />
+            ))}
             {loading ? <div className="ai-chat-status">מחפש במערכת...</div> : null}
             {error ? <div className="ai-chat-error">{error}</div> : null}
           </div>

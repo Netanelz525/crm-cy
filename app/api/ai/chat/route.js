@@ -5,7 +5,9 @@ import {
   listAiChatMessagesByUser,
   listRecentAiChatMessagesByUser
 } from "../../../../lib/ai-chat-history";
-import { createStudentDocument } from "../../../../lib/student-documents";
+import { createStudentDocumentFromStoredObject } from "../../../../lib/student-documents";
+import { createNeonStudentViaTwenty } from "../../../../lib/neon-students";
+import { uploadBufferToR2 } from "../../../../lib/r2";
 import {
   buildStudentSummary,
   buildExportUrlForFilters,
@@ -195,6 +197,67 @@ async function fileToDataUrl(file) {
   return `data:${mime};base64,${bytes.toString("base64")}`;
 }
 
+async function fileToDocumentImageDataUrls(file) {
+  const contentType = clean(file?.type).toLowerCase();
+  const bytes = Buffer.from(await file.arrayBuffer());
+
+  if (contentType.startsWith("image/")) {
+    return [`data:${contentType};base64,${bytes.toString("base64")}`];
+  }
+
+  if (contentType !== "application/pdf") return [];
+
+  const images = [];
+  let cursor = 0;
+  while (images.length < 6) {
+    const streamIndex = bytes.indexOf("stream", cursor, "latin1");
+    if (streamIndex < 0) break;
+
+    let start = streamIndex + "stream".length;
+    if (bytes[start] === 0x0d && bytes[start + 1] === 0x0a) start += 2;
+    else if (bytes[start] === 0x0a || bytes[start] === 0x0d) start += 1;
+
+    const end = bytes.indexOf("endstream", start, "latin1");
+    if (end < 0) break;
+
+    const chunk = bytes.subarray(start, end);
+    const jpegStart = chunk.indexOf(Buffer.from([0xff, 0xd8]));
+    const jpegEnd = chunk.lastIndexOf(Buffer.from([0xff, 0xd9]));
+    if (jpegStart >= 0 && jpegEnd > jpegStart) {
+      const jpg = chunk.subarray(jpegStart, jpegEnd + 2);
+      images.push(`data:image/jpeg;base64,${jpg.toString("base64")}`);
+    }
+
+    cursor = end + "endstream".length;
+  }
+
+  return images;
+}
+
+async function storePendingDocumentFile(file) {
+  const contentType = clean(file?.type) || "application/octet-stream";
+  const fileName = clean(file?.name) || "document";
+  const extension = fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "bin";
+  const id = crypto.randomUUID();
+  const objectKey = `ai-pending-documents/${id}.${extension}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  await uploadBufferToR2({
+    key: objectKey,
+    buffer,
+    contentType,
+    contentDisposition: `inline; filename="${fileName.replace(/"/g, "")}"`
+  });
+
+  return {
+    id,
+    objectKey,
+    fileName,
+    contentType,
+    sizeBytes: buffer.length
+  };
+}
+
 function normalizeExtractedFields(fields) {
   if (!Array.isArray(fields)) return [];
   const allowedFields = new Set([
@@ -231,11 +294,12 @@ async function extractStudentDocumentInfo(file) {
   }
 
   const contentType = clean(file.type).toLowerCase();
-  if (!contentType.startsWith("image/")) {
+  const imageUrls = await fileToDocumentImageDataUrls(file);
+  if (!imageUrls.length) {
     return {
       documentName: clean(file.name),
       documentType: contentType === "application/pdf" ? "PDF" : "מסמך",
-      documentSummary: "המסמך נשמר וניתן לשייך אותו לכרטיס תלמיד. חילוץ פרטים אוטומטי מ-PDF עדיין מוגבל.",
+      documentSummary: "הקובץ נשמר זמנית וניתן לשייך אותו לכרטיס תלמיד אחרי אישור. לא נמצאה תמונה לחילוץ פרטים.",
       firstName: "",
       lastName: "",
       fullName: "",
@@ -244,7 +308,6 @@ async function extractStudentDocumentInfo(file) {
     };
   }
 
-  const imageUrl = await fileToDataUrl(file);
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -260,6 +323,11 @@ async function extractStudentDocumentInfo(file) {
           role: "system",
           content: [
             "Extract structured CRM information from the uploaded student document.",
+            "The image may be an Israeli identity card (Teudat Zehut), a form, or a student document in Hebrew.",
+            "If multiple images are provided, they may be front and back sides of the same Israeli ID card. Combine evidence from all images.",
+            "For Israeli ID cards, carefully OCR Hebrew and numeric text. Israeli ID numbers are usually 9 digits; preserve leading zeros if visible.",
+            "Do not return empty identity fields if the text is visible. If a 9 digit number is visible, use it as tznum.",
+            "Look for Hebrew labels such as שם פרטי, שם משפחה, מספר זהות, ת.ז, זהות, תאריך לידה, מען, כתובת, אב, אם.",
             "Return strict JSON with keys:",
             "documentName, documentType, documentSummary, firstName, lastName, fullName, tznum, updatableFields.",
             "updatableFields must be an array of objects with field, label, value, confidence.",
@@ -272,7 +340,7 @@ async function extractStudentDocumentInfo(file) {
           role: "user",
           content: [
             { type: "text", text: "נתח את המסמך והחזר סוג מסמך, תקציר, פרטי תלמיד ושדות CRM שאפשר לעדכן." },
-            { type: "image_url", image_url: { url: imageUrl } }
+            ...imageUrls.map((imageUrl) => ({ type: "image_url", image_url: { url: imageUrl, detail: "high" } }))
           ]
         }
       ]
@@ -302,7 +370,36 @@ async function extractStudentDocumentInfo(file) {
   };
 }
 
-function buildDocumentAnalysisReply({ documentInfo, students, attachedDocument }) {
+function buildCreateStudentDataFromDocument(documentInfo) {
+  const data = {};
+  if (documentInfo.firstName || documentInfo.lastName) {
+    data.fullName = {
+      ...(documentInfo.firstName ? { firstName: documentInfo.firstName } : {}),
+      ...(documentInfo.lastName ? { lastName: documentInfo.lastName } : {})
+    };
+  }
+  if (documentInfo.tznum) data.tznum = documentInfo.tznum;
+
+  for (const field of documentInfo.updatableFields || []) {
+    if (!field?.field || !field?.value) continue;
+    if (field.field === "fullName.firstName") data.fullName = { ...(data.fullName || {}), firstName: field.value };
+    else if (field.field === "fullName.lastName") data.fullName = { ...(data.fullName || {}), lastName: field.value };
+    else if (field.field === "tznum") data.tznum = field.value;
+    else if (field.field === "dateofbirth") data.dateofbirth = field.value;
+    else if (field.field === "phone.primaryPhoneNumber") data.phone = { ...(data.phone || {}), primaryPhoneNumber: field.value };
+    else if (field.field === "email.primaryEmail") data.email = { ...(data.email || {}), primaryEmail: field.value };
+    else if (field.field.startsWith("adders.")) {
+      const key = field.field.slice("adders.".length);
+      data.adders = { ...(data.adders || {}), [key]: field.value };
+    } else {
+      data[field.field] = field.value;
+    }
+  }
+
+  return data;
+}
+
+function buildDocumentAnalysisReply({ documentInfo, students }) {
   const matchedStudent = students.length === 1 ? students[0] : null;
   const lines = [
     `מסמך: ${documentInfo.documentName || "ללא שם"}`,
@@ -317,11 +414,11 @@ function buildDocumentAnalysisReply({ documentInfo, students, attachedDocument }
   ];
 
   if (matchedStudent) {
-    lines.push("", `התאמה ב-CRM: ${matchedStudent.label}`, "המסמך נשמר בכרטיס התלמיד.");
+    lines.push("", `התאמה ב-CRM: ${matchedStudent.label}`, "לא ביצעתי שיוך עדיין. אשר כדי לשייך את המסמך לכרטיס התלמיד.");
   } else if (students.length > 1) {
-    lines.push("", `נמצאו ${students.length} התאמות אפשריות. יש לבחור כרטיס תלמיד לפני שמירה אוטומטית.`);
+    lines.push("", `נמצאו ${students.length} התאמות אפשריות. יש לבחור כרטיס תלמיד לפני שיוך.`);
   } else {
-    lines.push("", "לא נמצאה התאמה ב-CRM. אפשר ליצור תלמיד חדש על בסיס הנתונים שזוהו.");
+    lines.push("", "לא נמצאה התאמה ב-CRM. אפשר לאשר יצירת תלמיד חדש על בסיס הנתונים שזוהו.");
   }
 
   lines.push("", "שדות שאפשר לעדכן:");
@@ -333,14 +430,11 @@ function buildDocumentAnalysisReply({ documentInfo, students, attachedDocument }
     lines.push("-");
   }
 
-  if (attachedDocument?.id) {
-    lines.push("", `מזהה מסמך שנשמר: ${attachedDocument.id}`);
-  }
-
   return lines.join("\n");
 }
 
 async function handleDocumentMatchFlow({ user, attachment, messageText }) {
+  const storedDocument = await storePendingDocumentFile(attachment);
   const documentInfo = await extractStudentDocumentInfo(attachment);
   let query = documentInfo.tznum || documentInfo.fullName || [documentInfo.firstName, documentInfo.lastName].filter(Boolean).join(" ");
   if (!query) query = clean(messageText);
@@ -348,20 +442,17 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
   const filters = documentInfo.tznum ? [{ field: "tznum", operator: "equals", value: documentInfo.tznum }] : [];
   const { students, effectiveFilters } = await findStudentsForAgent({ query, filters, minScore: 0.22 });
   const finalStudentCards = students.slice(0, 10).map((student) => buildStudentSummary(student)).filter(Boolean);
-  let attachedDocument = null;
 
-  if (students.length === 1) {
-    attachedDocument = await createStudentDocument({
-      studentId: students[0].id,
-      uploadedByUserId: user.clerk_user_id,
-      file: attachment,
-      documentKind: "id",
-      displayName: documentInfo.documentName || clean(attachment.name),
-      noteText: documentInfo.documentSummary
-    });
-  }
+  const pendingAction = students.length === 1 || students.length === 0 ? {
+    id: crypto.randomUUID(),
+    type: students.length === 1 ? "attach_document" : "create_student",
+    suggestedStudentId: students.length === 1 ? students[0].id : "",
+    storedDocument,
+    documentInfo,
+    createStudentData: buildCreateStudentDataFromDocument(documentInfo)
+  } : null;
 
-  const reply = buildDocumentAnalysisReply({ documentInfo, students, attachedDocument });
+  const reply = buildDocumentAnalysisReply({ documentInfo, students });
   const exportUrl = effectiveFilters.length ? buildExportUrlForFilters(effectiveFilters) : "";
   await createAiChatMessage({
     clerkUserId: user.clerk_user_id,
@@ -378,8 +469,8 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
         attachmentName: clean(attachment.name),
         documentInfo,
         extractedIdentity: documentInfo,
-        attachedDocumentId: attachedDocument?.id || "",
         updatableFields: documentInfo.updatableFields,
+        pendingAction,
         suggestedAction: students.length ? "" : "create_student"
       }
     });
@@ -391,9 +482,87 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
     documentInfo,
     extractedIdentity: documentInfo,
     updatableFields: documentInfo.updatableFields,
-    attachedDocumentId: attachedDocument?.id || "",
+    pendingAction,
     suggestedAction: students.length ? "" : "create_student"
   });
+}
+
+export async function PUT(request) {
+  try {
+    const user = await getCurrentAppUser();
+    if (!user) return unauthorized();
+    if (!user.is_team_member && !user.is_manager) return forbidden();
+
+    const body = await request.json().catch(() => null);
+    const decision = clean(body?.decision);
+    const pendingAction = body?.pendingAction;
+    if (!pendingAction || typeof pendingAction !== "object") {
+      return badRequest("Missing pending action");
+    }
+
+    if (decision === "reject") {
+      const reply = "הפעולה נדחתה. לא נוצר תלמיד ולא שויך מסמך.";
+      await createAiChatMessage({ clerkUserId: user.clerk_user_id, role: "assistant", content: reply });
+      return NextResponse.json({ reply });
+    }
+
+    if (decision !== "approve") {
+      return badRequest("Invalid decision");
+    }
+
+    let studentId = clean(pendingAction.suggestedStudentId);
+    let createdStudent = null;
+    if (pendingAction.type === "create_student") {
+      const data = pendingAction.createStudentData || {};
+      if (!Object.keys(data).length) {
+        return badRequest("אין מספיק פרטים ליצירת תלמיד.");
+      }
+      createdStudent = await createNeonStudentViaTwenty(data);
+      studentId = clean(createdStudent?.id);
+      if (!studentId) throw new Error("יצירת התלמיד נכשלה.");
+    }
+
+    if (!studentId) return badRequest("Missing student id for document attachment.");
+
+    const documentInfo = pendingAction.documentInfo || {};
+    const storedDocument = pendingAction.storedDocument || {};
+    const document = await createStudentDocumentFromStoredObject({
+      studentId,
+      uploadedByUserId: user.clerk_user_id,
+      fileName: storedDocument.fileName,
+      displayName: documentInfo.documentName || storedDocument.fileName,
+      noteText: documentInfo.documentSummary,
+      contentType: storedDocument.contentType,
+      objectKey: storedDocument.objectKey,
+      sizeBytes: storedDocument.sizeBytes,
+      documentKind: "id"
+    });
+
+    const reply = createdStudent
+      ? `נוצר תלמיד חדש והמסמך שויך לכרטיס: ${createdStudent.label || createdStudent.name || studentId}.`
+      : "המסמך שויך לכרטיס התלמיד.";
+
+    await createAiChatMessage({
+      clerkUserId: user.clerk_user_id,
+      role: "assistant",
+      content: reply,
+      metadata: {
+        attachedDocumentId: document.id,
+        studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : []
+      }
+    });
+
+    return NextResponse.json({
+      reply,
+      attachedDocumentId: document.id,
+      studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : []
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error?.message || "Document action failed" },
+      { status: 500 }
+    );
+  }
 }
 
 function buildQuantitativeReply({ query, students, requestedLimit }) {
