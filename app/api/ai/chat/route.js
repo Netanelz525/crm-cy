@@ -425,7 +425,7 @@ export async function POST(request) {
 
     const user = await getCurrentAppUser();
     if (!user) return unauthorized();
-    if (!user.is_manager) return forbidden();
+    if (!user.is_team_member && !user.is_manager) return forbidden();
 
     const parsed = await parseIncomingRequest(request);
     const conversation = parsed.messages;
@@ -629,7 +629,7 @@ export async function GET() {
   try {
     const user = await getCurrentAppUser();
     if (!user) return unauthorized();
-    if (!user.is_manager) return forbidden();
+    if (!user.is_team_member && !user.is_manager) return forbidden();
 
     const messages = await listAiChatMessagesByUser(user.clerk_user_id, 80);
     return NextResponse.json({ messages });
