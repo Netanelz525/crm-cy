@@ -1,5 +1,7 @@
 ﻿import { ClerkProvider, SignedIn, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
+import AiChatWidget from "./ai-chat-widget";
+import { getCurrentAppUser } from "../lib/rbac";
 import "./globals.css";
 
 export const metadata = {
@@ -7,7 +9,10 @@ export const metadata = {
   description: "CRM admin and student management"
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const currentUser = await getCurrentAppUser();
+  const canUseAiChat = Boolean(currentUser?.is_manager);
+
   return (
     <html lang="he" dir="rtl">
       <body suppressHydrationWarning>
@@ -27,6 +32,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
           <main className="container">{children}</main>
+          {canUseAiChat ? (
+            <SignedIn>
+              <AiChatWidget />
+            </SignedIn>
+          ) : null}
         </ClerkProvider>
       </body>
     </html>

@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
+import { listStudentDocuments } from "../../../../lib/student-documents";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { updateNeonStudentAction } from "./actions";
+import { updateNeonStudentAction, uploadStudentDocumentAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -146,16 +147,20 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const student = await getNeonStudentById(studentId);
   if (!student) notFound();
 
-  const canEdit = canEditStudentCard(currentUser, studentId);
+  const canManageStudent = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
+  const canEdit = canManageStudent && canEditStudentCard(currentUser, studentId);
+  const canManageDocuments = assertStudentAccess(currentUser, studentId);
   const editMode = canEdit && clean(resolvedSearchParams?.edit) === "1";
   const advancedMode = editMode && clean(resolvedSearchParams?.advanced) === "1";
   const updated = clean(resolvedSearchParams?.updated) === "1";
+  const documentUploaded = clean(resolvedSearchParams?.documentUploaded) === "1";
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const showChildrenCount = isMarried(student?.famliystatus);
+  const documents = await listStudentDocuments(studentId);
 
   return (
     <>
@@ -193,11 +198,52 @@ export default async function NeonStudentPage({ params, searchParams }) {
       <div className="card">
         <h3>מידע תלמיד</h3>
         <p className="muted">{studentName}</p>
-        <p className="muted">השמירה במסך הזה מעדכנת את Twenty ואז מרעננת את המראה ב-Neon.</p>
+        <p className="muted">
+          {canManageStudent
+            ? "השמירה במסך הזה מעדכנת את Twenty ואז מרעננת את המראה ב-Neon."
+            : "בכרטיס האישי ניתן לצפות בפרטים ולנהל מסמכים המשויכים אליך."}
+        </p>
       </div>
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה ב-Twenty וב-Neon.</div> : null}
+      {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
+
+      <div className="card">
+        <h3>מסמכי תלמיד</h3>
+        <p className="muted">ניתן לשייך לכרטיס מספר מסמכים, כולל PDF ותמונות, הנשמרים ב-R2.</p>
+        {canManageDocuments ? (
+          <form action={uploadStudentDocumentAction} className="grid" style={{ marginBottom: 12 }}>
+            <input type="hidden" name="studentId" value={studentId} />
+            <input name="displayName" placeholder="שם מסמך" />
+            <select name="documentKind" defaultValue="general">
+              <option value="general">מסמך כללי</option>
+              <option value="id">תעודת זהות</option>
+              <option value="tuition">שכר לימוד</option>
+              <option value="medical">מסמך רפואי</option>
+            </select>
+            <textarea name="noteText" placeholder="הערות למסמך" />
+            <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp" />
+            <button type="submit">העלה מסמך</button>
+          </form>
+        ) : null}
+        {!documents.length ? (
+          <div className="muted">אין מסמכים משויכים לתלמיד.</div>
+        ) : (
+          <div className="grid">
+            {documents.map((doc) => (
+              <a key={doc.id} className="card" href={`/api/student-documents/${doc.id}`} target="_blank">
+                <b>{doc.name}</b>
+                <div className="muted">קובץ: {doc.fileName}</div>
+                <div className="muted">הועלה: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("he-IL") : "-"}</div>
+                <div className="muted">הערות: {doc.noteText || "-"}</div>
+                <div className="muted">סוג: {doc.documentKind}</div>
+                <div className="muted">פורמט: {doc.contentType}</div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
 
       {editMode ? (
         <form action={updateNeonStudentAction}>
