@@ -13,11 +13,13 @@ import {
   buildExportUrlForFilters,
   buildNeonViewUrlForAgent,
   findStudentsForAgent,
+  findStudentsMissingDataForAgent,
   getStudentForAgent,
   getStudentSchemaCatalog,
   inferEnumFiltersFromQuery,
   searchStudentsForAgent
 } from "../../../../lib/student-agent";
+import { getStudentDocumentsStats } from "../../../../lib/student-documents";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
@@ -208,6 +210,17 @@ function buildRecentConversationMessages(historyMessages) {
       role: item.role === "assistant" ? "assistant" : "user",
       content: clean(item.content)
     }));
+}
+
+function classifyIntent({ text = "", hasAttachment = false, hasChoiceFilters = false } = {}) {
+  if (hasAttachment) return "document_upload";
+  const raw = clean(text);
+  if (!raw) return "empty";
+  if (hasChoiceFilters) return "choice_filter";
+  if (/מסמך|קובץ|תעודה/.test(raw)) return "document_query";
+  if (/כמה|לכמה|חלוקה/.test(raw)) return "count_or_summary";
+  if (/תמצא|תחפש|מי זה|מי זאת|בשם|של מי/.test(raw)) return "specific_lookup";
+  return "general_crm";
 }
 
 async function fileToDataUrl(file) {
@@ -473,10 +486,15 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
 
   const reply = buildDocumentAnalysisReply({ documentInfo, students });
   const exportUrl = effectiveFilters.length ? buildExportUrlForFilters(effectiveFilters) : "";
+  const intentType = classifyIntent({ text: messageText, hasAttachment: true });
   await createAiChatMessage({
     clerkUserId: user.clerk_user_id,
     role: "user",
-    content: messageText || `הועלה מסמך: ${clean(attachment.name) || "ללא שם"}`
+    content: messageText || `הועלה מסמך: ${clean(attachment.name) || "ללא שם"}`,
+    metadata: {
+      intentType,
+      path: "document"
+    }
   });
   await createAiChatMessage({
     clerkUserId: user.clerk_user_id,
@@ -490,7 +508,10 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
         extractedIdentity: documentInfo,
         updatableFields: documentInfo.updatableFields,
         pendingAction,
-        suggestedAction: students.length ? "" : "create_student"
+        suggestedAction: students.length ? "" : "create_student",
+        intentType,
+        path: "document",
+        resultCount: students.length
       }
     });
 
@@ -675,6 +696,39 @@ async function executeToolCall(toolCall) {
     };
   }
 
+  if (name === "count_student_documents") {
+    const result = await findStudentsForAgent({
+      query: args?.query,
+      filters: args?.filters,
+      minScore: 0.4
+    });
+    const targetIds = result.effectiveFilters.length || clean(args?.query)
+      ? result.students.map((student) => student.id)
+      : [];
+    const stats = await getStudentDocumentsStats({ studentIds: targetIds });
+    return {
+      ok: true,
+      tool: name,
+      ...stats,
+      studentCount: targetIds.length || null
+    };
+  }
+
+  if (name === "find_students_missing_data") {
+    const result = await findStudentsMissingDataForAgent({
+      type: clean(args?.type) === "identity" ? "identity" : "contact",
+      query: args?.query,
+      filters: args?.filters,
+      limit: args?.limit
+    });
+    return {
+      ok: true,
+      tool: name,
+      count: result.count,
+      items: result.students
+    };
+  }
+
   if (name === "get_student") {
     const item = await getStudentForAgent(args?.studentId);
     return {
@@ -745,17 +799,32 @@ export async function POST(request) {
         requestedLimit,
         viewUrl
       });
+      const intentType = classifyIntent({
+        text: lastUserMessage,
+        hasChoiceFilters: inferredChoiceFilters.length > 0
+      });
 
       await createAiChatMessage({
         clerkUserId: user.clerk_user_id,
         role: "user",
-        content: lastUserMessage
+        content: lastUserMessage,
+        metadata: {
+          intentType,
+          path: "deterministic"
+        }
       });
       await createAiChatMessage({
         clerkUserId: user.clerk_user_id,
         role: "assistant",
         content: reply,
-        metadata: { studentCards: finalStudentCards, exportUrl, viewUrl }
+        metadata: {
+          studentCards: finalStudentCards,
+          exportUrl,
+          viewUrl,
+          intentType,
+          path: "deterministic",
+          resultCount: students.length
+        }
       });
 
       return NextResponse.json({
@@ -782,10 +851,68 @@ export async function POST(request) {
       type: "function",
       function: {
         name: "search_students",
-        description: "Search CRM students by free text and/or field filters. Use this for email, phone, address, city, institution, class, and other student fields.",
+        description: "Search CRM students by free text and/or field filters. Returns concise student summaries and matched fields only.",
         parameters: {
           type: "object",
           properties: {
+            query: { type: "string" },
+            limit: { type: "number" },
+            filters: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  field: { type: "string" },
+                  operator: {
+                    type: "string",
+                    enum: ["contains", "equals", "starts_with", "ends_with", "empty", "not_empty"]
+                  },
+                  value: { type: "string" }
+                },
+                required: ["field", "operator"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "count_student_documents",
+        description: "Count attached student documents, optionally within a filtered student set.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string" },
+            filters: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  field: { type: "string" },
+                  operator: {
+                    type: "string",
+                    enum: ["contains", "equals", "starts_with", "ends_with", "empty", "not_empty"]
+                  },
+                  value: { type: "string" }
+                },
+                required: ["field", "operator"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "find_students_missing_data",
+        description: "Find students with missing contact or identity data.",
+        parameters: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["contact", "identity"] },
             query: { type: "string" },
             limit: { type: "number" },
             filters: {
@@ -881,17 +1008,31 @@ export async function POST(request) {
 
     const finalStudentCards = Array.from(referencedStudents.values()).slice(0, 7);
     const lastUserMessageContent = extractLastUserMessage(conversation);
+    const intentType = classifyIntent({
+      text: lastUserMessageContent,
+      hasAttachment: Boolean(attachment),
+      hasChoiceFilters: inferredChoiceFilters.length > 0
+    });
 
     await createAiChatMessage({
       clerkUserId: user.clerk_user_id,
       role: "user",
-      content: lastUserMessageContent
+      content: lastUserMessageContent,
+      metadata: {
+        intentType,
+        path: "tool"
+      }
     });
     await createAiChatMessage({
       clerkUserId: user.clerk_user_id,
       role: "assistant",
       content: finalMessage || "לא הצלחתי להשלים תשובה.",
-      metadata: { studentCards: finalStudentCards }
+      metadata: {
+        studentCards: finalStudentCards,
+        intentType,
+        path: "tool",
+        resultCount: finalStudentCards.length
+      }
     });
 
     return NextResponse.json({
