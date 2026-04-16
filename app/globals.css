@@ -392,6 +392,13 @@ td {
   background: linear-gradient(180deg, #f8fbff, #eef6ff);
 }
 
+.ai-chat-student-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .ai-chat-student-card strong {
   font-size: 0.98rem;
 }
@@ -418,6 +425,55 @@ td {
 .ai-chat-student-link {
   color: var(--primary);
   font-weight: 800;
+}
+
+.ai-chat-large-view {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #b7d9c0;
+  background: linear-gradient(180deg, #f4fff6, #e8f8ec);
+}
+
+.ai-chat-large-view-link {
+  color: #176b35;
+  font-weight: 900;
+}
+
+.match-score-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.score-high {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.score-medium {
+  background: #fef9c3;
+  border-color: #fde047;
+  color: #854d0e;
+}
+
+.score-low {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.score-neutral {
+  background: #eef2f7;
+  border-color: #d9e1ea;
+  color: #475569;
 }
 
 .ai-chat-export-link {

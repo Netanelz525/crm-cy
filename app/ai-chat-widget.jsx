@@ -24,6 +24,14 @@ function buildExportUrlWithColumns(exportUrl, columns) {
   return `${path}?${params.toString()}`;
 }
 
+function scoreClassName(score) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) return "score-neutral";
+  if (value >= 0.85) return "score-high";
+  if (value >= 0.65) return "score-medium";
+  return "score-low";
+}
+
 function MessageCard({ message, onDecision, deciding }) {
   const [showColumns, setShowColumns] = useState(false);
   const [columnSearch, setColumnSearch] = useState("");
@@ -96,14 +104,23 @@ function MessageCard({ message, onDecision, deciding }) {
           ) : null}
         </div>
       ) : null}
+      {message.viewUrl ? (
+        <div className="ai-chat-large-view">
+          <a className="ai-chat-large-view-link" href={message.viewUrl}>
+            פתח במסך גדול לבחירה, עדכון גורף ותצוגה נוחה
+          </a>
+        </div>
+      ) : null}
       {Array.isArray(message.studentCards) && message.studentCards.length ? (
         <div className="ai-chat-student-list">
           {message.studentCards.map((student) => (
             <a key={student.id} className="ai-chat-student-card" href={student.studentCardUrl}>
-              <strong>{student.name}</strong>
-              <span>{student.currentInstitutionLabel ? `${student.currentInstitutionLabel} (${student.currentInstitution})` : "ללא מוסד"}</span>
-              <span>{student.classLabel ? `${student.classLabel} (${student.class})` : "ללא שיעור"}</span>
-              <span>{student.city || student.addressStreet1 || "ללא כתובת"}</span>
+              <span className="ai-chat-student-card-head">
+                <strong>{student.name}</strong>
+                {Number.isFinite(Number(student.matchScore)) ? (
+                  <span className={`match-score-pill ${scoreClassName(student.matchScore)}`}>התאמה</span>
+                ) : null}
+              </span>
               <span className="ai-chat-student-link">פתח כרטיס תלמיד</span>
             </a>
           ))}
@@ -209,6 +226,7 @@ export default function AiChatWidget() {
           content: data?.reply || "לא התקבלה תשובה.",
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
           exportUrl: data?.exportUrl || "",
+          viewUrl: data?.viewUrl || "",
           documentInfo: data?.documentInfo || null,
           updatableFields: Array.isArray(data?.updatableFields) ? data.updatableFields : [],
           pendingAction: data?.pendingAction || null
@@ -246,7 +264,8 @@ export default function AiChatWidget() {
           id: `assistant-${Date.now()}`,
           role: "assistant",
           content: data?.reply || "הפעולה הושלמה.",
-          studentCards: Array.isArray(data?.studentCards) ? data.studentCards : []
+          studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
+          viewUrl: data?.viewUrl || ""
         }
       ]);
     } catch (nextError) {

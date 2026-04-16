@@ -127,7 +127,7 @@ export default async function NeonPage({ searchParams }) {
       students = sortStudents(students, sortLevels);
     } else if (mode === "search") {
       if (tz) students = (await searchNeonStudentsByTz(tz)).slice(0, 10);
-      else if (q) students = await searchNeonStudentsByText(q, 10);
+      else if (q) students = await searchNeonStudentsByText(q, 100, 0.4);
     }
   } catch (e) {
     error = e.message || "Search failed";
@@ -352,6 +352,7 @@ export default async function NeonPage({ searchParams }) {
         students={students}
         selectedColumns={selectedColumns}
         showInstitutionView={showInstitutionView}
+        showMatchScores={mode === "search" && Boolean(q)}
         returnTo={currentQueryString ? `/neon?${currentQueryString}` : "/neon"}
       />
     </>

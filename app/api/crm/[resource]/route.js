@@ -76,7 +76,7 @@ export async function GET(request, { params }) {
   const healthInsurance = clean(url.searchParams.get("healthInsurance"));
   const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 50, 500));
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
-  const minScore = Math.max(0, Math.min(Number(url.searchParams.get("minScore")) || 0.42, 1));
+  const minScore = Math.max(0.4, Math.min(Number(url.searchParams.get("minScore")) || 0.4, 1));
   const fieldFilters = parseFieldFilters(url.searchParams);
 
   const filters = [

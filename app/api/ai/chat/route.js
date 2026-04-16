@@ -11,6 +11,7 @@ import { uploadBufferToR2 } from "../../../../lib/r2";
 import {
   buildStudentSummary,
   buildExportUrlForFilters,
+  buildNeonViewUrlForAgent,
   findStudentsForAgent,
   getStudentForAgent,
   getStudentSchemaCatalog,
@@ -583,13 +584,13 @@ export async function PUT(request) {
   }
 }
 
-function buildQuantitativeReply({ query, students, requestedLimit }) {
+function buildQuantitativeReply({ query, students, requestedLimit, viewUrl }) {
   const total = students.length;
   if (!total) {
     return "לא נמצאו תלמידים מתאימים.";
   }
 
-  const displayLimit = requestedLimit || Math.min(total, 200);
+  const displayLimit = requestedLimit || Math.min(total, total > 7 ? 7 : 200);
   const displayed = students.slice(0, displayLimit);
   const lines = [
     `נמצאו ${total} תלמידים.`,
@@ -597,7 +598,8 @@ function buildQuantitativeReply({ query, students, requestedLimit }) {
   ];
 
   if (displayed.length < total) {
-    lines.push(`מוצגים ${displayed.length} מתוך ${total}. אפשר להוריד את כל החיתוך לאקסל.`);
+    lines.push(`מוצגים ${displayed.length} מתוך ${total}. מומלץ לפתוח במסך מלא כדי לראות את כל הרשימה, לבחור תלמידים ולעדכן שדות בחירה בצורה מרוכזת.`);
+    if (viewUrl) lines.push("הכפתור למסך המלא מופיע מתחת לתשובה.");
   }
 
   return lines.join("\n");
@@ -729,17 +731,19 @@ export async function POST(request) {
     if (quantitativeListRequest || choiceFieldQuery) {
       const { students, effectiveFilters } = await findStudentsForAgent({
         query: lastUserMessage,
-        minScore: 0.28
+        minScore: 0.4
       });
       const finalStudentCards = students
-        .slice(0, Math.min(requestedLimit || 50, 50))
+        .slice(0, 7)
         .map((student) => buildStudentSummary(student))
         .filter(Boolean);
-      const exportUrl = buildExportUrlForFilters(effectiveFilters);
+      const exportUrl = effectiveFilters.length ? buildExportUrlForFilters(effectiveFilters) : "";
+      const viewUrl = buildNeonViewUrlForAgent({ query: lastUserMessage, filters: effectiveFilters });
       const reply = buildQuantitativeReply({
         query: lastUserMessage,
         students,
-        requestedLimit
+        requestedLimit,
+        viewUrl
       });
 
       await createAiChatMessage({
@@ -751,13 +755,14 @@ export async function POST(request) {
         clerkUserId: user.clerk_user_id,
         role: "assistant",
         content: reply,
-        metadata: { studentCards: finalStudentCards, exportUrl }
+        metadata: { studentCards: finalStudentCards, exportUrl, viewUrl }
       });
 
       return NextResponse.json({
         reply,
         studentCards: finalStudentCards,
-        exportUrl
+        exportUrl,
+        viewUrl
       });
     }
 
@@ -826,6 +831,7 @@ export async function POST(request) {
         "כאשר נשאלת שאלה על תלמיד או רשימת תלמידים, השתמש בכלי החיפוש לפני מתן תשובה.",
         "כאשר המשתמש כותב בן אדם, אדם, איש, בחור, מי זה או מי זאת בהקשר חיפוש, הכוונה היא לתלמיד במערכת.",
         "חיפוש שמות חייב להיות משוער לפי ציון התאמה ולא התאמה מדויקת בלבד. גם אם יש שגיאת כתיב בשם, השתמש בכלי search_students עם טקסט השם.",
+        "אל תכתוב כתובות URL של כרטיסי תלמיד בגוף התשובה. אם יש כרטיס תלמיד, המערכת תציג קישור נפרד.",
         "כאשר השאלה עוסקת במוסד, שיעור, רישום או סטטוס משפחתי, העדף search_students עם filters על שדות enum ולא רק query חופשי.",
         "אם המשתמש כתב שם אנושי של ערך בחירה כמו חכמי ירושלים, התאם אותו לערך המערכת המתאים כמו CY.",
         "כאשר אתה מציין תלמיד, תמיד כלול הפניה ברורה לכרטיס התלמיד אם קיים studentCardUrl.",
@@ -873,7 +879,7 @@ export async function POST(request) {
       break;
     }
 
-    const finalStudentCards = Array.from(referencedStudents.values()).slice(0, 8);
+    const finalStudentCards = Array.from(referencedStudents.values()).slice(0, 7);
     const lastUserMessageContent = extractLastUserMessage(conversation);
 
     await createAiChatMessage({

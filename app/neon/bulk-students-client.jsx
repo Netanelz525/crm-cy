@@ -111,7 +111,21 @@ function BulkSubmitBar({ selectedCount, onClose }) {
   );
 }
 
-export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, returnTo }) {
+function scoreClassName(score) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) return "score-neutral";
+  if (value >= 0.85) return "score-high";
+  if (value >= 0.65) return "score-medium";
+  return "score-low";
+}
+
+function MatchScoreBadge({ score }) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) return <span className="match-score-pill score-neutral">-</span>;
+  return <span className={`match-score-pill ${scoreClassName(value)}`}>{Math.round(value * 100)}%</span>;
+}
+
+export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -256,6 +270,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <input type="checkbox" checked={allVisibleSelected} onChange={(event) => toggleAll(event.target.checked)} />
                 </th>
                 <th>שם</th>
+                {showMatchScores ? <th>דיוק</th> : null}
                 <th>שיעור</th>
                 <th>ת"ז</th>
                 <th>גיל</th>
@@ -269,7 +284,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
           <tbody>
             {!students.length ? (
               <tr>
-                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : 9} className="muted">אין תוצאות</td>
+                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 10 : 9)} className="muted">אין תוצאות</td>
               </tr>
             ) : showInstitutionView ? (
               students.map((student) => {
@@ -297,6 +312,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                       <input type="checkbox" checked={selectedSet.has(student.id)} onChange={(event) => toggleStudent(student.id, event.target.checked)} />
                     </td>
                     <td><Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link></td>
+                    {showMatchScores ? <td><MatchScoreBadge score={student._matchScore} /></td> : null}
                     <td>{classLabel(student.class)}</td>
                     <td>{student.tznum || "-"}</td>
                     <td>{ageOf(student.dateofbirth) ?? "-"}</td>
@@ -345,6 +361,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 </label>
                 <div className="student-mobile-head">
                   <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
+                  {showMatchScores ? <MatchScoreBadge score={student._matchScore} /> : null}
                   <span>{classLabel(student.class)}</span>
                 </div>
                 <div className="student-mobile-grid">
