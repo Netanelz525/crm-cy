@@ -3,7 +3,8 @@ import { getCurrentAppUser } from "../../../../lib/rbac";
 import {
   createAiChatMessage,
   listAiChatMessagesByUser,
-  listRecentAiChatMessagesByUser
+  listRecentAiChatMessagesByUser,
+  setAiChatMessageFeedback
 } from "../../../../lib/ai-chat-history";
 import { createStudentDocumentFromStoredObject } from "../../../../lib/student-documents";
 import { createNeonStudentViaTwenty } from "../../../../lib/neon-students";
@@ -12,6 +13,7 @@ import {
   buildStudentSummary,
   buildExportUrlForFilters,
   buildNeonViewUrlForAgent,
+  describeAgentFilters,
   findStudentsForAgent,
   findStudentsMissingDataForAgent,
   getStudentForAgent,
@@ -210,6 +212,30 @@ function buildRecentConversationMessages(historyMessages) {
       role: item.role === "assistant" ? "assistant" : "user",
       content: clean(item.content)
     }));
+}
+
+function buildSearchSummary({ path = "", query = "", filters = [], minScore = null, tools = [], resultCount = null } = {}) {
+  const parts = [];
+  const describedFilters = describeAgentFilters(filters);
+
+  if (path === "deterministic") {
+    parts.push("בוצע סינון מערכת דטרמיניסטי");
+    if (describedFilters.length) parts.push(`לפי: ${describedFilters.join(" | ")}`);
+  } else if (path === "tool") {
+    const safeQuery = clean(query);
+    if (safeQuery) parts.push(`בוצע חיפוש משוער לפי: "${safeQuery}"`);
+    if (Number.isFinite(Number(minScore))) parts.push(`סף התאמה ${Math.round(Number(minScore) * 100)}%`);
+    if (describedFilters.length) parts.push(`עם מסננים: ${describedFilters.join(" | ")}`);
+    if (tools.length) parts.push(`כלים: ${tools.join(", ")}`);
+  } else if (path === "document") {
+    parts.push("בוצע ניתוח מסמך וחיפוש תלמיד תואם");
+  }
+
+  if (Number.isFinite(Number(resultCount))) {
+    parts.push(`נמצאו ${Number(resultCount)} תוצאות`);
+  }
+
+  return parts.join(" | ");
 }
 
 function classifyIntent({ text = "", hasAttachment = false, hasChoiceFilters = false } = {}) {
@@ -487,6 +513,12 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
   const reply = buildDocumentAnalysisReply({ documentInfo, students });
   const exportUrl = effectiveFilters.length ? buildExportUrlForFilters(effectiveFilters) : "";
   const intentType = classifyIntent({ text: messageText, hasAttachment: true });
+  const searchSummary = buildSearchSummary({
+    path: "document",
+    query,
+    filters: effectiveFilters,
+    resultCount: students.length
+  });
   await createAiChatMessage({
     clerkUserId: user.clerk_user_id,
     role: "user",
@@ -511,7 +543,8 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
         suggestedAction: students.length ? "" : "create_student",
         intentType,
         path: "document",
-        resultCount: students.length
+        resultCount: students.length,
+        searchSummary
       }
     });
 
@@ -523,7 +556,8 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
     extractedIdentity: documentInfo,
     updatableFields: documentInfo.updatableFields,
     pendingAction,
-    suggestedAction: students.length ? "" : "create_student"
+    suggestedAction: students.length ? "" : "create_student",
+    searchSummary
   });
 }
 
@@ -600,6 +634,32 @@ export async function PUT(request) {
   } catch (error) {
     return NextResponse.json(
       { error: error?.message || "Document action failed" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const user = await getCurrentAppUser();
+    if (!user) return unauthorized();
+    if (!user.is_team_member && !user.is_manager) return forbidden();
+
+    const body = await request.json().catch(() => null);
+    const messageId = clean(body?.messageId);
+    const feedback = clean(body?.feedback);
+    if (!messageId || !feedback) return badRequest("Missing feedback payload");
+
+    const result = await setAiChatMessageFeedback({
+      messageId,
+      clerkUserId: user.clerk_user_id,
+      feedback
+    });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error?.message || "Feedback update failed" },
       { status: 500 }
     );
   }
@@ -799,6 +859,12 @@ export async function POST(request) {
         requestedLimit,
         viewUrl
       });
+      const searchSummary = buildSearchSummary({
+        path: "deterministic",
+        query: lastUserMessage,
+        filters: effectiveFilters,
+        resultCount: students.length
+      });
       const intentType = classifyIntent({
         text: lastUserMessage,
         hasChoiceFilters: inferredChoiceFilters.length > 0
@@ -823,7 +889,8 @@ export async function POST(request) {
           viewUrl,
           intentType,
           path: "deterministic",
-          resultCount: students.length
+          resultCount: students.length,
+          searchSummary
         }
       });
 
@@ -831,7 +898,8 @@ export async function POST(request) {
         reply,
         studentCards: finalStudentCards,
         exportUrl,
-        viewUrl
+        viewUrl,
+        searchSummary
       });
     }
 
@@ -977,6 +1045,7 @@ export async function POST(request) {
 
     const messages = [systemPrompt, ...recentConversation, ...conversation.slice(-1)];
     const referencedStudents = new Map();
+    const usedTools = [];
     let finalMessage = "";
 
     for (let iteration = 0; iteration < 5; iteration += 1) {
@@ -992,6 +1061,7 @@ export async function POST(request) {
 
         for (const toolCall of assistantMessage.tool_calls) {
           const result = await executeToolCall(toolCall);
+          if (toolCall?.function?.name) usedTools.push(toolCall.function.name);
           collectStudentCards(referencedStudents, result);
           messages.push({
             role: "tool",
@@ -1013,6 +1083,13 @@ export async function POST(request) {
       hasAttachment: Boolean(attachment),
       hasChoiceFilters: inferredChoiceFilters.length > 0
     });
+    const searchSummary = buildSearchSummary({
+      path: "tool",
+      query: lastUserMessageContent,
+      minScore: 0.4,
+      tools: Array.from(new Set(usedTools)),
+      resultCount: finalStudentCards.length
+    });
 
     await createAiChatMessage({
       clerkUserId: user.clerk_user_id,
@@ -1031,13 +1108,15 @@ export async function POST(request) {
         studentCards: finalStudentCards,
         intentType,
         path: "tool",
-        resultCount: finalStudentCards.length
+        resultCount: finalStudentCards.length,
+        searchSummary
       }
     });
 
     return NextResponse.json({
       reply: finalMessage || "לא הצלחתי להשלים תשובה.",
-      studentCards: finalStudentCards
+      studentCards: finalStudentCards,
+      searchSummary
     });
   } catch (error) {
     return NextResponse.json(

@@ -32,10 +32,11 @@ function scoreClassName(score) {
   return "score-low";
 }
 
-function MessageCard({ message, onDecision, deciding }) {
+function MessageCard({ message, onDecision, onFeedback, deciding }) {
   const [showColumns, setShowColumns] = useState(false);
   const [columnSearch, setColumnSearch] = useState("");
   const [selectedColumns, setSelectedColumns] = useState(DEFAULT_EXPORT_COLUMNS);
+  const [feedbackLoading, setFeedbackLoading] = useState("");
   const customExportUrl = buildExportUrlWithColumns(message.exportUrl, selectedColumns);
   const visibleColumnOptions = EXPORT_COLUMN_OPTIONS.filter((column) => {
     const term = columnSearch.trim().toLowerCase();
@@ -52,10 +53,35 @@ function MessageCard({ message, onDecision, deciding }) {
     ));
   }
 
+  async function submitFeedback(feedback) {
+    if (!message?.id || feedbackLoading) return;
+    setFeedbackLoading(feedback);
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageId: message.id,
+          feedback
+        })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "שמירת המשוב נכשלה");
+      onFeedback?.(message.id, feedback);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFeedbackLoading("");
+    }
+  }
+
   return (
     <div className={`ai-chat-message ai-chat-message-${message.role}`}>
       <div className="ai-chat-message-label">{message.role === "user" ? "אתה" : "סוכן"}</div>
       <div className="ai-chat-message-body">{message.content}</div>
+      {message.searchSummary ? (
+        <div className="ai-chat-search-summary">איך חיפשתי: {message.searchSummary}</div>
+      ) : null}
       {message.documentInfo ? (
         <div className="ai-chat-document-summary">
           <strong>{message.documentInfo.documentName || "מסמך"}</strong>
@@ -133,6 +159,17 @@ function MessageCard({ message, onDecision, deciding }) {
           </button>
           <button type="button" className="ai-chat-reject-btn" onClick={() => onDecision(message, "reject")} disabled={deciding}>
             סרב
+          </button>
+        </div>
+      ) : null}
+      {message.role === "assistant" ? (
+        <div className="ai-chat-feedback-row">
+          <span className="muted">האם התשובה היתה טובה?</span>
+              <button type="button" className={message.feedback === "good" ? "active" : ""} disabled={Boolean(feedbackLoading)} onClick={() => submitFeedback("good")}>
+            כן
+          </button>
+              <button type="button" className={message.feedback === "bad" ? "active" : ""} disabled={Boolean(feedbackLoading)} onClick={() => submitFeedback("bad")}>
+            לא
           </button>
         </div>
       ) : null}
@@ -227,9 +264,11 @@ export default function AiChatWidget() {
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
           exportUrl: data?.exportUrl || "",
           viewUrl: data?.viewUrl || "",
+          searchSummary: data?.searchSummary || "",
           documentInfo: data?.documentInfo || null,
           updatableFields: Array.isArray(data?.updatableFields) ? data.updatableFields : [],
-          pendingAction: data?.pendingAction || null
+          pendingAction: data?.pendingAction || null,
+          feedback: ""
         }
       ]);
       setFile(null);
@@ -265,7 +304,9 @@ export default function AiChatWidget() {
           role: "assistant",
           content: data?.reply || "הפעולה הושלמה.",
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
-          viewUrl: data?.viewUrl || ""
+          viewUrl: data?.viewUrl || "",
+          searchSummary: data?.searchSummary || "",
+          feedback: ""
         }
       ]);
     } catch (nextError) {
@@ -273,6 +314,10 @@ export default function AiChatWidget() {
     } finally {
       setDeciding(false);
     }
+  }
+
+  function handleFeedback(messageId, feedback) {
+    setMessages((current) => current.map((item) => item.id === messageId ? { ...item, feedback } : item));
   }
 
   return (
@@ -289,7 +334,7 @@ export default function AiChatWidget() {
 
           <div className="ai-chat-messages">
             {messages.map((message) => (
-              <MessageCard key={message.id} message={message} onDecision={handleDecision} deciding={deciding} />
+              <MessageCard key={message.id} message={message} onDecision={handleDecision} onFeedback={handleFeedback} deciding={deciding} />
             ))}
             {loading ? <div className="ai-chat-status">מחפש במערכת...</div> : null}
             {error ? <div className="ai-chat-error">{error}</div> : null}
