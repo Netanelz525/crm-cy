@@ -24,6 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/announcements">הודעות</Link>
               <Link href="/views">תצוגות</Link>
               <Link href="/admin">ניהול</Link>
+              {canUseAiChat ? <Link href="/telegram">Telegram</Link> : null}
             </nav>
             <div style={{ display: "flex", gap: 8 }}>
               <SignedIn>
