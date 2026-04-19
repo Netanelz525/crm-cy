@@ -674,7 +674,31 @@ export async function PUT(request) {
       if (!Object.keys(data).length) {
         return badRequest("אין מספיק פרטים ליצירת תלמיד.");
       }
-      createdStudent = await createNeonStudentViaTwenty(data);
+      try {
+        createdStudent = await createNeonStudentViaTwenty(data);
+      } catch (error) {
+        if (error?.code === "DUPLICATE_STUDENT") {
+          const existingStudent = error?.student || null;
+          const reply = `לא נוצר תלמיד חדש כי נמצאה כפילות: ${error?.message || "כבר קיים תלמיד דומה במערכת."}`;
+
+          await createAiChatMessage({
+            clerkUserId: user.clerk_user_id,
+            role: "assistant",
+            content: reply,
+            metadata: {
+              studentCards: existingStudent ? [buildStudentSummary(existingStudent)].filter(Boolean) : [],
+              searchSummary: "נמנעה יצירת תלמיד כפול"
+            }
+          });
+
+          return NextResponse.json({
+            reply,
+            studentCards: existingStudent ? [buildStudentSummary(existingStudent)].filter(Boolean) : [],
+            searchSummary: "נמנעה יצירת תלמיד כפול"
+          });
+        }
+        throw error;
+      }
       studentId = clean(createdStudent?.id);
       if (!studentId) throw new Error("יצירת התלמיד נכשלה.");
     }
