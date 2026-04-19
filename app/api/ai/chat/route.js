@@ -7,8 +7,9 @@ import {
   setAiChatMessageFeedback
 } from "../../../../lib/ai-chat-history";
 import { createStudentDocumentFromStoredObject } from "../../../../lib/student-documents";
-import { createNeonStudentViaTwenty } from "../../../../lib/neon-students";
+import { createNeonStudentViaTwenty, updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
 import { uploadBufferToR2 } from "../../../../lib/r2";
+import { FIELD_SECTIONS, normalizeStudentInput } from "../../../../lib/student-fields";
 import {
   buildStudentSummary,
   buildExportUrlForFilters,
@@ -243,10 +244,63 @@ function classifyIntent({ text = "", hasAttachment = false, hasChoiceFilters = f
   const raw = clean(text);
   if (!raw) return "empty";
   if (hasChoiceFilters) return "choice_filter";
+  if (/עדכן|תעדכן|לשנות|שנה|לתקן|תקן/.test(raw)) return "update_request";
+  if (/צור|תיצור|פתח תלמיד|הוסף תלמיד|חדש תלמיד/.test(raw)) return "create_request";
   if (/מסמך|קובץ|תעודה/.test(raw)) return "document_query";
   if (/כמה|לכמה|חלוקה/.test(raw)) return "count_or_summary";
   if (/תמצא|תחפש|מי זה|מי זאת|בשם|של מי/.test(raw)) return "specific_lookup";
   return "general_crm";
+}
+
+const FIELD_LABELS = Object.fromEntries(
+  FIELD_SECTIONS.flatMap((section) => section.fields.map((field) => [field.key, field.label]))
+);
+
+function flattenStudentData(data, prefix = "") {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+  const items = [];
+  for (const [key, value] of Object.entries(data)) {
+    const nextKey = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      items.push(...flattenStudentData(value, nextKey));
+      continue;
+    }
+    if (Array.isArray(value)) {
+      if (value.length) items.push({ field: nextKey, value: value.join(", ") });
+      continue;
+    }
+    const cleaned = clean(value);
+    if (!cleaned) continue;
+    items.push({ field: nextKey, value: cleaned });
+  }
+  return items;
+}
+
+function buildStudentActionPreview(data) {
+  return flattenStudentData(data)
+    .slice(0, 12)
+    .map((item) => ({
+      field: item.field,
+      label: FIELD_LABELS[item.field] || item.field,
+      value: item.value
+    }));
+}
+
+function buildPendingActionReply({ title, intro, previewFields, studentName = "" }) {
+  const lines = [];
+  if (title) lines.push(title);
+  if (intro) lines.push(intro);
+  if (studentName) lines.push(`תלמיד: ${studentName}`);
+  lines.push("הפעולה המוצעת:");
+  if (previewFields.length) {
+    previewFields.forEach((field, index) => {
+      lines.push(`${index + 1}. ${field.label}: ${field.value}`);
+    });
+  } else {
+    lines.push("-");
+  }
+  lines.push("לא בוצע שום שינוי עדיין. אפשר לאשר או לסרב.");
+  return lines.join("\n");
 }
 
 async function fileToDataUrl(file) {
@@ -584,9 +638,37 @@ export async function PUT(request) {
       return badRequest("Invalid decision");
     }
 
+    if (pendingAction.type === "update_student") {
+      const studentId = clean(pendingAction.studentId);
+      const data = pendingAction.updateStudentData || {};
+      if (!studentId || !Object.keys(data).length) {
+        return badRequest("Missing student update payload.");
+      }
+      const updatedStudent = await updateNeonStudentViaTwenty(studentId, data);
+      if (!updatedStudent?.id) throw new Error("עדכון התלמיד נכשל.");
+
+      const reply = `העדכון בוצע בכרטיס התלמיד: ${updatedStudent.label || updatedStudent.name || updatedStudent.id}.`;
+
+      await createAiChatMessage({
+        clerkUserId: user.clerk_user_id,
+        role: "assistant",
+        content: reply,
+        metadata: {
+          studentCards: [buildStudentSummary(updatedStudent)].filter(Boolean),
+          searchSummary: "בוצע עדכון תלמיד אחרי אישור מפורש"
+        }
+      });
+
+      return NextResponse.json({
+        reply,
+        studentCards: [buildStudentSummary(updatedStudent)].filter(Boolean),
+        searchSummary: "בוצע עדכון תלמיד אחרי אישור מפורש"
+      });
+    }
+
     let studentId = clean(pendingAction.suggestedStudentId);
     let createdStudent = null;
-    if (pendingAction.type === "create_student") {
+    if (pendingAction.type === "create_student" || pendingAction.type === "create_student_manual") {
       const data = pendingAction.createStudentData || {};
       if (!Object.keys(data).length) {
         return badRequest("אין מספיק פרטים ליצירת תלמיד.");
@@ -594,6 +676,26 @@ export async function PUT(request) {
       createdStudent = await createNeonStudentViaTwenty(data);
       studentId = clean(createdStudent?.id);
       if (!studentId) throw new Error("יצירת התלמיד נכשלה.");
+    }
+
+    if (pendingAction.type === "create_student_manual") {
+      const reply = `נוצר תלמיד חדש: ${createdStudent?.label || createdStudent?.name || studentId}.`;
+
+      await createAiChatMessage({
+        clerkUserId: user.clerk_user_id,
+        role: "assistant",
+        content: reply,
+        metadata: {
+          studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : [],
+          searchSummary: "בוצעה יצירת תלמיד אחרי אישור מפורש"
+        }
+      });
+
+      return NextResponse.json({
+        reply,
+        studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : [],
+        searchSummary: "בוצעה יצירת תלמיד אחרי אישור מפורש"
+      });
     }
 
     if (!studentId) return badRequest("Missing student id for document attachment.");
@@ -699,6 +801,12 @@ function collectStudentCards(target, payload) {
   }
 }
 
+function collectPendingAction(payload) {
+  return payload?.pendingAction && typeof payload.pendingAction === "object"
+    ? payload.pendingAction
+    : null;
+}
+
 async function callOpenAI(messages, tools) {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -786,6 +894,72 @@ async function executeToolCall(toolCall) {
       tool: name,
       count: result.count,
       items: result.students
+    };
+  }
+
+  if (name === "propose_create_student") {
+    const data = normalizeStudentInput(args?.data || {});
+    const previewFields = buildStudentActionPreview(data);
+    if (!Object.keys(data).length) {
+      return {
+        ok: false,
+        tool: name,
+        error: "אין מספיק שדות תקינים להצעת יצירת תלמיד."
+      };
+    }
+    return {
+      ok: true,
+      tool: name,
+      pendingAction: {
+        id: crypto.randomUUID(),
+        type: "create_student_manual",
+        createStudentData: data,
+        previewFields
+      },
+      reply: buildPendingActionReply({
+        title: "הצעתי יצירת תלמיד חדש",
+        intro: "זיהיתי בקשה ליצירת תלמיד.",
+        previewFields
+      })
+    };
+  }
+
+  if (name === "propose_update_student") {
+    const studentId = clean(args?.studentId);
+    const existingStudent = await getStudentForAgent(studentId);
+    if (!existingStudent?.summary?.id) {
+      return {
+        ok: false,
+        tool: name,
+        error: "לא נמצא תלמיד לעדכון."
+      };
+    }
+    const data = normalizeStudentInput(args?.data || {});
+    const previewFields = buildStudentActionPreview(data);
+    if (!Object.keys(data).length) {
+      return {
+        ok: false,
+        tool: name,
+        error: "אין שדות תקינים לעדכון."
+      };
+    }
+    return {
+      ok: true,
+      tool: name,
+      item: existingStudent,
+      pendingAction: {
+        id: crypto.randomUUID(),
+        type: "update_student",
+        studentId,
+        updateStudentData: data,
+        previewFields
+      },
+      reply: buildPendingActionReply({
+        title: "הצעתי עדכון תלמיד",
+        intro: "זיהיתי בקשה לעדכון שדות בכרטיס תלמיד.",
+        previewFields,
+        studentName: existingStudent.summary.name
+      })
     };
   }
 
@@ -1005,6 +1179,41 @@ export async function POST(request) {
     {
       type: "function",
       function: {
+        name: "propose_create_student",
+        description: "Prepare a student creation proposal. Do not create immediately. Use when the user explicitly asks to create a student.",
+        parameters: {
+          type: "object",
+          properties: {
+            data: {
+              type: "object",
+              description: "Student fields to create"
+            }
+          },
+          required: ["data"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "propose_update_student",
+        description: "Prepare a student update proposal. Do not update immediately. Use only when the user explicitly asks to update a known student.",
+        parameters: {
+          type: "object",
+          properties: {
+            studentId: { type: "string" },
+            data: {
+              type: "object",
+              description: "Student fields to update"
+            }
+          },
+          required: ["studentId", "data"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "get_student",
         description: "Get one student by exact CRM student id.",
         parameters: {
@@ -1024,6 +1233,7 @@ export async function POST(request) {
         "אתה סוכן מידע פנימי של מערכת CRM תלמידים.",
         "אתה עונה רק על בסיס כלי המערכת והמידע שהוחזר מהם.",
         "כאשר נשאלת שאלה על תלמיד או רשימת תלמידים, השתמש בכלי החיפוש לפני מתן תשובה.",
+        "כאשר המשתמש מבקש ליצור תלמיד או לעדכן שדות, לעולם אל תבצע פעולה ישירה. השתמש רק בכלי proposal כדי להציע פעולה ממתינה לאישור.",
         "כאשר המשתמש כותב בן אדם, אדם, איש, בחור, מי זה או מי זאת בהקשר חיפוש, הכוונה היא לתלמיד במערכת.",
         "חיפוש שמות חייב להיות משוער לפי ציון התאמה ולא התאמה מדויקת בלבד. גם אם יש שגיאת כתיב בשם, השתמש בכלי search_students עם טקסט השם.",
         "אל תכתוב כתובות URL של כרטיסי תלמיד בגוף התשובה. אם יש כרטיס תלמיד, המערכת תציג קישור נפרד.",
@@ -1046,6 +1256,7 @@ export async function POST(request) {
     const messages = [systemPrompt, ...recentConversation, ...conversation.slice(-1)];
     const referencedStudents = new Map();
     const usedTools = [];
+    let finalPendingAction = null;
     let finalMessage = "";
 
     for (let iteration = 0; iteration < 5; iteration += 1) {
@@ -1063,6 +1274,7 @@ export async function POST(request) {
           const result = await executeToolCall(toolCall);
           if (toolCall?.function?.name) usedTools.push(toolCall.function.name);
           collectStudentCards(referencedStudents, result);
+          finalPendingAction = collectPendingAction(result) || finalPendingAction;
           messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
@@ -1109,14 +1321,16 @@ export async function POST(request) {
         intentType,
         path: "tool",
         resultCount: finalStudentCards.length,
-        searchSummary
+        searchSummary,
+        pendingAction: finalPendingAction
       }
     });
 
     return NextResponse.json({
       reply: finalMessage || "לא הצלחתי להשלים תשובה.",
       studentCards: finalStudentCards,
-      searchSummary
+      searchSummary,
+      pendingAction: finalPendingAction
     });
   } catch (error) {
     return NextResponse.json(
