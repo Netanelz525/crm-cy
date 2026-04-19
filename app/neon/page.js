@@ -150,6 +150,7 @@ export default async function NeonPage({ searchParams }) {
             <p className="muted">טאב מקביל שעובד מול עותק הנתונים ב-Neon, עם עריכה שמסנכרנת חזרה ל-Twenty.</p>
           </div>
           <div className="student-actions student-actions-wrap">
+            <Link className="btn btn-primary" href="/students/new">יצירת תלמיד חדש</Link>
             <Link className="btn btn-ghost" href="/">חזרה לגרסה הראשית</Link>
             <form action={syncNeonStudentsAction}>
               <button className="btn btn-primary" type="submit">סנכרון מ-Twenty</button>
