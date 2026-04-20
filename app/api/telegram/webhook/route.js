@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment } from "../../../../lib/telegram";
+import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
@@ -105,8 +105,8 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
 
   if (includeFeedback && messageId) {
     inlineKeyboard.push([
-      { text: "תשובה טובה", callback_data: `feedback:good:${messageId}` },
-      { text: "לא מדויק", callback_data: `feedback:bad:${messageId}` }
+      { text: "⚫ תשובה טובה", callback_data: `feedback:good:${messageId}` },
+      { text: "🔴 לא מדויק", callback_data: `feedback:bad:${messageId}` }
     ]);
   }
 
@@ -153,6 +153,23 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           feedback
         });
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: feedbackMessageId
+        });
+        const currentReplyMarkup = buildTelegramKeyboard({
+          messageId: feedbackMessageId,
+          pendingAction: messageRecord?.pendingAction || null,
+          studentCards: messageRecord?.studentCards || [],
+          includeFeedback: false
+        });
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: currentReplyMarkup
+          }).catch(() => null);
+        }
         await answerTelegramCallbackQuery(callback.id, feedback === "good" ? "תודה, שמרתי שהתגובה היתה טובה." : "תודה, שמרתי שהתגובה לא היתה מדויקת.");
         return NextResponse.json({ ok: true });
       }
