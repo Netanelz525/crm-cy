@@ -11,6 +11,7 @@ import { createNeonStudentViaTwenty, updateNeonStudentViaTwenty } from "../../..
 import { uploadBufferToR2 } from "../../../../lib/r2";
 import { FIELD_SECTIONS, normalizeStudentInput } from "../../../../lib/student-fields";
 import { processTextAiMessage } from "../../../../lib/ai-text-agent";
+import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import {
   buildStudentSummary,
   buildExportUrlForFilters,
@@ -1028,11 +1029,13 @@ export async function POST(request) {
     }
 
     if (attachment) {
-      return handleDocumentMatchFlow({
+      const result = await processDocumentAttachment({
         user,
         attachment,
-        messageText: lastUserMessage
+        messageText: lastUserMessage,
+        source: "web"
       });
+      return NextResponse.json(result);
     }
 
     const result = await processTextAiMessage({

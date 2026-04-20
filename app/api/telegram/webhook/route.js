@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery } from "../../../../lib/telegram";
+import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
+import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 
 function clean(value) {
   return String(value || "").trim();
@@ -10,6 +11,30 @@ function clean(value) {
 
 function extractChat(update) {
   return update?.message?.chat || update?.callback_query?.message?.chat || null;
+}
+
+function resolveTelegramAttachment(message) {
+  const document = message?.document;
+  if (document?.file_id) {
+    return {
+      fileId: clean(document.file_id),
+      fileName: clean(document.file_name) || "telegram-document",
+      contentType: clean(document.mime_type) || "application/octet-stream"
+    };
+  }
+
+  const photos = Array.isArray(message?.photo) ? message.photo : [];
+  const photo = photos[photos.length - 1];
+  if (photo?.file_id) {
+    const photoId = clean(photo.file_id);
+    return {
+      fileId: photoId,
+      fileName: `${photoId}.jpg`,
+      contentType: "image/jpeg"
+    };
+  }
+
+  return null;
 }
 
 async function sendNotLinkedMessage(chatId) {
@@ -183,8 +208,9 @@ export async function POST(request) {
     const message = update.message;
     const chat = extractChat(update);
     const chatId = clean(chat?.id);
-    const text = clean(message?.text);
-    if (!chatId || !text) {
+    const text = clean(message?.text || message?.caption);
+    const attachmentMeta = resolveTelegramAttachment(message);
+    if (!chatId || (!text && !attachmentMeta)) {
       return NextResponse.json({ ok: true });
     }
 
@@ -217,11 +243,21 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    const result = await processTextAiMessage({
-      user,
-      messageText: text,
-      source: "telegram"
-    });
+    const result = attachmentMeta
+      ? await processDocumentAttachment({
+        user,
+        attachment: await downloadTelegramFileAsAttachment(attachmentMeta.fileId, {
+          fileName: attachmentMeta.fileName,
+          contentType: attachmentMeta.contentType
+        }),
+        messageText: text,
+        source: "telegram"
+      })
+      : await processTextAiMessage({
+        user,
+        messageText: text,
+        source: "telegram"
+      });
 
     const collapsedReply = splitMessageForTelegram(result.reply, 8);
     const replyText = [collapsedReply.text, result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""].filter(Boolean).join("\n");
