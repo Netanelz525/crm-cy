@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
+import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
 
 function clean(value) {
   return String(value || "").trim();
@@ -18,15 +19,73 @@ async function sendNotLinkedMessage(chatId) {
   );
 }
 
-function buildPendingActionKeyboard(messageId) {
+function resolveBaseUrl() {
+  const explicit = process.env.CRM_BASE_URL || process.env.APP_BASE_URL;
+  if (explicit) return clean(explicit).replace(/\/$/, "");
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (!vercelUrl) return "";
+  return `https://${clean(vercelUrl).replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+}
+
+function toAbsoluteUrl(path) {
+  const baseUrl = resolveBaseUrl();
+  if (!baseUrl) return "";
+  const relativePath = clean(path);
+  if (!relativePath) return "";
+  if (/^https?:\/\//i.test(relativePath)) return relativePath;
+  return `${baseUrl}${relativePath.startsWith("/") ? relativePath : `/${relativePath}`}`;
+}
+
+function splitMessageForTelegram(text, visibleLines = 8) {
+  const lines = String(text || "").split("\n");
+  if (lines.length <= visibleLines && String(text || "").length <= 700) {
+    return {
+      text: String(text || ""),
+      hasMore: false,
+      nextOffset: 0
+    };
+  }
+
+  const visibleText = lines.slice(0, visibleLines).join("\n");
   return {
-    inline_keyboard: [
-      [
-        { text: "אשר", callback_data: `approve:${messageId}` },
-        { text: "סרב", callback_data: `reject:${messageId}` }
-      ]
-    ]
+    text: `${visibleText}\n\nיש עוד פריטים ברשימה. אפשר ללחוץ על "הצג עוד".`,
+    hasMore: true,
+    nextOffset: visibleLines
   };
+}
+
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], hasMore = false, nextOffset = 0, includeFeedback = true }) {
+  const inlineKeyboard = [];
+
+  if (pendingAction) {
+    inlineKeyboard.push([
+      { text: "אשר", callback_data: `approve:${messageId}` },
+      { text: "סרב", callback_data: `reject:${messageId}` }
+    ]);
+  }
+
+  const cardButtons = (Array.isArray(studentCards) ? studentCards : [])
+    .slice(0, 3)
+    .map((student) => {
+      const url = toAbsoluteUrl(student?.studentCardUrl);
+      if (!url) return null;
+      return { text: `כרטיס: ${clean(student?.name) || "תלמיד"}`, url };
+    })
+    .filter(Boolean);
+  cardButtons.forEach((button) => inlineKeyboard.push([button]));
+
+  if (hasMore) {
+    inlineKeyboard.push([{ text: "הצג עוד", callback_data: `more:${messageId}:${nextOffset}` }]);
+  }
+
+  if (includeFeedback && messageId) {
+    inlineKeyboard.push([
+      { text: "תשובה טובה", callback_data: `feedback:good:${messageId}` },
+      { text: "לא מדויק", callback_data: `feedback:bad:${messageId}` }
+    ]);
+  }
+
+  return inlineKeyboard.length ? { inline_keyboard: inlineKeyboard } : undefined;
 }
 
 export async function POST(request) {
@@ -57,7 +116,49 @@ export async function POST(request) {
         await answerTelegramCallbackQuery(callback.id, "אין הרשאה לפעולה.");
         return NextResponse.json({ ok: true });
       }
-      const [decision, messageId] = clean(callback.data).split(":");
+      const parts = clean(callback.data).split(":");
+      const action = parts[0];
+      const messageId = parts[1];
+
+      if (action === "feedback") {
+        const feedback = parts[1];
+        const feedbackMessageId = parts[2];
+        await setAiChatMessageFeedback({
+          messageId: feedbackMessageId,
+          clerkUserId: user.clerk_user_id,
+          feedback
+        });
+        await answerTelegramCallbackQuery(callback.id, feedback === "good" ? "תודה, שמרתי שהתגובה היתה טובה." : "תודה, שמרתי שהתגובה לא היתה מדויקת.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "more") {
+        const offset = Math.max(0, Number(parts[2]) || 0);
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!messageRecord?.content) {
+          await answerTelegramCallbackQuery(callback.id, "לא הצלחתי לטעון את ההמשך.");
+          return NextResponse.json({ ok: true });
+        }
+
+        const lines = String(messageRecord.content).split("\n");
+        const nextLines = lines.slice(offset, offset + 25);
+        const nextOffset = offset + nextLines.length;
+        const hasMore = nextOffset < lines.length;
+        await answerTelegramCallbackQuery(callback.id, "מציג עוד");
+        await sendTelegramMessage(chatId, nextLines.join("\n"), {
+          replyMarkup: buildTelegramKeyboard({
+            messageId,
+            studentCards: messageRecord.studentCards,
+            hasMore,
+            nextOffset
+          })
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const pendingAction = await getPendingActionForMessage({
         clerkUserId: user.clerk_user_id,
         messageId
@@ -66,9 +167,16 @@ export async function POST(request) {
         await answerTelegramCallbackQuery(callback.id, "לא נמצאה פעולה ממתינה.");
         return NextResponse.json({ ok: true });
       }
-      const result = await handleApprovedAiAction({ user, decision, pendingAction });
-      await answerTelegramCallbackQuery(callback.id, decision === "approve" ? "הפעולה אושרה" : "הפעולה נדחתה");
-      await sendTelegramMessage(chatId, result.reply);
+
+      const result = await handleApprovedAiAction({ user, decision: action, pendingAction });
+      await answerTelegramCallbackQuery(callback.id, action === "approve" ? "הפעולה אושרה" : "הפעולה נדחתה");
+      await sendTelegramMessage(chatId, result.reply, {
+        replyMarkup: buildTelegramKeyboard({
+          messageId,
+          studentCards: result.studentCards,
+          includeFeedback: false
+        })
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -115,8 +223,15 @@ export async function POST(request) {
       source: "telegram"
     });
 
-    const replyText = [result.reply, result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""].filter(Boolean).join("\n");
-    const replyMarkup = result.pendingAction ? buildPendingActionKeyboard(result.id) : undefined;
+    const collapsedReply = splitMessageForTelegram(result.reply, 8);
+    const replyText = [collapsedReply.text, result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""].filter(Boolean).join("\n");
+    const replyMarkup = buildTelegramKeyboard({
+      messageId: result.id,
+      pendingAction: result.pendingAction,
+      studentCards: result.studentCards,
+      hasMore: collapsedReply.hasMore,
+      nextOffset: collapsedReply.nextOffset
+    });
     await sendTelegramMessage(chatId, replyText, { replyMarkup });
 
     return NextResponse.json({ ok: true });

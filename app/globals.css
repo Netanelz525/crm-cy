@@ -378,6 +378,31 @@ td {
   line-height: 1.5;
 }
 
+.ai-chat-message-text-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-chat-more-text {
+  border-top: 1px dashed #d6e0eb;
+  padding-top: 6px;
+}
+
+.ai-chat-more-text summary {
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 800;
+  list-style: none;
+}
+
+.ai-chat-more-text summary::-webkit-details-marker {
+  display: none;
+}
+
+.ai-chat-message-body-full {
+  margin-top: 8px;
+}
+
 .ai-chat-search-summary {
   margin-top: 8px;
   padding: 8px 10px;

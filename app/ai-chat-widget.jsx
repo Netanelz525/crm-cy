@@ -15,6 +15,35 @@ const EXPORT_COLUMN_OPTIONS = INSTITUTION_COLUMNS_FULL;
 
 const DEFAULT_EXPORT_COLUMNS = ["name", "tznum", "field:dateofbirth"];
 
+function splitMessageContent(content) {
+  return String(content || "").split("\n");
+}
+
+function isLongMessage(content) {
+  const lines = splitMessageContent(content);
+  return lines.length > 8 || String(content || "").length > 420;
+}
+
+function MessageText({ content }) {
+  const raw = String(content || "");
+  if (!isLongMessage(raw)) {
+    return <div className="ai-chat-message-body">{raw}</div>;
+  }
+
+  const lines = splitMessageContent(raw);
+  const preview = lines.slice(0, 8).join("\n");
+
+  return (
+    <div className="ai-chat-message-text-wrap">
+      <div className="ai-chat-message-body">{preview}</div>
+      <details className="ai-chat-more-text">
+        <summary>הצג עוד</summary>
+        <div className="ai-chat-message-body ai-chat-message-body-full">{raw}</div>
+      </details>
+    </div>
+  );
+}
+
 function buildExportUrlWithColumns(exportUrl, columns) {
   if (!exportUrl) return "";
   const [path, query = ""] = exportUrl.split("?");
@@ -78,7 +107,7 @@ function MessageCard({ message, onDecision, onFeedback, deciding }) {
   return (
     <div className={`ai-chat-message ai-chat-message-${message.role}`}>
       <div className="ai-chat-message-label">{message.role === "user" ? "אתה" : "סוכן"}</div>
-      <div className="ai-chat-message-body">{message.content}</div>
+      <MessageText content={message.content} />
       {message.searchSummary ? (
         <div className="ai-chat-search-summary">איך חיפשתי: {message.searchSummary}</div>
       ) : null}
@@ -261,7 +290,7 @@ export default function AiChatWidget() {
       setMessages((current) => [
         ...current,
         {
-          id: `assistant-${Date.now()}`,
+          id: data?.id || `assistant-${Date.now()}`,
           role: "assistant",
           content: data?.reply || "לא התקבלה תשובה.",
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
@@ -303,7 +332,7 @@ export default function AiChatWidget() {
       setMessages((current) => [
         ...current.map((item) => item.id === message.id ? { ...item, pendingAction: null } : item),
         {
-          id: `assistant-${Date.now()}`,
+          id: data?.id || `assistant-${Date.now()}`,
           role: "assistant",
           content: data?.reply || "הפעולה הושלמה.",
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],

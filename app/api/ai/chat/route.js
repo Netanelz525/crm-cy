@@ -1042,6 +1042,7 @@ export async function POST(request) {
     });
 
     return NextResponse.json({
+      id: result?.id || "",
       reply: result?.reply || "לא הצלחתי להשלים תשובה.",
       studentCards: Array.isArray(result?.studentCards) ? result.studentCards : [],
       exportUrl: result?.exportUrl || "",
