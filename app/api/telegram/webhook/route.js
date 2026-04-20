@@ -62,24 +62,45 @@ function toAbsoluteUrl(path) {
 }
 
 function splitMessageForTelegram(text, visibleLines = 8) {
-  const lines = String(text || "").split("\n");
-  if (lines.length <= visibleLines && String(text || "").length <= 700) {
+  const raw = String(text || "");
+  const lines = raw.split("\n");
+  if (lines.length <= visibleLines && raw.length <= 700) {
     return {
-      text: String(text || ""),
-      hasMore: false,
-      nextOffset: 0
+      text: raw,
+      hasMore: false
     };
   }
 
   const visibleText = lines.slice(0, visibleLines).join("\n");
   return {
     text: `${visibleText}\n\nיש עוד פריטים ברשימה. אפשר ללחוץ על "הצג עוד".`,
-    hasMore: true,
-    nextOffset: visibleLines
+    hasMore: true
   };
 }
 
-function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], hasMore = false, nextOffset = 0, includeFeedback = true }) {
+function splitFullTelegramMessage(text, maxChars = 3800) {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+  if (raw.length <= maxChars) return [raw];
+
+  const chunks = [];
+  let remaining = raw;
+  while (remaining.length > maxChars) {
+    let splitIndex = remaining.lastIndexOf("\n", maxChars);
+    if (splitIndex < Math.floor(maxChars * 0.6)) {
+      splitIndex = remaining.lastIndexOf(" ", maxChars);
+    }
+    if (splitIndex < Math.floor(maxChars * 0.6)) {
+      splitIndex = maxChars;
+    }
+    chunks.push(remaining.slice(0, splitIndex).trim());
+    remaining = remaining.slice(splitIndex).trim();
+  }
+  if (remaining) chunks.push(remaining);
+  return chunks;
+}
+
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", hasMore = false, includeFeedback = true }) {
   const inlineKeyboard = [];
 
   if (pendingAction) {
@@ -87,6 +108,11 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
       { text: "אשר", callback_data: `approve:${messageId}` },
       { text: "סרב", callback_data: `reject:${messageId}` }
     ]);
+  }
+
+  const absoluteViewUrl = toAbsoluteUrl(viewUrl);
+  if (absoluteViewUrl) {
+    inlineKeyboard.push([{ text: "פתח תצוגה מלאה", url: absoluteViewUrl }]);
   }
 
   const cardButtons = (Array.isArray(studentCards) ? studentCards : [])
@@ -100,7 +126,7 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   cardButtons.forEach((button) => inlineKeyboard.push([button]));
 
   if (hasMore) {
-    inlineKeyboard.push([{ text: "הצג עוד", callback_data: `more:${messageId}:${nextOffset}` }]);
+    inlineKeyboard.push([{ text: "הצג עוד", callback_data: `more:${messageId}` }]);
   }
 
   if (includeFeedback && messageId) {
@@ -161,6 +187,7 @@ export async function POST(request) {
           messageId: feedbackMessageId,
           pendingAction: messageRecord?.pendingAction || null,
           studentCards: messageRecord?.studentCards || [],
+          viewUrl: messageRecord?.viewUrl || "",
           includeFeedback: false
         });
         if (callback?.message?.message_id) {
@@ -175,7 +202,6 @@ export async function POST(request) {
       }
 
       if (action === "more") {
-        const offset = Math.max(0, Number(parts[2]) || 0);
         const messageRecord = await getAiChatMessageById({
           clerkUserId: user.clerk_user_id,
           messageId
@@ -185,19 +211,20 @@ export async function POST(request) {
           return NextResponse.json({ ok: true });
         }
 
-        const lines = String(messageRecord.content).split("\n");
-        const nextLines = lines.slice(offset, offset + 25);
-        const nextOffset = offset + nextLines.length;
-        const hasMore = nextOffset < lines.length;
+        const fullChunks = splitFullTelegramMessage(messageRecord.content);
         await answerTelegramCallbackQuery(callback.id, "מציג עוד");
-        await sendTelegramMessage(chatId, nextLines.join("\n"), {
-          replyMarkup: buildTelegramKeyboard({
-            messageId,
-            studentCards: messageRecord.studentCards,
-            hasMore,
-            nextOffset
-          })
-        });
+        for (let index = 0; index < fullChunks.length; index += 1) {
+          await sendTelegramMessage(chatId, fullChunks[index], {
+            replyMarkup: index === fullChunks.length - 1
+              ? buildTelegramKeyboard({
+                messageId,
+                studentCards: messageRecord.studentCards,
+                viewUrl: messageRecord.viewUrl || "",
+                includeFeedback: false
+              })
+              : undefined
+          });
+        }
         return NextResponse.json({ ok: true });
       }
 
@@ -216,6 +243,7 @@ export async function POST(request) {
         replyMarkup: buildTelegramKeyboard({
           messageId,
           studentCards: result.studentCards,
+          viewUrl: result.viewUrl || "",
           includeFeedback: false
         })
       });
@@ -282,8 +310,8 @@ export async function POST(request) {
       messageId: result.id,
       pendingAction: result.pendingAction,
       studentCards: result.studentCards,
-      hasMore: collapsedReply.hasMore,
-      nextOffset: collapsedReply.nextOffset
+      viewUrl: result.viewUrl || "",
+      hasMore: collapsedReply.hasMore
     });
     await sendTelegramMessage(chatId, replyText, { replyMarkup });
 
