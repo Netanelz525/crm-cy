@@ -11,8 +11,10 @@ import {
   INSTITUTION_COLUMN_MAP,
   matchesMissingFilter,
   parseAdvancedFilters,
+  parsePdfBlankColumns,
   parseListParam,
   parseSortLevels,
+  PDF_PRINT_ONLY_COLUMNS,
   sanitizeQueryString,
   sortStudents
 } from "../../lib/student-view";
@@ -99,6 +101,9 @@ export default async function NeonPage({ searchParams }) {
   const parsedColumnKeys = parseListParam(resolvedSearchParams?.cols).filter((key) => INSTITUTION_COLUMN_MAP[key]);
   const selectedColumnKeys = parsedColumnKeys.length ? parsedColumnKeys : DEFAULT_INSTITUTION_COLUMN_KEYS;
   const selectedColumns = selectedColumnKeys.map((key) => INSTITUTION_COLUMN_MAP[key]).filter(Boolean);
+  const pdfBlankColumnKeys = parsePdfBlankColumns(resolvedSearchParams);
+  const pdfOrientationParam = clean(resolvedSearchParams?.pdfOrientation).toLowerCase();
+  const pdfOrientation = pdfOrientationParam === "portrait" ? "portrait" : "landscape";
 
   let students = [];
   let error = "";
@@ -134,8 +139,15 @@ export default async function NeonPage({ searchParams }) {
   }
 
   const stats = await getNeonStudentsStats();
-  const clearInstitutionFiltersPath = buildNextPath({ mode: "institution", institution, cols: selectedColumnKeys });
+  const clearInstitutionFiltersPath = buildNextPath({
+    mode: "institution",
+    institution,
+    cols: selectedColumnKeys,
+    pdfBlankCol: pdfBlankColumnKeys,
+    pdfOrientation
+  });
   const exportHref = currentQueryString ? `/api/export/institution?source=neon&${currentQueryString}` : "/api/export/institution?source=neon";
+  const pdfExportHref = currentQueryString ? `/api/export/institution-pdf?source=neon&${currentQueryString}` : "/api/export/institution-pdf?source=neon";
   const hasInstitutionFilter = hasInstitutionScopedFilter(advancedFilters);
   const institutionCount = students.length;
   const hasQuickFilters = Boolean(quickClass || quickRegistration || quickFamilyStatus);
@@ -192,6 +204,30 @@ export default async function NeonPage({ searchParams }) {
         <h3>תצוגת מוסד - Neon</h3>
         <form className="grid" method="GET">
           <input type="hidden" name="mode" value="institution" />
+          {selectedColumnKeys.map((key) => (
+            <input key={`institution-col-${key}`} type="hidden" name="cols" value={key} />
+          ))}
+          {sortLevels.map((level, index) => (
+            <div key={`institution-sort-${index}`}>
+              <input type="hidden" name="sby" value={level.sortBy} />
+              <input type="hidden" name="sdir" value={level.sortDir} />
+            </div>
+          ))}
+          {advancedFilters.map((filter, index) => (
+            <div key={`institution-filter-${index}`}>
+              <input type="hidden" name="ff" value={filter.field} />
+              <input type="hidden" name="fo" value={filter.operator} />
+              <input type="hidden" name="fv" value={filter.value} />
+              <input type="hidden" name="fj" value={filter.joiner} />
+              <input type="hidden" name="fg" value={filter.groupId || "group-1"} />
+              <input type="hidden" name="gj" value={filter.groupJoiner || "AND"} />
+            </div>
+          ))}
+          {missingType ? <input type="hidden" name="missingType" value={missingType} /> : null}
+          <input type="hidden" name="pdfOrientation" value={pdfOrientation} />
+          {pdfBlankColumnKeys.map((key) => (
+            <input key={`institution-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
+          ))}
           <select name="institution" defaultValue={mode === "institution" ? institution : ""}>
             <option value="">בחר מוסד</option>
             {Object.entries(INSTITUTIONS).map(([value, label]) => (
@@ -222,6 +258,7 @@ export default async function NeonPage({ searchParams }) {
             <div className="quick-actions" style={{ marginTop: 0 }}>
               <Link className="chip-link" href={clearInstitutionFiltersPath}>נקה סינונים</Link>
               <a className="chip-link" href={exportHref}>ייצוא אקסל</a>
+              <a className="chip-link" href={pdfExportHref}>ייצוא PDF</a>
             </div>
           </div>
 
@@ -252,6 +289,10 @@ export default async function NeonPage({ searchParams }) {
                   </div>
                 ))}
                 {missingType ? <input type="hidden" name="missingType" value={missingType} /> : null}
+                <input type="hidden" name="pdfOrientation" value={pdfOrientation} />
+                {pdfBlankColumnKeys.map((key) => (
+                  <input key={`quick-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
+                ))}
                 <div className="grid">
                   <select name="quickClass" defaultValue={quickClass}>
                     <option value="">כל השיעורים</option>
@@ -309,6 +350,10 @@ export default async function NeonPage({ searchParams }) {
                 <input type="hidden" name="quickClass" value={quickClass} />
                 <input type="hidden" name="quickRegistration" value={quickRegistration} />
                 <input type="hidden" name="quickFamilyStatus" value={quickFamilyStatus} />
+                <input type="hidden" name="pdfOrientation" value={pdfOrientation} />
+                {pdfBlankColumnKeys.map((key) => (
+                  <input key={`field-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
+                ))}
                 {sortLevels.map((level, index) => (
                   <div key={`sort-${index}`}>
                     <input type="hidden" name="sby" value={level.sortBy} />
@@ -341,6 +386,58 @@ export default async function NeonPage({ searchParams }) {
                   ))}
                 </div>
                 <button type="submit">עדכן תצוגה</button>
+              </form>
+            </details>
+          </div>
+
+          <div className="card">
+            <details className="display-settings">
+              <summary>הגדרות PDF להדפסה</summary>
+              <form method="GET" className="column-picker">
+                <input type="hidden" name="mode" value="institution" />
+                <input type="hidden" name="institution" value={institution} />
+                <input type="hidden" name="institutionSearch" value={institutionSearch} />
+                <input type="hidden" name="quickClass" value={quickClass} />
+                <input type="hidden" name="quickRegistration" value={quickRegistration} />
+                <input type="hidden" name="quickFamilyStatus" value={quickFamilyStatus} />
+                {selectedColumnKeys.map((key) => (
+                  <input key={`pdf-col-${key}`} type="hidden" name="cols" value={key} />
+                ))}
+                {sortLevels.map((level, index) => (
+                  <div key={`pdf-sort-${index}`}>
+                    <input type="hidden" name="sby" value={level.sortBy} />
+                    <input type="hidden" name="sdir" value={level.sortDir} />
+                  </div>
+                ))}
+                {advancedFilters.map((filter, index) => (
+                  <div key={`pdf-filter-${index}`}>
+                    <input type="hidden" name="ff" value={filter.field} />
+                    <input type="hidden" name="fo" value={filter.operator} />
+                    <input type="hidden" name="fv" value={filter.value} />
+                    <input type="hidden" name="fj" value={filter.joiner} />
+                    <input type="hidden" name="fg" value={filter.groupId || "group-1"} />
+                    <input type="hidden" name="gj" value={filter.groupJoiner || "AND"} />
+                  </div>
+                ))}
+                {missingType ? <input type="hidden" name="missingType" value={missingType} /> : null}
+                <div className="grid">
+                  <select name="pdfOrientation" defaultValue={pdfOrientation}>
+                    <option value="landscape">אופקי</option>
+                    <option value="portrait">אנכי</option>
+                  </select>
+                </div>
+                <div className="column-grid">
+                  {PDF_PRINT_ONLY_COLUMNS.map((column) => (
+                    <label key={column.key} className="column-item">
+                      <input type="checkbox" name="pdfBlankCol" value={column.key} defaultChecked={pdfBlankColumnKeys.includes(column.key)} />
+                      <span>{column.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="quick-actions">
+                  <button type="submit">עדכן תצוגת PDF</button>
+                  <a className="chip-link" href={pdfExportHref}>הורד PDF</a>
+                </div>
               </form>
             </details>
           </div>
