@@ -4,7 +4,9 @@ import {
   createAiChatMessage,
   listAiChatMessagesByUser,
   listRecentAiChatMessagesByUser,
-  setAiChatMessageFeedback
+  setAiChatMessageFeedback,
+  getAiChatMessageById,
+  clearAiChatMessagePendingAction
 } from "../../../../lib/ai-chat-history";
 import { createStudentDocumentFromStoredObject } from "../../../../lib/student-documents";
 import { createNeonStudentViaTwenty, updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
@@ -625,12 +627,22 @@ export async function PUT(request) {
 
     const body = await request.json().catch(() => null);
     const decision = clean(body?.decision);
-    const pendingAction = body?.pendingAction;
+    const messageId = clean(body?.messageId);
+    const messageRecord = messageId
+      ? await getAiChatMessageById({ clerkUserId: user.clerk_user_id, messageId })
+      : null;
+    const pendingAction = messageRecord?.pendingAction || body?.pendingAction;
     if (!pendingAction || typeof pendingAction !== "object") {
       return badRequest("Missing pending action");
     }
 
     if (decision === "reject") {
+      if (messageId) {
+        await clearAiChatMessagePendingAction({
+          messageId,
+          clerkUserId: user.clerk_user_id
+        });
+      }
       const reply = "הפעולה נדחתה. לא נוצר תלמיד ולא שויך מסמך.";
       await createAiChatMessage({ clerkUserId: user.clerk_user_id, role: "assistant", content: reply });
       return NextResponse.json({ reply });

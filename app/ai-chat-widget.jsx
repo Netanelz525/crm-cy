@@ -327,6 +327,7 @@ export default function AiChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           decision,
+          messageId: message.id,
           pendingAction: message.pendingAction
         })
       });

@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
+import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
-import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 
 function clean(value) {
   return String(value || "").trim();
@@ -101,7 +100,7 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
   return chunks;
 }
 
-function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", hasMore = false, includeFeedback = true }) {
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", hasMore = false, includeFeedback = true }) {
   const inlineKeyboard = [];
 
   if (pendingAction) {
@@ -114,6 +113,16 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   const absoluteViewUrl = toAbsoluteUrl(viewUrl);
   if (absoluteViewUrl) {
     inlineKeyboard.push([{ text: "פתח תצוגה מלאה", url: absoluteViewUrl }]);
+  }
+
+  const absoluteExportUrl = toAbsoluteUrl(exportUrl);
+  if (absoluteExportUrl) {
+    inlineKeyboard.push([{ text: "הורד אקסל", url: absoluteExportUrl }]);
+  }
+
+  const absolutePdfUrl = toAbsoluteUrl(pdfUrl);
+  if (absolutePdfUrl) {
+    inlineKeyboard.push([{ text: "הורד PDF", url: absolutePdfUrl }]);
   }
 
   const cardButtons = (Array.isArray(studentCards) ? studentCards : [])
@@ -138,22 +147,6 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   }
 
   return inlineKeyboard.length ? { inline_keyboard: inlineKeyboard } : undefined;
-}
-
-async function sendInstitutionAttachments(chatId, { exportUrl = "", pdfUrl = "" } = {}) {
-  if (exportUrl) {
-    const csvFile = await buildInstitutionCsvExport(exportUrl);
-    await sendTelegramDocumentFile(chatId, csvFile, {
-      caption: "קובץ אקסל של התשובה"
-    }).catch(() => null);
-  }
-
-  if (pdfUrl) {
-    const pdfFile = await buildInstitutionPdfExport(pdfUrl);
-    await sendTelegramDocumentFile(chatId, pdfFile, {
-      caption: "קובץ PDF של התשובה"
-    }).catch(() => null);
-  }
 }
 
 export async function POST(request) {
@@ -205,6 +198,8 @@ export async function POST(request) {
           pendingAction: messageRecord?.pendingAction || null,
           studentCards: messageRecord?.studentCards || [],
           viewUrl: messageRecord?.viewUrl || "",
+          exportUrl: messageRecord?.exportUrl || "",
+          pdfUrl: messageRecord?.pdfUrl || "",
           includeFeedback: false
         });
         if (callback?.message?.message_id) {
@@ -237,6 +232,8 @@ export async function POST(request) {
                 messageId,
                 studentCards: messageRecord.studentCards,
                 viewUrl: messageRecord.viewUrl || "",
+                exportUrl: messageRecord.exportUrl || "",
+                pdfUrl: messageRecord.pdfUrl || "",
                 includeFeedback: false
               })
               : undefined
@@ -254,19 +251,29 @@ export async function POST(request) {
         return NextResponse.json({ ok: true });
       }
 
-      const result = await handleApprovedAiAction({ user, decision: action, pendingAction });
+      const result = await handleApprovedAiAction({ user, decision: action, pendingAction, messageId });
+      if (callback?.message?.message_id) {
+        await editTelegramMessageReplyMarkup({
+          chatId,
+          messageId: callback.message.message_id,
+          replyMarkup: buildTelegramKeyboard({
+            messageId,
+            pendingAction: null,
+            studentCards: [],
+            includeFeedback: false
+          })
+        }).catch(() => null);
+      }
       await answerTelegramCallbackQuery(callback.id, action === "approve" ? "הפעולה אושרה" : "הפעולה נדחתה");
       await sendTelegramMessage(chatId, result.reply, {
         replyMarkup: buildTelegramKeyboard({
           messageId,
           studentCards: result.studentCards,
           viewUrl: result.viewUrl || "",
+          exportUrl: result.exportUrl || "",
+          pdfUrl: result.pdfUrl || "",
           includeFeedback: false
         })
-      });
-      await sendInstitutionAttachments(chatId, {
-        exportUrl: result.exportUrl || "",
-        pdfUrl: result.pdfUrl || ""
       });
       return NextResponse.json({ ok: true });
     }
@@ -332,13 +339,11 @@ export async function POST(request) {
       pendingAction: result.pendingAction,
       studentCards: result.studentCards,
       viewUrl: result.viewUrl || "",
+      exportUrl: result.exportUrl || "",
+      pdfUrl: result.pdfUrl || "",
       hasMore: collapsedReply.hasMore
     });
     await sendTelegramMessage(chatId, replyText, { replyMarkup });
-    await sendInstitutionAttachments(chatId, {
-      exportUrl: result.exportUrl || "",
-      pdfUrl: result.pdfUrl || ""
-    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
