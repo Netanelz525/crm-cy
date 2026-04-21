@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
-import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
+import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
@@ -166,6 +166,14 @@ async function sendWhatsAppResult(waId, result) {
       ]
     });
   }
+}
+
+function shouldSuppressScopeOnlyReply(result) {
+  return clean(result?.reply) === clean(CRM_SCOPE_MESSAGE)
+    && !clean(result?.viewUrl)
+    && !clean(result?.exportUrl)
+    && !(Array.isArray(result?.studentCards) && result.studentCards.length)
+    && !result?.pendingAction;
 }
 
 export async function GET(request) {
@@ -423,6 +431,14 @@ export async function POST(request) {
       messageText: text,
       source: "whatsapp"
     });
+    if (shouldSuppressScopeOnlyReply(result)) {
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus: "ignored_non_crm",
+        clerkUserId: user.clerk_user_id,
+        responseText: ""
+      });
+      return NextResponse.json({ ok: true });
+    }
     await sendWhatsAppResult(waId, result);
     await updateWhatsAppInboundEvent(inboundEvent.id, {
       processingStatus: "processed_text",
