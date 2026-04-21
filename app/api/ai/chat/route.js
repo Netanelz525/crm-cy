@@ -245,9 +245,9 @@ function classifyIntent({ text = "", hasAttachment = false, hasChoiceFilters = f
   if (hasAttachment) return "document_upload";
   const raw = clean(text);
   if (!raw) return "empty";
-  if (hasChoiceFilters) return "choice_filter";
   if (/עדכן|תעדכן|לשנות|שנה|לתקן|תקן/.test(raw)) return "update_request";
-  if (/צור|תיצור|פתח תלמיד|הוסף תלמיד|חדש תלמיד/.test(raw)) return "create_request";
+  if (/צור|תיצור|ליצור|יצירת|פתח תלמיד|תפתח תלמיד|פתיחת תלמיד|לפתוח תלמיד|הוסף תלמיד|תוסיף תלמיד|חדש תלמיד|תלמיד חדש|כרטיס חדש|פתח כרטיס|תפתח כרטיס/.test(raw)) return "create_request";
+  if (hasChoiceFilters) return "choice_filter";
   if (/מסמך|קובץ|תעודה/.test(raw)) return "document_query";
   if (/כמה|לכמה|חלוקה/.test(raw)) return "count_or_summary";
   if (/תמצא|תחפש|מי זה|מי זאת|בשם|של מי/.test(raw)) return "specific_lookup";
