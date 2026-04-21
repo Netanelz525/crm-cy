@@ -130,6 +130,9 @@ function MessageCard({ message, onDecision, onFeedback, deciding }) {
       {message.exportUrl ? (
         <div className="ai-chat-export-actions">
           <a className="ai-chat-export-link" href={message.exportUrl}>הורדה לאקסל</a>
+          {message.pdfUrl ? (
+            <a className="ai-chat-export-link" href={message.pdfUrl}>הורדה ל-PDF</a>
+          ) : null}
           <button type="button" className="ai-chat-columns-btn" onClick={() => setShowColumns((value) => !value)}>
             בחירת עמודות לאקסל
           </button>
@@ -295,6 +298,7 @@ export default function AiChatWidget() {
           content: data?.reply || "לא התקבלה תשובה.",
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
           exportUrl: data?.exportUrl || "",
+          pdfUrl: data?.pdfUrl || "",
           viewUrl: data?.viewUrl || "",
           searchSummary: data?.searchSummary || "",
           documentInfo: data?.documentInfo || null,
@@ -336,6 +340,8 @@ export default function AiChatWidget() {
           role: "assistant",
           content: data?.reply || "הפעולה הושלמה.",
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
+          exportUrl: data?.exportUrl || "",
+          pdfUrl: data?.pdfUrl || "",
           viewUrl: data?.viewUrl || "",
           searchSummary: data?.searchSummary || "",
           feedback: ""
