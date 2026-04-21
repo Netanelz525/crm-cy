@@ -67,13 +67,19 @@ export async function saveNeonPreferencesAction(formData) {
   const sanitizedQueryString = sanitizeQueryString(rawQueryString);
   const nextPath = clean(formData.get("returnPath")) || "/neon";
 
-  await saveNeonPreferencesForUser({
-    ownerUserId: user.clerk_user_id,
-    queryString: sanitizedQueryString
-  });
+  try {
+    await saveNeonPreferencesForUser({
+      ownerUserId: user.clerk_user_id,
+      queryString: sanitizedQueryString
+    });
 
-  revalidatePath("/neon");
-  redirect(`${nextPath}${nextPath.includes("?") ? "&" : "?"}prefsSaved=1`);
+    revalidatePath("/neon");
+    redirect(`${nextPath}${nextPath.includes("?") ? "&" : "?"}prefsSaved=1`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "שמירת ההעדפות נכשלה");
+    redirect(`${nextPath}${nextPath.includes("?") ? "&" : "?"}prefsError=${message}`);
+  }
 }
 
 export async function resetNeonPreferencesAction() {
@@ -82,9 +88,15 @@ export async function resetNeonPreferencesAction() {
     redirect("/unauthorized");
   }
 
-  await deleteNeonPreferencesForUser(user.clerk_user_id);
-  revalidatePath("/neon");
-  redirect("/neon?prefsReset=1");
+  try {
+    await deleteNeonPreferencesForUser(user.clerk_user_id);
+    revalidatePath("/neon");
+    redirect("/neon?prefsReset=1");
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "איפוס ההעדפות נכשל");
+    redirect(`/neon?prefsError=${message}`);
+  }
 }
 
 export async function bulkUpdateNeonStudentsAction(formData) {

@@ -91,7 +91,15 @@ export default async function NeonPage({ searchParams }) {
   }
 
   const incomingQueryString = sanitizeQueryString(buildQueryString(incomingSearchParams));
-  const neonPreferences = await getNeonPreferencesForUser(currentUser.clerk_user_id);
+  let neonPreferences = null;
+  let preferencesLoadError = "";
+
+  try {
+    neonPreferences = await getNeonPreferencesForUser(currentUser.clerk_user_id);
+  } catch (error) {
+    preferencesLoadError = clean(error?.message || "טעינת ההעדפות האישיות נכשלה");
+  }
+
   const savedPreferenceQueryString = sanitizeQueryString(neonPreferences?.query_string || "");
 
   if (!incomingQueryString && savedPreferenceQueryString) {
@@ -118,6 +126,7 @@ export default async function NeonPage({ searchParams }) {
   const importError = clean(resolvedSearchParams?.importError);
   const prefsSaved = clean(resolvedSearchParams?.prefsSaved) === "1";
   const prefsReset = clean(resolvedSearchParams?.prefsReset) === "1";
+  const prefsError = clean(resolvedSearchParams?.prefsError);
   const bulkUpdated = clean(resolvedSearchParams?.bulkUpdated) === "1";
   const bulkUpdatedCount = clean(resolvedSearchParams?.updated);
   const bulkFailedCount = clean(resolvedSearchParams?.failed);
@@ -232,6 +241,8 @@ export default async function NeonPage({ searchParams }) {
       ) : null}
       {prefsSaved ? <div className="ok">העדפות ה־Neon שלך נשמרו למשתמש הנוכחי.</div> : null}
       {prefsReset ? <div className="ok">העדפות ה־Neon אופסו, והמסך חזר לברירות המחדל.</div> : null}
+      {prefsError ? <div className="card muted">{prefsError}</div> : null}
+      {preferencesLoadError ? <div className="card muted">{preferencesLoadError}</div> : null}
       {importError ? <div className="card muted">{importError}</div> : null}
       {bulkUpdated ? (
         <div className="ok">
