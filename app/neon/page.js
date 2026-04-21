@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ENUM_LABELS } from "../../lib/student-fields";
-import { getNeonPreferencesForUser } from "../../lib/neon-preferences";
+import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser } from "../../lib/rbac";
 import {
   applyAdvancedFilters,
@@ -35,6 +35,11 @@ import {
 import BulkStudentsClient from "./bulk-students-client";
 
 const NEON_SORT_LEVEL_COUNT = 3;
+const NEON_SORT_OPTIONS = SORT_OPTIONS.map((option) => (
+  option.key === "name"
+    ? { ...option, label: "שם משפחה" }
+    : option
+));
 
 function buildQueryString(params) {
   const sp = new URLSearchParams();
@@ -107,9 +112,13 @@ export default async function NeonPage({ searchParams }) {
   }
 
   const savedPreferenceQueryString = sanitizeQueryString(neonPreferences?.query_string || "");
+  const mergedSearchParams = savedPreferenceQueryString
+    ? mergeSearchParamsWithNeonPreferences(incomingSearchParams, savedPreferenceQueryString)
+    : new URLSearchParams(buildQueryString(incomingSearchParams));
+  const mergedQueryString = sanitizeQueryString(mergedSearchParams.toString());
 
-  if (!incomingQueryString && savedPreferenceQueryString) {
-    redirect(`/neon?${savedPreferenceQueryString}`);
+  if (savedPreferenceQueryString && mergedQueryString && mergedQueryString !== incomingQueryString) {
+    redirect(`/neon?${mergedQueryString}`);
   }
 
   const resolvedSearchParams = incomingSearchParams;
@@ -202,7 +211,7 @@ export default async function NeonPage({ searchParams }) {
   const showInstitutionView = mode === "institution" && (institution || hasInstitutionFilter || hasQuickFilters || advancedFilters.length);
   const sortSummary = sortLevels
     .map((level, index) => {
-      const label = SORT_OPTIONS.find((option) => option.key === level.sortBy)?.label || level.sortBy;
+      const label = NEON_SORT_OPTIONS.find((option) => option.key === level.sortBy)?.label || level.sortBy;
       return `${index + 1}. ${label} ${level.sortDir === "desc" ? "יורד" : "עולה"}`;
     })
     .join(" | ");
@@ -358,6 +367,9 @@ export default async function NeonPage({ searchParams }) {
                 {pdfBlankColumnKeys.map((key) => (
                   <input key={`sort-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
                 ))}
+                <p className="muted" style={{ margin: 0 }}>
+                  אפשר לבחור עד 3 רמות מיון. מיון לפי "שם משפחה" ממיין קודם לפי שם המשפחה של התלמיד ואז לפי השם המלא.
+                </p>
                 <div className="grid">
                   {Array.from({ length: NEON_SORT_LEVEL_COUNT }).map((_, index) => {
                     const level = sortLevelAt(sortLevels, index);
@@ -366,7 +378,7 @@ export default async function NeonPage({ searchParams }) {
                         <div style={{ marginBottom: 8, fontWeight: 700 }}>רמת מיון {index + 1}</div>
                         <select name="sby" defaultValue={level.sortBy || ""}>
                           <option value="">{index === 0 ? "בחר שדה מיון" : "ללא רמת מיון"}</option>
-                          {SORT_OPTIONS.map((option) => (
+                          {NEON_SORT_OPTIONS.map((option) => (
                             <option key={`sort-level-${index}-${option.key}`} value={option.key}>{option.label}</option>
                           ))}
                         </select>

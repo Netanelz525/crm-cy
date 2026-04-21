@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
 import { buildInstitutionCsvExport } from "../../../../lib/institution-exports";
+import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../../../lib/neon-preferences";
 
 export async function GET(request) {
   const user = await getCurrentAppUser();
@@ -9,7 +10,9 @@ export async function GET(request) {
   }
 
   const url = new URL(request.url);
-  const result = await buildInstitutionCsvExport(url.searchParams);
+  const preferences = await getNeonPreferencesForUser(user.clerk_user_id);
+  const mergedSearchParams = mergeSearchParamsWithNeonPreferences(url.searchParams, preferences?.query_string || "");
+  const result = await buildInstitutionCsvExport(mergedSearchParams);
 
   return new NextResponse(result.content, {
     status: 200,
