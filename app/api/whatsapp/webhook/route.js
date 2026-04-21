@@ -176,6 +176,8 @@ function shouldSuppressScopeOnlyReply(result) {
     && !result?.pendingAction;
 }
 
+const NON_CRM_REPLY = "ההודעה לא נראית קשורה ל-CRM. אפשר לכתוב כאן על תלמידים, מסמכים, שדות, סטטוסים ופעולות במערכת.";
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const mode = clean(searchParams.get("hub.mode"));
@@ -432,10 +434,11 @@ export async function POST(request) {
       source: "whatsapp"
     });
     if (shouldSuppressScopeOnlyReply(result)) {
+      await sendWhatsAppTextMessages(waId, NON_CRM_REPLY);
       await updateWhatsAppInboundEvent(inboundEvent.id, {
-        processingStatus: "ignored_non_crm",
+        processingStatus: "non_crm_reply",
         clerkUserId: user.clerk_user_id,
-        responseText: ""
+        responseText: NON_CRM_REPLY
       });
       return NextResponse.json({ ok: true });
     }
