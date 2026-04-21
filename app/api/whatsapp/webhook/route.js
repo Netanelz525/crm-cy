@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { processTextAiMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
   consumeWhatsAppLinkCode,
   downloadWhatsAppMediaAsAttachment,
@@ -41,12 +42,13 @@ function extractIncomingMessage(payload) {
       if (messages[0]) {
         return {
           message: messages[0],
-          contact: Array.isArray(value?.contacts) ? value.contacts[0] || null : null
+          contact: Array.isArray(value?.contacts) ? value.contacts[0] || null : null,
+          metadata: value?.metadata || {}
         };
       }
     }
   }
-  return { message: null, contact: null };
+  return { message: null, contact: null, metadata: {} };
 }
 
 function extractText(message) {
@@ -113,7 +115,7 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    const { message, contact } = extractIncomingMessage(body);
+    const { message, contact, metadata } = extractIncomingMessage(body);
     if (!message) {
       return NextResponse.json({ ok: true });
     }
@@ -122,6 +124,17 @@ export async function POST(request) {
     const profileName = clean(contact?.profile?.name);
     const text = extractText(message);
     const attachmentMeta = resolveAttachmentMeta(message);
+    const messageType = clean(message?.type) || (attachmentMeta ? "attachment" : "unknown");
+    const inboundEvent = await createWhatsAppInboundEvent({
+      messageId: clean(message?.id),
+      waId,
+      phoneNumberId: clean(metadata?.phone_number_id),
+      displayPhoneNumber: clean(metadata?.display_phone_number),
+      profileName,
+      messageType,
+      textPreview: text,
+      payload: body
+    });
     if (!waId) {
       return NextResponse.json({ ok: true });
     }
@@ -139,12 +152,21 @@ export async function POST(request) {
           waId,
           `החיבור הושלם בהצלחה. מעכשיו אני מזהה אותך כ-${user?.display_name || "משתמש מורשה"}.`
         );
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "linked",
+          clerkUserId: linkResult.clerkUserId,
+          responseText: `החיבור הושלם בהצלחה. מעכשיו אני מזהה אותך כ-${user?.display_name || "משתמש מורשה"}.`
+        });
         return NextResponse.json({ ok: true });
       } catch (error) {
         const messageText = clean(error?.message);
         const isCodeAttempt = /^[A-Z0-9]{6,12}$/i.test(text);
         if (isCodeAttempt && messageText) {
           await sendWhatsAppTextMessages(waId, messageText);
+          await updateWhatsAppInboundEvent(inboundEvent.id, {
+            processingStatus: "link_failed",
+            responseText: messageText
+          });
           return NextResponse.json({ ok: true });
         }
       }
@@ -152,16 +174,27 @@ export async function POST(request) {
 
     const link = await getWhatsAppLinkByWaId(waId);
     if (!link?.clerk_user_id) {
+      const responseText = "המספר הזה עדיין לא מחובר למערכת. היכנס ל-CRM, פתח את מסך WhatsApp, צור קוד חיבור ושלח כאן רק את הקוד.";
       await sendWhatsAppTextMessages(
         waId,
-        "המספר הזה עדיין לא מחובר למערכת. היכנס ל-CRM, פתח את מסך WhatsApp, צור קוד חיבור ושלח כאן רק את הקוד."
+        responseText
       );
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus: "unlinked",
+        responseText
+      });
       return NextResponse.json({ ok: true });
     }
 
     const user = await getAppUserByClerkUserId(link.clerk_user_id);
     if (!user || (!user.is_team_member && !user.is_manager)) {
-      await sendWhatsAppTextMessages(waId, "החשבון הזה אינו מורשה להשתמש בסוכן.");
+      const responseText = "החשבון הזה אינו מורשה להשתמש בסוכן.";
+      await sendWhatsAppTextMessages(waId, responseText);
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus: "unauthorized",
+        clerkUserId: link.clerk_user_id,
+        responseText
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -181,11 +214,22 @@ export async function POST(request) {
         .filter(Boolean)
         .join("\n\n");
       await sendWhatsAppTextMessages(waId, replyParts);
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus: "processed_document",
+        clerkUserId: user.clerk_user_id,
+        responseText: replyParts
+      });
       return NextResponse.json({ ok: true });
     }
 
     if (!text) {
-      await sendWhatsAppTextMessages(waId, "כרגע אפשר לשלוח ב-WhatsApp טקסט, תמונות ומסמכי PDF.");
+      const responseText = "כרגע אפשר לשלוח ב-WhatsApp טקסט, תמונות ומסמכי PDF.";
+      await sendWhatsAppTextMessages(waId, responseText);
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus: "unsupported_message",
+        clerkUserId: user.clerk_user_id,
+        responseText
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -199,6 +243,11 @@ export async function POST(request) {
       .filter(Boolean)
       .join("\n\n");
     await sendWhatsAppTextMessages(waId, replyParts);
+    await updateWhatsAppInboundEvent(inboundEvent.id, {
+      processingStatus: "processed_text",
+      clerkUserId: user.clerk_user_id,
+      responseText: replyParts
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("WhatsApp webhook failed:", error?.message || error);
