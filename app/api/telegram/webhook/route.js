@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
+import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 
 function clean(value) {
   return String(value || "").trim();
@@ -139,6 +140,22 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   return inlineKeyboard.length ? { inline_keyboard: inlineKeyboard } : undefined;
 }
 
+async function sendInstitutionAttachments(chatId, { exportUrl = "", pdfUrl = "" } = {}) {
+  if (exportUrl) {
+    const csvFile = await buildInstitutionCsvExport(exportUrl);
+    await sendTelegramDocumentFile(chatId, csvFile, {
+      caption: "קובץ אקסל של התשובה"
+    }).catch(() => null);
+  }
+
+  if (pdfUrl) {
+    const pdfFile = await buildInstitutionPdfExport(pdfUrl);
+    await sendTelegramDocumentFile(chatId, pdfFile, {
+      caption: "קובץ PDF של התשובה"
+    }).catch(() => null);
+  }
+}
+
 export async function POST(request) {
   try {
     const secret = getTelegramWebhookSecret();
@@ -247,6 +264,10 @@ export async function POST(request) {
           includeFeedback: false
         })
       });
+      await sendInstitutionAttachments(chatId, {
+        exportUrl: result.exportUrl || "",
+        pdfUrl: result.pdfUrl || ""
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -314,6 +335,10 @@ export async function POST(request) {
       hasMore: collapsedReply.hasMore
     });
     await sendTelegramMessage(chatId, replyText, { replyMarkup });
+    await sendInstitutionAttachments(chatId, {
+      exportUrl: result.exportUrl || "",
+      pdfUrl: result.pdfUrl || ""
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

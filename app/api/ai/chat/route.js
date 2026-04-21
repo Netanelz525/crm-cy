@@ -1049,6 +1049,7 @@ export async function POST(request) {
       reply: result?.reply || "לא הצלחתי להשלים תשובה.",
       studentCards: Array.isArray(result?.studentCards) ? result.studentCards : [],
       exportUrl: result?.exportUrl || "",
+      pdfUrl: result?.pdfUrl || "",
       viewUrl: result?.viewUrl || "",
       searchSummary: result?.searchSummary || "",
       pendingAction: result?.pendingAction || null

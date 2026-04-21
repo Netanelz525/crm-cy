@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import { parseExcelFile, importStudentsFromRowsWithMapping } from "../../lib/excel-student-import";
 import { createImportSession, deleteImportSession, getImportSession } from "../../lib/import-sessions";
 import { normalizeStudentInput } from "../../lib/student-fields";
+import { sanitizeQueryString } from "../../lib/student-view";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { syncStudentsToNeon } from "../../lib/neon-students";
+import { deleteNeonPreferencesForUser, saveNeonPreferencesForUser } from "../../lib/neon-preferences";
 
 function isRedirectError(error) {
   return Boolean(error?.digest && String(error.digest).startsWith("NEXT_REDIRECT"));
@@ -53,6 +55,48 @@ export async function prepareNeonStudentsImportAction(formData) {
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+export async function saveNeonPreferencesAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  const rawQueryString = clean(formData.get("queryString"));
+  const sanitizedQueryString = sanitizeQueryString(rawQueryString);
+  const nextPath = clean(formData.get("returnPath")) || "/neon";
+
+  try {
+    await saveNeonPreferencesForUser({
+      ownerUserId: user.clerk_user_id,
+      queryString: sanitizedQueryString
+    });
+
+    revalidatePath("/neon");
+    redirect(`${nextPath}${nextPath.includes("?") ? "&" : "?"}prefsSaved=1`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "שמירת ההעדפות נכשלה");
+    redirect(`${nextPath}${nextPath.includes("?") ? "&" : "?"}prefsError=${message}`);
+  }
+}
+
+export async function resetNeonPreferencesAction() {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  try {
+    await deleteNeonPreferencesForUser(user.clerk_user_id);
+    revalidatePath("/neon");
+    redirect("/neon?prefsReset=1");
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "איפוס ההעדפות נכשל");
+    redirect(`/neon?prefsError=${message}`);
+  }
 }
 
 export async function bulkUpdateNeonStudentsAction(formData) {
