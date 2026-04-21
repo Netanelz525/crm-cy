@@ -13,6 +13,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",
     "@clerk/nextjs": "^6.19.3",
+    "@hebcal/core": "^6.3.2",
     "@neondatabase/serverless": "^0.10.4",
     "@pdf-lib/fontkit": "^1.1.1",
     "@sparticuz/chromium": "^143.0.4",
