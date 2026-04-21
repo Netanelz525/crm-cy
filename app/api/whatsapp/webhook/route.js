@@ -104,13 +104,36 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  let inboundEventId = "";
   try {
     const rawBody = await request.text();
-    if (!isWebhookSignatureValid(rawBody, request.headers.get("x-hub-signature-256"))) {
+    const signatureHeader = request.headers.get("x-hub-signature-256");
+    const parsedBody = rawBody ? JSON.parse(rawBody) : null;
+
+    if (!isWebhookSignatureValid(rawBody, signatureHeader)) {
+      const { message, contact, metadata } = extractIncomingMessage(parsedBody || {});
+      const waId = clean(message?.from || contact?.wa_id);
+      const profileName = clean(contact?.profile?.name);
+      const text = extractText(message);
+      const attachmentMeta = resolveAttachmentMeta(message);
+      await createWhatsAppInboundEvent({
+        messageId: clean(message?.id),
+        waId,
+        phoneNumberId: clean(metadata?.phone_number_id),
+        displayPhoneNumber: clean(metadata?.display_phone_number),
+        profileName,
+        messageType: clean(message?.type) || (attachmentMeta ? "attachment" : "unknown"),
+        textPreview: text,
+        payload: {
+          signatureHeader: clean(signatureHeader),
+          body: parsedBody || {}
+        },
+        processingStatus: "forbidden_signature"
+      });
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = rawBody ? JSON.parse(rawBody) : null;
+    const body = parsedBody;
     if (!body || typeof body !== "object") {
       return NextResponse.json({ ok: true });
     }
@@ -135,6 +158,7 @@ export async function POST(request) {
       textPreview: text,
       payload: body
     });
+    inboundEventId = inboundEvent.id;
     if (!waId) {
       return NextResponse.json({ ok: true });
     }
@@ -251,6 +275,12 @@ export async function POST(request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("WhatsApp webhook failed:", error?.message || error);
+    if (inboundEventId) {
+      await updateWhatsAppInboundEvent(inboundEventId, {
+        processingStatus: "failed",
+        responseText: clean(error?.message || error)
+      }).catch(() => null);
+    }
     return NextResponse.json({ ok: true });
   }
 }
