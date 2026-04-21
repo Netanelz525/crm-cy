@@ -116,6 +116,11 @@ export async function GET(request) {
   students = sortStudents(students, sortLevels);
 
   const columns = [
+    {
+      key: "rowNumber",
+      label: "#",
+      kind: "rowNumber"
+    },
     ...selectedCols.map((columnKey) => ({
       key: columnKey,
       label: INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey,
@@ -124,8 +129,9 @@ export async function GET(request) {
     ...pdfBlankColumnKeys.map((columnKey) => PDF_PRINT_ONLY_COLUMN_MAP[columnKey]).filter(Boolean)
   ];
 
-  const rows = students.map((student) => {
+  const rows = students.map((student, index) => {
     const row = {};
+    row.rowNumber = String(index + 1);
     selectedCols.forEach((columnKey) => {
       row[columnKey] = columnText(student, columnKey);
     });

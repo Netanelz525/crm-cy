@@ -34,6 +34,8 @@ import {
 } from "./actions";
 import BulkStudentsClient from "./bulk-students-client";
 
+const NEON_SORT_LEVEL_COUNT = 3;
+
 function buildQueryString(params) {
   const sp = new URLSearchParams();
   for (const [key, value] of Object.entries(params || {})) {
@@ -77,6 +79,10 @@ function getNeonInstitutionSortLevels(searchParams) {
     ];
   }
   return parseSortLevels(searchParams);
+}
+
+function sortLevelAt(sortLevels, index) {
+  return sortLevels[index] || { sortBy: "", sortDir: "asc" };
 }
 
 export default async function NeonPage({ searchParams }) {
@@ -353,24 +359,24 @@ export default async function NeonPage({ searchParams }) {
                   <input key={`sort-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
                 ))}
                 <div className="grid">
-                  <select name="sby" defaultValue={sortLevels[0]?.sortBy || "class"}>
-                    {SORT_OPTIONS.map((option) => (
-                      <option key={`sort-primary-${option.key}`} value={option.key}>{option.label}</option>
-                    ))}
-                  </select>
-                  <select name="sdir" defaultValue={sortLevels[0]?.sortDir || "asc"}>
-                    <option value="asc">מהקטן לגדול</option>
-                    <option value="desc">מהגדול לקטן</option>
-                  </select>
-                  <select name="sby" defaultValue={sortLevels[1]?.sortBy || "name"}>
-                    {SORT_OPTIONS.map((option) => (
-                      <option key={`sort-secondary-${option.key}`} value={option.key}>{option.label}</option>
-                    ))}
-                  </select>
-                  <select name="sdir" defaultValue={sortLevels[1]?.sortDir || "asc"}>
-                    <option value="asc">מהקטן לגדול</option>
-                    <option value="desc">מהגדול לקטן</option>
-                  </select>
+                  {Array.from({ length: NEON_SORT_LEVEL_COUNT }).map((_, index) => {
+                    const level = sortLevelAt(sortLevels, index);
+                    return (
+                      <div key={`sort-level-${index}`} className="card" style={{ padding: 12 }}>
+                        <div style={{ marginBottom: 8, fontWeight: 700 }}>רמת מיון {index + 1}</div>
+                        <select name="sby" defaultValue={level.sortBy || ""}>
+                          <option value="">{index === 0 ? "בחר שדה מיון" : "ללא רמת מיון"}</option>
+                          {SORT_OPTIONS.map((option) => (
+                            <option key={`sort-level-${index}-${option.key}`} value={option.key}>{option.label}</option>
+                          ))}
+                        </select>
+                        <select name="sdir" defaultValue={level.sortDir || "asc"}>
+                          <option value="asc">מהקטן לגדול</option>
+                          <option value="desc">מהגדול לקטן</option>
+                        </select>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="quick-actions">
                   <button type="submit">עדכן מיון</button>
