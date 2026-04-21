@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { processTextAiMessage } from "../../../../lib/ai-text-agent";
+import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
+import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
@@ -9,6 +10,7 @@ import {
   downloadWhatsAppMediaAsAttachment,
   getWhatsAppLinkByWaId,
   getWhatsAppWebhookAppSecret,
+  sendWhatsAppReplyButtons,
   sendWhatsAppTextMessages
 } from "../../../../lib/whatsapp";
 
@@ -65,6 +67,14 @@ function extractText(message) {
   return "";
 }
 
+function extractInteractiveActionId(message) {
+  if (message?.type !== "interactive") return "";
+  return clean(
+    message?.interactive?.button_reply?.id
+    || message?.interactive?.list_reply?.id
+  );
+}
+
 function resolveAttachmentMeta(message) {
   if (message?.type === "document" && message?.document?.id) {
     return {
@@ -84,6 +94,78 @@ function resolveAttachmentMeta(message) {
   }
 
   return null;
+}
+
+function resolveBaseUrl() {
+  const explicit = process.env.CRM_BASE_URL || process.env.APP_BASE_URL;
+  if (explicit) return clean(explicit).replace(/\/$/, "");
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (!vercelUrl) return "";
+  return `https://${clean(vercelUrl).replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+}
+
+function toAbsoluteUrl(path) {
+  const baseUrl = resolveBaseUrl();
+  const relativePath = clean(path);
+  if (!baseUrl || !relativePath) return "";
+  if (/^https?:\/\//i.test(relativePath)) return relativePath;
+  return `${baseUrl}${relativePath.startsWith("/") ? relativePath : `/${relativePath}`}`;
+}
+
+function buildReplyText(result) {
+  const parts = [clean(result?.reply)];
+
+  const absoluteViewUrl = toAbsoluteUrl(result?.viewUrl);
+  const absoluteExportUrl = toAbsoluteUrl(result?.exportUrl);
+  if (absoluteViewUrl) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
+  if (absoluteExportUrl) parts.push(`אקסל:\n${absoluteExportUrl}`);
+
+  const cardLinks = (Array.isArray(result?.studentCards) ? result.studentCards : [])
+    .slice(0, 3)
+    .map((student) => {
+      const url = toAbsoluteUrl(student?.studentCardUrl);
+      if (!url) return "";
+      return `${clean(student?.name) || "תלמיד"}:\n${url}`;
+    })
+    .filter(Boolean);
+
+  if (cardLinks.length) {
+    parts.push(`כרטיסי תלמיד:\n${cardLinks.join("\n\n")}`);
+  }
+
+  if (clean(result?.searchSummary)) {
+    parts.push(`איך חיפשתי: ${clean(result.searchSummary)}`);
+  }
+
+  return parts.filter(Boolean).join("\n\n");
+}
+
+async function sendWhatsAppResult(waId, result) {
+  const replyText = buildReplyText(result);
+  if (replyText) {
+    await sendWhatsAppTextMessages(waId, replyText);
+  }
+
+  if (result?.pendingAction?.id && result?.id) {
+    await sendWhatsAppReplyButtons(waId, {
+      bodyText: "לא בוצע שינוי עדיין. אפשר לאשר או לדחות כאן.",
+      buttons: [
+        { id: `approve:${result.id}`, title: "אשר" },
+        { id: `reject:${result.id}`, title: "דחה" }
+      ]
+    });
+    return;
+  }
+
+  if (result?.id) {
+    await sendWhatsAppReplyButtons(waId, {
+      bodyText: "האם התשובה עזרה?",
+      buttons: [
+        { id: `feedback:good:${result.id}`, title: "עזר" },
+        { id: `feedback:bad:${result.id}`, title: "לא מדויק" }
+      ]
+    });
+  }
 }
 
 export async function GET(request) {
@@ -146,6 +228,7 @@ export async function POST(request) {
     const waId = clean(message?.from || contact?.wa_id);
     const profileName = clean(contact?.profile?.name);
     const text = extractText(message);
+    const interactiveActionId = extractInteractiveActionId(message);
     const attachmentMeta = resolveAttachmentMeta(message);
     const messageType = clean(message?.type) || (attachmentMeta ? "attachment" : "unknown");
     const inboundEvent = await createWhatsAppInboundEvent({
@@ -161,6 +244,88 @@ export async function POST(request) {
     inboundEventId = inboundEvent.id;
     if (!waId) {
       return NextResponse.json({ ok: true });
+    }
+
+    if (interactiveActionId) {
+      const link = await getWhatsAppLinkByWaId(waId);
+      if (!link?.clerk_user_id) {
+        const responseText = "המספר הזה עדיין לא מחובר למערכת. היכנס ל-CRM, פתח את מסך WhatsApp, צור קוד חיבור ושלח כאן רק את הקוד.";
+        await sendWhatsAppTextMessages(waId, responseText);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "unlinked",
+          responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      const user = await getAppUserByClerkUserId(link.clerk_user_id);
+      if (!user || (!user.is_team_member && !user.is_manager)) {
+        const responseText = "החשבון הזה אינו מורשה להשתמש בסוכן.";
+        await sendWhatsAppTextMessages(waId, responseText);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "unauthorized",
+          clerkUserId: link.clerk_user_id,
+          responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("feedback:")) {
+        const [, feedback, messageId] = interactiveActionId.split(":");
+        await setAiChatMessageFeedback({
+          messageId,
+          clerkUserId: user.clerk_user_id,
+          feedback
+        });
+        const responseText = feedback === "good"
+          ? "תודה, שמרתי שהתשובה עזרה."
+          : "תודה, שמרתי שהתשובה לא היתה מדויקת.";
+        await sendWhatsAppTextMessages(waId, responseText);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "feedback_saved",
+          clerkUserId: user.clerk_user_id,
+          responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("approve:") || interactiveActionId.startsWith("reject:")) {
+        const [decision, messageId] = interactiveActionId.split(":");
+        const pendingAction = await getPendingActionForMessage({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!pendingAction) {
+          const responseText = "לא נמצאה פעולה ממתינה.";
+          await sendWhatsAppTextMessages(waId, responseText);
+          await updateWhatsAppInboundEvent(inboundEvent.id, {
+            processingStatus: "missing_pending_action",
+            clerkUserId: user.clerk_user_id,
+            responseText
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        const result = await handleApprovedAiAction({ user, decision, pendingAction });
+        const assistantMessage = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        await sendWhatsAppResult(waId, {
+          id: messageId,
+          reply: result.reply,
+          studentCards: result.studentCards || [],
+          searchSummary: result.searchSummary || "",
+          viewUrl: assistantMessage?.viewUrl || "",
+          exportUrl: assistantMessage?.exportUrl || ""
+        });
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: decision === "approve" ? "approved_action" : "rejected_action",
+          clerkUserId: user.clerk_user_id,
+          responseText: result.reply
+        });
+        return NextResponse.json({ ok: true });
+      }
     }
 
     if (text && !attachmentMeta) {
@@ -233,15 +398,11 @@ export async function POST(request) {
         messageText: text,
         source: "whatsapp"
       });
-
-      const replyParts = [result.reply, result.searchSummary ? `איך חיפשתי: ${result.searchSummary}` : ""]
-        .filter(Boolean)
-        .join("\n\n");
-      await sendWhatsAppTextMessages(waId, replyParts);
+      await sendWhatsAppResult(waId, result);
       await updateWhatsAppInboundEvent(inboundEvent.id, {
         processingStatus: "processed_document",
         clerkUserId: user.clerk_user_id,
-        responseText: replyParts
+        responseText: buildReplyText(result)
       });
       return NextResponse.json({ ok: true });
     }
@@ -262,15 +423,11 @@ export async function POST(request) {
       messageText: text,
       source: "whatsapp"
     });
-
-    const replyParts = [result.reply, result.searchSummary ? `איך חיפשתי: ${result.searchSummary}` : ""]
-      .filter(Boolean)
-      .join("\n\n");
-    await sendWhatsAppTextMessages(waId, replyParts);
+    await sendWhatsAppResult(waId, result);
     await updateWhatsAppInboundEvent(inboundEvent.id, {
       processingStatus: "processed_text",
       clerkUserId: user.clerk_user_id,
-      responseText: replyParts
+      responseText: buildReplyText(result)
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
