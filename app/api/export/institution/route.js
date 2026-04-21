@@ -1,37 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
-import {
-  buildMissingState,
-  columnText,
-  DEFAULT_INSTITUTION_COLUMN_KEYS,
-  INSTITUTIONS,
-  INSTITUTION_COLUMN_MAP,
-  matchesMissingFilter,
-  parseAdvancedFilters,
-  parseSortLevels,
-  sortStudents,
-  applyAdvancedFilters,
-  clean
-} from "../../../../lib/student-view";
-import { getStudentsByInstitution, listAllStudents } from "../../../../lib/twenty";
-import { listNeonStudentsByFilters } from "../../../../lib/neon-students";
-
-function findInstitutionCode(value) {
-  const normalized = clean(value).toLowerCase();
-  if (!normalized) return "";
-  for (const [code, label] of Object.entries(INSTITUTIONS || {})) {
-    if (clean(code).toLowerCase() === normalized || clean(label).toLowerCase() === normalized) return code;
-  }
-  return "";
-}
-
-function csvEscape(value) {
-  const text = String(value ?? "");
-  if (text.includes('"') || text.includes(",") || text.includes("\n")) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
+import { buildInstitutionCsvExport } from "../../../../lib/institution-exports";
 
 export async function GET(request) {
   const user = await getCurrentAppUser();
@@ -40,103 +9,13 @@ export async function GET(request) {
   }
 
   const url = new URL(request.url);
-  const source = clean(url.searchParams.get("source")).toLowerCase();
-  const institution = clean(url.searchParams.get("institution"));
-  const institutionSearch = clean(url.searchParams.get("institutionSearch"));
-  const missingOnly = clean(url.searchParams.get("missingOnly")) === "1";
-  const missingTypeParam = clean(url.searchParams.get("missingType")).toLowerCase();
-  const missingType = ["contact", "identity"].includes(missingTypeParam)
-    ? missingTypeParam
-    : (missingOnly ? "contact" : "");
-  const quickClass = clean(url.searchParams.get("quickClass")).toUpperCase();
-  const quickRegistration = clean(url.searchParams.get("quickRegistration")).toUpperCase();
-  const quickFamilyStatus = clean(url.searchParams.get("quickFamilyStatus")).toUpperCase();
-  const sortLevels = parseSortLevels({
-    sby: url.searchParams.getAll("sby"),
-    sdir: url.searchParams.getAll("sdir"),
-    sortBy: url.searchParams.get("sortBy"),
-    sortDir: url.searchParams.get("sortDir")
-  });
-  const filters = parseAdvancedFilters({
-    ff: url.searchParams.getAll("ff"),
-    fo: url.searchParams.getAll("fo"),
-    fv: url.searchParams.getAll("fv"),
-    fj: url.searchParams.getAll("fj"),
-    fg: url.searchParams.getAll("fg"),
-    gj: url.searchParams.getAll("gj")
-  });
+  const result = await buildInstitutionCsvExport(url.searchParams);
 
-
-
-  const requestedCols = url.searchParams.getAll("cols").map(clean).filter(Boolean);
-  const selectedCols = (requestedCols.length ? requestedCols : DEFAULT_INSTITUTION_COLUMN_KEYS).filter((k) => INSTITUTION_COLUMN_MAP[k]);
-
-  const scopedInstitutionCode = institution || findInstitutionCode(
-    filters.find((filter) => clean(filter.field) === "institution" && filter.operator === "equals")?.value
-  );
-
-  let students;
-  if (source === "neon") {
-    students = await listNeonStudentsByFilters({
-      institution: scopedInstitutionCode,
-      institutionSearch,
-      class: quickClass,
-      registration: quickRegistration,
-      famliystatus: quickFamilyStatus
-    });
-  } else {
-    students = scopedInstitutionCode ? await getStudentsByInstitution(scopedInstitutionCode) : await listAllStudents();
-    if (institutionSearch) {
-      const s = institutionSearch.toLowerCase();
-      students = students.filter((x) => clean(x.label).toLowerCase().includes(s));
-    }
-  }
-
-  students = students.map((student) => {
-    const missingState = buildMissingState(student);
-    return { ...student, missingItems: missingState.items, missingFlags: missingState.flags };
-  });
-
-  if (missingType) {
-    students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
-  }
-
-  if (source !== "neon") {
-    if (quickClass) {
-      students = students.filter((student) => clean(student?.class).toUpperCase() === quickClass);
-    }
-
-    if (quickRegistration) {
-      students = students.filter((student) => clean(student?.registration).toUpperCase() === quickRegistration);
-    }
-
-    if (quickFamilyStatus) {
-      students = students.filter((student) => clean(student?.famliystatus).toUpperCase() === quickFamilyStatus);
-    }
-  }
-
-  students = applyAdvancedFilters(students, filters);
-  students = sortStudents(students, sortLevels);
-
-  const header = selectedCols.map((columnKey) => INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey);
-  const rows = students.map((student) => selectedCols.map((columnKey) => columnText(student, columnKey)));
-
-  const csv = [
-    header.map(csvEscape).join(","),
-    ...rows.map((row) => row.map(csvEscape).join(","))
-  ].join("\n");
-
-  const bom = "\uFEFF";
-  const filenameScope = scopedInstitutionCode || "filtered";
-  const filenamePrefix = source === "neon" ? "students-neon" : "students";
-  const filename = `${filenamePrefix}-${filenameScope}-${new Date().toISOString().slice(0, 10)}.csv`;
-
-  return new NextResponse(bom + csv, {
+  return new NextResponse(result.content, {
     status: 200,
     headers: {
-      "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="${filename}"`
+      "content-type": result.contentType,
+      "content-disposition": `attachment; filename="${result.filename}"`
     }
   });
 }
-

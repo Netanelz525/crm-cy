@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocument, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
+import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 
 function clean(value) {
   return String(value || "").trim();
@@ -140,17 +141,16 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
 }
 
 async function sendInstitutionAttachments(chatId, { exportUrl = "", pdfUrl = "" } = {}) {
-  const absoluteExportUrl = toAbsoluteUrl(exportUrl);
-  const absolutePdfUrl = toAbsoluteUrl(pdfUrl);
-
-  if (absoluteExportUrl) {
-    await sendTelegramDocument(chatId, absoluteExportUrl, {
+  if (exportUrl) {
+    const csvFile = await buildInstitutionCsvExport(exportUrl);
+    await sendTelegramDocumentFile(chatId, csvFile, {
       caption: "קובץ אקסל של התשובה"
     }).catch(() => null);
   }
 
-  if (absolutePdfUrl) {
-    await sendTelegramDocument(chatId, absolutePdfUrl, {
+  if (pdfUrl) {
+    const pdfFile = await buildInstitutionPdfExport(pdfUrl);
+    await sendTelegramDocumentFile(chatId, pdfFile, {
       caption: "קובץ PDF של התשובה"
     }).catch(() => null);
   }
