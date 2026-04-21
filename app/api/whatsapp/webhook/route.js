@@ -2,8 +2,10 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { processTextAiMessage } from "../../../../lib/ai-text-agent";
+import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import {
   consumeWhatsAppLinkCode,
+  downloadWhatsAppMediaAsAttachment,
   getWhatsAppLinkByWaId,
   getWhatsAppWebhookAppSecret,
   sendWhatsAppTextMessages
@@ -61,6 +63,27 @@ function extractText(message) {
   return "";
 }
 
+function resolveAttachmentMeta(message) {
+  if (message?.type === "document" && message?.document?.id) {
+    return {
+      mediaId: clean(message.document.id),
+      fileName: clean(message.document.filename) || "whatsapp-document",
+      contentType: clean(message.document.mime_type) || "application/octet-stream"
+    };
+  }
+
+  if (message?.type === "image" && message?.image?.id) {
+    const contentType = clean(message.image.mime_type) || "image/jpeg";
+    return {
+      mediaId: clean(message.image.id),
+      fileName: `${clean(message.image.id) || "whatsapp-image"}.${contentType === "image/png" ? "png" : "jpg"}`,
+      contentType
+    };
+  }
+
+  return null;
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const mode = clean(searchParams.get("hub.mode"));
@@ -98,11 +121,12 @@ export async function POST(request) {
     const waId = clean(message?.from || contact?.wa_id);
     const profileName = clean(contact?.profile?.name);
     const text = extractText(message);
+    const attachmentMeta = resolveAttachmentMeta(message);
     if (!waId) {
       return NextResponse.json({ ok: true });
     }
 
-    if (text) {
+    if (text && !attachmentMeta) {
       try {
         const linkResult = await consumeWhatsAppLinkCode({
           code: text,
@@ -141,8 +165,27 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
+    if (attachmentMeta) {
+      const attachment = await downloadWhatsAppMediaAsAttachment(attachmentMeta.mediaId, {
+        fileName: attachmentMeta.fileName,
+        contentType: attachmentMeta.contentType
+      });
+      const result = await processDocumentAttachment({
+        user,
+        attachment,
+        messageText: text,
+        source: "whatsapp"
+      });
+
+      const replyParts = [result.reply, result.searchSummary ? `איך חיפשתי: ${result.searchSummary}` : ""]
+        .filter(Boolean)
+        .join("\n\n");
+      await sendWhatsAppTextMessages(waId, replyParts);
+      return NextResponse.json({ ok: true });
+    }
+
     if (!text) {
-      await sendWhatsAppTextMessages(waId, "כרגע אפשר לשלוח ב-WhatsApp הודעות טקסט בלבד.");
+      await sendWhatsAppTextMessages(waId, "כרגע אפשר לשלוח ב-WhatsApp טקסט, תמונות ומסמכי PDF.");
       return NextResponse.json({ ok: true });
     }
 
