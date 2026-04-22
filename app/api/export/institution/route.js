@@ -18,7 +18,7 @@ export async function GET(request) {
     status: 200,
     headers: {
       "content-type": result.contentType,
-      "content-disposition": `attachment; filename="${result.filename}"`
+      "content-disposition": `attachment; filename="${result.filename}"; filename*=UTF-8''${encodeURIComponent(result.filename)}`
     }
   });
 }

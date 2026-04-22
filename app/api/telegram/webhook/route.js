@@ -5,7 +5,7 @@ import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessag
 import { getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
-import { INSTITUTION_COLUMN_MAP } from "../../../../lib/student-view";
+import { INSTITUTION_COLUMN_MAP, INSTITUTION_COLUMNS_FULL } from "../../../../lib/student-view";
 
 function clean(value) {
   return String(value || "").trim();
@@ -103,20 +103,9 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
 }
 
 const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
-const TELEGRAM_EXPORT_COLUMN_OPTIONS = [
-  "field:dateofbirth",
-  "class",
-  "age",
-  "studentPhone",
-  "dadPhone",
-  "momPhone",
-  "studentEmail",
-  "fatherEmail",
-  "motherEmail",
-  "institution",
-  "registration",
-  "missing"
-].filter((key) => INSTITUTION_COLUMN_MAP[key]);
+const TELEGRAM_EXPORT_COLUMN_OPTIONS = INSTITUTION_COLUMNS_FULL
+  .map((column) => column.key)
+  .filter((key) => INSTITUTION_COLUMN_MAP[key] && !REQUIRED_EXPORT_COLUMNS.includes(key));
 
 function withRequiredColumns(columns = []) {
   const seen = new Set();
