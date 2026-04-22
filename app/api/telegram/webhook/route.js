@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
+import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
-import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
+import { getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
+import { INSTITUTION_COLUMN_MAP } from "../../../../lib/student-view";
 
 function clean(value) {
   return String(value || "").trim();
@@ -100,7 +102,45 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
   return chunks;
 }
 
-function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", hasMore = false, includeFeedback = true }) {
+const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const TELEGRAM_EXPORT_COLUMN_OPTIONS = [
+  "field:dateofbirth",
+  "class",
+  "age",
+  "studentPhone",
+  "dadPhone",
+  "momPhone",
+  "studentEmail",
+  "fatherEmail",
+  "motherEmail",
+  "institution",
+  "registration",
+  "missing"
+].filter((key) => INSTITUTION_COLUMN_MAP[key]);
+
+function withRequiredColumns(columns = []) {
+  const seen = new Set();
+  const ordered = [];
+  [...REQUIRED_EXPORT_COLUMNS, ...columns].forEach((column) => {
+    const key = clean(column);
+    if (!key || !INSTITUTION_COLUMN_MAP[key] || seen.has(key)) return;
+    seen.add(key);
+    ordered.push(key);
+  });
+  return ordered;
+}
+
+function buildExportUrlWithColumns(url, columns = []) {
+  const raw = clean(url);
+  if (!raw) return "";
+  const parsed = new URL(raw, "https://internal.local");
+  parsed.searchParams.delete("cols");
+  withRequiredColumns(columns).forEach((column) => parsed.searchParams.append("cols", column));
+  const query = parsed.searchParams.toString();
+  return `${parsed.pathname}${query ? `?${query}` : ""}`;
+}
+
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", exportColumns = [], hasMore = false, includeFeedback = true }) {
   const inlineKeyboard = [];
 
   if (pendingAction) {
@@ -115,14 +155,12 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
     inlineKeyboard.push([{ text: "פתח תצוגה מלאה", url: absoluteViewUrl }]);
   }
 
-  const absoluteExportUrl = toAbsoluteUrl(exportUrl);
-  if (absoluteExportUrl) {
-    inlineKeyboard.push([{ text: "הורד אקסל", url: absoluteExportUrl }]);
-  }
-
-  const absolutePdfUrl = toAbsoluteUrl(pdfUrl);
-  if (absolutePdfUrl) {
-    inlineKeyboard.push([{ text: "הורד PDF", url: absolutePdfUrl }]);
+  if (exportUrl || pdfUrl) {
+    inlineKeyboard.push([
+      { text: "אקסל", callback_data: `xlsx:${messageId}` },
+      { text: "PDF", callback_data: `pdf:${messageId}` }
+    ]);
+    inlineKeyboard.push([{ text: "עמודות", callback_data: `cols:${messageId}` }]);
   }
 
   const cardButtons = (Array.isArray(studentCards) ? studentCards : [])
@@ -147,6 +185,67 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   }
 
   return inlineKeyboard.length ? { inline_keyboard: inlineKeyboard } : undefined;
+}
+
+function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], viewUrl = "", includeFeedback = false }) {
+  const inlineKeyboard = [];
+  const selected = new Set(withRequiredColumns(exportColumns));
+
+  inlineKeyboard.push([
+    { text: "שם תלמיד", callback_data: `noop:${messageId}` },
+    { text: 'ת"ז', callback_data: `noop:${messageId}` }
+  ]);
+
+  for (let index = 0; index < TELEGRAM_EXPORT_COLUMN_OPTIONS.length; index += 2) {
+    const row = TELEGRAM_EXPORT_COLUMN_OPTIONS.slice(index, index + 2).map((columnKey, offset) => {
+      const optionIndex = index + offset;
+      const label = INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey;
+      const mark = selected.has(columnKey) ? "✅" : "⬜";
+      return {
+        text: `${mark} ${label}`,
+        callback_data: `col:${optionIndex}:${messageId}`
+      };
+    });
+    inlineKeyboard.push(row);
+  }
+
+  inlineKeyboard.push([
+    { text: "שלח אקסל", callback_data: `xlsx:${messageId}` },
+    { text: "שלח PDF", callback_data: `pdf:${messageId}` }
+  ]);
+
+  const absoluteViewUrl = toAbsoluteUrl(viewUrl);
+  if (absoluteViewUrl) {
+    inlineKeyboard.push([{ text: "פתח תצוגה מלאה", url: absoluteViewUrl }]);
+  }
+
+  inlineKeyboard.push([{ text: "סגור בחירת עמודות", callback_data: `done:${messageId}` }]);
+
+  if (includeFeedback && messageId) {
+    inlineKeyboard.push([
+      { text: "⚫ תשובה טובה", callback_data: `feedback:good:${messageId}` },
+      { text: "🔴 לא מדויק", callback_data: `feedback:bad:${messageId}` }
+    ]);
+  }
+
+  return { inline_keyboard: inlineKeyboard };
+}
+
+async function sendInstitutionAttachment(chatId, type, messageRecord) {
+  const columns = withRequiredColumns(messageRecord?.exportColumns || []);
+  if (type === "xlsx" && messageRecord?.exportUrl) {
+    const csvFile = await buildInstitutionCsvExport(buildExportUrlWithColumns(messageRecord.exportUrl, columns));
+    await sendTelegramDocumentFile(chatId, csvFile, {
+      caption: `קובץ אקסל מוכן. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
+    });
+    return;
+  }
+  if (type === "pdf" && messageRecord?.pdfUrl) {
+    const pdfFile = await buildInstitutionPdfExport(buildExportUrlWithColumns(messageRecord.pdfUrl, columns));
+    await sendTelegramDocumentFile(chatId, pdfFile, {
+      caption: `קובץ PDF מוכן. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
+    });
+  }
 }
 
 export async function POST(request) {
@@ -181,6 +280,11 @@ export async function POST(request) {
       const action = parts[0];
       const messageId = parts[1];
 
+      if (action === "noop") {
+        await answerTelegramCallbackQuery(callback.id, "שם תלמיד ותעודת זהות נשארים תמיד.");
+        return NextResponse.json({ ok: true });
+      }
+
       if (action === "feedback") {
         const feedback = parts[1];
         const feedbackMessageId = parts[2];
@@ -200,6 +304,7 @@ export async function POST(request) {
           viewUrl: messageRecord?.viewUrl || "",
           exportUrl: messageRecord?.exportUrl || "",
           pdfUrl: messageRecord?.pdfUrl || "",
+          exportColumns: messageRecord?.exportColumns || [],
           includeFeedback: false
         });
         if (callback?.message?.message_id) {
@@ -210,6 +315,122 @@ export async function POST(request) {
           }).catch(() => null);
         }
         await answerTelegramCallbackQuery(callback.id, feedback === "good" ? "תודה, שמרתי שהתגובה היתה טובה." : "תודה, שמרתי שהתגובה לא היתה מדויקת.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "xlsx" || action === "pdf") {
+        const exportMessageId = parts[1];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (!messageRecord || (action === "xlsx" && !messageRecord.exportUrl) || (action === "pdf" && !messageRecord.pdfUrl)) {
+          await answerTelegramCallbackQuery(callback.id, "אין קובץ זמין לתשובה הזו.");
+          return NextResponse.json({ ok: true });
+        }
+
+        await answerTelegramCallbackQuery(callback.id, action === "xlsx" ? "מכין אקסל" : "מכין PDF");
+        await sendInstitutionAttachment(chatId, action, messageRecord);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "cols") {
+        const exportMessageId = parts[1];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (!messageRecord?.exportUrl) {
+          await answerTelegramCallbackQuery(callback.id, "אין עמודות לבחירה בתשובה הזו.");
+          return NextResponse.json({ ok: true });
+        }
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramColumnsKeyboard({
+              messageId: exportMessageId,
+              exportColumns: messageRecord.exportColumns || [],
+              viewUrl: messageRecord.viewUrl || "",
+              includeFeedback: !messageRecord.feedback
+            })
+          }).catch(() => null);
+        }
+        await answerTelegramCallbackQuery(callback.id, "אפשר לבחור אילו עמודות ייכללו בקובץ.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "col") {
+        const optionIndex = Number(parts[1]);
+        const exportMessageId = parts[2];
+        const columnKey = TELEGRAM_EXPORT_COLUMN_OPTIONS[optionIndex];
+        if (!columnKey) {
+          await answerTelegramCallbackQuery(callback.id, "השדה לא זמין.");
+          return NextResponse.json({ ok: true });
+        }
+
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (!messageRecord?.exportUrl) {
+          await answerTelegramCallbackQuery(callback.id, "אין עמודות לבחירה בתשובה הזו.");
+          return NextResponse.json({ ok: true });
+        }
+
+        const selected = new Set(withRequiredColumns(messageRecord.exportColumns || []));
+        if (selected.has(columnKey)) {
+          selected.delete(columnKey);
+        } else {
+          selected.add(columnKey);
+        }
+        const nextColumns = withRequiredColumns(Array.from(selected));
+        await setAiChatMessageExportColumns({
+          messageId: exportMessageId,
+          clerkUserId: user.clerk_user_id,
+          exportColumns: nextColumns
+        });
+
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramColumnsKeyboard({
+              messageId: exportMessageId,
+              exportColumns: nextColumns,
+              viewUrl: messageRecord.viewUrl || "",
+              includeFeedback: !messageRecord.feedback
+            })
+          }).catch(() => null);
+        }
+
+        await answerTelegramCallbackQuery(callback.id, `${INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey} ${selected.has(columnKey) ? "נוסף" : "הוסר"}.`);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "done") {
+        const exportMessageId = parts[1];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramKeyboard({
+              messageId: exportMessageId,
+              pendingAction: messageRecord?.pendingAction || null,
+              studentCards: messageRecord?.studentCards || [],
+              viewUrl: messageRecord?.viewUrl || "",
+              exportUrl: messageRecord?.exportUrl || "",
+              pdfUrl: messageRecord?.pdfUrl || "",
+              exportColumns: messageRecord?.exportColumns || [],
+              includeFeedback: !messageRecord?.feedback
+            })
+          }).catch(() => null);
+        }
+        await answerTelegramCallbackQuery(callback.id, "בחירת העמודות נשמרה.");
         return NextResponse.json({ ok: true });
       }
 
@@ -234,6 +455,7 @@ export async function POST(request) {
                 viewUrl: messageRecord.viewUrl || "",
                 exportUrl: messageRecord.exportUrl || "",
                 pdfUrl: messageRecord.pdfUrl || "",
+                exportColumns: messageRecord.exportColumns || [],
                 includeFeedback: false
               })
               : undefined
@@ -272,6 +494,7 @@ export async function POST(request) {
           viewUrl: result.viewUrl || "",
           exportUrl: result.exportUrl || "",
           pdfUrl: result.pdfUrl || "",
+          exportColumns: result.exportColumns || [],
           includeFeedback: false
         })
       });
@@ -341,6 +564,7 @@ export async function POST(request) {
       viewUrl: result.viewUrl || "",
       exportUrl: result.exportUrl || "",
       pdfUrl: result.pdfUrl || "",
+      exportColumns: result.exportColumns || [],
       hasMore: collapsedReply.hasMore
     });
     await sendTelegramMessage(chatId, replyText, { replyMarkup });
