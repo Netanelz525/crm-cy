@@ -1041,7 +1041,7 @@ export async function POST(request) {
     const parsed = await parseIncomingRequest(request);
     const conversation = parsed.messages;
     const attachment = parsed.attachment;
-    if (!conversation.length) {
+    if (!conversation.length && !attachment) {
       return badRequest("message is required");
     }
 
