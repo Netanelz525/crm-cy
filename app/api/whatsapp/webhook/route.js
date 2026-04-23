@@ -316,7 +316,7 @@ export async function POST(request) {
           return NextResponse.json({ ok: true });
         }
 
-        const result = await handleApprovedAiAction({ user, decision, pendingAction });
+        const result = await handleApprovedAiAction({ user, decision, pendingAction, messageId });
         const assistantMessage = await getAiChatMessageById({
           clerkUserId: user.clerk_user_id,
           messageId

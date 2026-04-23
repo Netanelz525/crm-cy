@@ -103,9 +103,40 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
 }
 
 const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const PRIORITY_EXPORT_COLUMNS = [
+  "fatherTz",
+  "motherTz",
+  "address",
+  "field:adders.addressStreet1",
+  "field:adders.addressStreet2",
+  "field:adders.addressCity",
+  "field:adders.addressPostcode",
+  "field:adders.addressState",
+  "field:adders.addressCountry",
+  "field:dateofbirth",
+  "class",
+  "age",
+  "studentPhone",
+  "dadPhone",
+  "momPhone",
+  "studentEmail",
+  "fatherEmail",
+  "motherEmail",
+  "institution",
+  "registration",
+  "missing"
+];
 const TELEGRAM_EXPORT_COLUMN_OPTIONS = INSTITUTION_COLUMNS_FULL
   .map((column) => column.key)
-  .filter((key) => INSTITUTION_COLUMN_MAP[key] && !REQUIRED_EXPORT_COLUMNS.includes(key));
+  .filter((key) => INSTITUTION_COLUMN_MAP[key] && !REQUIRED_EXPORT_COLUMNS.includes(key))
+  .sort((left, right) => {
+    const leftIndex = PRIORITY_EXPORT_COLUMNS.indexOf(left);
+    const rightIndex = PRIORITY_EXPORT_COLUMNS.indexOf(right);
+    if (leftIndex !== -1 || rightIndex !== -1) {
+      return (leftIndex === -1 ? 999 : leftIndex) - (rightIndex === -1 ? 999 : rightIndex);
+    }
+    return (INSTITUTION_COLUMN_MAP[left]?.label || left).localeCompare(INSTITUTION_COLUMN_MAP[right]?.label || right, "he");
+  });
 
 function withRequiredColumns(columns = []) {
   const seen = new Set();
