@@ -197,7 +197,7 @@ function MessageCard({ message, onDecision, onFeedback, deciding }) {
           </button>
         </div>
       ) : null}
-      {message.role === "assistant" ? (
+      {message.role === "assistant" && !message.feedback ? (
         <div className="ai-chat-feedback-row">
           <span className="muted">האם התשובה היתה טובה?</span>
               <button type="button" className={message.feedback === "good" ? "active" : ""} disabled={Boolean(feedbackLoading)} onClick={() => submitFeedback("good")}>

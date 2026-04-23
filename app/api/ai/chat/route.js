@@ -5,14 +5,11 @@ import {
   listAiChatMessagesByUser,
   listRecentAiChatMessagesByUser,
   setAiChatMessageFeedback,
-  getAiChatMessageById,
-  clearAiChatMessagePendingAction
+  getAiChatMessageById
 } from "../../../../lib/ai-chat-history";
-import { createStudentDocumentFromStoredObject } from "../../../../lib/student-documents";
-import { createNeonStudentViaTwenty, updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
 import { uploadBufferToR2 } from "../../../../lib/r2";
 import { FIELD_SECTIONS, normalizeStudentInput } from "../../../../lib/student-fields";
-import { processTextAiMessage } from "../../../../lib/ai-text-agent";
+import { handleApprovedAiAction, processTextAiMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import {
   buildStudentSummary,
@@ -640,148 +637,12 @@ export async function PUT(request) {
       return badRequest("Missing pending action");
     }
 
-    const clearPendingAction = async () => {
-      if (!messageId) return;
-      await clearAiChatMessagePendingAction({
-        messageId,
-        clerkUserId: user.clerk_user_id
-      });
-    };
-
-    if (decision === "reject") {
-      await clearPendingAction();
-      const reply = "הפעולה נדחתה. לא נוצר תלמיד ולא שויך מסמך.";
-      await createAiChatMessage({ clerkUserId: user.clerk_user_id, role: "assistant", content: reply });
-      return NextResponse.json({ reply });
-    }
-
-    if (decision !== "approve") {
+    if (!["approve", "reject"].includes(decision)) {
       return badRequest("Invalid decision");
     }
 
-    if (pendingAction.type === "update_student") {
-      const studentId = clean(pendingAction.studentId);
-      const data = pendingAction.updateStudentData || {};
-      if (!studentId || !Object.keys(data).length) {
-        return badRequest("Missing student update payload.");
-      }
-      const updatedStudent = await updateNeonStudentViaTwenty(studentId, data);
-      if (!updatedStudent?.id) throw new Error("עדכון התלמיד נכשל.");
-
-      const reply = `העדכון בוצע בכרטיס התלמיד: ${updatedStudent.label || updatedStudent.name || updatedStudent.id}.`;
-
-      await createAiChatMessage({
-        clerkUserId: user.clerk_user_id,
-        role: "assistant",
-        content: reply,
-        metadata: {
-          studentCards: [buildStudentSummary(updatedStudent)].filter(Boolean),
-          searchSummary: "בוצע עדכון תלמיד אחרי אישור מפורש"
-        }
-      });
-
-      await clearPendingAction();
-      return NextResponse.json({
-        reply,
-        studentCards: [buildStudentSummary(updatedStudent)].filter(Boolean),
-        searchSummary: "בוצע עדכון תלמיד אחרי אישור מפורש"
-      });
-    }
-
-    let studentId = clean(pendingAction.suggestedStudentId);
-    let createdStudent = null;
-    if (pendingAction.type === "create_student" || pendingAction.type === "create_student_manual") {
-      const data = pendingAction.createStudentData || {};
-      if (!Object.keys(data).length) {
-        return badRequest("אין מספיק פרטים ליצירת תלמיד.");
-      }
-      try {
-        createdStudent = await createNeonStudentViaTwenty(data);
-      } catch (error) {
-        if (error?.code === "DUPLICATE_STUDENT") {
-          const existingStudent = error?.student || null;
-          const reply = `לא נוצר תלמיד חדש כי נמצאה כפילות: ${error?.message || "כבר קיים תלמיד דומה במערכת."}`;
-
-          await createAiChatMessage({
-            clerkUserId: user.clerk_user_id,
-            role: "assistant",
-            content: reply,
-            metadata: {
-              studentCards: existingStudent ? [buildStudentSummary(existingStudent)].filter(Boolean) : [],
-              searchSummary: "נמנעה יצירת תלמיד כפול"
-            }
-          });
-
-          await clearPendingAction();
-          return NextResponse.json({
-            reply,
-            studentCards: existingStudent ? [buildStudentSummary(existingStudent)].filter(Boolean) : [],
-            searchSummary: "נמנעה יצירת תלמיד כפול"
-          });
-        }
-        throw error;
-      }
-      studentId = clean(createdStudent?.id);
-      if (!studentId) throw new Error("יצירת התלמיד נכשלה.");
-    }
-
-    if (pendingAction.type === "create_student_manual") {
-      const reply = `נוצר תלמיד חדש: ${createdStudent?.label || createdStudent?.name || studentId}.`;
-
-      await createAiChatMessage({
-        clerkUserId: user.clerk_user_id,
-        role: "assistant",
-        content: reply,
-        metadata: {
-          studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : [],
-          searchSummary: "בוצעה יצירת תלמיד אחרי אישור מפורש"
-        }
-      });
-
-      await clearPendingAction();
-      return NextResponse.json({
-        reply,
-        studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : [],
-        searchSummary: "בוצעה יצירת תלמיד אחרי אישור מפורש"
-      });
-    }
-
-    if (!studentId) return badRequest("Missing student id for document attachment.");
-
-    const documentInfo = pendingAction.documentInfo || {};
-    const storedDocument = pendingAction.storedDocument || {};
-    const document = await createStudentDocumentFromStoredObject({
-      studentId,
-      uploadedByUserId: user.clerk_user_id,
-      fileName: storedDocument.fileName,
-      displayName: documentInfo.documentName || storedDocument.fileName,
-      noteText: documentInfo.documentSummary,
-      contentType: storedDocument.contentType,
-      objectKey: storedDocument.objectKey,
-      sizeBytes: storedDocument.sizeBytes,
-      documentKind: "id"
-    });
-
-    const reply = createdStudent
-      ? `נוצר תלמיד חדש והמסמך שויך לכרטיס: ${createdStudent.label || createdStudent.name || studentId}.`
-      : "המסמך שויך לכרטיס התלמיד.";
-
-    await createAiChatMessage({
-      clerkUserId: user.clerk_user_id,
-      role: "assistant",
-      content: reply,
-      metadata: {
-        attachedDocumentId: document.id,
-        studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : []
-      }
-    });
-
-    await clearPendingAction();
-    return NextResponse.json({
-      reply,
-      attachedDocumentId: document.id,
-      studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : []
-    });
+    const result = await handleApprovedAiAction({ user, decision, pendingAction, messageId });
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
       { error: error?.message || "Document action failed" },
