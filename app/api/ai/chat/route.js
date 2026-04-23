@@ -133,7 +133,10 @@ function isQuantitativeListRequest(text) {
   if (!raw) return false;
   return [
     "כמה",
+    "איזה",
     "רשימה",
+    "רשומים",
+    "רשומות",
     "מי זה",
     "מי זאת",
     "מי לומד",
@@ -247,8 +250,9 @@ function classifyIntent({ text = "", hasAttachment = false, hasChoiceFilters = f
   if (hasAttachment) return "document_upload";
   const raw = clean(text);
   if (!raw) return "empty";
-  if (/עדכן|תעדכן|לשנות|שנה|לתקן|תקן/.test(raw)) return "update_request";
   if (/צור|תיצור|ליצור|יצירת|פתח תלמיד|תפתח תלמיד|פתיחת תלמיד|לפתוח תלמיד|הוסף תלמיד|תוסיף תלמיד|חדש תלמיד|תלמיד חדש|כרטיס חדש|פתח כרטיס|תפתח כרטיס/.test(raw)) return "create_request";
+  if (hasChoiceFilters && isQuantitativeListRequest(raw)) return "choice_filter";
+  if (/עדכן|תעדכן|לשנות|שנה|לתקן|תקן/.test(raw)) return "update_request";
   if (hasChoiceFilters) return "choice_filter";
   if (/מסמך|קובץ|תעודה/.test(raw)) return "document_query";
   if (/כמה|לכמה|חלוקה/.test(raw)) return "count_or_summary";
@@ -636,13 +640,16 @@ export async function PUT(request) {
       return badRequest("Missing pending action");
     }
 
+    const clearPendingAction = async () => {
+      if (!messageId) return;
+      await clearAiChatMessagePendingAction({
+        messageId,
+        clerkUserId: user.clerk_user_id
+      });
+    };
+
     if (decision === "reject") {
-      if (messageId) {
-        await clearAiChatMessagePendingAction({
-          messageId,
-          clerkUserId: user.clerk_user_id
-        });
-      }
+      await clearPendingAction();
       const reply = "הפעולה נדחתה. לא נוצר תלמיד ולא שויך מסמך.";
       await createAiChatMessage({ clerkUserId: user.clerk_user_id, role: "assistant", content: reply });
       return NextResponse.json({ reply });
@@ -673,6 +680,7 @@ export async function PUT(request) {
         }
       });
 
+      await clearPendingAction();
       return NextResponse.json({
         reply,
         studentCards: [buildStudentSummary(updatedStudent)].filter(Boolean),
@@ -704,6 +712,7 @@ export async function PUT(request) {
             }
           });
 
+          await clearPendingAction();
           return NextResponse.json({
             reply,
             studentCards: existingStudent ? [buildStudentSummary(existingStudent)].filter(Boolean) : [],
@@ -729,6 +738,7 @@ export async function PUT(request) {
         }
       });
 
+      await clearPendingAction();
       return NextResponse.json({
         reply,
         studentCards: createdStudent ? [buildStudentSummary(createdStudent)].filter(Boolean) : [],
@@ -766,6 +776,7 @@ export async function PUT(request) {
       }
     });
 
+    await clearPendingAction();
     return NextResponse.json({
       reply,
       attachedDocumentId: document.id,
