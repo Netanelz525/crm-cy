@@ -4,12 +4,11 @@ import {
   createAiChatMessage,
   listAiChatMessagesByUser,
   listRecentAiChatMessagesByUser,
-  setAiChatMessageFeedback,
-  getAiChatMessageById
+  setAiChatMessageFeedback
 } from "../../../../lib/ai-chat-history";
 import { uploadBufferToR2 } from "../../../../lib/r2";
 import { FIELD_SECTIONS, normalizeStudentInput } from "../../../../lib/student-fields";
-import { handleApprovedAiAction, processTextAiMessage } from "../../../../lib/ai-text-agent";
+import { getPendingActionForMessage, handleApprovedAiAction, processTextAiMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import {
   buildStudentSummary,
@@ -629,10 +628,9 @@ export async function PUT(request) {
     const body = await request.json().catch(() => null);
     const decision = clean(body?.decision);
     const messageId = clean(body?.messageId);
-    const messageRecord = messageId
-      ? await getAiChatMessageById({ clerkUserId: user.clerk_user_id, messageId })
-      : null;
-    const pendingAction = messageRecord?.pendingAction || body?.pendingAction;
+    const pendingAction = messageId
+      ? await getPendingActionForMessage({ clerkUserId: user.clerk_user_id, messageId })
+      : body?.pendingAction;
     if (!pendingAction || typeof pendingAction !== "object") {
       return badRequest("Missing pending action");
     }
