@@ -102,7 +102,7 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
   return chunks;
 }
 
-const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const REQUIRED_EXPORT_COLUMNS = ["name"];
 const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:email.primaryEmail",
   "field:email.additionalEmails",
@@ -132,11 +132,11 @@ const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:adders.addressLng"
 ]);
 const REPORT_SORT_OPTIONS = [
-  { key: "name", label: "שם משפחה" },
-  { key: "class", label: "שיעור" }
+  { key: "class", label: "שיעור" },
+  { key: "name", label: "שם משפחה" }
 ];
 const REPORT_COLUMN_PRESETS = {
-  default: ["name", "tznum", "field:dateofbirth"],
+  default: ["name", "class"],
   contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
   address: ["name", "tznum", "address"]
 };
@@ -226,7 +226,7 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
       { text: "אקסל", callback_data: `xlsx:${messageId}` },
       { text: "PDF", callback_data: `pdf:${messageId}` }
     ]);
-    const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "name";
+    const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "class";
     inlineKeyboard.push([
       { text: activeSort === "name" ? "✅ מיון שם" : "מיון שם", callback_data: `sort:name:${messageId}` },
       { text: activeSort === "class" ? "✅ מיון שיעור" : "מיון שיעור", callback_data: `sort:class:${messageId}` }
@@ -262,10 +262,7 @@ function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevel
   const inlineKeyboard = [];
   const selected = new Set(withRequiredColumns(exportColumns));
 
-  inlineKeyboard.push([
-    { text: "שם תלמיד", callback_data: `noop:${messageId}` },
-    { text: 'ת"ז', callback_data: `noop:${messageId}` }
-  ]);
+  inlineKeyboard.push([{ text: "שם תלמיד", callback_data: `noop:${messageId}` }]);
 
   for (let index = 0; index < TELEGRAM_EXPORT_COLUMN_OPTIONS.length; index += 2) {
     const row = TELEGRAM_EXPORT_COLUMN_OPTIONS.slice(index, index + 2).map((columnKey, offset) => {
@@ -289,7 +286,7 @@ function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevel
     { text: "פריסט: קשר", callback_data: `preset:contact:${messageId}` }
   ]);
   inlineKeyboard.push([{ text: "פריסט: כתובת", callback_data: `preset:address:${messageId}` }]);
-  const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "name";
+  const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "class";
   inlineKeyboard.push([
     { text: activeSort === "name" ? "✅ מיון שם" : "מיון שם", callback_data: `sort:name:${messageId}` },
     { text: activeSort === "class" ? "✅ מיון שיעור" : "מיון שיעור", callback_data: `sort:class:${messageId}` }
@@ -314,18 +311,18 @@ function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevel
 
 async function sendInstitutionAttachment(chatId, type, messageRecord) {
   const columns = withRequiredColumns(messageRecord?.exportColumns || []);
-  const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "name", sortDir: "asc" }]);
+  const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "class", sortDir: "asc" }]);
   if (type === "xlsx" && messageRecord?.exportUrl) {
     const csvFile = await buildInstitutionCsvExport(buildExportUrlWithOptions(messageRecord.exportUrl, { columns, sortLevels }));
     await sendTelegramDocumentFile(chatId, csvFile, {
-      caption: `קובץ אקסל מוכן. מיון: ${(REPORT_SORT_OPTIONS.find((option) => option.key === sortLevels[0]?.sortBy)?.label) || "שם משפחה"}. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
+      caption: `קובץ אקסל מוכן. מיון: ${(REPORT_SORT_OPTIONS.find((option) => option.key === sortLevels[0]?.sortBy)?.label) || "שיעור"}. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
     });
     return;
   }
   if (type === "pdf" && messageRecord?.pdfUrl) {
     const pdfFile = await buildInstitutionPdfExport(buildExportUrlWithOptions(messageRecord.pdfUrl, { columns, sortLevels }));
     await sendTelegramDocumentFile(chatId, pdfFile, {
-      caption: `קובץ PDF מוכן. מיון: ${(REPORT_SORT_OPTIONS.find((option) => option.key === sortLevels[0]?.sortBy)?.label) || "שם משפחה"}. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
+      caption: `קובץ PDF מוכן. מיון: ${(REPORT_SORT_OPTIONS.find((option) => option.key === sortLevels[0]?.sortBy)?.label) || "שיעור"}. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
     });
   }
 }
@@ -363,7 +360,7 @@ export async function POST(request) {
       const messageId = parts[1];
 
       if (action === "noop") {
-        await answerTelegramCallbackQuery(callback.id, "שם תלמיד ותעודת זהות נשארים תמיד.");
+        await answerTelegramCallbackQuery(callback.id, "שם תלמיד נשאר תמיד.");
         return NextResponse.json({ ok: true });
       }
 

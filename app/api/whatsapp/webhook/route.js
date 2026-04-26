@@ -17,7 +17,7 @@ import {
 import { INSTITUTION_COLUMN_MAP } from "../../../../lib/student-view";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 
-const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const REQUIRED_EXPORT_COLUMNS = ["name"];
 const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:email.primaryEmail",
   "field:email.additionalEmails",
@@ -47,11 +47,11 @@ const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:adders.addressLng"
 ]);
 const REPORT_SORT_OPTIONS = [
-  { key: "name", label: "שם משפחה" },
-  { key: "class", label: "שיעור" }
+  { key: "class", label: "שיעור" },
+  { key: "name", label: "שם משפחה" }
 ];
 const REPORT_COLUMN_PRESETS = {
-  default: ["name", "tznum", "field:dateofbirth"],
+  default: ["name", "class"],
   contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
   address: ["name", "tznum", "address"]
 };
@@ -194,7 +194,7 @@ function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) 
 function buildReplyText(result) {
   const parts = [clean(result?.reply || result?.content)];
   const exportColumns = withRequiredColumns(result?.exportColumns || []);
-  const sortLevels = normalizeSortLevels(result?.sortLevels || [{ sortBy: "name", sortDir: "asc" }]);
+  const sortLevels = normalizeSortLevels(result?.sortLevels || [{ sortBy: "class", sortDir: "asc" }]);
 
   const absoluteViewUrl = toAbsoluteUrl(result?.viewUrl);
   if (absoluteViewUrl) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
@@ -225,7 +225,7 @@ function buildReplyText(result) {
 
 async function sendInstitutionAttachments(waId, messageRecord) {
   const columns = withRequiredColumns(messageRecord?.exportColumns || []);
-  const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "name", sortDir: "asc" }]);
+  const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "class", sortDir: "asc" }]);
 
   if (messageRecord?.exportUrl) {
     const csvFile = await buildInstitutionCsvExport(buildExportUrlWithOptions(messageRecord.exportUrl, { columns, sortLevels }));
