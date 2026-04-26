@@ -11,6 +11,7 @@ import {
   getWhatsAppLinkByWaId,
   getWhatsAppWebhookAppSecret,
   sendWhatsAppDocumentFile,
+  sendWhatsAppListMessage,
   sendWhatsAppReplyButtons,
   sendWhatsAppTextMessages
 } from "../../../../lib/whatsapp";
@@ -31,21 +32,35 @@ const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:dadPhone.primaryPhoneNumber",
   "field:dadPhone.primaryPhoneCountryCode",
   "field:dadPhone.primaryPhoneCallingCode",
+  "field:dadPhone.additionalPhones",
   "field:momPhone.primaryPhoneNumber",
   "field:momPhone.primaryPhoneCountryCode",
   "field:momPhone.primaryPhoneCallingCode",
+  "field:momPhone.additionalPhones",
+  "field:phone.additionalPhones",
   "field:adders.addressStreet1",
   "field:adders.addressStreet2",
   "field:adders.addressCity",
   "field:adders.addressPostcode",
   "field:adders.addressState",
-  "field:adders.addressCountry"
+  "field:adders.addressCountry",
+  "field:adders.addressLat",
+  "field:adders.addressLng"
 ]);
+const REPORT_SORT_OPTIONS = [
+  { key: "name", label: "שם משפחה" },
+  { key: "class", label: "שיעור" }
+];
 const REPORT_COLUMN_PRESETS = {
   default: ["name", "tznum", "field:dateofbirth"],
   contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
   address: ["name", "tznum", "address"]
 };
+const REPORT_COLUMN_GROUPS = [
+  { key: "core", title: "בסיס", columns: ["field:dateofbirth", "class", "age", "institution", "registration", "missing"] },
+  { key: "contact", title: "קשר", columns: ["studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"] },
+  { key: "extra", title: "נוספים", columns: ["address", "fatherTz", "motherTz"] }
+];
 
 function clean(value) {
   return String(value || "").trim();
@@ -233,14 +248,66 @@ async function sendInstitutionAttachments(waId, messageRecord) {
   }
 }
 
+function getReportColumnGroup(groupKey) {
+  return REPORT_COLUMN_GROUPS.find((group) => group.key === clean(groupKey));
+}
+
+async function sendWhatsAppReportMenu(waId, messageId) {
+  await sendWhatsAppListMessage(waId, {
+    bodyText: "בחר מה להתאים בדוח.",
+    buttonText: "פתח",
+    sections: [
+      {
+        title: "מיון ופריסטים",
+        rows: [
+          { id: `sort:name:${messageId}`, title: "מיון שם משפחה", description: "ברירת המחדל" },
+          { id: `sort:class:${messageId}`, title: "מיון שיעור", description: "ממיין לפי שיעור" },
+          { id: `preset:default:${messageId}`, title: "פריסט ברירת מחדל", description: "שם, ת\"ז, תאריך לידה" },
+          { id: `preset:contact:${messageId}`, title: "פריסט קשר", description: "טלפונים ומיילים" },
+          { id: `preset:address:${messageId}`, title: "פריסט כתובת", description: "כתובת מלאה" }
+        ]
+      },
+      {
+        title: "בחירת עמודות",
+        rows: REPORT_COLUMN_GROUPS.map((group) => ({
+          id: `colgroup:${group.key}:${messageId}`,
+          title: `עמודות ${group.title}`,
+          description: "בחירה ידנית של עמודות"
+        }))
+      }
+    ]
+  });
+}
+
+async function sendWhatsAppColumnGroupMenu(waId, messageRecord, groupKey) {
+  const group = getReportColumnGroup(groupKey);
+  if (!group) {
+    await sendWhatsAppTextMessages(waId, "קבוצת העמודות לא זמינה.");
+    return;
+  }
+  const selected = new Set(withRequiredColumns(messageRecord?.exportColumns || []));
+  await sendWhatsAppListMessage(waId, {
+    bodyText: `בחר עמודות מתוך ${group.title}. שם תלמיד ות\"ז נשארים תמיד.`,
+    buttonText: "עמודות",
+    sections: [
+      {
+        title: group.title,
+        rows: group.columns
+          .filter((columnKey) => INSTITUTION_COLUMN_MAP[columnKey] && !REPORT_EXCLUDED_COLUMNS.has(columnKey))
+          .map((columnKey) => ({
+            id: `togglecol:${columnKey}:${messageRecord.id}`,
+            title: `${selected.has(columnKey) ? "✓" : "○"} ${INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey}`,
+            description: selected.has(columnKey) ? "כלול בדוח" : "לא כלול בדוח"
+          }))
+      }
+    ]
+  });
+}
+
 async function sendWhatsAppResult(waId, result) {
   const replyText = buildReplyText(result);
   if (replyText) {
     await sendWhatsAppTextMessages(waId, replyText);
-  }
-
-  if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
-    await sendInstitutionAttachments(waId, result);
   }
 
   if (result?.pendingAction?.id && result?.id) {
@@ -259,9 +326,9 @@ async function sendWhatsAppResult(waId, result) {
       await sendWhatsAppReplyButtons(waId, {
         bodyText: "אפשר להתאים את הדוח מתוך השיחה.",
         buttons: [
-          { id: `sort:name:${result.id}`, title: "מיון שם" },
-          { id: `sort:class:${result.id}`, title: "מיון שיעור" },
-          { id: `cols:${result.id}`, title: "עמודות" }
+          { id: `xlsx:${result.id}`, title: "אקסל" },
+          { id: `pdf:${result.id}`, title: "PDF" },
+          { id: `cols:${result.id}`, title: "התאמה" }
         ]
       });
       return;
@@ -409,18 +476,89 @@ export async function POST(request) {
 
       if (interactiveActionId.startsWith("cols:")) {
         const [, messageId] = interactiveActionId.split(":");
-        await sendWhatsAppReplyButtons(waId, {
-          bodyText: "בחר פריסט עמודות לדוח.",
-          buttons: [
-            { id: `preset:default:${messageId}`, title: "ברירת מחדל" },
-            { id: `preset:contact:${messageId}`, title: "אנשי קשר" },
-            { id: `preset:address:${messageId}`, title: "כתובת" }
-          ]
-        });
+        await sendWhatsAppReportMenu(waId, messageId);
         await updateWhatsAppInboundEvent(inboundEvent.id, {
           processingStatus: "report_columns_prompt",
           clerkUserId: link?.clerk_user_id || null,
           responseText: "נשלחה בחירת עמודות לדוח"
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("xlsx:") || interactiveActionId.startsWith("pdf:")) {
+        const [kind, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!messageRecord || (kind === "xlsx" && !messageRecord.exportUrl) || (kind === "pdf" && !messageRecord.pdfUrl)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי את הקובץ המבוקש.");
+          return NextResponse.json({ ok: true });
+        }
+        await sendInstitutionAttachments(waId, {
+          ...messageRecord,
+          exportUrl: kind === "xlsx" ? messageRecord.exportUrl : "",
+          pdfUrl: kind === "pdf" ? messageRecord.pdfUrl : ""
+        });
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: kind === "xlsx" ? "report_xlsx_sent" : "report_pdf_sent",
+          clerkUserId: user.clerk_user_id,
+          responseText: kind === "xlsx" ? "נשלח אקסל" : "נשלח PDF"
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("colgroup:")) {
+        const [, groupKey, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!messageRecord) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי את הדוח המקורי.");
+          return NextResponse.json({ ok: true });
+        }
+        await sendWhatsAppColumnGroupMenu(waId, messageRecord, groupKey);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "report_column_group_prompt",
+          clerkUserId: user.clerk_user_id,
+          responseText: `נשלחה קבוצת עמודות ${clean(groupKey)}`
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("togglecol:")) {
+        const [, columnKey, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!messageRecord || !INSTITUTION_COLUMN_MAP[clean(columnKey)] || REPORT_EXCLUDED_COLUMNS.has(clean(columnKey))) {
+          await sendWhatsAppTextMessages(waId, "העמודה לא זמינה.");
+          return NextResponse.json({ ok: true });
+        }
+        const selected = new Set(withRequiredColumns(messageRecord.exportColumns || []));
+        if (selected.has(columnKey)) selected.delete(columnKey);
+        else selected.add(columnKey);
+        const nextColumns = withRequiredColumns(Array.from(selected));
+        await setAiChatMessageReportConfig({
+          messageId,
+          clerkUserId: user.clerk_user_id,
+          exportColumns: nextColumns
+        });
+        await sendWhatsAppTextMessages(waId, `עודכן: ${INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey}.`);
+        await sendWhatsAppReplyButtons(waId, {
+          bodyText: "הדוח עודכן. אפשר להוריד או להמשיך להתאים.",
+          buttons: [
+            { id: `xlsx:${messageId}`, title: "אקסל" },
+            { id: `pdf:${messageId}`, title: "PDF" },
+            { id: `cols:${messageId}`, title: "התאמה" }
+          ]
+        });
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "report_column_toggled",
+          clerkUserId: user.clerk_user_id,
+          responseText: `העמודה ${clean(columnKey)} עודכנה`
         });
         return NextResponse.json({ ok: true });
       }
@@ -453,7 +591,21 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           messageId
         });
-        await sendWhatsAppResult(waId, refreshedRecord);
+        const sortLabel = REPORT_SORT_OPTIONS.find((option) => option.key === clean(value))?.label || "שם משפחה";
+        await sendWhatsAppTextMessages(
+          waId,
+          kind === "sort"
+            ? `המיון עודכן ל-${sortLabel}.`
+            : `העמודות עודכנו לפריסט ${clean(value) === "contact" ? "אנשי קשר" : clean(value) === "address" ? "כתובת" : "ברירת מחדל"}.`
+        );
+        await sendWhatsAppReplyButtons(waId, {
+          bodyText: "הדוח עודכן. אפשר להוריד או להמשיך להתאים.",
+          buttons: [
+            { id: `xlsx:${messageId}`, title: "אקסל" },
+            { id: `pdf:${messageId}`, title: "PDF" },
+            { id: `cols:${messageId}`, title: "התאמה" }
+          ]
+        });
         await updateWhatsAppInboundEvent(inboundEvent.id, {
           processingStatus: kind === "sort" ? "report_sort_updated" : "report_columns_updated",
           clerkUserId: user.clerk_user_id,

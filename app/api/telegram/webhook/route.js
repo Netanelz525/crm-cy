@@ -113,18 +113,23 @@ const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:phone.primaryPhoneNumber",
   "field:phone.primaryPhoneCountryCode",
   "field:phone.primaryPhoneCallingCode",
+  "field:phone.additionalPhones",
   "field:dadPhone.primaryPhoneNumber",
   "field:dadPhone.primaryPhoneCountryCode",
   "field:dadPhone.primaryPhoneCallingCode",
+  "field:dadPhone.additionalPhones",
   "field:momPhone.primaryPhoneNumber",
   "field:momPhone.primaryPhoneCountryCode",
   "field:momPhone.primaryPhoneCallingCode",
+  "field:momPhone.additionalPhones",
   "field:adders.addressStreet1",
   "field:adders.addressStreet2",
   "field:adders.addressCity",
   "field:adders.addressPostcode",
   "field:adders.addressState",
-  "field:adders.addressCountry"
+  "field:adders.addressCountry",
+  "field:adders.addressLat",
+  "field:adders.addressLng"
 ]);
 const REPORT_SORT_OPTIONS = [
   { key: "name", label: "שם משפחה" },
