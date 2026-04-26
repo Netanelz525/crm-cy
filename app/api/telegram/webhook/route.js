@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
-import { getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
+import { getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 import { INSTITUTION_COLUMN_MAP, INSTITUTION_COLUMNS_FULL } from "../../../../lib/student-view";
@@ -103,6 +103,15 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
 }
 
 const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const REPORT_SORT_OPTIONS = [
+  { key: "name", label: "שם משפחה" },
+  { key: "class", label: "שיעור" }
+];
+const REPORT_COLUMN_PRESETS = {
+  default: ["name", "tznum", "field:dateofbirth"],
+  contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
+  address: ["name", "tznum", "address", "field:adders.addressStreet1", "field:adders.addressStreet2", "field:adders.addressCity", "field:adders.addressPostcode", "field:adders.addressCountry"]
+};
 const PRIORITY_EXPORT_COLUMNS = [
   "fatherTz",
   "motherTz",
@@ -150,17 +159,32 @@ function withRequiredColumns(columns = []) {
   return ordered;
 }
 
-function buildExportUrlWithColumns(url, columns = []) {
+function normalizeSortLevels(sortLevels = []) {
+  return (Array.isArray(sortLevels) ? sortLevels : [])
+    .map((level) => ({
+      sortBy: clean(level?.sortBy),
+      sortDir: clean(level?.sortDir).toLowerCase() === "desc" ? "desc" : "asc"
+    }))
+    .filter((level) => level.sortBy);
+}
+
+function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) {
   const raw = clean(url);
   if (!raw) return "";
   const parsed = new URL(raw, "https://internal.local");
   parsed.searchParams.delete("cols");
   withRequiredColumns(columns).forEach((column) => parsed.searchParams.append("cols", column));
+  parsed.searchParams.delete("sby");
+  parsed.searchParams.delete("sdir");
+  normalizeSortLevels(sortLevels).forEach((level) => {
+    parsed.searchParams.append("sby", level.sortBy);
+    parsed.searchParams.append("sdir", level.sortDir);
+  });
   const query = parsed.searchParams.toString();
   return `${parsed.pathname}${query ? `?${query}` : ""}`;
 }
 
-function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", exportColumns = [], hasMore = false, includeFeedback = true }) {
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true }) {
   const inlineKeyboard = [];
 
   if (pendingAction) {
@@ -179,6 +203,11 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
     inlineKeyboard.push([
       { text: "אקסל", callback_data: `xlsx:${messageId}` },
       { text: "PDF", callback_data: `pdf:${messageId}` }
+    ]);
+    const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "name";
+    inlineKeyboard.push([
+      { text: activeSort === "name" ? "✅ מיון שם" : "מיון שם", callback_data: `sort:name:${messageId}` },
+      { text: activeSort === "class" ? "✅ מיון שיעור" : "מיון שיעור", callback_data: `sort:class:${messageId}` }
     ]);
     inlineKeyboard.push([{ text: "עמודות", callback_data: `cols:${messageId}` }]);
   }
@@ -207,7 +236,7 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   return inlineKeyboard.length ? { inline_keyboard: inlineKeyboard } : undefined;
 }
 
-function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], viewUrl = "", includeFeedback = false }) {
+function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevels = [], viewUrl = "", includeFeedback = false }) {
   const inlineKeyboard = [];
   const selected = new Set(withRequiredColumns(exportColumns));
 
@@ -233,6 +262,16 @@ function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], viewUrl =
     { text: "שלח אקסל", callback_data: `xlsx:${messageId}` },
     { text: "שלח PDF", callback_data: `pdf:${messageId}` }
   ]);
+  inlineKeyboard.push([
+    { text: "פריסט: ברירת מחדל", callback_data: `preset:default:${messageId}` },
+    { text: "פריסט: קשר", callback_data: `preset:contact:${messageId}` }
+  ]);
+  inlineKeyboard.push([{ text: "פריסט: כתובת", callback_data: `preset:address:${messageId}` }]);
+  const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "name";
+  inlineKeyboard.push([
+    { text: activeSort === "name" ? "✅ מיון שם" : "מיון שם", callback_data: `sort:name:${messageId}` },
+    { text: activeSort === "class" ? "✅ מיון שיעור" : "מיון שיעור", callback_data: `sort:class:${messageId}` }
+  ]);
 
   const absoluteViewUrl = toAbsoluteUrl(viewUrl);
   if (absoluteViewUrl) {
@@ -253,17 +292,18 @@ function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], viewUrl =
 
 async function sendInstitutionAttachment(chatId, type, messageRecord) {
   const columns = withRequiredColumns(messageRecord?.exportColumns || []);
+  const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "name", sortDir: "asc" }]);
   if (type === "xlsx" && messageRecord?.exportUrl) {
-    const csvFile = await buildInstitutionCsvExport(buildExportUrlWithColumns(messageRecord.exportUrl, columns));
+    const csvFile = await buildInstitutionCsvExport(buildExportUrlWithOptions(messageRecord.exportUrl, { columns, sortLevels }));
     await sendTelegramDocumentFile(chatId, csvFile, {
-      caption: `קובץ אקסל מוכן. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
+      caption: `קובץ אקסל מוכן. מיון: ${(REPORT_SORT_OPTIONS.find((option) => option.key === sortLevels[0]?.sortBy)?.label) || "שם משפחה"}. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
     });
     return;
   }
   if (type === "pdf" && messageRecord?.pdfUrl) {
-    const pdfFile = await buildInstitutionPdfExport(buildExportUrlWithColumns(messageRecord.pdfUrl, columns));
+    const pdfFile = await buildInstitutionPdfExport(buildExportUrlWithOptions(messageRecord.pdfUrl, { columns, sortLevels }));
     await sendTelegramDocumentFile(chatId, pdfFile, {
-      caption: `קובץ PDF מוכן. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
+      caption: `קובץ PDF מוכן. מיון: ${(REPORT_SORT_OPTIONS.find((option) => option.key === sortLevels[0]?.sortBy)?.label) || "שם משפחה"}. עמודות: ${columns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`
     });
   }
 }
@@ -325,6 +365,7 @@ export async function POST(request) {
           exportUrl: messageRecord?.exportUrl || "",
           pdfUrl: messageRecord?.pdfUrl || "",
           exportColumns: messageRecord?.exportColumns || [],
+          sortLevels: messageRecord?.sortLevels || [],
           includeFeedback: false
         });
         if (callback?.message?.message_id) {
@@ -371,6 +412,7 @@ export async function POST(request) {
             replyMarkup: buildTelegramColumnsKeyboard({
               messageId: exportMessageId,
               exportColumns: messageRecord.exportColumns || [],
+              sortLevels: messageRecord.sortLevels || [],
               viewUrl: messageRecord.viewUrl || "",
               includeFeedback: !messageRecord.feedback
             })
@@ -418,6 +460,7 @@ export async function POST(request) {
             replyMarkup: buildTelegramColumnsKeyboard({
               messageId: exportMessageId,
               exportColumns: nextColumns,
+              sortLevels: messageRecord.sortLevels || [],
               viewUrl: messageRecord.viewUrl || "",
               includeFeedback: !messageRecord.feedback
             })
@@ -425,6 +468,79 @@ export async function POST(request) {
         }
 
         await answerTelegramCallbackQuery(callback.id, `${INSTITUTION_COLUMN_MAP[columnKey]?.label || columnKey} ${selected.has(columnKey) ? "נוסף" : "הוסר"}.`);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "preset") {
+        const presetKey = clean(parts[1]);
+        const exportMessageId = parts[2];
+        const presetColumns = REPORT_COLUMN_PRESETS[presetKey];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (!messageRecord?.exportUrl || !presetColumns) {
+          await answerTelegramCallbackQuery(callback.id, "הפריסט לא זמין.");
+          return NextResponse.json({ ok: true });
+        }
+        const nextColumns = withRequiredColumns(presetColumns);
+        await setAiChatMessageExportColumns({
+          messageId: exportMessageId,
+          clerkUserId: user.clerk_user_id,
+          exportColumns: nextColumns
+        });
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramColumnsKeyboard({
+              messageId: exportMessageId,
+              exportColumns: nextColumns,
+              sortLevels: messageRecord.sortLevels || [],
+              viewUrl: messageRecord.viewUrl || "",
+              includeFeedback: !messageRecord.feedback
+            })
+          }).catch(() => null);
+        }
+        await answerTelegramCallbackQuery(callback.id, `נבחר פריסט ${(presetKey === "contact" ? "אנשי קשר" : presetKey === "address" ? "כתובת" : "ברירת מחדל")}.`);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "sort") {
+        const sortBy = clean(parts[1]) === "class" ? "class" : "name";
+        const exportMessageId = parts[2];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (!messageRecord?.exportUrl && !messageRecord?.pdfUrl) {
+          await answerTelegramCallbackQuery(callback.id, "אין דוח זמין למיון.");
+          return NextResponse.json({ ok: true });
+        }
+        const nextSortLevels = [{ sortBy, sortDir: "asc" }];
+        await setAiChatMessageReportConfig({
+          messageId: exportMessageId,
+          clerkUserId: user.clerk_user_id,
+          sortLevels: nextSortLevels
+        });
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramKeyboard({
+              messageId: exportMessageId,
+              pendingAction: messageRecord?.pendingAction || null,
+              studentCards: messageRecord?.studentCards || [],
+              viewUrl: messageRecord?.viewUrl || "",
+              exportUrl: messageRecord?.exportUrl || "",
+              pdfUrl: messageRecord?.pdfUrl || "",
+              exportColumns: messageRecord?.exportColumns || [],
+              sortLevels: nextSortLevels,
+              includeFeedback: !messageRecord?.feedback
+            })
+          }).catch(() => null);
+        }
+        await answerTelegramCallbackQuery(callback.id, `המיון עודכן ל-${sortBy === "class" ? "שיעור" : "שם משפחה"}.`);
         return NextResponse.json({ ok: true });
       }
 
@@ -446,6 +562,7 @@ export async function POST(request) {
               exportUrl: messageRecord?.exportUrl || "",
               pdfUrl: messageRecord?.pdfUrl || "",
               exportColumns: messageRecord?.exportColumns || [],
+              sortLevels: messageRecord?.sortLevels || [],
               includeFeedback: !messageRecord?.feedback
             })
           }).catch(() => null);
@@ -515,6 +632,7 @@ export async function POST(request) {
           exportUrl: result.exportUrl || "",
           pdfUrl: result.pdfUrl || "",
           exportColumns: result.exportColumns || [],
+          sortLevels: result.sortLevels || [],
           includeFeedback: false
         })
       });
@@ -585,6 +703,7 @@ export async function POST(request) {
       exportUrl: result.exportUrl || "",
       pdfUrl: result.pdfUrl || "",
       exportColumns: result.exportColumns || [],
+      sortLevels: result.sortLevels || [],
       hasMore: collapsedReply.hasMore
     });
     await sendTelegramMessage(chatId, replyText, { replyMarkup });

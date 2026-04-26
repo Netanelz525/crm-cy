@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
-import { getAiChatMessageById, setAiChatMessageFeedback } from "../../../../lib/ai-chat-history";
+import { getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
@@ -13,6 +13,14 @@ import {
   sendWhatsAppReplyButtons,
   sendWhatsAppTextMessages
 } from "../../../../lib/whatsapp";
+import { INSTITUTION_COLUMN_MAP } from "../../../../lib/student-view";
+
+const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const REPORT_COLUMN_PRESETS = {
+  default: ["name", "tznum", "field:dateofbirth"],
+  contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
+  address: ["name", "tznum", "address", "field:adders.addressStreet1", "field:adders.addressStreet2", "field:adders.addressCity", "field:adders.addressPostcode", "field:adders.addressCountry"]
+};
 
 function clean(value) {
   return String(value || "").trim();
@@ -112,13 +120,58 @@ function toAbsoluteUrl(path) {
   return `${baseUrl}${relativePath.startsWith("/") ? relativePath : `/${relativePath}`}`;
 }
 
+function withRequiredColumns(columns = []) {
+  const seen = new Set();
+  const ordered = [];
+  [...REQUIRED_EXPORT_COLUMNS, ...columns].forEach((column) => {
+    const key = clean(column);
+    if (!key || !INSTITUTION_COLUMN_MAP[key] || seen.has(key)) return;
+    seen.add(key);
+    ordered.push(key);
+  });
+  return ordered;
+}
+
+function normalizeSortLevels(sortLevels = []) {
+  return (Array.isArray(sortLevels) ? sortLevels : [])
+    .map((level) => ({
+      sortBy: clean(level?.sortBy),
+      sortDir: clean(level?.sortDir).toLowerCase() === "desc" ? "desc" : "asc"
+    }))
+    .filter((level) => level.sortBy);
+}
+
+function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) {
+  const raw = clean(url);
+  if (!raw) return "";
+  const parsed = new URL(raw, "https://internal.local");
+  parsed.searchParams.delete("cols");
+  withRequiredColumns(columns).forEach((column) => parsed.searchParams.append("cols", column));
+  parsed.searchParams.delete("sby");
+  parsed.searchParams.delete("sdir");
+  normalizeSortLevels(sortLevels).forEach((level) => {
+    parsed.searchParams.append("sby", level.sortBy);
+    parsed.searchParams.append("sdir", level.sortDir);
+  });
+  const query = parsed.searchParams.toString();
+  return `${parsed.pathname}${query ? `?${query}` : ""}`;
+}
+
 function buildReplyText(result) {
-  const parts = [clean(result?.reply)];
+  const parts = [clean(result?.reply || result?.content)];
+  const exportColumns = withRequiredColumns(result?.exportColumns || []);
+  const sortLevels = normalizeSortLevels(result?.sortLevels || [{ sortBy: "name", sortDir: "asc" }]);
 
   const absoluteViewUrl = toAbsoluteUrl(result?.viewUrl);
-  const absoluteExportUrl = toAbsoluteUrl(result?.exportUrl);
+  const absoluteExportUrl = toAbsoluteUrl(buildExportUrlWithOptions(result?.exportUrl, { columns: exportColumns, sortLevels }));
   if (absoluteViewUrl) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
   if (absoluteExportUrl) parts.push(`אקסל:\n${absoluteExportUrl}`);
+  const absolutePdfUrl = toAbsoluteUrl(buildExportUrlWithOptions(result?.pdfUrl, { columns: exportColumns, sortLevels }));
+  if (absolutePdfUrl) parts.push(`PDF:\n${absolutePdfUrl}`);
+  if (absoluteExportUrl || absolutePdfUrl) {
+    parts.push(`מיון דוח: ${sortLevels[0]?.sortBy === "class" ? "שיעור" : "שם משפחה"}`);
+    parts.push(`עמודות: ${exportColumns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`);
+  }
 
   const cardLinks = (Array.isArray(result?.studentCards) ? result.studentCards : [])
     .slice(0, 3)
@@ -158,6 +211,17 @@ async function sendWhatsAppResult(waId, result) {
   }
 
   if (result?.id) {
+    if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
+      await sendWhatsAppReplyButtons(waId, {
+        bodyText: "אפשר להתאים את הדוח מתוך השיחה.",
+        buttons: [
+          { id: `sort:name:${result.id}`, title: "מיון שם" },
+          { id: `sort:class:${result.id}`, title: "מיון שיעור" },
+          { id: `cols:${result.id}`, title: "עמודות" }
+        ]
+      });
+      return;
+    }
     await sendWhatsAppReplyButtons(waId, {
       bodyText: "האם התשובה עזרה?",
       buttons: [
@@ -295,6 +359,61 @@ export async function POST(request) {
           processingStatus: "feedback_saved",
           clerkUserId: user.clerk_user_id,
           responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("cols:")) {
+        const [, messageId] = interactiveActionId.split(":");
+        await sendWhatsAppReplyButtons(waId, {
+          bodyText: "בחר פריסט עמודות לדוח.",
+          buttons: [
+            { id: `preset:default:${messageId}`, title: "ברירת מחדל" },
+            { id: `preset:contact:${messageId}`, title: "אנשי קשר" },
+            { id: `preset:address:${messageId}`, title: "כתובת" }
+          ]
+        });
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "report_columns_prompt",
+          clerkUserId: link?.clerk_user_id || null,
+          responseText: "נשלחה בחירת עמודות לדוח"
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("sort:") || interactiveActionId.startsWith("preset:")) {
+        const [kind, value, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!messageRecord) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי את הדוח המקורי.");
+          return NextResponse.json({ ok: true });
+        }
+
+        const nextConfig = {};
+        if (kind === "sort") {
+          nextConfig.sortLevels = [{ sortBy: clean(value) === "class" ? "class" : "name", sortDir: "asc" }];
+        }
+        if (kind === "preset" && REPORT_COLUMN_PRESETS[clean(value)]) {
+          nextConfig.exportColumns = withRequiredColumns(REPORT_COLUMN_PRESETS[clean(value)]);
+        }
+        await setAiChatMessageReportConfig({
+          messageId,
+          clerkUserId: user.clerk_user_id,
+          ...nextConfig
+        });
+
+        const refreshedRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        await sendWhatsAppResult(waId, refreshedRecord);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: kind === "sort" ? "report_sort_updated" : "report_columns_updated",
+          clerkUserId: user.clerk_user_id,
+          responseText: kind === "sort" ? `המיון עודכן ל-${clean(value) === "class" ? "שיעור" : "שם משפחה"}` : `העמודות עודכנו לפריסט ${clean(value)}`
         });
         return NextResponse.json({ ok: true });
       }
