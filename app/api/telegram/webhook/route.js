@@ -103,6 +103,29 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
 }
 
 const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const REPORT_EXCLUDED_COLUMNS = new Set([
+  "field:email.primaryEmail",
+  "field:email.additionalEmails",
+  "field:fatherEmail.primaryEmail",
+  "field:fatherEmail.additionalEmails",
+  "field:motherEmail.primaryEmail",
+  "field:motherEmail.additionalEmails",
+  "field:phone.primaryPhoneNumber",
+  "field:phone.primaryPhoneCountryCode",
+  "field:phone.primaryPhoneCallingCode",
+  "field:dadPhone.primaryPhoneNumber",
+  "field:dadPhone.primaryPhoneCountryCode",
+  "field:dadPhone.primaryPhoneCallingCode",
+  "field:momPhone.primaryPhoneNumber",
+  "field:momPhone.primaryPhoneCountryCode",
+  "field:momPhone.primaryPhoneCallingCode",
+  "field:adders.addressStreet1",
+  "field:adders.addressStreet2",
+  "field:adders.addressCity",
+  "field:adders.addressPostcode",
+  "field:adders.addressState",
+  "field:adders.addressCountry"
+]);
 const REPORT_SORT_OPTIONS = [
   { key: "name", label: "שם משפחה" },
   { key: "class", label: "שיעור" }
@@ -110,18 +133,10 @@ const REPORT_SORT_OPTIONS = [
 const REPORT_COLUMN_PRESETS = {
   default: ["name", "tznum", "field:dateofbirth"],
   contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
-  address: ["name", "tznum", "address", "field:adders.addressStreet1", "field:adders.addressStreet2", "field:adders.addressCity", "field:adders.addressPostcode", "field:adders.addressCountry"]
+  address: ["name", "tznum", "address"]
 };
 const PRIORITY_EXPORT_COLUMNS = [
-  "fatherTz",
-  "motherTz",
   "address",
-  "field:adders.addressStreet1",
-  "field:adders.addressStreet2",
-  "field:adders.addressCity",
-  "field:adders.addressPostcode",
-  "field:adders.addressState",
-  "field:adders.addressCountry",
   "field:dateofbirth",
   "class",
   "age",
@@ -131,13 +146,15 @@ const PRIORITY_EXPORT_COLUMNS = [
   "studentEmail",
   "fatherEmail",
   "motherEmail",
+  "fatherTz",
+  "motherTz",
   "institution",
   "registration",
   "missing"
 ];
 const TELEGRAM_EXPORT_COLUMN_OPTIONS = INSTITUTION_COLUMNS_FULL
   .map((column) => column.key)
-  .filter((key) => INSTITUTION_COLUMN_MAP[key] && !REQUIRED_EXPORT_COLUMNS.includes(key))
+  .filter((key) => INSTITUTION_COLUMN_MAP[key] && !REQUIRED_EXPORT_COLUMNS.includes(key) && !REPORT_EXCLUDED_COLUMNS.has(key))
   .sort((left, right) => {
     const leftIndex = PRIORITY_EXPORT_COLUMNS.indexOf(left);
     const rightIndex = PRIORITY_EXPORT_COLUMNS.indexOf(right);
@@ -152,7 +169,7 @@ function withRequiredColumns(columns = []) {
   const ordered = [];
   [...REQUIRED_EXPORT_COLUMNS, ...columns].forEach((column) => {
     const key = clean(column);
-    if (!key || !INSTITUTION_COLUMN_MAP[key] || seen.has(key)) return;
+    if (!key || !INSTITUTION_COLUMN_MAP[key] || REPORT_EXCLUDED_COLUMNS.has(key) || seen.has(key)) return;
     seen.add(key);
     ordered.push(key);
   });

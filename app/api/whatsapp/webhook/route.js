@@ -10,16 +10,41 @@ import {
   downloadWhatsAppMediaAsAttachment,
   getWhatsAppLinkByWaId,
   getWhatsAppWebhookAppSecret,
+  sendWhatsAppDocumentFile,
   sendWhatsAppReplyButtons,
   sendWhatsAppTextMessages
 } from "../../../../lib/whatsapp";
 import { INSTITUTION_COLUMN_MAP } from "../../../../lib/student-view";
+import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 
 const REQUIRED_EXPORT_COLUMNS = ["name", "tznum"];
+const REPORT_EXCLUDED_COLUMNS = new Set([
+  "field:email.primaryEmail",
+  "field:email.additionalEmails",
+  "field:fatherEmail.primaryEmail",
+  "field:fatherEmail.additionalEmails",
+  "field:motherEmail.primaryEmail",
+  "field:motherEmail.additionalEmails",
+  "field:phone.primaryPhoneNumber",
+  "field:phone.primaryPhoneCountryCode",
+  "field:phone.primaryPhoneCallingCode",
+  "field:dadPhone.primaryPhoneNumber",
+  "field:dadPhone.primaryPhoneCountryCode",
+  "field:dadPhone.primaryPhoneCallingCode",
+  "field:momPhone.primaryPhoneNumber",
+  "field:momPhone.primaryPhoneCountryCode",
+  "field:momPhone.primaryPhoneCallingCode",
+  "field:adders.addressStreet1",
+  "field:adders.addressStreet2",
+  "field:adders.addressCity",
+  "field:adders.addressPostcode",
+  "field:adders.addressState",
+  "field:adders.addressCountry"
+]);
 const REPORT_COLUMN_PRESETS = {
   default: ["name", "tznum", "field:dateofbirth"],
   contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
-  address: ["name", "tznum", "address", "field:adders.addressStreet1", "field:adders.addressStreet2", "field:adders.addressCity", "field:adders.addressPostcode", "field:adders.addressCountry"]
+  address: ["name", "tznum", "address"]
 };
 
 function clean(value) {
@@ -125,7 +150,7 @@ function withRequiredColumns(columns = []) {
   const ordered = [];
   [...REQUIRED_EXPORT_COLUMNS, ...columns].forEach((column) => {
     const key = clean(column);
-    if (!key || !INSTITUTION_COLUMN_MAP[key] || seen.has(key)) return;
+    if (!key || !INSTITUTION_COLUMN_MAP[key] || REPORT_EXCLUDED_COLUMNS.has(key) || seen.has(key)) return;
     seen.add(key);
     ordered.push(key);
   });
@@ -163,12 +188,8 @@ function buildReplyText(result) {
   const sortLevels = normalizeSortLevels(result?.sortLevels || [{ sortBy: "name", sortDir: "asc" }]);
 
   const absoluteViewUrl = toAbsoluteUrl(result?.viewUrl);
-  const absoluteExportUrl = toAbsoluteUrl(buildExportUrlWithOptions(result?.exportUrl, { columns: exportColumns, sortLevels }));
   if (absoluteViewUrl) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
-  if (absoluteExportUrl) parts.push(`אקסל:\n${absoluteExportUrl}`);
-  const absolutePdfUrl = toAbsoluteUrl(buildExportUrlWithOptions(result?.pdfUrl, { columns: exportColumns, sortLevels }));
-  if (absolutePdfUrl) parts.push(`PDF:\n${absolutePdfUrl}`);
-  if (absoluteExportUrl || absolutePdfUrl) {
+  if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
     parts.push(`מיון דוח: ${sortLevels[0]?.sortBy === "class" ? "שיעור" : "שם משפחה"}`);
     parts.push(`עמודות: ${exportColumns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`);
   }
@@ -193,10 +214,33 @@ function buildReplyText(result) {
   return parts.filter(Boolean).join("\n\n");
 }
 
+async function sendInstitutionAttachments(waId, messageRecord) {
+  const columns = withRequiredColumns(messageRecord?.exportColumns || []);
+  const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "name", sortDir: "asc" }]);
+
+  if (messageRecord?.exportUrl) {
+    const csvFile = await buildInstitutionCsvExport(buildExportUrlWithOptions(messageRecord.exportUrl, { columns, sortLevels }));
+    await sendWhatsAppDocumentFile(waId, csvFile, {
+      caption: `אקסל. מיון: ${sortLevels[0]?.sortBy === "class" ? "שיעור" : "שם משפחה"}.`
+    });
+  }
+
+  if (messageRecord?.pdfUrl) {
+    const pdfFile = await buildInstitutionPdfExport(buildExportUrlWithOptions(messageRecord.pdfUrl, { columns, sortLevels }));
+    await sendWhatsAppDocumentFile(waId, pdfFile, {
+      caption: `PDF. מיון: ${sortLevels[0]?.sortBy === "class" ? "שיעור" : "שם משפחה"}.`
+    });
+  }
+}
+
 async function sendWhatsAppResult(waId, result) {
   const replyText = buildReplyText(result);
   if (replyText) {
     await sendWhatsAppTextMessages(waId, replyText);
+  }
+
+  if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
+    await sendInstitutionAttachments(waId, result);
   }
 
   if (result?.pendingAction?.id && result?.id) {
