@@ -1,5 +1,4 @@
 import { listApiTokens } from "../../lib/api-tokens";
-import { getResendConfigStatus } from "../../lib/resend";
 import { listAppUsers, listPendingUnknownUsers, requireTeamUser } from "../../lib/rbac";
 import ApiAccessClient from "./api-access-client";
 import UserManagementClient from "./user-management-client";
@@ -9,7 +8,6 @@ import {
   generateUserTelegramLinkCodeAction,
   generateUserWhatsAppLinkCodeAction,
   revokeApiTokenAction,
-  sendResendTestEmailAction,
   setEditPermissionAction,
   unlinkUserTelegramAction,
   unlinkUserWhatsAppAction,
@@ -19,14 +17,10 @@ import {
 
 export default async function AdminPage({ searchParams }) {
   const currentUser = await requireTeamUser();
-  const resolvedSearchParams = await searchParams;
   const pendingUsers = await listPendingUnknownUsers();
   const users = await listAppUsers();
   const apiTokens = await listApiTokens();
   const apiBaseUrl = process.env.CRM_BASE_URL || process.env.APP_BASE_URL || "http://localhost:3000";
-  const emailSent = String(resolvedSearchParams?.emailSent || "") === "1";
-  const emailError = String(resolvedSearchParams?.emailError || "");
-  const resendStatus = getResendConfigStatus();
 
   return (
     <>
@@ -58,47 +52,7 @@ export default async function AdminPage({ searchParams }) {
         />
       ) : null}
 
-      {emailSent ? <div className="ok">מייל הבדיקה נשלח בהצלחה.</div> : null}
-      {emailError ? <div className="card muted">{emailError}</div> : null}
-
       <ApiAccessClient apiBaseUrl={apiBaseUrl} />
-
-      <div className="card">
-        <h2>שליחת מיילים</h2>
-        <p className="muted">
-          שליחה דרך Resend לאירועים והתראות מערכת. בהמשך אפשר לחבר את אותו מנגנון לאירועים אוטומטיים.
-        </p>
-        <div className="muted" style={{ marginTop: 8 }}>
-          סטטוס: {resendStatus.configured ? "מוגדר" : "חסר API key"}
-          {resendStatus.fromEmail ? ` | שולח: ${resendStatus.fromEmail}` : ""}
-        </div>
-        {!resendStatus.configured ? (
-          <div className="muted" style={{ marginTop: 8 }}>
-            יש להגדיר ב-ENV: {resendStatus.missing.join(", ")}
-          </div>
-        ) : null}
-        <form action={sendResendTestEmailAction} className="grid" style={{ marginTop: 16 }}>
-          <input
-            name="to"
-            type="email"
-            defaultValue={currentUser.email || ""}
-            placeholder="כתובת מייל לבדיקה"
-            dir="ltr"
-          />
-          <input
-            name="subject"
-            defaultValue="בדיקת מייל מה-CRM"
-            placeholder="נושא"
-          />
-          <textarea
-            name="message"
-            rows={5}
-            defaultValue={"שלום,\nזהו מייל בדיקה ממערכת ה-CRM דרך Resend."}
-            placeholder="תוכן ההודעה"
-          />
-          <button type="submit" disabled={!resendStatus.configured}>שלח מייל בדיקה</button>
-        </form>
-      </div>
 
       <div className="card">
         <h2>טוקני API פעילים והיסטוריים</h2>

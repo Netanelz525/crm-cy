@@ -1,9 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createApiToken, revokeApiToken } from "../../lib/api-tokens";
-import { sendResendEmail } from "../../lib/resend";
 import {
   approveUnknownUser,
   deleteAppUser,
@@ -91,27 +89,6 @@ export async function revokeApiTokenAction(formData) {
   if (!tokenId) return;
   await revokeApiToken(tokenId);
   revalidatePath("/admin");
-}
-
-export async function sendResendTestEmailAction(formData) {
-  const user = await requireTeamUser();
-  const to = clean(formData.get("to")) || clean(user.email);
-  const subject = clean(formData.get("subject")) || "בדיקת מייל מה-CRM";
-  const message = clean(formData.get("message")) || "זהו מייל בדיקה ממערכת ה-CRM.";
-
-  try {
-    await sendResendEmail({
-      to,
-      subject,
-      text: message,
-      html: `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.6">${message.replace(/\n/g, "<br />")}</div>`,
-      replyTo: user.email
-    });
-    redirect("/admin?emailSent=1");
-  } catch (error) {
-    const messageText = encodeURIComponent(error?.message || "שליחת מייל הבדיקה נכשלה");
-    redirect(`/admin?emailError=${messageText}`);
-  }
 }
 
 export async function updateUserRoleAction(formData) {
