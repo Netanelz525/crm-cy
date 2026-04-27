@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import {
+  buildWhatsAppDeepLink,
   createWhatsAppLinkCode,
   getWhatsAppLinkByClerkUserId,
   unlinkWhatsAppByClerkUserId
@@ -21,11 +22,14 @@ export async function generateWhatsAppLinkCodeAction() {
     };
   }
   const code = await createWhatsAppLinkCode(user.clerk_user_id, 15);
+  const deepLink = buildWhatsAppDeepLink(code.code);
   revalidatePath("/whatsapp");
+  revalidatePath("/account");
   return {
     ok: true,
     code: code.code,
-    expiresAt: code.expiresAt
+    expiresAt: code.expiresAt,
+    deepLink
   };
 }
 
@@ -36,4 +40,5 @@ export async function unlinkWhatsAppAction() {
   }
   await unlinkWhatsAppByClerkUserId(user.clerk_user_id);
   revalidatePath("/whatsapp");
+  revalidatePath("/account");
 }

@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 
+async function copyText(value) {
+  try {
+    await navigator.clipboard.writeText(String(value || ""));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function TelegramSettingsClient({
   isLinked,
   linkedChatId,
@@ -57,9 +66,14 @@ export default function TelegramSettingsClient({
     }
   }
 
+  async function handleCopy(value, successMessage) {
+    const ok = await copyText(value);
+    setMessage(ok ? successMessage : "לא הצלחתי להעתיק.");
+  }
+
   return (
     <div className="card glass">
-      <h1>חיבור Telegram</h1>
+      <h2 style={{ marginTop: 0 }}>חיבור Telegram</h2>
       <p className="muted">
         החיבור הוא חד-פעמי. אחרי הקישור, כל הודעה מה־Telegram תזוהה אוטומטית לפי החשבון שלך.
       </p>
@@ -84,12 +98,32 @@ export default function TelegramSettingsClient({
 
       {codeState?.code ? (
         <div className="card" style={{ marginTop: 16 }}>
-          <strong>קוד חיבור: {codeState.code}</strong>
+          <strong>{codeState.deepLink ? "קישור חיבור מוכן" : `קוד חיבור: ${codeState.code}`}</strong>
+          {codeState.deepLink ? (
+            <>
+              <p className="muted" style={{ marginTop: 8, direction: "ltr", wordBreak: "break-all" }}>
+                {codeState.deepLink}
+              </p>
+              <div className="quick-actions" style={{ marginTop: 10 }}>
+                <button type="button" onClick={() => handleCopy(codeState.deepLink, "קישור Telegram הועתק.")}>
+                  העתק
+                </button>
+                <a className="quick-action-btn quick-action-outline" href={codeState.deepLink} target="_blank" rel="noreferrer">
+                  כניסה
+                </a>
+              </div>
+            </>
+          ) : null}
           <p className="muted" style={{ marginTop: 8 }}>
-            שלח לבוט את הפקודה:
+            {codeState.deepLink ? "אם צריך, אפשר גם להעתיק רק את הקוד:" : "שלח לבוט את הפקודה:"}
             <br />
-            <code>/start {codeState.code}</code>
+            <code>{codeState.deepLink ? codeState.code : `/start ${codeState.code}`}</code>
           </p>
+          <div className="quick-actions" style={{ marginTop: 10 }}>
+            <button type="button" className="btn btn-ghost" onClick={() => handleCopy(codeState.code, "קוד Telegram הועתק.")}>
+              העתק קוד
+            </button>
+          </div>
           <p className="muted">
             תוקף עד: {codeState.expiresAt ? new Date(codeState.expiresAt).toLocaleString("he-IL") : "-"}
           </p>
@@ -100,8 +134,8 @@ export default function TelegramSettingsClient({
         <h3>איך זה עובד</h3>
         <ol>
           <li>לוחצים על `צור קוד חיבור`.</li>
-          <li>פותחים את הבוט ב־Telegram.</li>
-          <li>שולחים לו `/start CODE` עם הקוד שקיבלת.</li>
+          <li>לוחצים על `כניסה` כדי לעבור ישירות לבוט עם הקוד.</li>
+          <li>אפשר גם ללחוץ `העתק` ולהדביק את הקישור או את הקוד ידנית.</li>
           <li>מרגע זה אפשר לדבר עם הסוכן ישירות דרך Telegram.</li>
         </ol>
       </div>

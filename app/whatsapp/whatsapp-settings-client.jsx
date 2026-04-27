@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 
+async function copyText(value) {
+  try {
+    await navigator.clipboard.writeText(String(value || ""));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function WhatsAppSettingsClient({
   isLinked,
   linkedWaId,
@@ -43,9 +52,14 @@ export default function WhatsAppSettingsClient({
     }
   }
 
+  async function handleCopy(value, successMessage) {
+    const ok = await copyText(value);
+    setMessage(ok ? successMessage : "לא הצלחתי להעתיק.");
+  }
+
   return (
     <div className="card glass">
-      <h1>חיבור WhatsApp</h1>
+      <h2 style={{ marginTop: 0 }}>חיבור WhatsApp</h2>
       <p className="muted">
         החיבור הוא חד-פעמי. רק מספר שמחובר דרך קוד זמני יוכל לדבר עם הסוכן דרך WhatsApp.
       </p>
@@ -67,10 +81,31 @@ export default function WhatsAppSettingsClient({
 
       {codeState?.code ? (
         <div className="card" style={{ marginTop: 16 }}>
-          <strong>קוד חיבור: {codeState.code}</strong>
+          <strong>{codeState.deepLink ? "קישור חיבור מוכן" : `קוד חיבור: ${codeState.code}`}</strong>
+          {codeState.deepLink ? (
+            <>
+              <p className="muted" style={{ marginTop: 8, direction: "ltr", wordBreak: "break-all" }}>
+                {codeState.deepLink}
+              </p>
+              <div className="quick-actions" style={{ marginTop: 10 }}>
+                <button type="button" onClick={() => handleCopy(codeState.deepLink, "קישור WhatsApp הועתק.")}>
+                  העתק
+                </button>
+                <a className="quick-action-btn quick-action-outline" href={codeState.deepLink} target="_blank" rel="noreferrer">
+                  כניסה
+                </a>
+              </div>
+            </>
+          ) : null}
           <p className="muted" style={{ marginTop: 8 }}>
-            שלח למספר ה-WhatsApp העסקי רק את הקוד הזה כהודעה אחת.
+            {codeState.deepLink ? "אם צריך, אפשר גם להעתיק רק את הקוד:" : "שלח למספר ה-WhatsApp העסקי רק את הקוד הזה כהודעה אחת."}
           </p>
+          <code>{codeState.code}</code>
+          <div className="quick-actions" style={{ marginTop: 10 }}>
+            <button type="button" className="btn btn-ghost" onClick={() => handleCopy(codeState.code, "קוד WhatsApp הועתק.")}>
+              העתק קוד
+            </button>
+          </div>
           <p className="muted">
             תוקף עד: {codeState.expiresAt ? new Date(codeState.expiresAt).toLocaleString("he-IL") : "-"}
           </p>
@@ -81,8 +116,8 @@ export default function WhatsAppSettingsClient({
         <h3>איך זה עובד</h3>
         <ol>
           <li>לוחצים על `צור קוד חיבור`.</li>
-          <li>פותחים את שיחת ה-WhatsApp עם המספר העסקי.</li>
-          <li>שולחים רק את הקוד שקיבלתם.</li>
+          <li>לוחצים על `כניסה` כדי לעבור ישירות לשיחה עם הבוט והקוד המוכן.</li>
+          <li>אפשר גם ללחוץ `העתק` ולהדביק את הקישור או את הקוד ידנית.</li>
           <li>מרגע זה רק המספר שחובר יוכל לדבר עם הסוכן.</li>
         </ol>
       </div>

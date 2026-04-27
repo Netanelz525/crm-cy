@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import {
+  buildTelegramDeepLink,
   createTelegramLinkCode,
   getTelegramLinkByClerkUserId,
   setTelegramWebhook,
@@ -33,11 +34,14 @@ export async function generateTelegramLinkCodeAction() {
     };
   }
   const code = await createTelegramLinkCode(user.clerk_user_id, 15);
+  const deepLink = buildTelegramDeepLink(code.code);
   revalidatePath("/telegram");
+  revalidatePath("/account");
   return {
     ok: true,
     code: code.code,
-    expiresAt: code.expiresAt
+    expiresAt: code.expiresAt,
+    deepLink
   };
 }
 
@@ -48,6 +52,7 @@ export async function unlinkTelegramAction() {
   }
   await unlinkTelegramByClerkUserId(user.clerk_user_id);
   revalidatePath("/telegram");
+  revalidatePath("/account");
 }
 
 export async function setupTelegramWebhookAction() {
