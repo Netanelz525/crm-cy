@@ -44,7 +44,10 @@ const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:adders.addressState",
   "field:adders.addressCountry",
   "field:adders.addressLat",
-  "field:adders.addressLng"
+  "field:adders.addressLng",
+  "field:bankNum",
+  "field:senif",
+  "field:accountNum"
 ]);
 const REPORT_SORT_OPTIONS = [
   { key: "class", label: "שיעור" },
@@ -53,7 +56,8 @@ const REPORT_SORT_OPTIONS = [
 const REPORT_COLUMN_PRESETS = {
   default: ["name", "class"],
   contact: ["name", "tznum", "studentPhone", "dadPhone", "momPhone", "studentEmail", "fatherEmail", "motherEmail"],
-  address: ["name", "tznum", "address"]
+  address: ["name", "tznum", "address"],
+  bank: ["name", "tznum", "bankDetails"]
 };
 
 function clean(value) {

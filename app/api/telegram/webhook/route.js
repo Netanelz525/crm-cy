@@ -129,7 +129,10 @@ const REPORT_EXCLUDED_COLUMNS = new Set([
   "field:adders.addressState",
   "field:adders.addressCountry",
   "field:adders.addressLat",
-  "field:adders.addressLng"
+  "field:adders.addressLng",
+  "field:bankNum",
+  "field:senif",
+  "field:accountNum"
 ]);
 const REPORT_SORT_OPTIONS = [
   { key: "class", label: "שיעור" },
@@ -142,6 +145,7 @@ const REPORT_COLUMN_PRESETS = {
 };
 const PRIORITY_EXPORT_COLUMNS = [
   "address",
+  "bankDetails",
   "field:dateofbirth",
   "class",
   "age",
