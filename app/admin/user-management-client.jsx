@@ -153,23 +153,33 @@ function UserCard({
         </div>
         {telegramState?.code ? (
           <div style={{ display: "grid", gap: 8, padding: 12, borderRadius: 14, border: "1px solid #c9dbee", background: "#f8fbff" }}>
-            <div><b>Telegram:</b> קוד {telegramState.code}</div>
+            <div><b>Telegram:</b> {telegramState.deepLink ? "קישור חיבור מוכן" : `קוד ${telegramState.code}`}</div>
+            {telegramState.deepLink ? (
+              <div className="muted" dir="ltr" style={{ wordBreak: "break-all" }}>
+                {telegramState.deepLink}
+              </div>
+            ) : null}
             <div className="muted">תוקף עד: {formatDate(telegramState.expiresAt)}</div>
             <div className="quick-actions">
+              {telegramState.deepLink ? <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => onCopy(telegramState.deepLink, "קישור Telegram הועתק.")}>העתק</button> : null}
+              {telegramState.deepLink ? <a className="quick-action-btn quick-action-outline" href={telegramState.deepLink} target="_blank" rel="noreferrer">כניסה</a> : null}
               <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => onCopy(telegramState.code, "קוד Telegram הועתק.")}>העתק קוד</button>
-              {telegramState.deepLink ? <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => onCopy(telegramState.deepLink, "קישור Telegram הועתק.")}>העתק קישור</button> : null}
-              {telegramState.deepLink ? <a className="quick-action-btn quick-action-outline" href={telegramState.deepLink} target="_blank" rel="noreferrer">פתח בוט</a> : null}
             </div>
           </div>
         ) : null}
         {whatsappState?.code ? (
           <div style={{ display: "grid", gap: 8, padding: 12, borderRadius: 14, border: "1px solid #c9dbee", background: "#f8fbff" }}>
-            <div><b>WhatsApp:</b> קוד {whatsappState.code}</div>
+            <div><b>WhatsApp:</b> {whatsappState.deepLink ? "קישור חיבור מוכן" : `קוד ${whatsappState.code}`}</div>
+            {whatsappState.deepLink ? (
+              <div className="muted" dir="ltr" style={{ wordBreak: "break-all" }}>
+                {whatsappState.deepLink}
+              </div>
+            ) : null}
             <div className="muted">תוקף עד: {formatDate(whatsappState.expiresAt)}</div>
             <div className="quick-actions">
+              {whatsappState.deepLink ? <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => onCopy(whatsappState.deepLink, "קישור WhatsApp הועתק.")}>העתק</button> : null}
+              {whatsappState.deepLink ? <a className="quick-action-btn quick-action-outline" href={whatsappState.deepLink} target="_blank" rel="noreferrer">כניסה</a> : null}
               <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => onCopy(whatsappState.code, "קוד WhatsApp הועתק.")}>העתק קוד</button>
-              {whatsappState.deepLink ? <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => onCopy(whatsappState.deepLink, "קישור WhatsApp הועתק.")}>העתק קישור</button> : null}
-              {whatsappState.deepLink ? <a className="quick-action-btn quick-action-outline" href={whatsappState.deepLink} target="_blank" rel="noreferrer">פתח WhatsApp</a> : null}
             </div>
           </div>
         ) : null}
