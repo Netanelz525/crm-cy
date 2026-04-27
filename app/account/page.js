@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { getTelegramLinkByClerkUserId, getTelegramBotUsername, isTelegramConfigured } from "../../lib/telegram";
-import { getWhatsAppLinkByClerkUserId, isWhatsAppConfigured } from "../../lib/whatsapp";
+import { getWhatsAppBusinessNumber, getWhatsAppLinkByClerkUserId, isWhatsAppConfigured } from "../../lib/whatsapp";
 import TelegramSettingsClient from "../telegram/telegram-settings-client";
 import WhatsAppSettingsClient from "../whatsapp/whatsapp-settings-client";
 import {
@@ -22,7 +22,7 @@ export default async function AccountPage() {
   const telegramLink = canUseAiChat ? await getTelegramLinkByClerkUserId(user.clerk_user_id) : null;
   const whatsappLink = canUseAiChat ? await getWhatsAppLinkByClerkUserId(user.clerk_user_id) : null;
   const botUsername = getTelegramBotUsername();
-  const businessNumber = process.env.WHATSAPP_BUSINESS_DISPLAY_NUMBER || "";
+  const businessNumber = getWhatsAppBusinessNumber();
   const telegramDirectLinkReady = Boolean(isTelegramConfigured() && botUsername);
   const whatsappDirectLinkReady = Boolean(isWhatsAppConfigured() && businessNumber);
 

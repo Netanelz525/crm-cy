@@ -230,9 +230,9 @@ export default function UserSettingsClient({
             {telegramState.deepLink ? <div className="muted" dir="ltr" style={{ wordBreak: "break-all" }}>{telegramState.deepLink}</div> : null}
             <div className="muted">תוקף עד: {formatDate(telegramState.expiresAt)}</div>
             <div className="quick-actions">
-              {telegramState.deepLink ? <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => handleCopy(telegramState.deepLink, "קישור Telegram הועתק.")}>העתק</button> : null}
+              {telegramState.deepLink ? <button type="button" className="quick-action-btn quick-action-outline" style={{ width: "auto" }} onClick={() => handleCopy(telegramState.deepLink, "קישור Telegram הועתק.")}>העתק</button> : null}
               {telegramState.deepLink ? <a className="quick-action-btn quick-action-outline" href={telegramState.deepLink} target="_blank" rel="noreferrer">כניסה</a> : null}
-              <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => handleCopy(telegramState.code, "קוד Telegram הועתק.")}>העתק קוד</button>
+              <button type="button" className="quick-action-btn quick-action-outline" style={{ width: "auto" }} onClick={() => handleCopy(telegramState.code, "קוד Telegram הועתק.")}>העתק קוד</button>
             </div>
           </div>
         ) : null}
@@ -243,9 +243,9 @@ export default function UserSettingsClient({
             {whatsappState.deepLink ? <div className="muted" dir="ltr" style={{ wordBreak: "break-all" }}>{whatsappState.deepLink}</div> : null}
             <div className="muted">תוקף עד: {formatDate(whatsappState.expiresAt)}</div>
             <div className="quick-actions">
-              {whatsappState.deepLink ? <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => handleCopy(whatsappState.deepLink, "קישור WhatsApp הועתק.")}>העתק</button> : null}
+              {whatsappState.deepLink ? <button type="button" className="quick-action-btn quick-action-outline" style={{ width: "auto" }} onClick={() => handleCopy(whatsappState.deepLink, "קישור WhatsApp הועתק.")}>העתק</button> : null}
               {whatsappState.deepLink ? <a className="quick-action-btn quick-action-outline" href={whatsappState.deepLink} target="_blank" rel="noreferrer">כניסה</a> : null}
-              <button type="button" className="btn btn-ghost" style={{ width: "auto" }} onClick={() => handleCopy(whatsappState.code, "קוד WhatsApp הועתק.")}>העתק קוד</button>
+              <button type="button" className="quick-action-btn quick-action-outline" style={{ width: "auto" }} onClick={() => handleCopy(whatsappState.code, "קוד WhatsApp הועתק.")}>העתק קוד</button>
             </div>
           </div>
         ) : null}

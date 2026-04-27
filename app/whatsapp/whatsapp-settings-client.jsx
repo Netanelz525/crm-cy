@@ -102,7 +102,7 @@ export default function WhatsAppSettingsClient({
           </p>
           <code>{codeState.code}</code>
           <div className="quick-actions" style={{ marginTop: 10 }}>
-            <button type="button" className="btn btn-ghost" onClick={() => handleCopy(codeState.code, "קוד WhatsApp הועתק.")}>
+            <button type="button" className="quick-action-btn quick-action-outline" style={{ width: "auto" }} onClick={() => handleCopy(codeState.code, "קוד WhatsApp הועתק.")}>
               העתק קוד
             </button>
           </div>
