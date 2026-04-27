@@ -1,21 +1,15 @@
+import Link from "next/link";
 import { listApiTokens } from "../../lib/api-tokens";
 import { listAppUsers, listPendingUnknownUsers, requireTeamUser } from "../../lib/rbac";
 import ApiAccessClient from "./api-access-client";
 import UserManagementClient from "./user-management-client";
 import {
   approveUserAction,
-  deleteUserAction,
-  generateUserTelegramLinkCodeAction,
-  generateUserWhatsAppLinkCodeAction,
   revokeApiTokenAction,
-  setEditPermissionAction,
-  unlinkUserTelegramAction,
-  unlinkUserWhatsAppAction,
-  updateUserAgentPreferencesAction,
-  updateUserRoleAction
+  setEditPermissionAction
 } from "./actions";
 
-export default async function AdminPage({ searchParams }) {
+export default async function AdminPage() {
   const currentUser = await requireTeamUser();
   const pendingUsers = await listPendingUnknownUsers();
   const users = await listAppUsers();
@@ -38,19 +32,7 @@ export default async function AdminPage({ searchParams }) {
         ) : null}
       </div>
 
-      {currentUser.is_super_admin ? (
-        <UserManagementClient
-          users={users}
-          currentUserId={currentUser.clerk_user_id}
-          onGenerateTelegramCode={generateUserTelegramLinkCodeAction}
-          onGenerateWhatsAppCode={generateUserWhatsAppLinkCodeAction}
-          onUnlinkTelegram={unlinkUserTelegramAction}
-          onUnlinkWhatsApp={unlinkUserWhatsAppAction}
-          onSaveRole={updateUserRoleAction}
-          onSavePreferences={updateUserAgentPreferencesAction}
-          onDeleteUser={deleteUserAction}
-        />
-      ) : null}
+      {currentUser.is_super_admin ? <UserManagementClient users={users} /> : null}
 
       <ApiAccessClient apiBaseUrl={apiBaseUrl} />
 
@@ -142,9 +124,7 @@ export default async function AdminPage({ searchParams }) {
             <tbody>
               {!pendingUsers.length ? (
                 <tr>
-                  <td colSpan={5} className="muted">
-                    אין משתמשים ממתינים.
-                  </td>
+                  <td colSpan={5} className="muted">אין משתמשים ממתינים.</td>
                 </tr>
               ) : (
                 pendingUsers.map((u) => (
@@ -206,6 +186,11 @@ export default async function AdminPage({ searchParams }) {
 
       <div className="card">
         <h2>כל המשתמשים</h2>
+        {currentUser.is_super_admin ? (
+          <div className="muted" style={{ marginBottom: 12 }}>
+            לניהול מלא של משתמש וסוכן, עברו מתוך רשימת המשתמשים העליונה לעמוד המשתמש.
+          </div>
+        ) : null}
 
         <div className="desktop-table">
           <table>
@@ -223,9 +208,7 @@ export default async function AdminPage({ searchParams }) {
             <tbody>
               {!users.length ? (
                 <tr>
-                  <td colSpan={7} className="muted">
-                    אין נתונים
-                  </td>
+                  <td colSpan={7} className="muted">אין נתונים</td>
                 </tr>
               ) : (
                 users.map((u) => (
@@ -237,7 +220,9 @@ export default async function AdminPage({ searchParams }) {
                     <td>{u.linked_student_class || "-"}</td>
                     <td>{u.can_edit_own_card ? "כן" : "לא"}</td>
                     <td>
-                      {String(u.linked_student_class || "").toUpperCase() === "TEAM" ? (
+                      {currentUser.is_super_admin ? (
+                        <Link href={`/admin/users/${encodeURIComponent(u.clerk_user_id)}`}>עמוד משתמש</Link>
+                      ) : String(u.linked_student_class || "").toUpperCase() === "TEAM" ? (
                         "-"
                       ) : (
                         <form action={setEditPermissionAction}>
@@ -268,13 +253,15 @@ export default async function AdminPage({ searchParams }) {
                   <div><b>שיעור:</b> {u.linked_student_class || "-"}</div>
                   <div><b>עריכת כרטיס עצמי:</b> {u.can_edit_own_card ? "כן" : "לא"}</div>
                 </div>
-                {String(u.linked_student_class || "").toUpperCase() !== "TEAM" ? (
+                {currentUser.is_super_admin ? (
+                  <Link className="quick-action-btn quick-action-outline" href={`/admin/users/${encodeURIComponent(u.clerk_user_id)}`}>עמוד משתמש</Link>
+                ) : String(u.linked_student_class || "").toUpperCase() === "TEAM" ? null : (
                   <form action={setEditPermissionAction}>
                     <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
                     <input type="hidden" name="enabled" value={u.can_edit_own_card ? "0" : "1"} />
                     <button type="submit">{u.can_edit_own_card ? "בטל עריכה" : "אפשר עריכה"}</button>
                   </form>
-                ) : null}
+                )}
               </div>
             ))
           )}
