@@ -18,10 +18,13 @@ function cleanBaseUrl(value) {
 
 function DocBlock({ title, children }) {
   return (
-    <section className="api-doc-block">
-      <h3>{title}</h3>
-      {children}
-    </section>
+    <details className="api-doc-block" open={title === "Request Builder" || title === "ENV"}>
+      <summary className="api-fold-summary">
+        <span>{title}</span>
+        <span className="api-fold-hint">פתח</span>
+      </summary>
+      <div className="api-fold-body">{children}</div>
+    </details>
   );
 }
 
@@ -60,28 +63,46 @@ function CopyButton({ value, label = "העתק" }) {
 
 function ExampleCard({ title, subtitle, url, curl, body }) {
   return (
-    <div className="api-example-card">
-      <div className="api-example-head">
+    <details className="api-example-card">
+      <summary className="api-fold-summary">
         <div>
           <strong>{title}</strong>
           {subtitle ? <div className="muted">{subtitle}</div> : null}
         </div>
-        <div className="api-copy-row">
+        <span className="api-fold-hint">פרטים</span>
+      </summary>
+      <div className="api-fold-body">
+        <div className="api-copy-row" style={{ marginBottom: 10 }}>
           <CopyButton value={url} label="העתק URL" />
           <CopyButton value={curl} label="העתק cURL" />
         </div>
-      </div>
-      {body ? (
-        <div className="api-request-body">
-          <div className="api-inline-head">
-            <span>Body</span>
-            <CopyButton value={body} label="העתק JSON" />
+        {body ? (
+          <div className="api-request-body">
+            <div className="api-inline-head">
+              <span>Body</span>
+              <CopyButton value={body} label="העתק JSON" />
+            </div>
+            <pre className="token-box">{body}</pre>
           </div>
-          <pre className="token-box">{body}</pre>
+        ) : null}
+        <pre className="token-box">{curl}</pre>
+      </div>
+    </details>
+  );
+}
+
+function FoldItem({ title, subtitle, children, defaultOpen = false }) {
+  return (
+    <details className="api-nested-fold" open={defaultOpen}>
+      <summary className="api-fold-summary">
+        <div>
+          <strong>{title}</strong>
+          {subtitle ? <div className="muted">{subtitle}</div> : null}
         </div>
-      ) : null}
-      <pre className="token-box">{curl}</pre>
-    </div>
+        <span className="api-fold-hint">פתח</span>
+      </summary>
+      <div className="api-fold-body">{children}</div>
+    </details>
   );
 }
 
@@ -271,30 +292,58 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         </DocBlock>
 
         <DocBlock title="Endpoints">
-          <div className="api-endpoint-list">
-            <div><code>GET</code> <span>{`${baseUrl}/api/crm/students?q=...&limit=10&offset=0&minScore=0.42`}</span></div>
-            <div><code>GET</code> <span>{`${baseUrl}/api/crm/students?institution=CY&limit=20`}</span></div>
-            <div><code>GET</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
-            <div><code>GET</code> <span>{`${baseUrl}/api/crm/export?resource=all`}</span></div>
-            <div><code>GET</code> <span>{`${baseUrl}/api/crm/export?resource=neon_students`}</span></div>
-            <div><code>POST</code> <span>{`${baseUrl}/api/crm/students`}</span></div>
-            <div><code>PATCH</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
-            <div><code>DELETE</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
-          </div>
+          <FoldItem title="סטודנטים: חיפוש ורשימה" subtitle="GET /api/crm/students" defaultOpen>
+            <div className="api-param-list">
+              <div><code>GET</code> <span>{`${baseUrl}/api/crm/students?q=...&limit=10&offset=0&minScore=0.42`}</span></div>
+              <div><code>GET</code> <span>{`${baseUrl}/api/crm/students?institution=CY&limit=20`}</span></div>
+            </div>
+          </FoldItem>
+          <FoldItem title="סטודנט בודד" subtitle="GET / PATCH / DELETE">
+            <div className="api-param-list">
+              <div><code>GET</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
+              <div><code>PATCH</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
+              <div><code>DELETE</code> <span>{`${baseUrl}/api/crm/students/{id}`}</span></div>
+            </div>
+          </FoldItem>
+          <FoldItem title="יצירת תלמיד" subtitle="POST /api/crm/students">
+            <div className="api-param-list">
+              <div><code>POST</code> <span>{`${baseUrl}/api/crm/students`}</span></div>
+            </div>
+          </FoldItem>
+          <FoldItem title="ייצוא" subtitle="GET /api/crm/export">
+            <div className="api-param-list">
+              <div><code>GET</code> <span>{`${baseUrl}/api/crm/export?resource=all`}</span></div>
+              <div><code>GET</code> <span>{`${baseUrl}/api/crm/export?resource=neon_students`}</span></div>
+            </div>
+          </FoldItem>
         </DocBlock>
 
         <DocBlock title="Query Params">
-          <div className="api-param-list">
-            <div><b>q</b>: חיפוש משוער בשם פרטי/משפחה עם score</div>
-            <div><b>institution</b>: סינון לפי מוסד, למשל `CY`</div>
-            <div><b>class</b>: סינון לפי שיעור, למשל `A`</div>
-            <div><b>registration</b>: סינון לפי סטטוס רישום</div>
-            <div><b>famliystatus</b>: סינון לפי סטטוס משפחתי</div>
-            <div><b>tz</b>: חיפוש לפי ת"ז תלמיד/אב/אם</div>
-            <div><b>limit</b>: עד `500` תוצאות</div>
-            <div><b>offset</b>: דילוג לפאג'ינציה</div>
-            <div><b>minScore</b>: סף התאמה בין `0` ל-`1`, ברירת מחדל `0.42`</div>
-          </div>
+          <FoldItem title="q" subtitle="חיפוש משוער">
+            <div className="api-param-list"><div>חיפוש משוער בשם פרטי/משפחה עם score.</div></div>
+          </FoldItem>
+          <FoldItem title="institution">
+            <div className="api-param-list"><div>סינון לפי מוסד, למשל `CY`.</div></div>
+          </FoldItem>
+          <FoldItem title="class">
+            <div className="api-param-list"><div>סינון לפי שיעור, למשל `A`.</div></div>
+          </FoldItem>
+          <FoldItem title="registration">
+            <div className="api-param-list"><div>סינון לפי סטטוס רישום.</div></div>
+          </FoldItem>
+          <FoldItem title="famliystatus">
+            <div className="api-param-list"><div>סינון לפי סטטוס משפחתי.</div></div>
+          </FoldItem>
+          <FoldItem title="tz">
+            <div className="api-param-list"><div>חיפוש לפי ת"ז תלמיד/אב/אם.</div></div>
+          </FoldItem>
+          <FoldItem title="limit / offset / minScore">
+            <div className="api-param-list">
+              <div><b>limit</b>: עד `500` תוצאות</div>
+              <div><b>offset</b>: דילוג לפאג'ינציה</div>
+              <div><b>minScore</b>: סף התאמה בין `0` ל-`1`, ברירת מחדל `0.42`</div>
+            </div>
+          </FoldItem>
         </DocBlock>
 
         <DocBlock title="Request Builder">
@@ -372,16 +421,24 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         </DocBlock>
 
         <DocBlock title="Response Shape">
-          <pre className="token-box">{`{\n  "resource": "students",\n  "count": 2,\n  "total": 51,\n  "limit": 2,\n  "offset": 0,\n  "minScore": 0.42,\n  "filters": {\n    "institution": "CY",\n    "class": "A",\n    "registration": null,\n    "famliystatus": "MARRIED"\n  },\n  "names": [\n    { "id": "...", "name": "אברהם כהן", "matchScore": 1 }\n  ],\n  "items": [\n    { "...": "full student objects" }\n  ]\n}`}</pre>
+          <FoldItem title="מבנה תשובה מלא" defaultOpen>
+            <pre className="token-box">{`{\n  "resource": "students",\n  "count": 2,\n  "total": 51,\n  "limit": 2,\n  "offset": 0,\n  "minScore": 0.42,\n  "filters": {\n    "institution": "CY",\n    "class": "A",\n    "registration": null,\n    "famliystatus": "MARRIED"\n  },\n  "names": [\n    { "id": "...", "name": "אברהם כהן", "matchScore": 1 }\n  ],\n  "items": [\n    { "...": "full student objects" }\n  ]\n}`}</pre>
+          </FoldItem>
         </DocBlock>
 
         <DocBlock title="Scopes">
-          <div className="api-param-list">
-            <div><b>students:read</b>: `GET` list/detail</div>
-            <div><b>students:write</b>: `POST` + `PATCH`</div>
-            <div><b>students:delete</b>: `DELETE`</div>
-            <div><b>backup:read</b>: `GET /api/crm/export`</div>
-          </div>
+          <FoldItem title="students:read">
+            <div className="api-param-list"><div>`GET` list/detail</div></div>
+          </FoldItem>
+          <FoldItem title="students:write">
+            <div className="api-param-list"><div>`POST` + `PATCH`</div></div>
+          </FoldItem>
+          <FoldItem title="students:delete">
+            <div className="api-param-list"><div>`DELETE`</div></div>
+          </FoldItem>
+          <FoldItem title="backup:read">
+            <div className="api-param-list"><div>`GET /api/crm/export`</div></div>
+          </FoldItem>
         </DocBlock>
 
         <DocBlock title="Examples">
@@ -421,13 +478,21 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         </DocBlock>
 
         <DocBlock title="מגבלות נוכחיות">
-          <div className="api-param-list">
-            <div>כרגע exposed רק resource של `students`</div>
-            <div>הקריאה היא מ-Neon, הכתיבה עדיין מסונכרנת דרך Twenty</div>
-            <div>החיפוש המשוער הוא scoring אפליקטיבי, לא full-text index של Postgres</div>
-            <div>אין versioning כמו `/api/v1` עדיין</div>
-            <div>אין rate limiting</div>
-          </div>
+          <FoldItem title="Resources">
+            <div className="api-param-list"><div>כרגע exposed רק resource של `students`.</div></div>
+          </FoldItem>
+          <FoldItem title="מקור נתונים וכתיבה">
+            <div className="api-param-list"><div>הקריאה היא מ-Neon, הכתיבה עדיין מסונכרנת דרך Twenty.</div></div>
+          </FoldItem>
+          <FoldItem title="חיפוש">
+            <div className="api-param-list"><div>החיפוש המשוער הוא scoring אפליקטיבי, לא full-text index של Postgres.</div></div>
+          </FoldItem>
+          <FoldItem title="Versioning ו-Limits">
+            <div className="api-param-list">
+              <div>אין versioning כמו `/api/v1` עדיין.</div>
+              <div>אין rate limiting.</div>
+            </div>
+          </FoldItem>
         </DocBlock>
       </div>
     </div>
