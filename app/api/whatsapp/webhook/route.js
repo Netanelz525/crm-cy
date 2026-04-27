@@ -619,6 +619,16 @@ export async function POST(request) {
       });
       return NextResponse.json({ ok: true });
     }
+    if (!user.agent_whatsapp_enabled) {
+      const responseText = "הגישה שלך לסוכן דרך WhatsApp כבויה כרגע. פנה למנהל המערכת.";
+      await sendWhatsAppTextMessages(waId, responseText);
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus: "channel_disabled",
+        clerkUserId: user.clerk_user_id,
+        responseText
+      });
+      return NextResponse.json({ ok: true });
+    }
 
     if (attachmentMeta) {
       const attachment = await downloadWhatsAppMediaAsAttachment(attachmentMeta.mediaId, {

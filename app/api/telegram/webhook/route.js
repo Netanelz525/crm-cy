@@ -695,6 +695,10 @@ export async function POST(request) {
       await sendTelegramMessage(chatId, "החשבון הזה אינו מורשה להשתמש בסוכן.");
       return NextResponse.json({ ok: true });
     }
+    if (!user.agent_telegram_enabled) {
+      await sendTelegramMessage(chatId, "הגישה שלך לסוכן דרך Telegram כבויה כרגע. פנה למנהל המערכת.");
+      return NextResponse.json({ ok: true });
+    }
 
     const result = attachmentMeta
       ? await processDocumentAttachment({
