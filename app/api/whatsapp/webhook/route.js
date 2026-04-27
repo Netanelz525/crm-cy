@@ -444,6 +444,12 @@ export async function POST(request) {
             { id: `preset:address:${messageId}`, title: "כתובת" }
           ]
         });
+        await sendWhatsAppReplyButtons(waId, {
+          bodyText: "אפשרות נוספת לדוח.",
+          buttons: [
+            { id: `preset:bank:${messageId}`, title: "פרטי בנק" }
+          ]
+        });
         await updateWhatsAppInboundEvent(inboundEvent.id, {
           processingStatus: "report_presets_prompt",
           clerkUserId: user.clerk_user_id,
@@ -508,7 +514,7 @@ export async function POST(request) {
           waId,
           kind === "sort"
             ? `המיון עודכן ל-${sortLabel}.`
-            : `העמודות עודכנו לפריסט ${clean(value) === "contact" ? "אנשי קשר" : clean(value) === "address" ? "כתובת" : "ברירת מחדל"}.`
+            : `העמודות עודכנו לפריסט ${clean(value) === "contact" ? "אנשי קשר" : clean(value) === "address" ? "כתובת" : clean(value) === "bank" ? "פרטי בנק" : "ברירת מחדל"}.`
         );
         await sendWhatsAppReplyButtons(waId, {
           bodyText: "הדוח עודכן. אפשר להוריד או להמשיך להתאים.",
