@@ -11,6 +11,7 @@ import {
   getWhatsAppLinkByWaId,
   getWhatsAppWebhookAppSecret,
   sendWhatsAppDocumentFile,
+  sendWhatsAppListMessage,
   sendWhatsAppReplyButtons,
   sendWhatsAppTextMessages
 } from "../../../../lib/whatsapp";
@@ -436,18 +437,19 @@ export async function POST(request) {
 
       if (interactiveActionId.startsWith("presets:")) {
         const [, messageId] = interactiveActionId.split(":");
-        await sendWhatsAppReplyButtons(waId, {
+        await sendWhatsAppListMessage(waId, {
           bodyText: "בחר מבנה עמודות לדוח.",
-          buttons: [
-            { id: `preset:default:${messageId}`, title: "ברירת מחדל" },
-            { id: `preset:contact:${messageId}`, title: "אנשי קשר" },
-            { id: `preset:address:${messageId}`, title: "כתובת" }
-          ]
-        });
-        await sendWhatsAppReplyButtons(waId, {
-          bodyText: "אפשרות נוספת לדוח.",
-          buttons: [
-            { id: `preset:bank:${messageId}`, title: "פרטי בנק" }
+          buttonText: "בחר עמודות",
+          sections: [
+            {
+              title: "מבני עמודות",
+              rows: [
+                { id: `preset:default:${messageId}`, title: "ברירת מחדל", description: "שם ושיעור" },
+                { id: `preset:contact:${messageId}`, title: "אנשי קשר", description: "טלפונים ואימיילים" },
+                { id: `preset:address:${messageId}`, title: "כתובת", description: "כתובת מלאה" },
+                { id: `preset:bank:${messageId}`, title: "פרטי בנק", description: "בנק-סניף-חשבון" }
+              ]
+            }
           ]
         });
         await updateWhatsAppInboundEvent(inboundEvent.id, {
