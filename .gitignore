@@ -6,7 +6,9 @@
 # Next / Node
 node_modules
 .next
+.next.stale.*
 .vercel
+.codex
 
 # Legacy local files (migration compatibility)
 users.local.json
@@ -18,3 +20,4 @@ students.internal.local.json
 server.out.log
 server.err.log
 .env*.local
+backups/

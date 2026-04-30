@@ -199,5 +199,25 @@ node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs --env /path/t
 - `app_users`
 - `student_internal_notes`
 - `saved_student_views`
+- `neon_user_preferences`
 - `neon_students`
 - `api_tokens`
+
+## גיבוי שבועי אוטומטי ב-Vercel
+
+נוסף cron route:
+
+- `GET /api/cron/weekly-backup`
+
+הגדרות:
+
+- בקובץ [vercel.json](/Users/netanelzevin/Documents/crm/vercel.json) הוגדר cron שבועי ליום חמישי ב-`10:00 UTC`
+- ב-Vercel צריך להגדיר `CRON_SECRET` כדי שהקריאה תגיע עם `Authorization: Bearer <CRON_SECRET>`
+- מקבלי הגיבוי הם רק משתמשים בתפקיד `super_admin`
+- לכל סופר אדמין אפשר להגדיר בעמוד `/admin/users/{id}` אם לקבל את הגיבוי ב-`Email`, `Telegram`, או `Email + Telegram`
+
+מה נשלח:
+
+- קובץ JSON מצורף עם כל טבלאות ה-CRM
+- ללא תמונות
+- עם מניעת הרצה כפולה לאותו יום כדי לצמצם כפילויות ב-cron
