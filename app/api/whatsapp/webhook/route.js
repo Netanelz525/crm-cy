@@ -4,6 +4,7 @@ import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
   consumeWhatsAppLinkCode,
@@ -201,24 +202,21 @@ function buildReplyText(result) {
   const exportColumns = withRequiredColumns(result?.exportColumns || []);
   const sortLevels = normalizeSortLevels(result?.sortLevels || [{ sortBy: "class", sortDir: "asc" }]);
 
+  const hasStudentCards = Array.isArray(result?.studentCards) && result.studentCards.length > 0;
   const absoluteViewUrl = toAbsoluteUrl(result?.viewUrl);
-  if (absoluteViewUrl) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
+  if (absoluteViewUrl && !hasStudentCards) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
   if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
     parts.push(`מיון דוח: ${sortLevels[0]?.sortBy === "class" ? "שיעור" : "שם משפחה"}`);
     parts.push(`עמודות: ${exportColumns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`);
   }
 
-  const cardLinks = (Array.isArray(result?.studentCards) ? result.studentCards : [])
-    .slice(0, 3)
-    .map((student) => {
-      const url = toAbsoluteUrl(student?.studentCardUrl);
-      if (!url) return "";
-      return `${clean(student?.name) || "תלמיד"}:\n${url}`;
-    })
+  const cardBlocks = (Array.isArray(result?.studentCards) ? result.studentCards : [])
+    .slice(0, 7)
+    .map((student, index) => [`כרטיס תלמיד ${index + 1}:`, ...buildStudentCardLines(student)].join("\n"))
     .filter(Boolean);
 
-  if (cardLinks.length) {
-    parts.push(`כרטיסי תלמיד:\n${cardLinks.join("\n\n")}`);
+  if (cardBlocks.length) {
+    parts.push(cardBlocks.join("\n\n"));
   }
 
   if (clean(result?.searchSummary)) {
@@ -275,6 +273,28 @@ async function sendWhatsAppResult(waId, result) {
         ]
       });
       return;
+    }
+    if (Array.isArray(result?.studentCards) && result.studentCards.length) {
+      const studentRows = result.studentCards
+        .slice(0, 7)
+        .map((student, index) => ({
+          id: `studentcard:${index}:${result.id}`,
+          title: clean(student?.name) || `תלמיד ${index + 1}`,
+          description: [
+            Number.isFinite(Number(student?.age)) ? `גיל ${Number(student.age)}` : "",
+            clean(student?.tznum) ? `ת"ז ${clean(student.tznum)}` : ""
+          ].filter(Boolean).join(" | ") || "פתח כרטיס במערכת"
+        }));
+      await sendWhatsAppListMessage(waId, {
+        bodyText: "לבחירת כרטיס תלמיד לפתיחה במערכת.",
+        buttonText: "פתח כרטיס",
+        sections: [
+          {
+            title: "תלמידים שנמצאו",
+            rows: studentRows
+          }
+        ]
+      });
     }
     await sendWhatsAppReplyButtons(waId, {
       bodyText: "האם התשובה עזרה?",
@@ -413,6 +433,28 @@ export async function POST(request) {
           processingStatus: "feedback_saved",
           clerkUserId: user.clerk_user_id,
           responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("studentcard:")) {
+        const [, rawIndex, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        const studentCards = Array.isArray(messageRecord?.studentCards) ? messageRecord.studentCards : [];
+        const student = studentCards[Number(rawIndex)];
+        const url = toAbsoluteUrl(student?.studentCardUrl);
+        if (!student || !url) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי את כרטיס התלמיד המבוקש.");
+          return NextResponse.json({ ok: true });
+        }
+        await sendWhatsAppTextMessages(waId, `כרטיס ${clean(student?.name) || "תלמיד"}:\n${url}`);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "student_card_link_sent",
+          clerkUserId: user.clerk_user_id,
+          responseText: `נשלח קישור לכרטיס ${clean(student?.name) || "תלמיד"}`
         });
         return NextResponse.json({ ok: true });
       }

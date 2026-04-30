@@ -179,6 +179,13 @@ function MessageCard({ message, onDecision, onFeedback, deciding }) {
                   <span className={`match-score-pill ${scoreClassName(student.matchScore)}`}>התאמה</span>
                 ) : null}
               </span>
+              <span>{[
+                Number.isFinite(Number(student.age)) ? `גיל ${Number(student.age)}` : "",
+                student.tznum ? `ת"ז ${student.tznum}` : ""
+              ].filter(Boolean).join(" | ") || "ללא פרטי זיהוי"}</span>
+              <span>{student.studentPhone ? `טלפון תלמיד: ${student.studentPhone}` : "טלפון תלמיד: -"}</span>
+              <span>{student.dadPhone ? `טלפון אב: ${student.dadPhone}` : "טלפון אב: -"}</span>
+              <span>{student.momPhone ? `טלפון אם: ${student.momPhone}` : "טלפון אם: -"}</span>
               <span className="ai-chat-student-link">פתח כרטיס תלמיד</span>
             </a>
           ))}

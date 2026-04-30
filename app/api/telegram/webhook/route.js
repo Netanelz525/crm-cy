@@ -5,6 +5,7 @@ import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessag
 import { getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
+import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { INSTITUTION_COLUMN_MAP, INSTITUTION_COLUMNS_FULL } from "../../../../lib/student-view";
 
 function clean(value) {
@@ -100,6 +101,15 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
   }
   if (remaining) chunks.push(remaining);
   return chunks;
+}
+
+function buildTelegramStudentCardsText(studentCards = []) {
+  const cards = Array.isArray(studentCards) ? studentCards : [];
+  if (!cards.length) return "";
+  return cards
+    .slice(0, 7)
+    .map((student, index) => [`כרטיס תלמיד ${index + 1}:`, ...buildStudentCardLines(student)].join("\n"))
+    .join("\n\n");
 }
 
 const REQUIRED_EXPORT_COLUMNS = ["name"];
@@ -720,7 +730,9 @@ export async function POST(request) {
         source: "telegram"
       });
 
-    const collapsedReply = splitMessageForTelegram(result.reply, 8);
+    const cardsText = buildTelegramStudentCardsText(result.studentCards);
+    const baseReply = [result.reply, cardsText].filter(Boolean).join("\n\n");
+    const collapsedReply = splitMessageForTelegram(baseReply, 8);
     const replyText = [collapsedReply.text, result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""].filter(Boolean).join("\n");
     const replyMarkup = buildTelegramKeyboard({
       messageId: result.id,
