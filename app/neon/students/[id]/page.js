@@ -100,6 +100,14 @@ function classLabel(value) {
   return ENUM_LABELS.class?.[key] || clean(value) || "-";
 }
 
+function documentKindLabel(value) {
+  const normalized = clean(value).toLowerCase();
+  if (normalized === "id") return "תעודת זהות";
+  if (normalized === "tuition") return "שכר לימוד";
+  if (normalized === "medical") return "מסמך רפואי";
+  return "מסמך כללי";
+}
+
 function isMarried(value) {
   return clean(value).toUpperCase() === "MARRIED";
 }
@@ -186,10 +194,16 @@ export default async function NeonStudentPage({ params, searchParams }) {
                 >
                   {advancedMode ? "מעבר לעריכה רגילה" : "עריכה מתקדמת"}
                 </Link>
-                <Link className="btn btn-primary" href={`/neon/students/${studentId}`}>ביטול עריכה</Link>
+                <Link className="btn btn-close" href={`/neon/students/${studentId}`}>
+                  <span className="btn-icon-badge" aria-hidden="true">×</span>
+                  <span>סגור עריכה</span>
+                </Link>
               </>
             ) : canEdit ? (
-              <Link className="btn btn-primary" href={`/neon/students/${studentId}?edit=1`}>עריכת שדות</Link>
+              <Link className="btn btn-edit" href={`/neon/students/${studentId}?edit=1`}>
+                <span className="btn-icon-badge" aria-hidden="true">✎</span>
+                <span>עריכת שדות</span>
+              </Link>
             ) : null}
             <Link className="btn btn-ghost" href={`/students/${studentId}`}>פתח בגרסה הראשית</Link>
           </div>
@@ -212,8 +226,18 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card">
-        <h3>מסמכי תלמיד</h3>
-        <p className="muted">ניתן לשייך לכרטיס מספר מסמכים, כולל PDF ותמונות, הנשמרים ב-R2.</p>
+        <div className="linked-records-head">
+          <div>
+            <h3>רשומות מקושרות</h3>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              כרגע מוצגים כאן מסמכי התלמיד, ובהמשך נוכל להוסיף לאותו אזור גם סוגי רשומות נוספים.
+            </p>
+          </div>
+          <div className="linked-records-summary">
+            <span className="linked-record-pill">מסמכים: {documents.length}</span>
+            <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
+          </div>
+        </div>
         {canManageDocuments ? (
           <form action={uploadStudentDocumentAction} className="grid" style={{ marginBottom: 12 }}>
             <input type="hidden" name="studentId" value={studentId} />
@@ -229,42 +253,64 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <button type="submit">העלה מסמך</button>
           </form>
         ) : null}
-        {!documents.length ? (
-          <div className="muted">אין מסמכים משויכים לתלמיד.</div>
-        ) : (
-          <div className="grid">
-            {documents.map((doc) => (
-              <div key={doc.id} className="card">
-                <div className="student-document-title-row">
-                  <a href={`/api/student-documents/${doc.id}`} target="_blank"><b>{doc.name}</b></a>
-                  {canManageDocuments ? (
-                    <details className="student-document-rename">
-                      <summary title="ערוך שם מסמך">✎</summary>
-                      <form action={updateStudentDocumentNameAction} className="student-document-rename-form">
-                        <input type="hidden" name="studentId" value={studentId} />
-                        <input type="hidden" name="documentId" value={doc.id} />
-                        <input name="displayName" defaultValue={doc.name} aria-label="שם מסמך" />
-                        <button type="submit">שמור</button>
-                      </form>
-                    </details>
-                  ) : null}
+        <div className="linked-records-grid">
+          {!documents.length ? (
+            <div className="linked-record-card">
+              <b>מסמכים</b>
+              <div className="linked-record-meta">אין מסמכים משויכים לתלמיד.</div>
+              <div className="linked-record-meta">ברגע שיעלו קבצים הם יופיעו כאן כחלק מהרשומות המקושרות.</div>
+            </div>
+          ) : (
+            documents.map((doc) => (
+              <div key={doc.id} className="linked-record-card">
+                <div className="linked-record-card-top">
+                  <a className="linked-record-title" href={`/api/student-documents/${doc.id}`} target="_blank">{doc.name}</a>
+                  <div className="student-document-title-row">
+                    <span className="linked-record-pill">{documentKindLabel(doc.documentKind)}</span>
+                    {canManageDocuments ? (
+                      <details className="student-document-rename">
+                        <summary title="ערוך שם מסמך">✎</summary>
+                        <form action={updateStudentDocumentNameAction} className="student-document-rename-form">
+                          <input type="hidden" name="studentId" value={studentId} />
+                          <input type="hidden" name="documentId" value={doc.id} />
+                          <input name="displayName" defaultValue={doc.name} aria-label="שם מסמך" />
+                          <button type="submit">שמור</button>
+                        </form>
+                      </details>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="muted">קובץ: {doc.fileName}</div>
-                <div className="muted">הועלה: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("he-IL") : "-"}</div>
-                <div className="muted">הערות: {doc.noteText || "-"}</div>
-                <div className="muted">סוג: {doc.documentKind}</div>
-                <div className="muted">פורמט: {doc.contentType}</div>
+                <div className="linked-record-meta">קובץ מקור: {doc.fileName}</div>
+                <div className="linked-record-meta">הועלה: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("he-IL") : "-"}</div>
+                <div className="linked-record-meta">הערות: {doc.noteText || "-"}</div>
+                <div className="linked-record-meta">פורמט: {doc.contentType}</div>
               </div>
-            ))}
+            ))
+          )}
+          <div className="linked-record-card placeholder">
+            <b>רשומות נוספות</b>
+            <div className="linked-record-meta">כאן נוכל להציג בהמשך פריטים נוספים שייקשרו לתלמיד מתוך המערכת.</div>
+            <div className="linked-record-meta">המבנה כבר מוכן כדי שהכרטיס ימשיך לגדול בלי לשנות את חוויית השימוש.</div>
           </div>
-        )}
+        </div>
       </div>
 
       {editMode ? (
         <form action={updateNeonStudentAction}>
           <div className="sticky-save-bar">
-            <input type="hidden" name="studentId" value={studentId} />
-            <button className="btn btn-save" type="submit">שמור שינויים</button>
+            <div className="editor-action-bar">
+              <div className="editor-action-bar-group">
+                <Link className="btn btn-close" href={`/neon/students/${studentId}`}>
+                  <span className="btn-icon-badge" aria-hidden="true">×</span>
+                  <span>סגור עריכה</span>
+                </Link>
+                <span className="editor-action-hint">סרגל הפעולות נשאר זמין לאורך כל העריכה.</span>
+              </div>
+              <div className="editor-action-bar-group" style={{ justifyContent: "flex-end" }}>
+                <input type="hidden" name="studentId" value={studentId} />
+                <button className="btn btn-save" type="submit">שמור שינויים</button>
+              </div>
+            </div>
           </div>
 
           <div className="card edit-focus-card">

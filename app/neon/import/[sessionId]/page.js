@@ -109,7 +109,18 @@ export default async function NeonImportMappingPage({ params, searchParams }) {
         })}
 
         <div className="sticky-save-bar">
-          <button className="btn btn-save" type="submit">החל ייבוא לפי המיפוי שבחרתי</button>
+          <div className="editor-action-bar">
+            <div className="editor-action-bar-group">
+              <Link className="btn btn-close" href="/neon">
+                <span className="btn-icon-badge" aria-hidden="true">×</span>
+                <span>סגור</span>
+              </Link>
+              <span className="editor-action-hint">סרגל הפעולות נשאר זמין לאורך כל המיפוי.</span>
+            </div>
+            <div className="editor-action-bar-group" style={{ justifyContent: "flex-end" }}>
+              <button className="btn btn-save" type="submit">החל ייבוא לפי המיפוי שבחרתי</button>
+            </div>
+          </div>
         </div>
       </form>
     </>
