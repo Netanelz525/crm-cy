@@ -152,6 +152,8 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  width: auto;
   padding: 10px 14px;
   border-radius: 12px;
   font-weight: 700;
@@ -170,6 +172,37 @@ button {
 .btn-save {
   width: auto;
   min-width: 180px;
+}
+
+.btn-edit {
+  background: linear-gradient(180deg, #0f5fa4, #0b4f8c);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 12px 24px rgba(11, 79, 140, 0.18);
+}
+
+.btn-close {
+  border: 1px solid #c8d8ea;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--text);
+}
+
+.btn-icon-badge {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.btn-close .btn-icon-badge {
+  background: #eef4fb;
+  border-color: #d3e0ee;
 }
 
 .student-topbar {
@@ -247,6 +280,11 @@ button {
   font-weight: 800;
 }
 
+.student-document-rename summary:hover {
+  border-color: #a8c6e5;
+  background: #eef6ff;
+}
+
 .student-document-rename summary::-webkit-details-marker {
   display: none;
 }
@@ -263,13 +301,102 @@ button {
   top: 68px;
   z-index: 90;
   display: flex;
-  justify-content: flex-end;
   margin-bottom: 12px;
-  padding: 8px;
+  padding: 8px 10px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--line);
   backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px rgba(13, 37, 76, 0.08);
+}
+
+.editor-action-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.editor-action-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.editor-action-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.linked-records-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.linked-records-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.linked-record-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #cfe0f0;
+  background: #f7fbff;
+  color: #294a67;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.linked-records-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.linked-record-card {
+  display: grid;
+  gap: 8px;
+  min-height: 140px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid #d6e3f0;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.linked-record-card.placeholder {
+  background: linear-gradient(180deg, #f7fff9, #eefaf1);
+  border-color: #cfe3d8;
+}
+
+.linked-record-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.linked-record-title {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.linked-record-meta {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 table {
@@ -1490,6 +1617,14 @@ td {
   .sticky-save-bar {
     top: 58px;
   }
+
+  .editor-action-bar {
+    align-items: stretch;
+  }
+
+  .editor-action-bar-group {
+    width: 100%;
+  }
 }
 
 .student-link {
@@ -2625,6 +2760,11 @@ td {
     width: 100%;
     justify-content: center;
   }
+
+  .editor-action-bar-group,
+  .editor-action-bar .btn {
+    width: 100%;
+  }
 }
 
 @media print {
@@ -2685,5 +2825,299 @@ td {
       transform: scale(0.972);
       transform-origin: top center;
     }
+  }
+}
+
+.email-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+.email-hero::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: -90px;
+  inset-block-start: -120px;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(23, 105, 170, 0.16), transparent 68%);
+  pointer-events: none;
+}
+
+.email-kicker {
+  margin: 0 0 6px;
+  color: var(--primary);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.email-hero h1,
+.email-panel h2 {
+  margin-top: 0;
+}
+
+.email-hero-status {
+  display: grid;
+  gap: 6px;
+  min-width: 230px;
+  text-align: left;
+  direction: ltr;
+}
+
+.email-status-ok,
+.email-status-warn {
+  display: inline-flex;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 800;
+}
+
+.email-status-ok {
+  background: var(--success);
+  color: #166534;
+}
+
+.email-status-warn {
+  background: var(--danger-bg);
+  color: #9f1239;
+}
+
+.email-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.email-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.email-filter-card,
+.email-compose-card,
+.email-preview-card,
+.email-certainty-card,
+.email-log-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.email-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.email-compose-card {
+  display: grid;
+  gap: 12px;
+}
+
+.email-compose-card label,
+.email-filter-card label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.email-section-title,
+.email-student-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.email-section-title span,
+.email-student-list-head span,
+.email-help {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.email-help code {
+  direction: ltr;
+  display: inline-block;
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px 6px;
+}
+
+.email-send-scope {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.email-send-scope label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #f8fbff;
+}
+
+.email-send-scope input,
+.email-student-row input {
+  width: auto;
+}
+
+.email-student-list {
+  display: grid;
+  gap: 8px;
+  max-height: 480px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 10px;
+  background: #f8fbff;
+}
+
+.email-student-row {
+  display: grid;
+  grid-template-columns: auto minmax(150px, 0.8fr) minmax(220px, 1.2fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fff;
+}
+
+.email-student-row small,
+.email-log-row small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.email-recipient-pill {
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #edf7ff;
+  color: #0b4f8c;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.muted-pill {
+  background: #f1f5f9;
+  color: var(--muted);
+}
+
+.email-preview-card iframe {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.email-certainty-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.email-certainty-steps div {
+  display: grid;
+  grid-template-columns: 34px 90px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+}
+
+.email-certainty-steps b,
+.email-certainty-badge {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 34px;
+  min-height: 30px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+}
+
+.email-certainty-steps small {
+  color: var(--muted);
+}
+
+.email-log-card {
+  display: grid;
+  gap: 10px;
+}
+
+.email-log-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.email-certainty-badge {
+  min-width: 96px;
+  padding: 7px 10px;
+  background: #64748b;
+  font-size: 0.88rem;
+}
+
+.email-certainty-2 {
+  background: #0b4f8c;
+}
+
+.email-certainty-3 {
+  background: #15803d;
+}
+
+.email-certainty-4 {
+  background: #7c2d12;
+}
+
+.email-error-text {
+  color: #9f1239 !important;
+}
+
+@media (max-width: 980px) {
+  .email-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .email-form-grid,
+  .email-send-scope {
+    grid-template-columns: 1fr;
+  }
+
+  .email-student-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .email-recipient-pill {
+    grid-column: 1 / -1;
+  }
+
+  .email-hero {
+    display: grid;
   }
 }

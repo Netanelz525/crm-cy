@@ -75,7 +75,18 @@ export default async function NewStudentPage({ searchParams }) {
 
       <form action={createStudentAction}>
         <div className="sticky-save-bar">
-          <button className="btn btn-save" type="submit">צור תלמיד</button>
+          <div className="editor-action-bar">
+            <div className="editor-action-bar-group">
+              <Link className="btn btn-close" href="/">
+                <span className="btn-icon-badge" aria-hidden="true">×</span>
+                <span>סגור</span>
+              </Link>
+              <span className="editor-action-hint">סרגל הפעולות נשאר זמין לאורך כל מילוי הטופס.</span>
+            </div>
+            <div className="editor-action-bar-group" style={{ justifyContent: "flex-end" }}>
+              <button className="btn btn-save" type="submit">צור תלמיד</button>
+            </div>
+          </div>
         </div>
 
         <div className="card edit-focus-card">

@@ -2,6 +2,7 @@
 import { notFound, redirect } from "next/navigation";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../lib/student-fields";
+import { listStudentDocuments } from "../../../lib/student-documents";
 import { ageOf } from "../../../lib/student-view";
 import { getStudentById } from "../../../lib/twenty";
 import { deleteStudentAction, updateStudentAction } from "./actions";
@@ -104,6 +105,14 @@ function classLabel(value) {
   return ENUM_LABELS.class?.[key] || clean(value) || "-";
 }
 
+function documentKindLabel(value) {
+  const normalized = clean(value).toLowerCase();
+  if (normalized === "id") return "תעודת זהות";
+  if (normalized === "tuition") return "שכר לימוד";
+  if (normalized === "medical") return "מסמך רפואי";
+  return "מסמך כללי";
+}
+
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     return (
@@ -155,6 +164,7 @@ export default async function StudentPage({ params, searchParams }) {
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
+  const documents = await listStudentDocuments(studentId);
 
   return (
     <>
@@ -179,10 +189,16 @@ export default async function StudentPage({ params, searchParams }) {
                 >
                   {advancedMode ? "מעבר לעריכה רגילה" : "עריכה מתקדמת"}
                 </Link>
-                <Link className="btn btn-primary" href={`/students/${studentId}`}>ביטול עריכה</Link>
+                <Link className="btn btn-close" href={`/students/${studentId}`}>
+                  <span className="btn-icon-badge" aria-hidden="true">×</span>
+                  <span>סגור עריכה</span>
+                </Link>
               </>
             ) : canEdit ? (
-              <Link className="btn btn-primary" href={`/students/${studentId}?edit=1`}>עריכת שדות</Link>
+              <Link className="btn btn-edit" href={`/students/${studentId}?edit=1`}>
+                <span className="btn-icon-badge" aria-hidden="true">✎</span>
+                <span>עריכת שדות</span>
+              </Link>
             ) : null}
             {canDelete ? (
               <form action={deleteStudentAction} className="student-delete-form">
@@ -199,14 +215,68 @@ export default async function StudentPage({ params, searchParams }) {
         <p className="muted">{studentName}</p>
       </div>
 
+      <div className="card">
+        <div className="linked-records-head">
+          <div>
+            <h3>רשומות מקושרות</h3>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              כרגע מוצגים המסמכים המשויכים לתלמיד. בהמשך יופיעו כאן גם רשומות נוספות שייכנסו למערכת.
+            </p>
+          </div>
+          <div className="linked-records-summary">
+            <span className="linked-record-pill">מסמכים: {documents.length}</span>
+            <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
+          </div>
+        </div>
+        <div className="linked-records-grid">
+          {!documents.length ? (
+            <div className="linked-record-card">
+              <b>מסמכים</b>
+              <div className="linked-record-meta">אין כרגע מסמכים משויכים לתלמיד.</div>
+              <div className="linked-record-meta">
+                {canEdit ? <Link className="linked-record-title" href={`/neon/students/${studentId}`}>לניהול מסמכים ב-Neon</Link> : "כאן יוצגו קבצים ברגע שישויכו לכרטיס."}
+              </div>
+            </div>
+          ) : (
+            documents.map((doc) => (
+              <div key={doc.id} className="linked-record-card">
+                <div className="linked-record-card-top">
+                  <a className="linked-record-title" href={`/api/student-documents/${doc.id}`} target="_blank">{doc.name}</a>
+                  <span className="linked-record-pill">{documentKindLabel(doc.documentKind)}</span>
+                </div>
+                <div className="linked-record-meta">קובץ מקור: {doc.fileName}</div>
+                <div className="linked-record-meta">הועלה: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("he-IL") : "-"}</div>
+                <div className="linked-record-meta">הערות: {doc.noteText || "-"}</div>
+              </div>
+            ))
+          )}
+          <div className="linked-record-card placeholder">
+            <b>רשומות נוספות</b>
+            <div className="linked-record-meta">האזור הזה מוכן להתרחב בהמשך לרשומות חדשות שנוסיף למערכת.</div>
+            <div className="linked-record-meta">לדוגמה: משימות, סטטוסים, קישורים ופריטים משויכים נוספים.</div>
+          </div>
+        </div>
+      </div>
+
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       {editMode ? (
         <form action={updateStudentAction}>
           <div className="sticky-save-bar">
-            <input type="hidden" name="studentId" value={studentId} />
-            <button className="btn btn-save" type="submit">שמור שינויים</button>
+            <div className="editor-action-bar">
+              <div className="editor-action-bar-group">
+                <Link className="btn btn-close" href={`/students/${studentId}`}>
+                  <span className="btn-icon-badge" aria-hidden="true">×</span>
+                  <span>סגור עריכה</span>
+                </Link>
+                <span className="editor-action-hint">סרגל הפעולות נשאר זמין לאורך כל העריכה.</span>
+              </div>
+              <div className="editor-action-bar-group" style={{ justifyContent: "flex-end" }}>
+                <input type="hidden" name="studentId" value={studentId} />
+                <button className="btn btn-save" type="submit">שמור שינויים</button>
+              </div>
+            </div>
           </div>
 
           <div className="card edit-focus-card">
