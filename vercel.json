@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/weekly-backup",
-      "schedule": "0 10 * * 4"
+      "schedule": "0 19 * * 4"
     }
   ]
 }

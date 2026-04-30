@@ -211,7 +211,7 @@ node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs --env /path/t
 
 הגדרות:
 
-- בקובץ [vercel.json](/Users/netanelzevin/Documents/crm/vercel.json) הוגדר cron שבועי ליום חמישי ב-`10:00 UTC`
+- בקובץ [vercel.json](/Users/netanelzevin/Documents/crm/vercel.json) הוגדר cron שבועי ליום חמישי ב-`19:00 UTC`
 - ב-Vercel צריך להגדיר `CRON_SECRET` כדי שהקריאה תגיע עם `Authorization: Bearer <CRON_SECRET>`
 - מקבלי הגיבוי הם רק משתמשים בתפקיד `super_admin`
 - לכל סופר אדמין אפשר להגדיר בעמוד `/admin/users/{id}` אם לקבל את הגיבוי ב-`Email`, `Telegram`, או `Email + Telegram`
