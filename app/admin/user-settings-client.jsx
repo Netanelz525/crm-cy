@@ -40,6 +40,19 @@ async function copyText(text) {
   }
 }
 
+function backupDeliveryLabel(value) {
+  switch (clean(value).toLowerCase()) {
+    case "both":
+      return "Email + Telegram";
+    case "telegram":
+      return "Telegram";
+    case "email":
+      return "Email";
+    default:
+      return "לא הוגדר";
+  }
+}
+
 export default function UserSettingsClient({
   user,
   currentUserId,
@@ -49,6 +62,7 @@ export default function UserSettingsClient({
   onUnlinkWhatsApp,
   onSaveRole,
   onSavePreferences,
+  onSaveWeeklyBackupPreferences,
   onDeleteUser
 }) {
   const router = useRouter();
@@ -139,6 +153,17 @@ export default function UserSettingsClient({
     });
   }
 
+  function handleWeeklyBackupSave() {
+    const formData = new FormData();
+    formData.set("targetUserId", user.clerk_user_id);
+    formData.set("weeklyBackupEnabled", document.getElementById("weekly-backup-enabled")?.checked ? "1" : "0");
+    formData.set("weeklyBackupDelivery", document.getElementById("weekly-backup-delivery")?.value || "email");
+    return runAction("weekly-backup", async () => {
+      await onSaveWeeklyBackupPreferences(formData);
+      setMessage("העדפות הגיבוי השבועי נשמרו.");
+    });
+  }
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div className="quick-actions">
@@ -166,6 +191,7 @@ export default function UserSettingsClient({
           <div><b>Telegram:</b> {user.telegram_chat_id ? `מחובר (${user.telegram_username || user.telegram_chat_id})` : "לא מחובר"}</div>
           <div><b>WhatsApp:</b> {user.whatsapp_wa_id ? `מחובר (${user.whatsapp_phone_number || user.whatsapp_wa_id})` : "לא מחובר"}</div>
           <div><b>ערוץ מועדף:</b> {user.preferred_agent_channel === "whatsapp" ? "WhatsApp" : user.preferred_agent_channel === "telegram" ? "Telegram" : "לא הוגדר"}</div>
+          <div><b>גיבוי שבועי:</b> {user.weekly_backup_enabled ? backupDeliveryLabel(user.weekly_backup_delivery) : "כבוי"}</div>
           <div><b>עודכן:</b> {formatDate(user.updated_at)}</div>
         </div>
       </div>
@@ -205,6 +231,27 @@ export default function UserSettingsClient({
             שמור העדפות
           </button>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>גיבוי שבועי לסופר אדמין</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, alignItems: "center" }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto" }}>
+            <input id="weekly-backup-enabled" type="checkbox" defaultChecked={user.weekly_backup_enabled === true} style={{ width: "auto" }} />
+            פעיל
+          </label>
+          <select id="weekly-backup-delivery" defaultValue={user.weekly_backup_delivery || "email"} style={{ width: "100%" }}>
+            <option value="email">Email</option>
+            <option value="telegram">Telegram</option>
+            <option value="both">Email + Telegram</option>
+          </select>
+          <button style={{ width: "auto" }} type="button" disabled={busyKey === "weekly-backup"} onClick={handleWeeklyBackupSave}>
+            שמור גיבוי שבועי
+          </button>
+        </div>
+        <p className="muted" style={{ margin: "10px 0 0" }}>
+          הגיבוי נשלח רק למשתמשים עם תפקיד סופר אדמין, וכולל יצוא JSON של כל טבלאות ה-CRM בלי תמונות.
+        </p>
       </div>
 
       <div className="card">

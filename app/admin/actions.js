@@ -10,7 +10,8 @@ import {
   requireTeamUser,
   setAppUserRole,
   setOwnCardEditPermission,
-  setUserAgentChannelPreferences
+  setUserAgentChannelPreferences,
+  setUserWeeklyBackupPreferences
 } from "../../lib/rbac";
 import {
   buildTelegramDeepLink,
@@ -111,6 +112,17 @@ export async function updateUserAgentPreferencesAction(formData) {
     preferredAgentChannel: clean(formData.get("preferredAgentChannel")),
     telegramEnabled: clean(formData.get("agentTelegramEnabled")) === "1",
     whatsappEnabled: clean(formData.get("agentWhatsAppEnabled")) === "1"
+  });
+  revalidatePath("/admin");
+}
+
+export async function updateUserWeeklyBackupPreferencesAction(formData) {
+  await requireSuperAdmin();
+  const targetUserId = clean(formData.get("targetUserId"));
+  if (!targetUserId) return;
+  await setUserWeeklyBackupPreferences(targetUserId, {
+    enabled: clean(formData.get("weeklyBackupEnabled")) === "1",
+    delivery: clean(formData.get("weeklyBackupDelivery"))
   });
   revalidatePath("/admin");
 }

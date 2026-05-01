@@ -29,6 +29,20 @@ function accessSummary(user) {
   ].filter(Boolean).join(" | ") || "צפייה בלבד";
 }
 
+function weeklyBackupLabel(user) {
+  if (user.weekly_backup_enabled !== true) return "כבוי";
+  switch (clean(user.weekly_backup_delivery).toLowerCase()) {
+    case "both":
+      return "Email + Telegram";
+    case "telegram":
+      return "Telegram";
+    case "email":
+      return "Email";
+    default:
+      return "פעיל";
+  }
+}
+
 export default function UserManagementClient({ users }) {
   const [query, setQuery] = useState("");
 
@@ -89,6 +103,7 @@ export default function UserManagementClient({ users }) {
               <div><b>תלמיד מקושר:</b> {user.linked_student_id || "-"}</div>
               <div><b>שיעור/מחלקה:</b> {user.linked_student_class || "-"}</div>
               <div><b>ערוץ מועדף:</b> {user.preferred_agent_channel === "whatsapp" ? "WhatsApp" : user.preferred_agent_channel === "telegram" ? "Telegram" : "לא הוגדר"}</div>
+              <div><b>גיבוי שבועי:</b> {weeklyBackupLabel(user)}</div>
               <div><b>Telegram:</b> {user.telegram_chat_id ? "מחובר" : "לא מחובר"}</div>
               <div><b>WhatsApp:</b> {user.whatsapp_wa_id ? "מחובר" : "לא מחובר"}</div>
             </div>

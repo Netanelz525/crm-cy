@@ -6,6 +6,7 @@ import {
   unlinkUserTelegramAction,
   unlinkUserWhatsAppAction,
   updateUserAgentPreferencesAction,
+  updateUserWeeklyBackupPreferencesAction,
   updateUserRoleAction
 } from "../../actions";
 import UserSettingsClient from "../../user-settings-client";
@@ -26,6 +27,7 @@ export default async function AdminUserSettingsPage({ params }) {
       onUnlinkWhatsApp={unlinkUserWhatsAppAction}
       onSaveRole={updateUserRoleAction}
       onSavePreferences={updateUserAgentPreferencesAction}
+      onSaveWeeklyBackupPreferences={updateUserWeeklyBackupPreferencesAction}
       onDeleteUser={deleteUserAction}
     />
   );
