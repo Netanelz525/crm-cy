@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
-import { getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
+import { createAiChatMessage, getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
@@ -257,6 +257,9 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
     })
     .filter(Boolean);
   cardButtons.forEach((button) => inlineKeyboard.push([button]));
+  if ((Array.isArray(studentCards) ? studentCards : []).length > 1) {
+    inlineKeyboard.push([{ text: "בחר תלמיד לעדכון", callback_data: `pickstudent:${messageId}` }]);
+  }
 
   if (hasMore) {
     inlineKeyboard.push([{ text: "הצג עוד", callback_data: `more:${messageId}` }]);
@@ -270,6 +273,18 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   }
 
   return inlineKeyboard.length ? { inline_keyboard: inlineKeyboard } : undefined;
+}
+
+function buildTelegramStudentPickerKeyboard({ messageId, studentCards = [] }) {
+  const cards = (Array.isArray(studentCards) ? studentCards : []).filter((card) => clean(card?.id));
+  const inlineKeyboard = cards.slice(0, 7).map((student, index) => ([
+    {
+      text: clean(student?.name) || `תלמיד ${index + 1}`,
+      callback_data: `pick:${messageId}:${index}`
+    }
+  ]));
+  inlineKeyboard.push([{ text: "חזור", callback_data: `back:${messageId}` }]);
+  return { inline_keyboard: inlineKeyboard };
 }
 
 function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevels = [], viewUrl = "", includeFeedback = false }) {
@@ -409,6 +424,122 @@ export async function POST(request) {
           }).catch(() => null);
         }
         await answerTelegramCallbackQuery(callback.id, feedback === "good" ? "תודה, שמרתי שהתגובה היתה טובה." : "תודה, שמרתי שהתגובה לא היתה מדויקת.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "pickstudent") {
+        const targetMessageId = parts[1];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: targetMessageId
+        });
+        const cards = Array.isArray(messageRecord?.studentCards) ? messageRecord.studentCards : [];
+        if (cards.length < 2) {
+          await answerTelegramCallbackQuery(callback.id, "אין כמה תלמידים לבחור מהם.");
+          return NextResponse.json({ ok: true });
+        }
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramStudentPickerKeyboard({
+              messageId: targetMessageId,
+              studentCards: cards
+            })
+          }).catch(() => null);
+        }
+        await answerTelegramCallbackQuery(callback.id, "בחר תלמיד להמשך עדכון.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "back") {
+        const targetMessageId = parts[1];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: targetMessageId
+        });
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramKeyboard({
+              messageId: targetMessageId,
+              pendingAction: messageRecord?.pendingAction || null,
+              studentCards: messageRecord?.studentCards || [],
+              viewUrl: messageRecord?.viewUrl || "",
+              exportUrl: messageRecord?.exportUrl || "",
+              pdfUrl: messageRecord?.pdfUrl || "",
+              exportColumns: messageRecord?.exportColumns || [],
+              sortLevels: messageRecord?.sortLevels || [],
+              includeFeedback: !messageRecord?.feedback
+            })
+          }).catch(() => null);
+        }
+        await answerTelegramCallbackQuery(callback.id, "חזרתי לפעולות של התוצאה.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "pick") {
+        const targetMessageId = parts[1];
+        const selectedIndex = Number(parts[2]);
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: targetMessageId
+        });
+        const cards = Array.isArray(messageRecord?.studentCards) ? messageRecord.studentCards : [];
+        const selectedStudent = Number.isFinite(selectedIndex) ? cards[selectedIndex] : null;
+        if (!selectedStudent?.id) {
+          await answerTelegramCallbackQuery(callback.id, "לא הצלחתי לזהות את התלמיד שנבחר.");
+          return NextResponse.json({ ok: true });
+        }
+
+        const reply = [
+          `נבחר תלמיד לעדכון: ${clean(selectedStudent.name) || "תלמיד"}.`,
+          "אפשר עכשיו לכתוב מה לעדכן, למשל:",
+          "תעדכן כתובת בצלאל 35 ירושלים",
+          "תעדכן טלפון תלמיד 050...",
+          "תעדכן רישום דתות"
+        ].join("\n");
+        const savedMessage = await createAiChatMessage({
+          clerkUserId: user.clerk_user_id,
+          role: "assistant",
+          content: reply,
+          metadata: {
+            studentCards: [selectedStudent],
+            exportUrl: "",
+            pdfUrl: "",
+            viewUrl: "",
+            source: "telegram",
+            searchSummary: `נבחר תלמיד להמשך עדכון מתוך תוצאות חיפוש: ${clean(selectedStudent.name) || "תלמיד"}`
+          }
+        });
+
+        if (callback?.message?.message_id) {
+          await editTelegramMessageReplyMarkup({
+            chatId,
+            messageId: callback.message.message_id,
+            replyMarkup: buildTelegramKeyboard({
+              messageId: targetMessageId,
+              pendingAction: messageRecord?.pendingAction || null,
+              studentCards: messageRecord?.studentCards || [],
+              viewUrl: messageRecord?.viewUrl || "",
+              exportUrl: messageRecord?.exportUrl || "",
+              pdfUrl: messageRecord?.pdfUrl || "",
+              exportColumns: messageRecord?.exportColumns || [],
+              sortLevels: messageRecord?.sortLevels || [],
+              includeFeedback: !messageRecord?.feedback
+            })
+          }).catch(() => null);
+        }
+
+        await answerTelegramCallbackQuery(callback.id, `נבחר ${clean(selectedStudent.name) || "התלמיד"} לעדכון.`);
+        await sendTelegramMessage(chatId, reply, {
+          replyMarkup: buildTelegramKeyboard({
+            messageId: savedMessage?.id || targetMessageId,
+            studentCards: [selectedStudent],
+            includeFeedback: false
+          })
+        });
         return NextResponse.json({ ok: true });
       }
 
