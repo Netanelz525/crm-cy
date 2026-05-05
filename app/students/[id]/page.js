@@ -216,19 +216,19 @@ export default async function StudentPage({ params, searchParams }) {
         <p className="muted">{studentName}</p>
       </div>
 
-      <div className="card">
-        <div className="linked-records-head">
+      <details className="card linked-records-panel">
+        <summary className="linked-records-toggle">
           <div>
             <h3>רשומות מקושרות</h3>
             <p className="muted" style={{ marginBottom: 0 }}>
-              כרגע מוצגים המסמכים המשויכים לתלמיד. בהמשך יופיעו כאן גם רשומות נוספות שייכנסו למערכת.
+              מסמכים ורשומות נוספות המשויכים לתלמיד. האזור סגור כברירת מחדל.
             </p>
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
             <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
           </div>
-        </div>
+        </summary>
         <div className="linked-records-grid">
           {!documents.length ? (
             <div className="linked-record-card">
@@ -257,7 +257,7 @@ export default async function StudentPage({ params, searchParams }) {
             <div className="linked-record-meta">לדוגמה: משימות, סטטוסים, קישורים ופריטים משויכים נוספים.</div>
           </div>
         </div>
-      </div>
+      </details>
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}

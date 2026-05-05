@@ -332,6 +332,43 @@ button {
   font-weight: 600;
 }
 
+.linked-records-panel {
+  overflow: hidden;
+}
+
+.linked-records-toggle {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+
+.linked-records-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.linked-records-toggle::before {
+  content: "▸";
+  order: 2;
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-top: 6px;
+  transition: transform 0.18s ease;
+}
+
+.linked-records-panel[open] .linked-records-toggle::before {
+  transform: rotate(90deg);
+}
+
+.linked-records-panel[open] .linked-records-toggle {
+  margin-bottom: 12px;
+}
+
 .linked-records-head {
   display: flex;
   align-items: flex-start;
@@ -1624,6 +1661,10 @@ td {
 
   .editor-action-bar-group {
     width: 100%;
+  }
+
+  .linked-records-toggle {
+    align-items: stretch;
   }
 }
 
