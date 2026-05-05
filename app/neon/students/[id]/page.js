@@ -114,9 +114,10 @@ function isMarried(value) {
 
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
+    const emptyOptionLabel = value ? "נקה בחירה" : "ללא בחירה";
     return (
       <select name={field.key} defaultValue={value || ""}>
-        <option value="">בחר</option>
+        <option value="">{emptyOptionLabel}</option>
         {Object.entries(ENUM_LABELS[field.enum]).map(([optionValue, optionLabel]) => (
           <option key={optionValue} value={optionValue}>
             {optionLabel}
