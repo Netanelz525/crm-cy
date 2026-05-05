@@ -20,7 +20,7 @@ export async function updateStudentAction(formData) {
   }
 
   const raw = Object.fromEntries(formData.entries());
-  const data = toFormData(raw);
+  const data = toFormData(raw, { preserveEmptyEnums: true });
 
   if (!Object.keys(data).length) {
     redirect(`/students/${studentId}?edit=1&error=לא הוזנו נתונים לשמירה`);
