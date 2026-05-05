@@ -127,7 +127,7 @@ export async function bulkUpdateNeonStudentsAction(formData) {
     raw[field] = formData.get(field);
   }
 
-  const data = normalizeStudentInput(raw);
+  const data = normalizeStudentInput(raw, { preserveEmptyEnums: true });
   if (!Object.keys(data).length) {
     redirect("/neon?bulkError=לא נבחרו שדות לעדכון");
   }
