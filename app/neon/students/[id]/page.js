@@ -226,19 +226,19 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
-      <div className="card">
-        <div className="linked-records-head">
+      <details className="card linked-records-panel">
+        <summary className="linked-records-toggle">
           <div>
             <h3>רשומות מקושרות</h3>
             <p className="muted" style={{ marginBottom: 0 }}>
-              כרגע מוצגים כאן מסמכי התלמיד, ובהמשך נוכל להוסיף לאותו אזור גם סוגי רשומות נוספים.
+              מסמכי תלמיד ורשומות נוספות המשויכים לכרטיס. האזור סגור כברירת מחדל.
             </p>
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
             <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
           </div>
-        </div>
+        </summary>
         {canManageDocuments ? (
           <form action={uploadStudentDocumentAction} className="grid" style={{ marginBottom: 12 }}>
             <input type="hidden" name="studentId" value={studentId} />
@@ -294,7 +294,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <div className="linked-record-meta">המבנה כבר מוכן כדי שהכרטיס ימשיך לגדול בלי לשנות את חוויית השימוש.</div>
           </div>
         </div>
-      </div>
+      </details>
 
       {editMode ? (
         <form action={updateNeonStudentAction}>
