@@ -43,11 +43,11 @@ const NEON_SORT_OPTIONS = SORT_OPTIONS.map((option) => (
 ));
 
 const QUICK_FILTER_FIELDS = [
-  { key: "institution", label: "מוסד", options: INSTITUTIONS },
-  { key: "class", label: "שיעור", options: ENUM_LABELS.class || {} },
-  { key: "registration", label: "רישום", options: ENUM_LABELS.registration || {} },
-  { key: "famliystatus", label: "מצב משפחתי", options: ENUM_LABELS.familystatus || {} },
-  { key: "healthInsurance", label: "קופת חולים", options: ENUM_LABELS.healthInsurance || {} }
+  { key: "institution", paramName: "institution", label: "מוסד", options: INSTITUTIONS },
+  { key: "registration", paramName: "quickRegistration", label: "רישום", options: ENUM_LABELS.registration || {} },
+  { key: "class", paramName: "quickClass", label: "שיעור", options: ENUM_LABELS.class || {} },
+  { key: "famliystatus", paramName: "quickFamilyStatus", label: "מצב משפחתי", options: ENUM_LABELS.familystatus || {} },
+  { key: "healthInsurance", paramName: "quickHealthInsurance", label: "קופת חולים", options: ENUM_LABELS.healthInsurance || {} }
 ];
 
 function buildQueryString(params) {
@@ -107,12 +107,22 @@ function hiddenValues(name, values) {
   return (values || []).map((value) => <input key={`${name}-${value}`} type="hidden" name={name} value={value} />);
 }
 
-function enumCheckboxGroup(name, label, options, selectedValues) {
+function quickFilterSummary(label, options, selectedValues) {
+  const selectedSet = new Set(selectedValues || []);
+  const selectedLabels = Object.entries(options || {})
+    .filter(([value]) => selectedSet.has(clean(value).toUpperCase()))
+    .map(([, optionLabel]) => optionLabel);
+  if (!selectedLabels.length) return `${label}: הכל`;
+  if (selectedLabels.length === 1) return `${label}: ${selectedLabels[0]}`;
+  return `${label}: ${selectedLabels.length} נבחרו`;
+}
+
+function enumDropdownGroup(name, label, options, selectedValues) {
   const selectedSet = new Set(selectedValues || []);
   return (
-    <div className="card" style={{ padding: 12 }}>
-      <div style={{ marginBottom: 8, fontWeight: 700 }}>{label}</div>
-      <div className="column-grid">
+    <details className="display-settings" open={selectedSet.size > 0}>
+      <summary>{quickFilterSummary(label, options, selectedValues)}</summary>
+      <div className="column-grid" style={{ marginTop: 10 }}>
         {Object.entries(options || {}).map(([value, optionLabel]) => (
           <label key={`${name}-${value}`} className="column-item">
             <input type="checkbox" name={name} value={value} defaultChecked={selectedSet.has(clean(value).toUpperCase())} />
@@ -120,7 +130,7 @@ function enumCheckboxGroup(name, label, options, selectedValues) {
           </label>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -379,11 +389,23 @@ export default async function NeonPage({ searchParams }) {
             <input key={`institution-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
           ))}
           <div className="grid">
-            {enumCheckboxGroup("institution", "מוסד", INSTITUTIONS, selectedInstitutions)}
-            {enumCheckboxGroup("quickRegistration", "רישום", ENUM_LABELS.registration || {}, selectedRegistrationCodes)}
-            {enumCheckboxGroup("quickClass", "שיעור", ENUM_LABELS.class || {}, selectedClassCodes)}
-            {enumCheckboxGroup("quickFamilyStatus", "מצב משפחתי", ENUM_LABELS.familystatus || {}, selectedFamilyStatusCodes)}
-            {enumCheckboxGroup("quickHealthInsurance", "קופת חולים", ENUM_LABELS.healthInsurance || {}, selectedHealthInsuranceCodes)}
+            {QUICK_FILTER_FIELDS.map((field) => {
+              const selectedValues = field.paramName === "institution"
+                ? selectedInstitutions
+                : field.paramName === "quickRegistration"
+                  ? selectedRegistrationCodes
+                  : field.paramName === "quickClass"
+                    ? selectedClassCodes
+                    : field.paramName === "quickFamilyStatus"
+                      ? selectedFamilyStatusCodes
+                      : selectedHealthInsuranceCodes;
+
+              return (
+                <div key={field.paramName}>
+                  {enumDropdownGroup(field.paramName, field.label, field.options, selectedValues)}
+                </div>
+              );
+            })}
           </div>
           <div className="quick-actions">
             <button type="submit">החל סינון מהיר</button>
