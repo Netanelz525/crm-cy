@@ -224,54 +224,61 @@ export default function EmailComposerClient({
             </label>
           </div>
 
-          <div className="email-student-list">
-            <div className="email-student-list-head">
-              <strong>בחירת תלמידים</strong>
-              <span>
-                {institutionSelected
-                  ? `${selectedIds.length} מסומנים מתוך ${students.length} | ${summary.missingStudents} ללא כתובת מתאימה`
-                  : "יש לבחור מוסד כדי להציג תלמידים"}
-              </span>
+          <details className="display-settings" open={institutionSelected}>
+            <summary>
+              {institutionSelected
+                ? `בחירת תלמידים: ${selectedIds.length} מסומנים מתוך ${students.length}`
+                : "בחירת תלמידים מתוך המוסד"}
+            </summary>
+            <div className="email-student-list">
+              <div className="email-student-list-head">
+                <strong>בחירת תלמידים</strong>
+                <span>
+                  {institutionSelected
+                    ? `${selectedIds.length} מסומנים מתוך ${students.length} | ${summary.missingStudents} ללא כתובת מתאימה`
+                    : "יש לבחור מוסד כדי להציג תלמידים"}
+                </span>
+              </div>
+              {!institutionSelected ? (
+                <div className="muted">לאחר בחירת מוסד יוצגו כאן רק תלמידי המוסד, ואז יהיה אפשר לבחור את כולם או רק חלק מהם.</div>
+              ) : !students.length ? (
+                <div className="muted">לא נמצאו תלמידים לפי הסינון שנבחר.</div>
+              ) : (
+                <>
+                  <div className="quick-actions" style={{ marginTop: 0 }}>
+                    <button type="button" className="chip-link" onClick={() => setSelectedIds(students.map((student) => student.id))}>
+                      בחר את כל תלמידי המוסד
+                    </button>
+                    <button type="button" className="chip-link" onClick={() => setSelectedIds([])}>
+                      נקה בחירה
+                    </button>
+                  </div>
+                  {students.map((student) => (
+                    <label key={student.id} className="email-student-row">
+                      <input
+                        type="checkbox"
+                        name="studentIds"
+                        value={student.id}
+                        checked={selectedIds.includes(student.id)}
+                        onChange={(event) => toggleStudent(student.id, event.target.checked)}
+                      />
+                      <span>
+                        <b>{student.label || student.name}</b>
+                        <small>{student.currentInstitution || "-"} | {student.class || "-"} | {student.registration || "-"}</small>
+                      </span>
+                      <span className="email-recipient-pill">
+                        {[
+                          student?.email?.primaryEmail ? `תלמיד: ${student.email.primaryEmail}` : "",
+                          student?.fatherEmail?.primaryEmail ? `אב: ${student.fatherEmail.primaryEmail}` : "",
+                          student?.motherEmail?.primaryEmail ? `אם: ${student.motherEmail.primaryEmail}` : ""
+                        ].filter(Boolean).join(" | ") || "אין כתובת מתאימה"}
+                      </span>
+                    </label>
+                  ))}
+                </>
+              )}
             </div>
-            {!institutionSelected ? (
-              <div className="muted">לאחר בחירת מוסד יוצגו כאן רק תלמידי המוסד, ואז יהיה אפשר לבחור את כולם או רק חלק מהם.</div>
-            ) : !students.length ? (
-              <div className="muted">לא נמצאו תלמידים במוסד שנבחר.</div>
-            ) : (
-              <>
-                <div className="quick-actions" style={{ marginTop: 0 }}>
-                  <button type="button" className="chip-link" onClick={() => setSelectedIds(students.map((student) => student.id))}>
-                    בחר את כל תלמידי המוסד
-                  </button>
-                  <button type="button" className="chip-link" onClick={() => setSelectedIds([])}>
-                    נקה בחירה
-                  </button>
-                </div>
-                {students.map((student) => (
-                  <label key={student.id} className="email-student-row">
-                    <input
-                      type="checkbox"
-                      name="studentIds"
-                      value={student.id}
-                      checked={selectedIds.includes(student.id)}
-                      onChange={(event) => toggleStudent(student.id, event.target.checked)}
-                    />
-                    <span>
-                      <b>{student.label || student.name}</b>
-                      <small>{student.currentInstitution || "-"} | {student.class || "-"}</small>
-                    </span>
-                    <span className="email-recipient-pill">
-                      {[
-                        student?.email?.primaryEmail ? `תלמיד: ${student.email.primaryEmail}` : "",
-                        student?.fatherEmail?.primaryEmail ? `אב: ${student.fatherEmail.primaryEmail}` : "",
-                        student?.motherEmail?.primaryEmail ? `אם: ${student.motherEmail.primaryEmail}` : ""
-                      ].filter(Boolean).join(" | ") || "אין כתובת מתאימה"}
-                    </span>
-                  </label>
-                ))}
-              </>
-            )}
-          </div>
+          </details>
 
           <button type="submit" disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !summary.recipientEmails || !confirmSend}>
             שלח מיילים דרך Resend

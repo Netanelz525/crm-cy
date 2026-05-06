@@ -11,6 +11,7 @@ import {
 import { getResendConfigStatus } from "../../lib/resend";
 import { requireEmailSender } from "../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
+import { ENUM_LABELS } from "../../lib/student-fields";
 import { sendEmailCampaignAction } from "./actions";
 
 function institutionLabel(value) {
@@ -41,6 +42,8 @@ export default async function EmailPage({ searchParams }) {
   const filters = {
     institution: clean(resolvedSearchParams?.institution),
     class: clean(resolvedSearchParams?.class),
+    registration: clean(resolvedSearchParams?.registration),
+    familystatus: clean(resolvedSearchParams?.familystatus),
     q: clean(resolvedSearchParams?.q),
     recipientMode: clean(resolvedSearchParams?.recipientMode) || "parents",
     selectedStudentIds: Array.isArray(resolvedSearchParams?.studentIds)
@@ -106,11 +109,30 @@ export default async function EmailPage({ searchParams }) {
           </label>
           <label>
             שיעור
-            <input name="class" defaultValue={filters.class} />
+            <select name="class" defaultValue={filters.class}>
+              <option value="">כל השיעורים</option>
+              {Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
           </label>
           <label>
-            חיפוש תלמיד
-            <input name="q" defaultValue={filters.q} placeholder="שם, מייל או טלפון" />
+            רישום
+            <select name="registration" defaultValue={filters.registration}>
+              <option value="">כל מצבי הרישום</option>
+              {Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            מצב משפחתי
+            <select name="familystatus" defaultValue={filters.familystatus}>
+              <option value="">כל המצבים</option>
+              {Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
           </label>
           <label>
             למי לשלוח
@@ -122,6 +144,10 @@ export default async function EmailPage({ searchParams }) {
               <option value="all">שניהם</option>
             </select>
           </label>
+          <label>
+            חיפוש תלמיד
+            <input name="q" defaultValue={filters.q} placeholder="שם, מייל או טלפון" />
+          </label>
         </div>
         <input type="hidden" name="subject" value={subject} />
         <input type="hidden" name="senderName" value={senderName} />
@@ -132,6 +158,8 @@ export default async function EmailPage({ searchParams }) {
       <form action={sendEmailCampaignAction} encType="multipart/form-data">
         <input type="hidden" name="institution" value={filters.institution} />
         <input type="hidden" name="class" value={filters.class} />
+        <input type="hidden" name="registration" value={filters.registration} />
+        <input type="hidden" name="familystatus" value={filters.familystatus} />
         <input type="hidden" name="q" value={filters.q} />
         <input type="hidden" name="recipientMode" value={filters.recipientMode} />
         {filters.selectedStudentIds.map((id) => <input key={`send-${id}`} type="hidden" name="studentIds" value={id} />)}
