@@ -42,6 +42,14 @@ const NEON_SORT_OPTIONS = SORT_OPTIONS.map((option) => (
     : option
 ));
 
+const QUICK_FILTER_FIELDS = [
+  { key: "institution", label: "מוסד", options: INSTITUTIONS },
+  { key: "class", label: "שיעור", options: ENUM_LABELS.class || {} },
+  { key: "registration", label: "רישום", options: ENUM_LABELS.registration || {} },
+  { key: "famliystatus", label: "מצב משפחתי", options: ENUM_LABELS.familystatus || {} },
+  { key: "healthInsurance", label: "קופת חולים", options: ENUM_LABELS.healthInsurance || {} }
+];
+
 function buildQueryString(params) {
   const sp = new URLSearchParams();
   for (const [key, value] of Object.entries(params || {})) {
@@ -91,6 +99,31 @@ function sortLevelAt(sortLevels, index) {
   return sortLevels[index] || { sortBy: "", sortDir: "asc" };
 }
 
+function normalizeMultiValues(value) {
+  return parseListParam(value).map((item) => clean(item).toUpperCase()).filter(Boolean);
+}
+
+function hiddenValues(name, values) {
+  return (values || []).map((value) => <input key={`${name}-${value}`} type="hidden" name={name} value={value} />);
+}
+
+function enumCheckboxGroup(name, label, options, selectedValues) {
+  const selectedSet = new Set(selectedValues || []);
+  return (
+    <div className="card" style={{ padding: 12 }}>
+      <div style={{ marginBottom: 8, fontWeight: 700 }}>{label}</div>
+      <div className="column-grid">
+        {Object.entries(options || {}).map(([value, optionLabel]) => (
+          <label key={`${name}-${value}`} className="column-item">
+            <input type="checkbox" name={name} value={value} defaultChecked={selectedSet.has(clean(value).toUpperCase())} />
+            <span>{optionLabel}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default async function NeonPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
@@ -126,7 +159,8 @@ export default async function NeonPage({ searchParams }) {
   const resolvedSearchParams = incomingSearchParams;
 
   const currentQueryString = sanitizeQueryString(buildQueryString(resolvedSearchParams));
-  const institution = clean(resolvedSearchParams?.institution);
+  const selectedInstitutions = normalizeMultiValues(resolvedSearchParams?.institution);
+  const institution = selectedInstitutions[0] || "";
   const institutionSearch = clean(resolvedSearchParams?.institutionSearch);
   const missingOnly = clean(resolvedSearchParams?.missingOnly) === "1";
   const missingTypeParam = clean(resolvedSearchParams?.missingType).toLowerCase();
@@ -149,14 +183,27 @@ export default async function NeonPage({ searchParams }) {
   const bulkUpdatedCount = clean(resolvedSearchParams?.updated);
   const bulkFailedCount = clean(resolvedSearchParams?.failed);
   const bulkMessage = clean(resolvedSearchParams?.bulkMessage);
-  const quickClass = clean(resolvedSearchParams?.quickClass).toUpperCase();
-  const quickRegistration = clean(resolvedSearchParams?.quickRegistration).toUpperCase();
-  const quickFamilyStatus = clean(resolvedSearchParams?.quickFamilyStatus).toUpperCase();
+  const selectedClassCodes = normalizeMultiValues(resolvedSearchParams?.quickClass);
+  const selectedRegistrationCodes = normalizeMultiValues(resolvedSearchParams?.quickRegistration);
+  const selectedFamilyStatusCodes = normalizeMultiValues(resolvedSearchParams?.quickFamilyStatus);
+  const selectedHealthInsuranceCodes = normalizeMultiValues(resolvedSearchParams?.quickHealthInsurance);
 
   const tz = clean(resolvedSearchParams?.tz).replace(/[^\d]/g, "");
   const q = clean(resolvedSearchParams?.q);
   const modeParam = clean(resolvedSearchParams?.mode).toLowerCase();
-  const mode = modeParam || (institution || institutionSearch || missingOnly || missingType || quickClass || quickRegistration || quickFamilyStatus || advancedFilters.length ? "institution" : q || tz ? "search" : "");
+  const mode = modeParam || (
+    selectedInstitutions.length
+    || institutionSearch
+    || missingOnly
+    || missingType
+    || selectedClassCodes.length
+    || selectedRegistrationCodes.length
+    || selectedFamilyStatusCodes.length
+    || selectedHealthInsuranceCodes.length
+    || advancedFilters.length
+      ? "institution"
+      : q || tz ? "search" : ""
+  );
 
   const parsedColumnKeys = parseListParam(resolvedSearchParams?.cols).filter((key) => INSTITUTION_COLUMN_MAP[key]);
   const selectedColumnKeys = parsedColumnKeys.length ? parsedColumnKeys : DEFAULT_INSTITUTION_COLUMN_KEYS;
@@ -169,17 +216,30 @@ export default async function NeonPage({ searchParams }) {
   let error = "";
 
   try {
-    if (mode === "institution" && (institution || quickClass || quickRegistration || quickFamilyStatus || advancedFilters.length)) {
-      const scopedInstitutionCode = institution || findInstitutionCode(
+    if (
+      mode === "institution"
+      && (
+        selectedInstitutions.length
+        || selectedClassCodes.length
+        || selectedRegistrationCodes.length
+        || selectedFamilyStatusCodes.length
+        || selectedHealthInsuranceCodes.length
+        || advancedFilters.length
+      )
+    ) {
+      const scopedInstitutionCode = selectedInstitutions.length
+        ? ""
+        : findInstitutionCode(
         advancedFilters.find((filter) => clean(filter.field) === "institution" && filter.operator === "equals")?.value
       );
 
       students = await listNeonStudentsByFilters({
-        institution: scopedInstitutionCode,
+        institution: selectedInstitutions.length ? selectedInstitutions : scopedInstitutionCode,
         institutionSearch,
-        class: quickClass,
-        registration: quickRegistration,
-        famliystatus: quickFamilyStatus
+        class: selectedClassCodes,
+        registration: selectedRegistrationCodes,
+        famliystatus: selectedFamilyStatusCodes,
+        healthInsurance: selectedHealthInsuranceCodes
       });
 
       students = students.map((student) => {
@@ -201,7 +261,6 @@ export default async function NeonPage({ searchParams }) {
   const stats = await getNeonStudentsStats();
   const clearInstitutionFiltersPath = buildNextPath({
     mode: "institution",
-    institution,
     cols: selectedColumnKeys,
     pdfBlankCol: pdfBlankColumnKeys,
     pdfOrientation
@@ -210,8 +269,14 @@ export default async function NeonPage({ searchParams }) {
   const pdfExportHref = currentQueryString ? `/api/export/institution-pdf?source=neon&${currentQueryString}` : "/api/export/institution-pdf?source=neon";
   const hasInstitutionFilter = hasInstitutionScopedFilter(advancedFilters);
   const institutionCount = students.length;
-  const hasQuickFilters = Boolean(quickClass || quickRegistration || quickFamilyStatus);
-  const showInstitutionView = mode === "institution" && (institution || hasInstitutionFilter || hasQuickFilters || advancedFilters.length);
+  const hasQuickFilters = Boolean(
+    selectedInstitutions.length
+    || selectedClassCodes.length
+    || selectedRegistrationCodes.length
+    || selectedFamilyStatusCodes.length
+    || selectedHealthInsuranceCodes.length
+  );
+  const showInstitutionView = mode === "institution" && (selectedInstitutions.length || hasInstitutionFilter || hasQuickFilters || advancedFilters.length);
   const sortSummary = sortLevels
     .map((level, index) => {
       const label = NEON_SORT_OPTIONS.find((option) => option.key === level.sortBy)?.label || level.sortBy;
@@ -286,7 +351,7 @@ export default async function NeonPage({ searchParams }) {
       </div>
 
       <div className="card glass">
-        <h3>תצוגת מוסד - Neon</h3>
+        <h3>סינון מהיר - Neon</h3>
         <form className="grid" method="GET">
           <input type="hidden" name="mode" value="institution" />
           {selectedColumnKeys.map((key) => (
@@ -313,14 +378,9 @@ export default async function NeonPage({ searchParams }) {
           {pdfBlankColumnKeys.map((key) => (
             <input key={`institution-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
           ))}
-          <select name="institution" defaultValue={mode === "institution" ? institution : ""}>
-            <option value="">בחר מוסד</option>
-            {Object.entries(INSTITUTIONS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
+          {hiddenValues("institution", selectedInstitutions)}
           <input name="institutionSearch" defaultValue={mode === "institution" ? institutionSearch : ""} placeholder="חיפוש בתוך מוסד" />
-          <button type="submit">הצג מוסד</button>
+          <button type="submit">החל סינון</button>
         </form>
       </div>
 
@@ -353,11 +413,12 @@ export default async function NeonPage({ searchParams }) {
               <summary>מיון התצוגה</summary>
               <form method="GET" className="column-picker">
                 <input type="hidden" name="mode" value="institution" />
-                <input type="hidden" name="institution" value={institution} />
+                {hiddenValues("institution", selectedInstitutions)}
                 <input type="hidden" name="institutionSearch" value={institutionSearch} />
-                <input type="hidden" name="quickClass" value={quickClass} />
-                <input type="hidden" name="quickRegistration" value={quickRegistration} />
-                <input type="hidden" name="quickFamilyStatus" value={quickFamilyStatus} />
+                {hiddenValues("quickClass", selectedClassCodes)}
+                {hiddenValues("quickRegistration", selectedRegistrationCodes)}
+                {hiddenValues("quickFamilyStatus", selectedFamilyStatusCodes)}
+                {hiddenValues("quickHealthInsurance", selectedHealthInsuranceCodes)}
                 {selectedColumnKeys.map((key) => (
                   <input key={`sort-col-${key}`} type="hidden" name="cols" value={key} />
                 ))}
@@ -405,12 +466,13 @@ export default async function NeonPage({ searchParams }) {
                     className="chip-link"
                     href={buildNextPath({
                       mode: "institution",
-                      institution,
+                      institution: selectedInstitutions,
                       institutionSearch,
                       cols: selectedColumnKeys,
-                      quickClass,
-                      quickRegistration,
-                      quickFamilyStatus,
+                      quickClass: selectedClassCodes,
+                      quickRegistration: selectedRegistrationCodes,
+                      quickFamilyStatus: selectedFamilyStatusCodes,
+                      quickHealthInsurance: selectedHealthInsuranceCodes,
                       missingType,
                       ff: advancedFilters.map((filter) => filter.field),
                       fo: advancedFilters.map((filter) => filter.operator),
@@ -430,11 +492,10 @@ export default async function NeonPage({ searchParams }) {
           </div>
 
           <div className="card">
-            <details className="display-settings" open={Boolean(quickClass || quickRegistration || quickFamilyStatus)}>
+            <details className="display-settings" open={hasQuickFilters}>
               <summary>סינון מהיר</summary>
               <form method="GET" className="column-picker">
                 <input type="hidden" name="mode" value="institution" />
-                <input type="hidden" name="institution" value={institution} />
                 <input type="hidden" name="institutionSearch" value={institutionSearch} />
                 {selectedColumnKeys.map((key) => (
                   <input key={`col-${key}`} type="hidden" name="cols" value={key} />
@@ -461,24 +522,11 @@ export default async function NeonPage({ searchParams }) {
                   <input key={`quick-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
                 ))}
                 <div className="grid">
-                  <select name="quickClass" defaultValue={quickClass}>
-                    <option value="">כל השיעורים</option>
-                    {Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                  <select name="quickRegistration" defaultValue={quickRegistration}>
-                    <option value="">כל מצבי הרישום</option>
-                    {Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                  <select name="quickFamilyStatus" defaultValue={quickFamilyStatus}>
-                    <option value="">כל הסטטוסים המשפחתיים</option>
-                    {Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
+                  {enumCheckboxGroup("institution", "מוסד", INSTITUTIONS, selectedInstitutions)}
+                  {enumCheckboxGroup("quickRegistration", "רישום", ENUM_LABELS.registration || {}, selectedRegistrationCodes)}
+                  {enumCheckboxGroup("quickClass", "שיעור", ENUM_LABELS.class || {}, selectedClassCodes)}
+                  {enumCheckboxGroup("quickFamilyStatus", "מצב משפחתי", ENUM_LABELS.familystatus || {}, selectedFamilyStatusCodes)}
+                  {enumCheckboxGroup("quickHealthInsurance", "קופת חולים", ENUM_LABELS.healthInsurance || {}, selectedHealthInsuranceCodes)}
                 </div>
                 <div className="quick-actions">
                   <button type="submit">החל סינון מהיר</button>
@@ -486,7 +534,6 @@ export default async function NeonPage({ searchParams }) {
                     className="chip-link"
                     href={buildNextPath({
                       mode: "institution",
-                      institution,
                       institutionSearch,
                       cols: selectedColumnKeys,
                       missingType,
@@ -512,11 +559,12 @@ export default async function NeonPage({ searchParams }) {
               <summary>שדות וחוסרים</summary>
               <form method="GET" className="column-picker">
                 <input type="hidden" name="mode" value="institution" />
-                <input type="hidden" name="institution" value={institution} />
+                {hiddenValues("institution", selectedInstitutions)}
                 <input type="hidden" name="institutionSearch" value={institutionSearch} />
-                <input type="hidden" name="quickClass" value={quickClass} />
-                <input type="hidden" name="quickRegistration" value={quickRegistration} />
-                <input type="hidden" name="quickFamilyStatus" value={quickFamilyStatus} />
+                {hiddenValues("quickClass", selectedClassCodes)}
+                {hiddenValues("quickRegistration", selectedRegistrationCodes)}
+                {hiddenValues("quickFamilyStatus", selectedFamilyStatusCodes)}
+                {hiddenValues("quickHealthInsurance", selectedHealthInsuranceCodes)}
                 <input type="hidden" name="pdfOrientation" value={pdfOrientation} />
                 {pdfBlankColumnKeys.map((key) => (
                   <input key={`field-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
@@ -562,11 +610,12 @@ export default async function NeonPage({ searchParams }) {
               <summary>הגדרות PDF להדפסה</summary>
               <form method="GET" className="column-picker">
                 <input type="hidden" name="mode" value="institution" />
-                <input type="hidden" name="institution" value={institution} />
+                {hiddenValues("institution", selectedInstitutions)}
                 <input type="hidden" name="institutionSearch" value={institutionSearch} />
-                <input type="hidden" name="quickClass" value={quickClass} />
-                <input type="hidden" name="quickRegistration" value={quickRegistration} />
-                <input type="hidden" name="quickFamilyStatus" value={quickFamilyStatus} />
+                {hiddenValues("quickClass", selectedClassCodes)}
+                {hiddenValues("quickRegistration", selectedRegistrationCodes)}
+                {hiddenValues("quickFamilyStatus", selectedFamilyStatusCodes)}
+                {hiddenValues("quickHealthInsurance", selectedHealthInsuranceCodes)}
                 {selectedColumnKeys.map((key) => (
                   <input key={`pdf-col-${key}`} type="hidden" name="cols" value={key} />
                 ))}

@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { buildImportReportWorkbook, parseExcelFile, importStudentsFromRowsWithMapping } from "../../lib/excel-student-import";
-import { createImportSession, getImportSession, updateImportSessionResult } from "../../lib/import-sessions";
+import { parseExcelFile } from "../../lib/excel-student-import";
+import { configureImportSession, createImportSession } from "../../lib/import-sessions";
 import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../lib/deleted-students";
 import { normalizeStudentInput } from "../../lib/student-fields";
 import { sanitizeQueryString } from "../../lib/student-view";
@@ -221,11 +221,6 @@ export async function applyNeonStudentsImportAction(formData) {
     redirect("/neon?importError=לא נמצא session לייבוא");
   }
 
-  const session = await getImportSession(sessionId);
-  if (!session || clean(session.created_by_user_id) !== clean(user.clerk_user_id)) {
-    redirect("/neon?importError=Session הייבוא לא נמצא או לא שייך למשתמש הנוכחי");
-  }
-
   const matchMapping = {
     id: clean(formData.get("match_id")),
     tznum: clean(formData.get("match_tznum")),
@@ -241,35 +236,11 @@ export async function applyNeonStudentsImportAction(formData) {
   }
 
   try {
-    const result = await importStudentsFromRowsWithMapping(session.rows, { matchMapping, fieldMapping });
-    await updateImportSessionResult(sessionId, {
-      fileName: session.file_name,
-      matchMapping,
-      fieldMapping,
-      ...result
-    });
-    buildImportReportWorkbook({
-      fileName: session.file_name,
-      matchMapping,
-      fieldMapping,
-      rowResults: result.rowResults
-    });
-    revalidatePath("/neon");
-    revalidatePath("/neon/students");
-    const params = new URLSearchParams({
-      imported: "1",
-      updated: String(result.updated || 0),
-      skipped: String(result.skipped || 0),
-      failed: String(result.failed || 0),
-      importSessionId: sessionId
-    });
-    if (result.errors?.length) {
-      params.set("importMessage", result.errors.slice(0, 5).join(" | "));
-    }
-    redirect(`/neon?${params.toString()}`);
+    await configureImportSession(sessionId, { matchMapping, fieldMapping });
+    redirect(`/neon/import/${sessionId}/progress`);
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = encodeURIComponent(error?.message || "עיבוד הייבוא נכשל");
+    const message = encodeURIComponent(error?.message || "שמירת הגדרות הייבוא נכשלה");
     redirect(`/neon/import/${sessionId}?error=${message}`);
   }
 }
