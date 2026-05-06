@@ -352,7 +352,7 @@ export default async function NeonPage({ searchParams }) {
 
       <div className="card glass">
         <h3>סינון מהיר - Neon</h3>
-        <form className="grid" method="GET">
+        <form className="column-picker" method="GET">
           <input type="hidden" name="mode" value="institution" />
           {selectedColumnKeys.map((key) => (
             <input key={`institution-col-${key}`} type="hidden" name="cols" value={key} />
@@ -378,9 +378,36 @@ export default async function NeonPage({ searchParams }) {
           {pdfBlankColumnKeys.map((key) => (
             <input key={`institution-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
           ))}
-          {hiddenValues("institution", selectedInstitutions)}
-          <input name="institutionSearch" defaultValue={mode === "institution" ? institutionSearch : ""} placeholder="חיפוש בתוך מוסד" />
-          <button type="submit">החל סינון</button>
+          <div className="grid">
+            {enumCheckboxGroup("institution", "מוסד", INSTITUTIONS, selectedInstitutions)}
+            {enumCheckboxGroup("quickRegistration", "רישום", ENUM_LABELS.registration || {}, selectedRegistrationCodes)}
+            {enumCheckboxGroup("quickClass", "שיעור", ENUM_LABELS.class || {}, selectedClassCodes)}
+            {enumCheckboxGroup("quickFamilyStatus", "מצב משפחתי", ENUM_LABELS.familystatus || {}, selectedFamilyStatusCodes)}
+            {enumCheckboxGroup("quickHealthInsurance", "קופת חולים", ENUM_LABELS.healthInsurance || {}, selectedHealthInsuranceCodes)}
+          </div>
+          <div className="quick-actions">
+            <button type="submit">החל סינון מהיר</button>
+            <Link
+              className="chip-link"
+              href={buildNextPath({
+                mode: "institution",
+                cols: selectedColumnKeys,
+                missingType,
+                sby: sortLevels.map((level) => level.sortBy),
+                sdir: sortLevels.map((level) => level.sortDir),
+                ff: advancedFilters.map((filter) => filter.field),
+                fo: advancedFilters.map((filter) => filter.operator),
+                fv: advancedFilters.map((filter) => filter.value),
+                fj: advancedFilters.map((filter) => filter.joiner),
+                fg: advancedFilters.map((filter) => filter.groupId || "group-1"),
+                gj: advancedFilters.map((filter) => filter.groupJoiner || "AND"),
+                pdfBlankCol: pdfBlankColumnKeys,
+                pdfOrientation
+              })}
+            >
+              נקה סינון מהיר
+            </Link>
+          </div>
         </form>
       </div>
 
@@ -485,69 +512,6 @@ export default async function NeonPage({ searchParams }) {
                     })}
                   >
                     חזור למיון ברירת מחדל
-                  </Link>
-                </div>
-              </form>
-            </details>
-          </div>
-
-          <div className="card">
-            <details className="display-settings" open={hasQuickFilters}>
-              <summary>סינון מהיר</summary>
-              <form method="GET" className="column-picker">
-                <input type="hidden" name="mode" value="institution" />
-                <input type="hidden" name="institutionSearch" value={institutionSearch} />
-                {selectedColumnKeys.map((key) => (
-                  <input key={`col-${key}`} type="hidden" name="cols" value={key} />
-                ))}
-                {sortLevels.map((level, index) => (
-                  <div key={`quick-sort-${index}`}>
-                    <input type="hidden" name="sby" value={level.sortBy} />
-                    <input type="hidden" name="sdir" value={level.sortDir} />
-                  </div>
-                ))}
-                {advancedFilters.map((filter, index) => (
-                  <div key={`quick-filter-${index}`}>
-                    <input type="hidden" name="ff" value={filter.field} />
-                    <input type="hidden" name="fo" value={filter.operator} />
-                    <input type="hidden" name="fv" value={filter.value} />
-                    <input type="hidden" name="fj" value={filter.joiner} />
-                    <input type="hidden" name="fg" value={filter.groupId || "group-1"} />
-                    <input type="hidden" name="gj" value={filter.groupJoiner || "AND"} />
-                  </div>
-                ))}
-                {missingType ? <input type="hidden" name="missingType" value={missingType} /> : null}
-                <input type="hidden" name="pdfOrientation" value={pdfOrientation} />
-                {pdfBlankColumnKeys.map((key) => (
-                  <input key={`quick-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
-                ))}
-                <div className="grid">
-                  {enumCheckboxGroup("institution", "מוסד", INSTITUTIONS, selectedInstitutions)}
-                  {enumCheckboxGroup("quickRegistration", "רישום", ENUM_LABELS.registration || {}, selectedRegistrationCodes)}
-                  {enumCheckboxGroup("quickClass", "שיעור", ENUM_LABELS.class || {}, selectedClassCodes)}
-                  {enumCheckboxGroup("quickFamilyStatus", "מצב משפחתי", ENUM_LABELS.familystatus || {}, selectedFamilyStatusCodes)}
-                  {enumCheckboxGroup("quickHealthInsurance", "קופת חולים", ENUM_LABELS.healthInsurance || {}, selectedHealthInsuranceCodes)}
-                </div>
-                <div className="quick-actions">
-                  <button type="submit">החל סינון מהיר</button>
-                  <Link
-                    className="chip-link"
-                    href={buildNextPath({
-                      mode: "institution",
-                      institutionSearch,
-                      cols: selectedColumnKeys,
-                      missingType,
-                      sby: sortLevels.map((level) => level.sortBy),
-                      sdir: sortLevels.map((level) => level.sortDir),
-                      ff: advancedFilters.map((filter) => filter.field),
-                      fo: advancedFilters.map((filter) => filter.operator),
-                      fv: advancedFilters.map((filter) => filter.value),
-                      fj: advancedFilters.map((filter) => filter.joiner),
-                      fg: advancedFilters.map((filter) => filter.groupId || "group-1"),
-                      gj: advancedFilters.map((filter) => filter.groupJoiner || "AND")
-                    })}
-                  >
-                    נקה סינון מהיר
                   </Link>
                 </div>
               </form>
