@@ -2,14 +2,6 @@
 import { getCurrentAppUser } from "../../../../lib/rbac";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../../../lib/neon-preferences";
 
-function asciiFallbackFilename(filename, fallback = "export.xlsx") {
-  const cleaned = String(filename || "")
-    .replace(/[^\x20-\x7E]/g, "")
-    .replace(/["\\]/g, "")
-    .trim();
-  return cleaned || fallback;
-}
-
 export async function GET(request) {
   const user = await getCurrentAppUser();
   if (!user || (!user.is_team_member && !user.is_manager)) {
@@ -27,7 +19,7 @@ export async function GET(request) {
       status: 200,
       headers: {
         "content-type": result.contentType,
-        "content-disposition": `attachment; filename="${asciiFallbackFilename(result.filename, "export.xlsx")}"; filename*=UTF-8''${encodeURIComponent(result.filename)}`
+        "content-disposition": "attachment; filename=\"export.xlsx\""
       }
     });
   } catch (error) {
