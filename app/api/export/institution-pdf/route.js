@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
-import { buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../../../lib/neon-preferences";
 
 export async function GET(request) {
@@ -10,6 +9,7 @@ export async function GET(request) {
   }
 
   try {
+    const { buildInstitutionPdfExport } = await import("../../../../lib/institution-exports");
     const url = new URL(request.url);
     const preferences = await getNeonPreferencesForUser(user.clerk_user_id);
     const mergedSearchParams = mergeSearchParamsWithNeonPreferences(url.searchParams, preferences?.query_string || "");
