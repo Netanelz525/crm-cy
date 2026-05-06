@@ -9,16 +9,23 @@ export async function GET(request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const url = new URL(request.url);
-  const preferences = await getNeonPreferencesForUser(user.clerk_user_id);
-  const mergedSearchParams = mergeSearchParamsWithNeonPreferences(url.searchParams, preferences?.query_string || "");
-  const result = await buildInstitutionPdfExport(mergedSearchParams);
+  try {
+    const url = new URL(request.url);
+    const preferences = await getNeonPreferencesForUser(user.clerk_user_id);
+    const mergedSearchParams = mergeSearchParamsWithNeonPreferences(url.searchParams, preferences?.query_string || "");
+    const result = await buildInstitutionPdfExport(mergedSearchParams);
 
-  return new NextResponse(result.content, {
-    status: 200,
-    headers: {
-      "content-type": result.contentType,
-      "content-disposition": `attachment; filename="${result.filename}"; filename*=UTF-8''${encodeURIComponent(result.filename)}`
-    }
-  });
+    return new NextResponse(result.content, {
+      status: 200,
+      headers: {
+        "content-type": result.contentType,
+        "content-disposition": `attachment; filename="${result.filename}"; filename*=UTF-8''${encodeURIComponent(result.filename)}`
+      }
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error?.message || "PDF export failed" },
+      { status: 500 }
+    );
+  }
 }
