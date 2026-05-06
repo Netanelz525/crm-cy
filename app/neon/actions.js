@@ -2,8 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { parseExcelFile, importStudentsFromRowsWithMapping } from "../../lib/excel-student-import";
-import { createImportSession, deleteImportSession, getImportSession } from "../../lib/import-sessions";
+import { buildImportReportWorkbook, parseExcelFile, importStudentsFromRowsWithMapping } from "../../lib/excel-student-import";
+import { createImportSession, getImportSession, updateImportSessionResult } from "../../lib/import-sessions";
+import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../lib/deleted-students";
 import { normalizeStudentInput } from "../../lib/student-fields";
 import { sanitizeQueryString } from "../../lib/student-view";
 import { requireAuthenticatedUser } from "../../lib/rbac";
@@ -161,6 +162,54 @@ export async function bulkUpdateNeonStudentsAction(formData) {
   redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}${params.toString()}`);
 }
 
+export async function bulkDeleteNeonStudentsAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  const studentIds = formData.getAll("studentIds").map(clean).filter(Boolean);
+  const confirmationText = clean(formData.get("confirmationText"));
+  const confirmDelete = clean(formData.get("confirmDelete"));
+
+  if (!studentIds.length) {
+    redirect("/neon?bulkError=לא נבחרו תלמידים למחיקה");
+  }
+
+  if (confirmDelete !== "1" || confirmationText !== DELETE_CONFIRMATION_TEXT) {
+    redirect("/neon?bulkError=כדי למחוק תלמידים צריך לסמן אישור ולהקליד בדיוק: אני מאשר");
+  }
+
+  let deleted = 0;
+  let failed = 0;
+  const errors = [];
+
+  for (const studentId of studentIds) {
+    try {
+      await softDeleteStudentById(studentId, user.clerk_user_id);
+      deleted += 1;
+    } catch (error) {
+      failed += 1;
+      errors.push(`${studentId}: ${error?.message || "המחיקה נכשלה"}`);
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/neon");
+  revalidatePath("/neon/students");
+  revalidatePath("/admin/deleted-students");
+
+  const params = new URLSearchParams({
+    bulkDeleted: "1",
+    deleted: String(deleted),
+    failed: String(failed)
+  });
+  if (errors.length) {
+    params.set("bulkMessage", errors.slice(0, 5).join(" | "));
+  }
+  redirect(`/admin/deleted-students?${params.toString()}`);
+}
+
 export async function applyNeonStudentsImportAction(formData) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
@@ -193,14 +242,26 @@ export async function applyNeonStudentsImportAction(formData) {
 
   try {
     const result = await importStudentsFromRowsWithMapping(session.rows, { matchMapping, fieldMapping });
-    await deleteImportSession(sessionId);
+    await updateImportSessionResult(sessionId, {
+      fileName: session.file_name,
+      matchMapping,
+      fieldMapping,
+      ...result
+    });
+    buildImportReportWorkbook({
+      fileName: session.file_name,
+      matchMapping,
+      fieldMapping,
+      rowResults: result.rowResults
+    });
     revalidatePath("/neon");
     revalidatePath("/neon/students");
     const params = new URLSearchParams({
       imported: "1",
       updated: String(result.updated || 0),
       skipped: String(result.skipped || 0),
-      failed: String(result.failed || 0)
+      failed: String(result.failed || 0),
+      importSessionId: sessionId
     });
     if (result.errors?.length) {
       params.set("importMessage", result.errors.slice(0, 5).join(" | "));

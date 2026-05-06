@@ -5,7 +5,7 @@ import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormV
 import { listStudentDocuments } from "../../../../lib/student-documents";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import { deleteNeonStudentAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -171,6 +171,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const showChildrenCount = isMarried(student?.famliystatus);
   const documents = await listStudentDocuments(studentId);
+  const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
     <>
@@ -206,6 +207,24 @@ export default async function NeonStudentPage({ params, searchParams }) {
                 <span>עריכת שדות</span>
               </Link>
             ) : null}
+            {canManageStudent ? (
+              <details className="student-delete-form">
+                <summary className="btn btn-danger">מחק תלמיד</summary>
+                <form action={deleteNeonStudentAction} className="card" style={{ marginTop: 8 }}>
+                  <input type="hidden" name="studentId" value={studentId} />
+                  <div className="muted">התלמיד יוסתר מיד מכל הרשימות ויעבור לאזור מחיקה זמני ל-30 יום.</div>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                    <input type="checkbox" name="confirmDelete" value="1" />
+                    <span>{deleteLabel}</span>
+                  </label>
+                  <input name="confirmationText" placeholder='הקלד "אני מאשר"' style={{ marginTop: 8 }} />
+                  <div className="quick-actions" style={{ marginTop: 8 }}>
+                    <button className="btn btn-danger" type="submit">אשר מחיקה</button>
+                    <Link className="btn btn-ghost" href="/admin/deleted-students">פתח אזור מחיקה זמני</Link>
+                  </div>
+                </form>
+              </details>
+            ) : null}
             <Link className="btn btn-ghost" href={`/students/${studentId}`}>פתח בגרסה הראשית</Link>
           </div>
         </div>
@@ -226,13 +245,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
-      <details className="card linked-records-panel">
+      <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
         <summary className="linked-records-toggle">
           <div>
             <h3>רשומות מקושרות</h3>
-            <p className="muted" style={{ marginBottom: 0 }}>
-              מסמכי תלמיד ורשומות נוספות המשויכים לכרטיס. האזור סגור כברירת מחדל.
-            </p>
+            <p className="muted" style={{ marginBottom: 0 }}>מסמכי תלמיד ורשומות נוספות המשויכים לכרטיס.</p>
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
