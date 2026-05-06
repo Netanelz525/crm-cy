@@ -433,17 +433,19 @@ export default async function NeonPage({ searchParams }) {
         </form>
       </div>
 
-      <div className="card glass">
-        <h3>עדכון מרוכז מאקסל</h3>
-        <p className="muted">
-          העלה קובץ `xlsx`/`xls`/`csv`. בשלב הבא תועבר לעמוד מיפוי שבו תבחר איזו עמודה מזהה תלמיד ואיזו עמודה מעדכנת כל שדה.
-          אין מיפוי אוטומטי חובה: כל קובץ יכול להגיע במבנה אחר, ואת ההתאמות תבחר ידנית.
-        </p>
-        <form action={prepareNeonStudentsImportAction} className="grid">
-          <input type="file" name="file" accept=".xlsx,.xls,.csv" />
-          <button type="submit">המשך לעמוד מיפוי אקסל</button>
-        </form>
-      </div>
+      <details className="display-settings">
+        <summary>עדכון מרוכז מאקסל</summary>
+        <div className="display-settings-body">
+          <p className="muted">
+            העלה קובץ `xlsx`/`xls`/`csv`. בשלב הבא תועבר לעמוד מיפוי שבו תבחר איזו עמודה מזהה תלמיד ואיזו עמודה מעדכנת כל שדה.
+            אין מיפוי אוטומטי חובה: כל קובץ יכול להגיע במבנה אחר, ואת ההתאמות תבחר ידנית.
+          </p>
+          <form action={prepareNeonStudentsImportAction} className="grid">
+            <input type="file" name="file" accept=".xlsx,.xls,.csv" />
+            <button type="submit">המשך לעמוד מיפוי אקסל</button>
+          </form>
+        </div>
+      </details>
 
       {showInstitutionView ? (
         <>
@@ -458,7 +460,7 @@ export default async function NeonPage({ searchParams }) {
           </div>
 
           <div className="card">
-            <details className="display-settings" open>
+            <details className="display-settings">
               <summary>מיון התצוגה</summary>
               <form method="GET" className="column-picker">
                 <input type="hidden" name="mode" value="institution" />

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeImportResult } from "../../../../../lib/excel-student-import";
 import { getImportSession } from "../../../../../lib/import-sessions";
 import { requireAuthenticatedUser } from "../../../../../lib/rbac";
 
@@ -28,7 +29,7 @@ export async function GET(_request, { params }) {
       skipped: 0,
       failed: 0
     },
-    result: session.result_json || null,
+    result: session.result_json ? normalizeImportResult(session.result_json) : null,
     error: clean(session.result_json?.error || "")
   });
 }
