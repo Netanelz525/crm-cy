@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
+import { purgeExpiredSoftDeletedStudents } from "../lib/deleted-students";
 import { getCurrentAppUser } from "../lib/rbac";
 import {
   applyAdvancedFilters,
@@ -119,6 +120,7 @@ function hasInstitutionScopedFilter(filters) {
 export default async function HomePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
+  await purgeExpiredSoftDeletedStudents();
 
   const resolvedSearchParams = await searchParams;
 
@@ -205,6 +207,7 @@ export default async function HomePage({ searchParams }) {
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/neon">מעבר ל-Neon Beta</Link>
           <Link className="quick-action-btn quick-action-outline" href="/admin">מעבר לאישור משתמשים</Link>
+          <Link className="quick-action-btn quick-action-outline" href="/admin/deleted-students">אזור מחיקה זמני</Link>
           <Link className="quick-action-btn quick-action-outline" href="/finder">איתור תלמיד</Link>
           <Link className="quick-action-btn quick-action-outline" href="/views">תצוגות</Link>
           <Link className="quick-action-btn quick-action-primary" href="/students/new">יצירת תלמיד</Link>
@@ -397,6 +400,5 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
-
 
 

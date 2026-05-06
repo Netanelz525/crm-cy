@@ -1,6 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../../../lib/deleted-students";
 import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
 import { toFormData } from "../../../../lib/student-fields";
@@ -33,6 +35,37 @@ export async function updateNeonStudentAction(formData) {
   }
 
   redirect(`/neon/students/${studentId}?updated=1`);
+}
+
+export async function deleteNeonStudentAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+  const confirmationText = clean(formData.get("confirmationText"));
+  const confirmDelete = clean(formData.get("confirmDelete"));
+
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  if (!studentId) {
+    redirect("/neon?error=לא נבחר תלמיד למחיקה");
+  }
+
+  if (confirmDelete !== "1" || confirmationText !== DELETE_CONFIRMATION_TEXT) {
+    redirect(`/neon/students/${studentId}?error=${encodeURIComponent("כדי למחוק תלמיד צריך לסמן אישור ולהקליד בדיוק: אני מאשר")}`);
+  }
+
+  try {
+    await softDeleteStudentById(studentId, user.clerk_user_id);
+    revalidatePath("/");
+    revalidatePath("/neon");
+    revalidatePath("/admin/deleted-students");
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "מחיקת התלמיד נכשלה");
+    redirect(`/neon/students/${studentId}?error=${message}`);
+  }
+
+  redirect("/admin/deleted-students?deleted=1");
 }
 
 export async function uploadStudentDocumentAction(formData) {

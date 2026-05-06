@@ -166,6 +166,7 @@ export default async function StudentPage({ params, searchParams }) {
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const documents = await listStudentDocuments(studentId);
+  const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
     <>
@@ -202,10 +203,22 @@ export default async function StudentPage({ params, searchParams }) {
               </Link>
             ) : null}
             {canDelete ? (
-              <form action={deleteStudentAction} className="student-delete-form">
-                <input type="hidden" name="studentId" value={studentId} />
-                <button className="btn btn-danger" type="submit">מחק תלמיד</button>
-              </form>
+              <details className="student-delete-form">
+                <summary className="btn btn-danger">מחק תלמיד</summary>
+                <form action={deleteStudentAction} className="card" style={{ marginTop: 8 }}>
+                  <input type="hidden" name="studentId" value={studentId} />
+                  <div className="muted">התלמיד יעבור לאזור מחיקה זמני ל-30 יום, יוסתר מהרשימות, ורק אחר כך יימחק סופית.</div>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                    <input type="checkbox" name="confirmDelete" value="1" />
+                    <span>{deleteLabel}</span>
+                  </label>
+                  <input name="confirmationText" placeholder='הקלד "אני מאשר"' style={{ marginTop: 8 }} />
+                  <div className="quick-actions" style={{ marginTop: 8 }}>
+                    <button className="btn btn-danger" type="submit">אשר מחיקה</button>
+                    <Link className="btn btn-ghost" href="/admin/deleted-students">פתח אזור מחיקה זמני</Link>
+                  </div>
+                </form>
+              </details>
             ) : null}
           </div>
         </div>
@@ -216,13 +229,11 @@ export default async function StudentPage({ params, searchParams }) {
         <p className="muted">{studentName}</p>
       </div>
 
-      <details className="card linked-records-panel">
+      <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
         <summary className="linked-records-toggle">
           <div>
             <h3>רשומות מקושרות</h3>
-            <p className="muted" style={{ marginBottom: 0 }}>
-              מסמכים ורשומות נוספות המשויכים לתלמיד. האזור סגור כברירת מחדל.
-            </p>
+            <p className="muted" style={{ marginBottom: 0 }}>מסמכים ורשומות נוספות המשויכים לתלמיד.</p>
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>

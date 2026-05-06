@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { purgeExpiredSoftDeletedStudents } from "../../lib/deleted-students";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser } from "../../lib/rbac";
@@ -93,6 +94,7 @@ function sortLevelAt(sortLevels, index) {
 export default async function NeonPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
+  await purgeExpiredSoftDeletedStudents();
 
   const incomingSearchParams = await searchParams;
 
@@ -137,6 +139,7 @@ export default async function NeonPage({ searchParams }) {
   const importedUpdated = clean(resolvedSearchParams?.updated);
   const importedSkipped = clean(resolvedSearchParams?.skipped);
   const importedFailed = clean(resolvedSearchParams?.failed);
+  const importSessionId = clean(resolvedSearchParams?.importSessionId);
   const importMessage = clean(resolvedSearchParams?.importMessage);
   const importError = clean(resolvedSearchParams?.importError);
   const prefsSaved = clean(resolvedSearchParams?.prefsSaved) === "1";
@@ -227,6 +230,7 @@ export default async function NeonPage({ searchParams }) {
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-primary" href="/students/new">יצירת תלמיד חדש</Link>
             <Link className="btn btn-ghost" href="/">חזרה לגרסה הראשית</Link>
+            <Link className="btn btn-ghost" href="/admin/deleted-students">אזור מחיקה זמני</Link>
             <form action={saveNeonPreferencesAction}>
               <input type="hidden" name="queryString" value={currentQueryString} />
               <input type="hidden" name="returnPath" value={currentQueryString ? `/neon?${currentQueryString}` : "/neon"} />
@@ -252,6 +256,11 @@ export default async function NeonPage({ searchParams }) {
         <div className="ok">
           ייבוא האקסל הושלם. עודכנו {importedUpdated || 0}, דולגו {importedSkipped || 0}, נכשלו {importedFailed || 0}.
           {importMessage ? <div style={{ marginTop: 8 }}>{importMessage}</div> : null}
+          {importSessionId ? (
+            <div style={{ marginTop: 8 }}>
+              <a className="chip-link" href={`/api/neon/import-report/${importSessionId}`}>הורד דוח אקסל מפורט לכל שורה</a>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {prefsSaved ? <div className="ok">העדפות ה־Neon שלך נשמרו למשתמש הנוכחי.</div> : null}

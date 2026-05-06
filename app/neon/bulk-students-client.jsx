@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
-import { bulkUpdateNeonStudentsAction } from "./actions";
+import { bulkDeleteNeonStudentsAction, bulkUpdateNeonStudentsAction } from "./actions";
 
 function PhoneLink({ phoneObj }) {
   const text = phoneText(phoneObj);
@@ -128,6 +128,7 @@ function MatchScoreBadge({ score }) {
 export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allVisibleSelected = students.length > 0 && students.every((student) => selectedSet.has(student.id));
@@ -149,6 +150,23 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
     setBulkOpen(false);
   }
 
+  function closeDelete() {
+    setDeleteOpen(false);
+  }
+
+  const emailHref = useMemo(() => {
+    const params = new URLSearchParams();
+    const rawQuery = clean(returnTo).split("?")[1] || "";
+    const existing = new URLSearchParams(rawQuery);
+    for (const [key, value] of existing.entries()) {
+      if (key === "mode") continue;
+      params.append(key, value);
+    }
+    params.set("recipientMode", "parents");
+    selectedIds.forEach((id) => params.append("studentIds", id));
+    return `/email?${params.toString()}`;
+  }, [returnTo, selectedIds]);
+
   return (
     <>
       {students.length ? (
@@ -161,12 +179,52 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
             <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(students.map((student) => student.id))}>
               בחר את כל {students.length} הרשומות בתצוגה
             </button>
+            <Link className="btn btn-ghost bulk-open-btn" href={emailHref} aria-disabled={!selectedIds.length} onClick={(event) => {
+              if (!selectedIds.length) event.preventDefault();
+            }}>
+              עבור לשליחת מייל
+            </Link>
             <button type="button" className="btn btn-ghost bulk-open-btn" disabled={!selectedIds.length} onClick={() => setBulkOpen(true)}>
               המשך לבחירת השדות לעדכון
+            </button>
+            <button type="button" className="btn btn-danger bulk-open-btn" disabled={!selectedIds.length} onClick={() => setDeleteOpen(true)}>
+              מחק {selectedIds.length || ""} תלמידים
             </button>
             <button type="button" className="chip-link bulk-trigger-btn" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
               נקה בחירה
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteOpen ? (
+        <div className="bulk-modal-backdrop" onClick={closeDelete}>
+          <div className="bulk-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="student-topbar">
+              <div>
+                <h3>מחיקה מרוכזת לתלמידים נבחרים</h3>
+                <p className="muted">התלמידים יועברו לאזור מחיקה זמני ל-30 יום ויוסתרו מיד מכל הרשימות.</p>
+              </div>
+              <button type="button" className="bulk-close-btn" onClick={closeDelete} aria-label="סגור חלון מחיקה">
+                ✕
+              </button>
+            </div>
+            <form action={bulkDeleteNeonStudentsAction} className="bulk-form-grid">
+              {selectedIds.map((id) => (
+                <input key={`delete-${id}`} type="hidden" name="studentIds" value={id} />
+              ))}
+              <label className="bulk-field-toggle">
+                <input type="checkbox" name="confirmDelete" value="1" />
+                <span>{`אני מאשר מחיקה של ${selectedIds.length} תלמידים`}</span>
+              </label>
+              <input name="confirmationText" placeholder='הקלד "אני מאשר"' />
+              <div className="quick-actions bulk-submit-actions">
+                <button type="button" className="btn btn-ghost bulk-cancel-btn" onClick={closeDelete}>
+                  ביטול
+                </button>
+                <button type="submit" className="btn btn-danger">אשר מחיקה מרוכזת</button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}

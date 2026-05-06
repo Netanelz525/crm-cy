@@ -1,11 +1,13 @@
 ﻿"use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { removeNeonStudentById, syncNeonStudentFromTwentyById } from "../../../lib/neon-students";
+import { syncNeonStudentFromTwentyById } from "../../../lib/neon-students";
+import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../../lib/deleted-students";
 import { upsertStudentNote } from "../../../lib/notes";
 import { canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { toFormData } from "../../../lib/student-fields";
-import { deleteStudentById, updateStudentById } from "../../../lib/twenty";
+import { updateStudentById } from "../../../lib/twenty";
 
 function clean(v) {
   return String(v || "").trim();
@@ -34,6 +36,8 @@ export async function updateStudentAction(formData) {
 export async function deleteStudentAction(formData) {
   const user = await requireAuthenticatedUser();
   const studentId = clean(formData.get("studentId"));
+  const confirmationText = clean(formData.get("confirmationText"));
+  const confirmDelete = clean(formData.get("confirmDelete"));
 
   if (!user.is_team_member && !user.is_manager) {
     redirect("/unauthorized");
@@ -43,15 +47,21 @@ export async function deleteStudentAction(formData) {
     redirect("/?error=לא נבחר תלמיד למחיקה");
   }
 
+  if (confirmDelete !== "1" || confirmationText !== DELETE_CONFIRMATION_TEXT) {
+    redirect(`/students/${studentId}?error=${encodeURIComponent("כדי למחוק תלמיד צריך לסמן אישור ולהקליד בדיוק: אני מאשר")}`);
+  }
+
   try {
-    await deleteStudentById(studentId);
-    await removeNeonStudentById(studentId);
+    await softDeleteStudentById(studentId, user.clerk_user_id);
+    revalidatePath("/");
+    revalidatePath("/neon");
+    revalidatePath("/admin/deleted-students");
   } catch (error) {
     const message = encodeURIComponent(error?.message || "מחיקת התלמיד נכשלה");
     redirect(`/students/${studentId}?error=${message}`);
   }
 
-  redirect("/?deleted=1");
+  redirect("/admin/deleted-students?deleted=1");
 }
 
 export async function updateNoteAction(formData) {
