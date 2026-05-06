@@ -2965,6 +2965,21 @@ td {
   gap: 12px;
 }
 
+.email-editor-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px;
+  background: #f8fbff;
+}
+
+.email-rich-editor {
+  min-height: 260px;
+  background: #fff;
+  border-radius: 14px;
+}
+
 .email-compose-card label,
 .email-filter-card label {
   display: grid;
