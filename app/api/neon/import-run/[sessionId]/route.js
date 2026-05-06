@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { importStudentsFromRowsWithMapping } from "../../../../../lib/excel-student-import";
+import { importStudentsFromRowsWithMapping, normalizeImportResult } from "../../../../../lib/excel-student-import";
 import {
   getImportSession,
   markImportSessionFailed,
@@ -52,12 +52,12 @@ export async function POST(_request, { params }) {
       }
     });
 
-    await updateImportSessionResult(sessionId, {
+    await updateImportSessionResult(sessionId, normalizeImportResult({
       fileName: session.file_name,
       matchMapping: session.match_mapping_json || {},
       fieldMapping: session.field_mapping_json || {},
       ...result
-    });
+    }));
 
     return NextResponse.json({ ok: true, status: "completed" });
   } catch (error) {

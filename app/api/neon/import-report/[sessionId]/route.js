@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildImportReportWorkbook } from "../../../../../lib/excel-student-import";
+import { buildImportReportWorkbook, normalizeImportResult } from "../../../../../lib/excel-student-import";
 import { getImportSession } from "../../../../../lib/import-sessions";
 import { requireAuthenticatedUser } from "../../../../../lib/rbac";
 
@@ -25,7 +25,7 @@ export async function GET(_request, { params }) {
     return NextResponse.json({ error: "Import session not found" }, { status: 404 });
   }
 
-  const result = session.result_json;
+  const result = normalizeImportResult(session.result_json || {});
   if (!result?.rowResults?.length) {
     return NextResponse.json({ error: "No import report available for this session" }, { status: 404 });
   }

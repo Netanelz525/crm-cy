@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { normalizeImportResult } from "../../../../../lib/excel-student-import";
 import { getImportSession } from "../../../../../lib/import-sessions";
 import { requireAuthenticatedUser } from "../../../../../lib/rbac";
 import ImportProgressClient from "./progress-client";
@@ -29,7 +30,7 @@ export default async function NeonImportProgressPage({ params }) {
       skipped: 0,
       failed: 0
     },
-    result: session.result_json || null,
+    result: session.result_json ? normalizeImportResult(session.result_json) : null,
     error: clean(session.result_json?.error || "")
   };
 
