@@ -27,6 +27,7 @@ function classLabel(value) {
 
 function certaintyLabel(level, status) {
   const numeric = Number(level || 0);
+  if (status === "unsubscribed") return "הוסר";
   if (status === "failed") return "נכשל";
   if (numeric >= 4) return "נלחץ";
   if (numeric >= 3) return "נפתח";

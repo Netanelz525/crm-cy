@@ -116,6 +116,7 @@ function documentKindLabel(value) {
 
 function emailStatusLabel(delivery) {
   const numeric = Number(delivery?.certainty_level || 0);
+  if (clean(delivery?.status) === "unsubscribed") return "הוסר";
   if (clean(delivery?.status) === "failed") return "נכשל";
   if (numeric >= 4) return "נלחץ";
   if (numeric >= 3) return "נפתח";
