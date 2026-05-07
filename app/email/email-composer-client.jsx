@@ -7,7 +7,6 @@ import Underline from "@tiptap/extension-underline";
 import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { useEffect, useMemo, useState } from "react";
-import { useFormStatus } from "react-dom";
 
 function clean(value) {
   return String(value || "");
@@ -83,15 +82,6 @@ function ToolButton({ active = false, icon, text, onClick, disabled = false }) {
   );
 }
 
-function SubmitButton({ disabled }) {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" disabled={disabled || pending}>
-      {pending ? "שולח דרך Resend..." : "אשר ושלח עכשיו"}
-    </button>
-  );
-}
-
 export default function EmailComposerClient({
   institutionSelected,
   recipientMode,
@@ -109,9 +99,7 @@ export default function EmailComposerClient({
   const initialContent = useMemo(() => clean(initialHtml) || textToHtml(""), [initialHtml]);
   const [html, setHtml] = useState(initialContent);
   const [plainText, setPlainText] = useState(buildPlainText(initialContent));
-  const [confirmSend, setConfirmSend] = useState(false);
   const [selectedIds, setSelectedIds] = useState(students.map((student) => student.id));
-  const [reviewMode, setReviewMode] = useState(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -152,8 +140,6 @@ export default function EmailComposerClient({
 
   useEffect(() => {
     setSelectedIds(students.map((student) => student.id));
-    setReviewMode(false);
-    setConfirmSend(false);
   }, [students]);
 
   const previewHtml = useMemo(() => buildPreviewHtml({ subject, html }), [subject, html]);
@@ -189,16 +175,11 @@ export default function EmailComposerClient({
       });
   }
 
-  function enterReviewMode() {
-    if (!institutionSelected || !selectedIds.length) return;
-    setReviewMode(true);
-  }
-
   return (
     <div className="email-layout">
       <section className="email-panel">
         <div className="email-compose-card">
-          <input type="hidden" name="bodyHtml" value={html} />
+          <input type="hidden" name="contentHtml" value={html} />
           <input type="hidden" name="bodyText" value={plainText} />
           <input type="hidden" name="includeGreeting" value={includeGreeting ? "1" : "0"} />
           {selectedIds.map((id) => <input key={`selected-${id}`} type="hidden" name="studentIds" value={id} />)}
@@ -238,11 +219,6 @@ export default function EmailComposerClient({
           <div className="email-help">
             אפשר להשתמש בתגיות: <code>{"{{שם}}"}</code>, <code>{"{{תלמיד}}"}</code>, <code>{"{{מוסד}}"}</code>, <code>{"{{שיעור}}"}</code>, <code>{"{{נמען}}"}</code>
           </div>
-
-          <label>
-            קבצים מצורפים
-            <input type="file" name="attachments" multiple />
-          </label>
 
           <div className="email-send-scope">
             <label>
@@ -316,31 +292,16 @@ export default function EmailComposerClient({
             </div>
           </details>
 
-          {reviewMode ? (
-            <div className="email-certainty-card">
-              <h2>אישור סופי לפני שליחה</h2>
-              <div className="email-certainty-steps">
-                <div><b>{selectedStudents.length}</b><span>תלמידים נבחרו</span><small>רק התלמידים שסימנת ייכללו בשליחה.</small></div>
-                <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>המערכת מאחדת כתובות כפולות לפני שליחה.</small></div>
-              </div>
-              <div className="email-send-scope" style={{ marginTop: 12 }}>
-                <label>
-                  <input type="checkbox" checked={confirmSend} onChange={(event) => setConfirmSend(event.target.checked)} />
-                  אני מאשר את השליחה הסופית דרך Resend
-                </label>
-              </div>
-              <div className="quick-actions">
-                <button type="button" className="chip-link" onClick={() => setReviewMode(false)}>
-                  חזור לעריכה
-                </button>
-                <SubmitButton disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !selectedRecipientCount || !confirmSend} />
-              </div>
+          <div className="email-certainty-card">
+            <h2>לפני מעבר לאישור סופי</h2>
+            <div className="email-certainty-steps">
+              <div><b>{selectedStudents.length}</b><span>תלמידים נבחרו</span><small>אפשר לשלוח לכל התלמידים המסוננים או רק למסומנים.</small></div>
+              <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>בדף הבא תראה את רשימת הנמענים הסופית לפני שליחה.</small></div>
             </div>
-          ) : (
-            <button type="button" onClick={enterReviewMode} disabled={!resendConfigured || !institutionSelected || !selectedIds.length}>
-              המשך לאישור סופי
+            <button type="submit" disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !selectedRecipientCount}>
+              המשך לדף אישור סופי
             </button>
-          )}
+          </div>
         </div>
       </section>
 

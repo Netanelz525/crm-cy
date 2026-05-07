@@ -3028,8 +3028,22 @@ td {
   background: #f8fbff;
 }
 
+.email-final-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #f8fbff;
+}
+
 .email-send-scope input,
 .email-student-row input {
+  width: auto;
+}
+
+.email-final-check input {
   width: auto;
 }
 

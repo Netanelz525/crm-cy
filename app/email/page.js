@@ -12,7 +12,6 @@ import { getResendConfigStatus } from "../../lib/resend";
 import { requireEmailSender } from "../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { ENUM_LABELS } from "../../lib/student-fields";
-import { sendEmailCampaignAction } from "./actions";
 
 function institutionLabel(value) {
   const key = clean(value).toUpperCase();
@@ -52,7 +51,7 @@ export default async function EmailPage({ searchParams }) {
   };
 
   const subject = clean(resolvedSearchParams?.subject) || "עדכון חשוב ממערכת התלמידים";
-  const initialHtml = clean(resolvedSearchParams?.contentHtml) || "<p>שלום,</p><p>רצינו לעדכן אותך בנושא חשוב.</p><p>בברכה,<br>משרד הישיבה</p>";
+  const initialHtml = clean(resolvedSearchParams?.contentHtml) || clean(resolvedSearchParams?.bodyHtml) || "<p>שלום,</p><p>רצינו לעדכן אותך בנושא חשוב.</p><p>בברכה,<br>משרד הישיבה</p>";
   const sent = clean(resolvedSearchParams?.sent);
   const failed = clean(resolvedSearchParams?.failed);
   const skipped = clean(resolvedSearchParams?.skipped);
@@ -155,7 +154,7 @@ export default async function EmailPage({ searchParams }) {
         <button type="submit">עדכן רשימה</button>
       </form>
 
-      <form action={sendEmailCampaignAction} encType="multipart/form-data">
+      <form action="/email/confirm" method="get">
         <input type="hidden" name="institution" value={filters.institution} />
         <input type="hidden" name="class" value={filters.class} />
         <input type="hidden" name="registration" value={filters.registration} />

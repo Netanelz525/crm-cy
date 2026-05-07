@@ -8,8 +8,43 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function buildConfirmRedirect(formData, errorMessage) {
+  const params = new URLSearchParams();
+  const keys = [
+    "institution",
+    "class",
+    "registration",
+    "familystatus",
+    "q",
+    "recipientMode",
+    "sendScope",
+    "subject",
+    "senderName",
+    "bodyHtml",
+    "bodyText",
+    "contentHtml",
+    "includeGreeting"
+  ];
+
+  for (const key of keys) {
+    const value = clean(formData.get(key));
+    if (value) params.set(key, value);
+  }
+
+  for (const studentId of formData.getAll("studentIds").map(clean).filter(Boolean)) {
+    params.append("studentIds", studentId);
+  }
+
+  params.set("error", clean(errorMessage) || "שליחת המייל נכשלה");
+  return `/email/confirm?${params.toString()}`;
+}
+
 export async function sendEmailCampaignAction(formData) {
   const user = await requireEmailSender();
+  if (clean(formData.get("confirmFinalSend")) !== "1") {
+    redirect(buildConfirmRedirect(formData, "יש לאשר שליחה סופית לפני הביצוע."));
+  }
+
   let result = null;
   try {
     result = await sendEmailCampaign({
@@ -21,7 +56,7 @@ export async function sendEmailCampaignAction(formData) {
       }
     });
   } catch (error) {
-    redirect(`/email?error=${encodeURIComponent(clean(error?.message) || "שליחת המייל נכשלה")}`);
+    redirect(buildConfirmRedirect(formData, clean(error?.message) || "שליחת המייל נכשלה"));
   }
 
   const params = new URLSearchParams({
