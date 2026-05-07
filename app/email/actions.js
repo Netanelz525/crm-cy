@@ -2,7 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { requireEmailSender } from "../../lib/rbac";
-import { saveEmailCampaignDraft, sendEmailCampaign } from "../../lib/email-campaigns";
+import {
+  addEmailUnsubscribe,
+  removeEmailUnsubscribe,
+  saveEmailCampaignDraft,
+  sendEmailCampaign
+} from "../../lib/email-campaigns";
 
 function clean(value) {
   return String(value || "").trim();
@@ -98,4 +103,32 @@ export async function sendEmailCampaignAction(formData) {
     campaignId: result.campaignId
   });
   redirect(`/email?${params.toString()}`);
+}
+
+export async function addEmailUnsubscribeAction(formData) {
+  await requireEmailSender();
+  const email = clean(formData.get("recipientEmail"));
+  const recipientName = clean(formData.get("recipientName"));
+  const reasonText = clean(formData.get("reasonText"));
+
+  try {
+    await addEmailUnsubscribe({ email, recipientName, reasonText });
+  } catch (error) {
+    redirect(`/email?error=${encodeURIComponent(clean(error?.message) || "הוספת הכתובת לרשימה השחורה נכשלה")}`);
+  }
+
+  redirect("/email?blacklistUpdated=1");
+}
+
+export async function removeEmailUnsubscribeAction(formData) {
+  await requireEmailSender();
+  const email = clean(formData.get("recipientEmail"));
+
+  try {
+    await removeEmailUnsubscribe(email);
+  } catch (error) {
+    redirect(`/email?error=${encodeURIComponent(clean(error?.message) || "הסרת הכתובת מהרשימה השחורה נכשלה")}`);
+  }
+
+  redirect("/email?blacklistUpdated=1");
 }

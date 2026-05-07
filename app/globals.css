@@ -3202,11 +3202,22 @@ td {
   background: #fff;
 }
 
+.email-student-row-blacklisted {
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
+}
+
 .email-student-row small,
 .email-log-row small {
   display: block;
   color: var(--muted);
   margin-top: 3px;
+}
+
+.email-student-row-blacklisted small,
+.email-student-row-blacklisted b {
+  color: #ffffff !important;
 }
 
 .email-recipient-pill {
@@ -3218,9 +3229,31 @@ td {
   overflow-wrap: anywhere;
 }
 
+.email-recipient-pill-blacklisted {
+  background: #2b1a1a;
+  color: #fecaca;
+}
+
 .muted-pill {
   background: #f1f5f9;
   color: var(--muted);
+}
+
+.email-blacklist-form {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.email-blacklist-list {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.email-blacklist-row {
+  align-items: center;
 }
 
 .email-preview-card iframe {

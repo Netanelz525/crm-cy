@@ -5,6 +5,8 @@ import {
   buildDefaultSenderNameForStudents,
   getEmailCampaignDraft,
   getEmailCandidateStudents,
+  getUnsubscribedEmailSet,
+  listEmailUnsubscribes,
   listRecentEmailCampaigns,
   listRecentEmailDeliveries,
   summarizeEmailCandidates
@@ -13,7 +15,7 @@ import { getResendConfigStatus } from "../../lib/resend";
 import { requireEmailSender } from "../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { ENUM_LABELS } from "../../lib/student-fields";
-import { createEmailCampaignConfirmAction } from "./actions";
+import { addEmailUnsubscribeAction, createEmailCampaignConfirmAction, removeEmailUnsubscribeAction } from "./actions";
 
 function institutionLabel(value) {
   const key = clean(value).toUpperCase();
@@ -65,15 +67,37 @@ export default async function EmailPage({ searchParams }) {
   const failed = clean(resolvedSearchParams?.failed);
   const skipped = clean(resolvedSearchParams?.skipped);
   const error = clean(resolvedSearchParams?.error);
+  const blacklistUpdated = clean(resolvedSearchParams?.blacklistUpdated) === "1";
 
   const resendStatus = getResendConfigStatus();
   const students = await getEmailCandidateStudents(filters);
+  const blacklistedEmails = await getUnsubscribedEmailSet(
+    students.flatMap((student) => [
+      clean(student?.email?.primaryEmail),
+      clean(student?.fatherEmail?.primaryEmail),
+      clean(student?.motherEmail?.primaryEmail)
+    ]).filter(Boolean)
+  );
+  const studentsWithBlacklistState = students.map((student) => {
+    const recipientEmails = [
+      clean(student?.email?.primaryEmail),
+      clean(student?.fatherEmail?.primaryEmail),
+      clean(student?.motherEmail?.primaryEmail)
+    ].map((value) => value.toLowerCase()).filter(Boolean);
+    const blockedEmails = recipientEmails.filter((email) => blacklistedEmails.has(email));
+    return {
+      ...student,
+      hasBlacklistedEmail: blockedEmails.length > 0,
+      blacklistedEmails: blockedEmails
+    };
+  });
   const senderName = user.can_edit_email_sender
-    ? (clean(draft?.senderName || resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(students))
-    : buildDefaultSenderNameForStudents(students);
-  const summary = summarizeEmailCandidates(students, filters.recipientMode);
+    ? (clean(draft?.senderName || resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(studentsWithBlacklistState))
+    : buildDefaultSenderNameForStudents(studentsWithBlacklistState);
+  const summary = summarizeEmailCandidates(studentsWithBlacklistState, filters.recipientMode);
   const recentDeliveries = user.can_view_email_reports ? await listRecentEmailDeliveries(20) : [];
   const recentCampaigns = user.can_view_email_reports ? await listRecentEmailCampaigns(8) : [];
+  const unsubscribes = await listEmailUnsubscribes(200);
 
   return (
     <>
@@ -101,6 +125,7 @@ export default async function EmailPage({ searchParams }) {
           השליחה הסתיימה: {sent} נשלחו, {failed || 0} נכשלו, {skipped || 0} דולגו.
         </div>
       ) : null}
+      {blacklistUpdated ? <div className="ok">הרשימה השחורה עודכנה בהצלחה.</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
       <form className="email-filter-card" action="/email" method="get">
@@ -174,7 +199,7 @@ export default async function EmailPage({ searchParams }) {
         <EmailComposerClient
           institutionSelected={Boolean(filters.institution)}
           recipientMode={filters.recipientMode}
-          students={students}
+          students={studentsWithBlacklistState}
           summary={summary}
           initialSubject={subject}
           initialHtml={initialHtml}
@@ -199,10 +224,45 @@ export default async function EmailPage({ searchParams }) {
           </div>
         </section>
 
+        <aside className="email-panel">
+          <div className="email-log-card">
+            <div className="email-section-title">
+              <h2>רשימה שחורה</h2>
+              <span>{unsubscribes.length} כתובות</span>
+            </div>
+            <form action={addEmailUnsubscribeAction} className="email-blacklist-form">
+              <input name="recipientEmail" type="email" placeholder="כתובת מייל" required />
+              <input name="recipientName" placeholder="שם נמען" />
+              <input name="reasonText" placeholder="סיבת חסימה" />
+              <button type="submit">הוסף לרשימה</button>
+            </form>
+            {!unsubscribes.length ? (
+              <div className="muted">עדיין אין כתובות חסומות.</div>
+            ) : (
+              <div className="email-blacklist-list">
+                {unsubscribes.map((entry) => (
+                  <div key={entry.recipient_email} className="email-log-row email-blacklist-row">
+                    <div>
+                      <b>{entry.recipient_name || entry.recipient_email}</b>
+                      <small>{entry.recipient_email}</small>
+                      <small>{entry.reason_text || "ללא סיבה"}</small>
+                    </div>
+                    <form action={removeEmailUnsubscribeAction}>
+                      <input type="hidden" name="recipientEmail" value={entry.recipient_email} />
+                      <button type="submit" className="chip-link">הסר מהרשימה</button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         {user.can_view_email_reports ? (
-          <aside className="email-panel">
+          <>
             <div className="email-log-card">
-              <h2>קמפיינים אחרונים</h2>
+              <div className="email-section-title">
+                <h2>קמפיינים אחרונים</h2>
+              </div>
               {!recentCampaigns.length ? (
                 <div className="muted">עדיין אין קמפיינים מתועדים.</div>
               ) : (
@@ -252,8 +312,9 @@ export default async function EmailPage({ searchParams }) {
                 ))
               )}
             </div>
-          </aside>
+          </>
         ) : null}
+        </aside>
       </div>
     </>
   );

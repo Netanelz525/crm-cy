@@ -12,6 +12,7 @@ export default async function EmailUnsubscribePage({ searchParams }) {
 
   return (
     <div className="auth-shell">
+      <style>{`.topbar{display:none !important;} .container{padding-top:0 !important;}`}</style>
       <div className="auth-card" style={{ maxWidth: 720 }}>
         <div className="email-certainty-card">
           <p className="email-kicker">הסרה מרשימת תפוצה</p>

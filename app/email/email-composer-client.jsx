@@ -277,7 +277,7 @@ export default function EmailComposerClient({
                     </button>
                   </div>
                   {students.map((student) => (
-                    <label key={student.id} className="email-student-row">
+                    <label key={student.id} className={`email-student-row${student.hasBlacklistedEmail ? " email-student-row-blacklisted" : ""}`}>
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(student.id)}
@@ -294,6 +294,11 @@ export default function EmailComposerClient({
                           student?.motherEmail?.primaryEmail ? `אם: ${student.motherEmail.primaryEmail}` : ""
                         ].filter(Boolean).join(" | ") || "אין כתובת מתאימה"}
                       </span>
+                      {student.hasBlacklistedEmail ? (
+                        <span className="email-recipient-pill email-recipient-pill-blacklisted">
+                          חסום לשליחה: {student.blacklistedEmails.join(", ")}
+                        </span>
+                      ) : null}
                     </label>
                   ))}
                 </>
