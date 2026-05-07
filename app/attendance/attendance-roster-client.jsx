@@ -23,7 +23,6 @@ function buildStats(records) {
 
 export default function AttendanceRosterClient({ sessionId, students, statusOptions, initialStats }) {
   const [rows, setRows] = useState(students);
-  const [rowStates, setRowStates] = useState({});
   const [, startTransition] = useTransition();
   const noteTimersRef = useRef(new Map());
   const rowsRef = useRef(rows);
@@ -31,7 +30,6 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   useEffect(() => {
     setRows(students);
     rowsRef.current = students;
-    setRowStates({});
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
   }, [students, sessionId]);
@@ -48,20 +46,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const stats = useMemo(() => buildStats(rows), [rows]);
   const displayStats = initialStats?.totalStudents ? stats : { ...stats, totalStudents: rows.length };
 
-  function setRowSaving(studentId, next) {
-    setRowStates((current) => ({
-      ...current,
-      [studentId]: {
-        ...current[studentId],
-        ...next
-      }
-    }));
-  }
-
-  function persistRow(studentId, reason = "status") {
-    const row = rowsRef.current.find((item) => item.id === studentId);
-    if (!row) return;
-    setRowSaving(studentId, { state: "saving", error: "" });
+  function persistRow(row) {
+    if (!row?.id) return;
     startTransition(async () => {
       try {
         await saveAttendanceRecordAction({
@@ -72,29 +58,28 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
           status: row.status,
           noteText: row.noteText
         });
-        setRowSaving(studentId, {
-          state: reason === "note" ? "saved_note" : "saved",
-          error: "",
-          savedAt: Date.now()
-        });
       } catch (error) {
-        setRowSaving(studentId, {
-          state: "error",
-          error: String(error?.message || "שמירת הנוכחות נכשלה")
-        });
+        console.error("Attendance autosave failed", error);
       }
     });
   }
 
   function updateRow(studentId, patch) {
-    setRows((current) => current.map((row) => (
-      row.id === studentId ? { ...row, ...patch } : row
-    )));
+    const currentRows = rowsRef.current;
+    let nextRow = null;
+    const nextRows = currentRows.map((row) => {
+      if (row.id !== studentId) return row;
+      nextRow = { ...row, ...patch };
+      return nextRow;
+    });
+    rowsRef.current = nextRows;
+    setRows(nextRows);
+    return nextRow;
   }
 
   function handleStatusChange(studentId, nextStatus) {
-    updateRow(studentId, { status: nextStatus });
-    persistRow(studentId, "status");
+    const nextRow = updateRow(studentId, { status: nextStatus });
+    if (nextRow) persistRow(nextRow);
   }
 
   function scheduleNoteSave(studentId) {
@@ -102,14 +87,14 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
       noteTimersRef.current.delete(studentId);
-      persistRow(studentId, "note");
+      const row = rowsRef.current.find((item) => item.id === studentId);
+      if (row) persistRow(row);
     }, 700);
     noteTimersRef.current.set(studentId, timer);
   }
 
   function handleNoteChange(studentId, nextNote) {
     updateRow(studentId, { noteText: nextNote });
-    setRowSaving(studentId, { state: "typing", error: "" });
     scheduleNoteSave(studentId);
   }
 
@@ -119,17 +104,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
       clearTimeout(existing);
       noteTimersRef.current.delete(studentId);
     }
-    persistRow(studentId, "note");
-  }
-
-  function rowStatusText(studentId) {
-    const state = rowStates[studentId]?.state || "";
-    if (state === "saving") return "שומר...";
-    if (state === "typing") return "מעדכן...";
-    if (state === "saved") return "נשמר";
-    if (state === "saved_note") return "הערה נשמרה";
-    if (state === "error") return rowStates[studentId]?.error || "שגיאה";
-    return "";
+    const row = rowsRef.current.find((item) => item.id === studentId);
+    if (row) persistRow(row);
   }
 
   return (
@@ -158,7 +134,6 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                 <th>שיעור</th>
                 <th>סטטוס</th>
                 <th>הערה</th>
-                <th>מצב</th>
               </tr>
             </thead>
             <tbody>
@@ -194,11 +169,6 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                       onBlur={() => handleNoteBlur(student.id)}
                       placeholder="הערה קצרה"
                     />
-                  </td>
-                  <td>
-                    <span className={`attendance-row-state${rowStates[student.id]?.state === "error" ? " error" : ""}`}>
-                      {rowStatusText(student.id) || "מוכן"}
-                    </span>
                   </td>
                 </tr>
               ))}

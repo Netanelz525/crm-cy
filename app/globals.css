@@ -410,18 +410,6 @@ button {
   font-weight: 700;
 }
 
-.attendance-row-state {
-  display: inline-flex;
-  align-items: center;
-  min-width: 72px;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.attendance-row-state.error {
-  color: #b42318;
-}
-
 @media (max-width: 900px) {
   .attendance-layout {
     grid-template-columns: 1fr;
