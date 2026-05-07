@@ -162,9 +162,9 @@ export default async function EmailPage({ searchParams }) {
         <input type="hidden" name="familystatus" value={filters.familystatus} />
         <input type="hidden" name="q" value={filters.q} />
         <input type="hidden" name="recipientMode" value={filters.recipientMode} />
-        {filters.selectedStudentIds.map((id) => <input key={`send-${id}`} type="hidden" name="studentIds" value={id} />)}
         <EmailComposerClient
           institutionSelected={Boolean(filters.institution)}
+          recipientMode={filters.recipientMode}
           students={students}
           summary={summary}
           initialSubject={subject}

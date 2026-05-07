@@ -7,6 +7,7 @@ import Underline from "@tiptap/extension-underline";
 import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 
 function clean(value) {
   return String(value || "");
@@ -82,8 +83,18 @@ function ToolButton({ active = false, icon, text, onClick, disabled = false }) {
   );
 }
 
+function SubmitButton({ disabled }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={disabled || pending}>
+      {pending ? "שולח דרך Resend..." : "אשר ושלח עכשיו"}
+    </button>
+  );
+}
+
 export default function EmailComposerClient({
   institutionSelected,
+  recipientMode,
   students,
   summary,
   initialSubject,
@@ -100,6 +111,7 @@ export default function EmailComposerClient({
   const [plainText, setPlainText] = useState(buildPlainText(initialContent));
   const [confirmSend, setConfirmSend] = useState(false);
   const [selectedIds, setSelectedIds] = useState(students.map((student) => student.id));
+  const [reviewMode, setReviewMode] = useState(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -140,9 +152,32 @@ export default function EmailComposerClient({
 
   useEffect(() => {
     setSelectedIds(students.map((student) => student.id));
+    setReviewMode(false);
   }, [students]);
 
   const previewHtml = useMemo(() => buildPreviewHtml({ subject, html }), [subject, html]);
+  const selectedStudents = useMemo(
+    () => students.filter((student) => selectedIds.includes(student.id)),
+    [students, selectedIds]
+  );
+  const selectedRecipientCount = useMemo(() => {
+    const emails = new Set();
+    for (const student of selectedStudents) {
+      if (recipientMode === "student" || recipientMode === "all") {
+        const email = clean(student?.email?.primaryEmail).toLowerCase();
+        if (email) emails.add(email);
+      }
+      if (recipientMode === "father" || recipientMode === "parents" || recipientMode === "all") {
+        const email = clean(student?.fatherEmail?.primaryEmail).toLowerCase();
+        if (email) emails.add(email);
+      }
+      if (recipientMode === "mother" || recipientMode === "parents" || recipientMode === "all") {
+        const email = clean(student?.motherEmail?.primaryEmail).toLowerCase();
+        if (email) emails.add(email);
+      }
+    }
+    return emails.size;
+  }, [selectedStudents, recipientMode]);
 
   function toggleStudent(studentId, checked) {
     setSelectedIds((current) => {
@@ -150,7 +185,12 @@ export default function EmailComposerClient({
       if (checked) next.add(studentId);
       else next.delete(studentId);
       return Array.from(next);
-    });
+      });
+  }
+
+  function enterReviewMode() {
+    if (!institutionSelected || !selectedIds.length || !confirmSend) return;
+    setReviewMode(true);
   }
 
   return (
@@ -160,6 +200,7 @@ export default function EmailComposerClient({
           <input type="hidden" name="bodyHtml" value={html} />
           <input type="hidden" name="bodyText" value={plainText} />
           <input type="hidden" name="includeGreeting" value={includeGreeting ? "1" : "0"} />
+          {selectedIds.map((id) => <input key={`selected-${id}`} type="hidden" name="studentIds" value={id} />)}
 
           <div className="email-section-title">
             <h2>תוכן המייל</h2>
@@ -257,8 +298,6 @@ export default function EmailComposerClient({
                     <label key={student.id} className="email-student-row">
                       <input
                         type="checkbox"
-                        name="studentIds"
-                        value={student.id}
                         checked={selectedIds.includes(student.id)}
                         onChange={(event) => toggleStudent(student.id, event.target.checked)}
                       />
@@ -280,9 +319,25 @@ export default function EmailComposerClient({
             </div>
           </details>
 
-          <button type="submit" disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !summary.recipientEmails || !confirmSend}>
-            שלח מיילים דרך Resend
-          </button>
+          {reviewMode ? (
+            <div className="email-certainty-card">
+              <h2>אישור סופי לפני שליחה</h2>
+              <div className="email-certainty-steps">
+                <div><b>{selectedStudents.length}</b><span>תלמידים נבחרו</span><small>רק התלמידים שסימנת ייכללו בשליחה.</small></div>
+                <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>המערכת מאחדת כתובות כפולות לפני שליחה.</small></div>
+              </div>
+              <div className="quick-actions">
+                <button type="button" className="chip-link" onClick={() => setReviewMode(false)}>
+                  חזור לעריכה
+                </button>
+                <SubmitButton disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !selectedRecipientCount || !confirmSend} />
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={enterReviewMode} disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !confirmSend}>
+              המשך לאישור סופי
+            </button>
+          )}
         </div>
       </section>
 
