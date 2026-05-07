@@ -1,5 +1,7 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import AttendanceHistoryPanel from "../../../components/attendance-history-panel";
+import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from "../../../lib/attendance";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { listStudentEmailDeliveries } from "../../../lib/email-campaigns";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../lib/student-fields";
@@ -179,6 +181,10 @@ export default async function StudentPage({ params, searchParams }) {
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const documents = await listStudentDocuments(studentId);
   const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
+  const [attendanceSummary, attendanceHistory] = await Promise.all([
+    getAttendanceSummaryForStudent(studentId),
+    listAttendanceHistoryForStudent(studentId, { limit: 8 })
+  ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
@@ -241,6 +247,8 @@ export default async function StudentPage({ params, searchParams }) {
         <h3>מידע תלמיד</h3>
         <p className="muted">{studentName}</p>
       </div>
+
+      <AttendanceHistoryPanel summary={attendanceSummary} history={attendanceHistory} />
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
         <summary className="linked-records-toggle">

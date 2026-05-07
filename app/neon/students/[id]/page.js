@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import AttendanceHistoryPanel from "../../../../components/attendance-history-panel";
+import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from "../../../../lib/attendance";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentEmailDeliveries } from "../../../../lib/email-campaigns";
@@ -184,6 +186,10 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const showChildrenCount = isMarried(student?.famliystatus);
   const documents = await listStudentDocuments(studentId);
   const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
+  const [attendanceSummary, attendanceHistory] = await Promise.all([
+    getAttendanceSummaryForStudent(studentId),
+    listAttendanceHistoryForStudent(studentId, { limit: 8 })
+  ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
@@ -252,6 +258,8 @@ export default async function NeonStudentPage({ params, searchParams }) {
             : "בכרטיס האישי ניתן לצפות בפרטים ולנהל מסמכים המשויכים אליך."}
         </p>
       </div>
+
+      <AttendanceHistoryPanel summary={attendanceSummary} history={attendanceHistory} />
 
       {updated ? <div className="ok">השינויים נשמרו בהצלחה ב-Twenty וב-Neon.</div> : null}
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
