@@ -307,6 +307,46 @@ button {
   font-weight: 700;
 }
 
+.attendance-status-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attendance-status-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 600;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.attendance-status-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.attendance-status-option:has(input:checked) {
+  background: #0f5fa4;
+  color: #fff;
+  border-color: #0f5fa4;
+  box-shadow: 0 6px 18px rgba(15, 95, 164, 0.18);
+}
+
+.attendance-status-option:has(input:focus-visible) {
+  outline: 2px solid rgba(15, 95, 164, 0.25);
+  outline-offset: 2px;
+}
+
 .attendance-history-panel {
   overflow: hidden;
 }
@@ -363,6 +403,23 @@ button {
   display: grid;
   gap: 10px;
   margin-top: 14px;
+}
+
+.attendance-live-note {
+  color: #17365d;
+  font-weight: 700;
+}
+
+.attendance-row-state {
+  display: inline-flex;
+  align-items: center;
+  min-width: 72px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.attendance-row-state.error {
+  color: #b42318;
 }
 
 @media (max-width: 900px) {

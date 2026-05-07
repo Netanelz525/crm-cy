@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import AttendanceRosterClient from "./attendance-roster-client";
 import {
   ATTENDANCE_STATUS_LABELS,
   getAttendanceRoster,
@@ -7,7 +8,7 @@ import {
 } from "../../lib/attendance";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { INSTITUTIONS } from "../../lib/student-view";
-import { createAttendanceSessionAction, saveAttendanceRecordsAction } from "./actions";
+import { createAttendanceSessionAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -24,6 +25,10 @@ function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function attendanceStatusOptions() {
+  return Object.entries(ATTENDANCE_STATUS_LABELS);
+}
+
 export default async function AttendancePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
@@ -32,7 +37,6 @@ export default async function AttendancePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const sessionId = clean(resolvedSearchParams?.sessionId);
   const created = clean(resolvedSearchParams?.created) === "1";
-  const saved = clean(resolvedSearchParams?.saved) === "1";
   const sessions = await listAttendanceSessions({ limit: 18 });
   const roster = sessionId ? await getAttendanceRoster(sessionId) : null;
 
@@ -50,8 +54,6 @@ export default async function AttendancePage({ searchParams }) {
       </div>
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
-      {saved ? <div className="ok">הנוכחות נשמרה בהצלחה.</div> : null}
-
       <div className="attendance-layout">
         <section className="card glass">
           <h3>יצירת מפגש חדש</h3>
@@ -108,58 +110,25 @@ export default async function AttendancePage({ searchParams }) {
               <span className="meta-chip">מוצדקים: {roster.stats.excused}</span>
             </div>
           </div>
-
-          <div className="card">
-            <h3>הזנת נוכחות</h3>
-            <p className="muted">
-              ברירת המחדל היא נוכח. אפשר לעבור שורה-שורה ולעדכן סטטוס והערה לפי התיעוד.
-            </p>
-            <form action={saveAttendanceRecordsAction}>
-              <input type="hidden" name="sessionId" value={roster.session.id} />
-              <div className="attendance-table-wrap">
-                <table className="attendance-table">
-                  <thead>
-                    <tr>
-                      <th>שם</th>
-                      <th>שיעור</th>
-                      <th>סטטוס</th>
-                      <th>הערה</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roster.students.map((student) => (
-                      <tr key={student.id}>
-                        <td>
-                          <input type="hidden" name="studentId" value={student.id} />
-                          <input type="hidden" name={`studentName:${student.id}`} value={student.label} />
-                          <input type="hidden" name={`studentClass:${student.id}`} value={student.class} />
-                          <div className="attendance-student-name">{student.label}</div>
-                        </td>
-                        <td>{student.classLabel}</td>
-                        <td>
-                          <select name={`status:${student.id}`} defaultValue={student.status}>
-                            {Object.entries(ATTENDANCE_STATUS_LABELS).map(([value, label]) => (
-                              <option key={value} value={value}>{label}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <input
-                            name={`note:${student.id}`}
-                            defaultValue={student.noteText}
-                            placeholder="הערה קצרה"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="quick-actions">
-                <button type="submit" className="btn btn-save">שמור נוכחות</button>
-              </div>
-            </form>
+          <div className="card summary-row">
+            <div className="muted">ייצוא PDF זמין וממויין לפי סטטוס נוכחות ולאחר מכן לפי שיעור.</div>
+            <div className="quick-actions" style={{ marginTop: 0 }}>
+              <a
+                className="quick-action-btn quick-action-primary"
+                href={`/api/attendance/${roster.session.id}/pdf`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                הורד PDF
+              </a>
+            </div>
           </div>
+          <AttendanceRosterClient
+            sessionId={roster.session.id}
+            students={roster.students}
+            statusOptions={attendanceStatusOptions()}
+            initialStats={roster.stats}
+          />
         </>
       ) : sessionId ? (
         <div className="card">לא נמצא מפגש נוכחות תואם.</div>

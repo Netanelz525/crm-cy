@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAttendanceSession, saveAttendanceRecords } from "../../lib/attendance";
+import { createAttendanceSession, saveAttendanceRecord } from "../../lib/attendance";
 import { requireTeamUser } from "../../lib/rbac";
 
 function clean(value) {
@@ -29,24 +29,38 @@ export async function createAttendanceSessionAction(formData) {
   redirect(`/attendance?sessionId=${session.id}&created=1`);
 }
 
-export async function saveAttendanceRecordsAction(formData) {
+export async function saveAttendanceRecordAction(input) {
   const user = await requireTeamUser();
-  const sessionId = clean(formData.get("sessionId"));
-  const studentIds = formData.getAll("studentId").map(clean).filter(Boolean);
-  const records = studentIds.map((studentId) => ({
-    studentId,
-    studentName: clean(formData.get(`studentName:${studentId}`)),
-    studentClass: clean(formData.get(`studentClass:${studentId}`)),
-    status: clean(formData.get(`status:${studentId}`)),
-    noteText: clean(formData.get(`note:${studentId}`))
-  }));
+  const payload = input instanceof FormData
+    ? {
+        sessionId: clean(input.get("sessionId")),
+        studentId: clean(input.get("studentId")),
+        studentName: clean(input.get("studentName")),
+        studentClass: clean(input.get("studentClass")),
+        status: clean(input.get("status")),
+        noteText: clean(input.get("noteText"))
+      }
+    : {
+        sessionId: clean(input?.sessionId),
+        studentId: clean(input?.studentId),
+        studentName: clean(input?.studentName),
+        studentClass: clean(input?.studentClass),
+        status: clean(input?.status),
+        noteText: clean(input?.noteText)
+      };
 
-  await saveAttendanceRecords({
-    sessionId,
-    records,
+  await saveAttendanceRecord({
+    sessionId: payload.sessionId,
+    record: {
+      studentId: payload.studentId,
+      studentName: payload.studentName,
+      studentClass: payload.studentClass,
+      status: payload.status,
+      noteText: payload.noteText
+    },
     markedByUserId: user.clerk_user_id
   });
 
   revalidatePath("/attendance");
-  redirect(`/attendance?sessionId=${sessionId}&saved=1`);
+  return { ok: true };
 }
