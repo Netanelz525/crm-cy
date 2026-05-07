@@ -153,6 +153,7 @@ export default function EmailComposerClient({
   useEffect(() => {
     setSelectedIds(students.map((student) => student.id));
     setReviewMode(false);
+    setConfirmSend(false);
   }, [students]);
 
   const previewHtml = useMemo(() => buildPreviewHtml({ subject, html }), [subject, html]);
@@ -189,7 +190,7 @@ export default function EmailComposerClient({
   }
 
   function enterReviewMode() {
-    if (!institutionSelected || !selectedIds.length || !confirmSend) return;
+    if (!institutionSelected || !selectedIds.length) return;
     setReviewMode(true);
   }
 
@@ -259,10 +260,6 @@ export default function EmailComposerClient({
               <input type="checkbox" checked={includeGreeting} onChange={(event) => setIncludeGreeting(event.target.checked)} />
               הוסף פנייה אישית
             </label>
-            <label>
-              <input type="checkbox" checked={confirmSend} onChange={(event) => setConfirmSend(event.target.checked)} />
-              אני מאשר את השליחה
-            </label>
           </div>
 
           <details className="display-settings" open={institutionSelected}>
@@ -326,6 +323,12 @@ export default function EmailComposerClient({
                 <div><b>{selectedStudents.length}</b><span>תלמידים נבחרו</span><small>רק התלמידים שסימנת ייכללו בשליחה.</small></div>
                 <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>המערכת מאחדת כתובות כפולות לפני שליחה.</small></div>
               </div>
+              <div className="email-send-scope" style={{ marginTop: 12 }}>
+                <label>
+                  <input type="checkbox" checked={confirmSend} onChange={(event) => setConfirmSend(event.target.checked)} />
+                  אני מאשר את השליחה הסופית דרך Resend
+                </label>
+              </div>
               <div className="quick-actions">
                 <button type="button" className="chip-link" onClick={() => setReviewMode(false)}>
                   חזור לעריכה
@@ -334,7 +337,7 @@ export default function EmailComposerClient({
               </div>
             </div>
           ) : (
-            <button type="button" onClick={enterReviewMode} disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !confirmSend}>
+            <button type="button" onClick={enterReviewMode} disabled={!resendConfigured || !institutionSelected || !selectedIds.length}>
               המשך לאישור סופי
             </button>
           )}
