@@ -4,6 +4,7 @@ import {
   buildDefaultSenderNameForStudents,
   buildDeliveryTargets,
   buildPreviewMessageParts,
+  getEmailCampaignDraft,
   getEmailCandidateStudents,
   renderEmailHtml
 } from "../../../lib/email-campaigns";
@@ -17,47 +18,33 @@ function institutionLabel(value) {
   return INSTITUTIONS[key] || clean(value) || "-";
 }
 
-function readArrayParam(value) {
-  if (Array.isArray(value)) return value.map(clean).filter(Boolean);
-  const single = clean(value);
-  return single ? [single] : [];
-}
-
-function buildBackLink(params) {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (clean(item)) search.append(key, clean(item));
-      }
-      continue;
-    }
-    if (clean(value)) search.set(key, clean(value));
-  }
-  const query = search.toString();
-  return query ? `/email?${query}` : "/email";
-}
-
 export default async function EmailConfirmPage({ searchParams }) {
   const user = await requireEmailSender();
   if (!user) redirect("/sign-in");
 
   const resolvedSearchParams = await searchParams;
+  const draftId = clean(resolvedSearchParams?.draft);
+  const draftRecord = await getEmailCampaignDraft(draftId);
+  const draft = draftRecord?.draft_json || null;
+  if (!draft) {
+    redirect("/email?error=" + encodeURIComponent("טיוטת המייל לא נמצאה. יש ליצור אישור חדש."));
+  }
+
   const filters = {
-    institution: clean(resolvedSearchParams?.institution),
-    class: clean(resolvedSearchParams?.class),
-    registration: clean(resolvedSearchParams?.registration),
-    familystatus: clean(resolvedSearchParams?.familystatus),
-    q: clean(resolvedSearchParams?.q),
-    recipientMode: clean(resolvedSearchParams?.recipientMode) || "parents",
-    sendScope: clean(resolvedSearchParams?.sendScope) || "selected",
-    selectedStudentIds: readArrayParam(resolvedSearchParams?.studentIds)
+    institution: clean(draft?.institution),
+    class: clean(draft?.class),
+    registration: clean(draft?.registration),
+    familystatus: clean(draft?.familystatus),
+    q: clean(draft?.q),
+    recipientMode: clean(draft?.recipientMode) || "parents",
+    sendScope: clean(draft?.sendScope) || "selected",
+    selectedStudentIds: Array.isArray(draft?.selectedStudentIds) ? draft.selectedStudentIds.map(clean).filter(Boolean) : []
   };
 
-  const subject = clean(resolvedSearchParams?.subject);
-  const bodyHtml = clean(resolvedSearchParams?.contentHtml) || clean(resolvedSearchParams?.bodyHtml);
-  const bodyText = String(resolvedSearchParams?.bodyText || "").trim();
-  const includeGreeting = clean(resolvedSearchParams?.includeGreeting) !== "0";
+  const subject = clean(draft?.subject);
+  const bodyHtml = clean(draft?.bodyHtml);
+  const bodyText = clean(draft?.bodyText);
+  const includeGreeting = draft?.includeGreeting !== false;
   const error = clean(resolvedSearchParams?.error);
   const resendStatus = getResendConfigStatus();
 
@@ -67,25 +54,25 @@ export default async function EmailConfirmPage({ searchParams }) {
     ? allStudents
     : allStudents.filter((student) => selectedIdSet.has(clean(student.id)));
   const senderName = user.can_edit_email_sender
-    ? (clean(resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(selectedStudents))
+    ? (clean(draft?.senderName) || buildDefaultSenderNameForStudents(selectedStudents))
     : buildDefaultSenderNameForStudents(selectedStudents);
 
   if (!filters.institution) {
     redirect("/email?error=" + encodeURIComponent("יש לבחור מוסד לפני מעבר לאישור הסופי."));
   }
   if (!subject) {
-    redirect(buildBackLink({ ...filters, contentHtml: bodyHtml, senderName, error: "יש להזין נושא למייל." }));
+    redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("יש להזין נושא למייל.")}`);
   }
   if (!bodyHtml && !bodyText) {
-    redirect(buildBackLink({ ...filters, subject, senderName, error: "יש להזין תוכן למייל." }));
+    redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("יש להזין תוכן למייל.")}`);
   }
   if (!selectedStudents.length) {
-    redirect(buildBackLink({ ...filters, subject, contentHtml: bodyHtml, senderName, error: "לא נבחרו תלמידים לשליחה." }));
+    redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("לא נבחרו תלמידים לשליחה.")}`);
   }
 
   const targets = buildDeliveryTargets(selectedStudents, filters.recipientMode);
   if (!targets.length) {
-    redirect(buildBackLink({ ...filters, subject, contentHtml: bodyHtml, senderName, error: "לא נמצאו נמענים עם כתובת מייל." }));
+    redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("לא נמצאו נמענים עם כתובת מייל.")}`);
   }
 
   const firstTarget = targets[0];
@@ -103,14 +90,7 @@ export default async function EmailConfirmPage({ searchParams }) {
     html: previewContent.html,
     content: previewContent.text
   });
-  const backHref = buildBackLink({
-    ...filters,
-    subject,
-    senderName,
-    contentHtml: bodyHtml,
-    bodyText,
-    includeGreeting: includeGreeting ? "1" : "0"
-  });
+  const backHref = `/email?draft=${encodeURIComponent(draftId)}`;
 
   return (
     <>
@@ -136,6 +116,7 @@ export default async function EmailConfirmPage({ searchParams }) {
       <div className="email-layout">
         <section className="email-panel">
           <form action={sendEmailCampaignAction} className="email-compose-card" encType="multipart/form-data">
+            <input type="hidden" name="draftId" value={draftId} />
             <input type="hidden" name="institution" value={filters.institution} />
             <input type="hidden" name="class" value={filters.class} />
             <input type="hidden" name="registration" value={filters.registration} />

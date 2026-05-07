@@ -90,12 +90,13 @@ export default function EmailComposerClient({
   initialSubject,
   initialHtml,
   initialSenderName,
+  initialIncludeGreeting = true,
   senderNameEditable,
   resendConfigured
 }) {
   const [subject, setSubject] = useState(initialSubject);
   const [senderName, setSenderName] = useState(initialSenderName);
-  const [includeGreeting, setIncludeGreeting] = useState(true);
+  const [includeGreeting, setIncludeGreeting] = useState(initialIncludeGreeting);
   const initialContent = useMemo(() => clean(initialHtml) || textToHtml(""), [initialHtml]);
   const [html, setHtml] = useState(initialContent);
   const [plainText, setPlainText] = useState(buildPlainText(initialContent));
@@ -141,6 +142,10 @@ export default function EmailComposerClient({
   useEffect(() => {
     setSelectedIds(students.map((student) => student.id));
   }, [students]);
+
+  useEffect(() => {
+    setIncludeGreeting(initialIncludeGreeting);
+  }, [initialIncludeGreeting]);
 
   const previewHtml = useMemo(() => buildPreviewHtml({ subject, html }), [subject, html]);
   const selectedStudents = useMemo(

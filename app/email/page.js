@@ -3,6 +3,7 @@ import Link from "next/link";
 import EmailComposerClient from "./email-composer-client";
 import {
   buildDefaultSenderNameForStudents,
+  getEmailCampaignDraft,
   getEmailCandidateStudents,
   listRecentEmailCampaigns,
   listRecentEmailDeliveries,
@@ -12,6 +13,7 @@ import { getResendConfigStatus } from "../../lib/resend";
 import { requireEmailSender } from "../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { ENUM_LABELS } from "../../lib/student-fields";
+import { createEmailCampaignConfirmAction } from "./actions";
 
 function institutionLabel(value) {
   const key = clean(value).toUpperCase();
@@ -38,20 +40,26 @@ export default async function EmailPage({ searchParams }) {
   if (!user) redirect("/sign-in");
 
   const resolvedSearchParams = await searchParams;
+  const draftId = clean(resolvedSearchParams?.draft);
+  const draftRecord = draftId ? await getEmailCampaignDraft(draftId) : null;
+  const draft = draftRecord?.draft_json || null;
   const filters = {
-    institution: clean(resolvedSearchParams?.institution),
-    class: clean(resolvedSearchParams?.class),
-    registration: clean(resolvedSearchParams?.registration),
-    familystatus: clean(resolvedSearchParams?.familystatus),
-    q: clean(resolvedSearchParams?.q),
-    recipientMode: clean(resolvedSearchParams?.recipientMode) || "parents",
-    selectedStudentIds: Array.isArray(resolvedSearchParams?.studentIds)
-      ? resolvedSearchParams.studentIds.map(clean).filter(Boolean)
-      : clean(resolvedSearchParams?.studentIds) ? [clean(resolvedSearchParams.studentIds)] : []
+    institution: clean(draft?.institution || resolvedSearchParams?.institution),
+    class: clean(draft?.class || resolvedSearchParams?.class),
+    registration: clean(draft?.registration || resolvedSearchParams?.registration),
+    familystatus: clean(draft?.familystatus || resolvedSearchParams?.familystatus),
+    q: clean(draft?.q || resolvedSearchParams?.q),
+    recipientMode: clean(draft?.recipientMode || resolvedSearchParams?.recipientMode) || "parents",
+    selectedStudentIds: Array.isArray(draft?.selectedStudentIds)
+      ? draft.selectedStudentIds.map(clean).filter(Boolean)
+      : Array.isArray(resolvedSearchParams?.studentIds)
+        ? resolvedSearchParams.studentIds.map(clean).filter(Boolean)
+        : clean(resolvedSearchParams?.studentIds) ? [clean(resolvedSearchParams.studentIds)] : []
   };
 
-  const subject = clean(resolvedSearchParams?.subject) || "עדכון חשוב ממערכת התלמידים";
-  const initialHtml = clean(resolvedSearchParams?.contentHtml) || clean(resolvedSearchParams?.bodyHtml) || "<p>שלום,</p><p>רצינו לעדכן אותך בנושא חשוב.</p><p>בברכה,<br>משרד הישיבה</p>";
+  const subject = clean(draft?.subject || resolvedSearchParams?.subject) || "עדכון חשוב ממערכת התלמידים";
+  const initialHtml = clean(draft?.bodyHtml || resolvedSearchParams?.contentHtml || resolvedSearchParams?.bodyHtml) || "<p>שלום,</p><p>רצינו לעדכן אותך בנושא חשוב.</p><p>בברכה,<br>משרד הישיבה</p>";
+  const includeGreeting = draft ? draft.includeGreeting !== false : clean(resolvedSearchParams?.includeGreeting) !== "0";
   const sent = clean(resolvedSearchParams?.sent);
   const failed = clean(resolvedSearchParams?.failed);
   const skipped = clean(resolvedSearchParams?.skipped);
@@ -60,7 +68,7 @@ export default async function EmailPage({ searchParams }) {
   const resendStatus = getResendConfigStatus();
   const students = await getEmailCandidateStudents(filters);
   const senderName = user.can_edit_email_sender
-    ? (clean(resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(students))
+    ? (clean(draft?.senderName || resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(students))
     : buildDefaultSenderNameForStudents(students);
   const summary = summarizeEmailCandidates(students, filters.recipientMode);
   const recentDeliveries = user.can_view_email_reports ? await listRecentEmailDeliveries(20) : [];
@@ -154,7 +162,8 @@ export default async function EmailPage({ searchParams }) {
         <button type="submit">עדכן רשימה</button>
       </form>
 
-      <form action="/email/confirm" method="get">
+      <form action={createEmailCampaignConfirmAction}>
+        <input type="hidden" name="draftId" value={draftId} />
         <input type="hidden" name="institution" value={filters.institution} />
         <input type="hidden" name="class" value={filters.class} />
         <input type="hidden" name="registration" value={filters.registration} />
@@ -169,6 +178,7 @@ export default async function EmailPage({ searchParams }) {
           initialSubject={subject}
           initialHtml={initialHtml}
           initialSenderName={senderName}
+          initialIncludeGreeting={includeGreeting}
           senderNameEditable={user.can_edit_email_sender}
           resendConfigured={resendStatus.configured}
         />
