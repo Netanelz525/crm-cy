@@ -3146,6 +3146,23 @@ td {
   padding: 10px;
 }
 
+.email-log-row-link {
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.email-log-row-link:hover {
+  transform: translateY(-1px);
+  border-color: #bfd6ee;
+  box-shadow: 0 10px 24px rgba(16, 36, 63, 0.08);
+}
+
+.email-log-row-link.active {
+  border-color: #8ab4df;
+  background: #f7fbff;
+}
+
 .email-certainty-badge {
   min-width: 96px;
   padding: 7px 10px;

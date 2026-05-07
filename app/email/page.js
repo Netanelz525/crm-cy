@@ -210,7 +210,7 @@ export default async function EmailPage({ searchParams }) {
                   const opens = Number(campaign.opened_count || 0);
                   const openRate = delivered > 0 ? Math.round((opens / delivered) * 100) : 0;
                   return (
-                    <div key={campaign.id} className="email-log-row">
+                    <Link key={campaign.id} href={`/email/campaigns/${campaign.id}`} className="email-log-row email-log-row-link">
                       <div>
                         <b>{campaign.subject}</b>
                         <small>
@@ -225,7 +225,7 @@ export default async function EmailPage({ searchParams }) {
                       <span className={`email-certainty-badge email-certainty-${openRate > 0 ? 3 : 2}`}>
                         {campaign.status || "draft"}
                       </span>
-                    </div>
+                    </Link>
                   );
                 })
               )}
@@ -237,7 +237,7 @@ export default async function EmailPage({ searchParams }) {
                 <div className="muted">עדיין אין שליחות מתועדות.</div>
               ) : (
                 recentDeliveries.map((delivery) => (
-                  <div key={delivery.id} className="email-log-row">
+                  <Link key={delivery.id} href={`/email/campaigns/${delivery.campaign_id}?delivery=${delivery.id}`} className="email-log-row email-log-row-link">
                     <div>
                       <b>{delivery.recipient_name || delivery.student_name || delivery.recipient_email}</b>
                       <small>{delivery.recipient_email} | {delivery.subject}</small>
@@ -247,7 +247,7 @@ export default async function EmailPage({ searchParams }) {
                     <span className={`email-certainty-badge email-certainty-${delivery.certainty_level}`}>
                       {certaintyLabel(delivery.certainty_level, delivery.status)}
                     </span>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>

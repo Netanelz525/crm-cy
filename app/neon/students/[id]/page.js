@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
+import { listStudentEmailDeliveries } from "../../../../lib/email-campaigns";
 import { listStudentDocuments } from "../../../../lib/student-documents";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
@@ -112,6 +113,16 @@ function isMarried(value) {
   return clean(value).toUpperCase() === "MARRIED";
 }
 
+function emailStatusLabel(delivery) {
+  const numeric = Number(delivery?.certainty_level || 0);
+  if (clean(delivery?.status) === "failed") return "נכשל";
+  if (numeric >= 4) return "נלחץ";
+  if (numeric >= 3) return "נפתח";
+  if (numeric >= 2) return "נשלח";
+  if (numeric >= 1) return "בתור";
+  return "אין ודאות";
+}
+
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     const emptyOptionLabel = value ? "נקה בחירה" : "ללא בחירה";
@@ -171,6 +182,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const showChildrenCount = isMarried(student?.famliystatus);
   const documents = await listStudentDocuments(studentId);
+  const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
@@ -253,7 +265,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
-            <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
+            <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span>
           </div>
         </summary>
         {canManageDocuments ? (
@@ -305,11 +317,34 @@ export default async function NeonStudentPage({ params, searchParams }) {
               </div>
             ))
           )}
-          <div className="linked-record-card placeholder">
-            <b>רשומות נוספות</b>
-            <div className="linked-record-meta">כאן נוכל להציג בהמשך פריטים נוספים שייקשרו לתלמיד מתוך המערכת.</div>
-            <div className="linked-record-meta">המבנה כבר מוכן כדי שהכרטיס ימשיך לגדול בלי לשנות את חוויית השימוש.</div>
-          </div>
+          {!currentUser.can_view_email_reports ? (
+            <div className="linked-record-card placeholder">
+              <b>מיילים</b>
+              <div className="linked-record-meta">היסטוריית מיילים זמינה למשתמשים עם הרשאת דוחות.</div>
+            </div>
+          ) : !emailDeliveries.length ? (
+            <div className="linked-record-card placeholder">
+              <b>מיילים</b>
+              <div className="linked-record-meta">עדיין לא נשלחו מיילים משויכים לתלמיד הזה.</div>
+              <div className="linked-record-meta">כאן יופיעו הודעות, פתיחות ולחיצות מתוך מערכת המיילים.</div>
+            </div>
+          ) : (
+            emailDeliveries.map((delivery) => (
+              <div key={delivery.id} className="linked-record-card">
+                <div className="linked-record-card-top">
+                  <Link className="linked-record-title" href={`/email/campaigns/${delivery.campaign_id}?delivery=${delivery.id}`}>
+                    {delivery.subject}
+                  </Link>
+                  <span className="linked-record-pill">{emailStatusLabel(delivery)}</span>
+                </div>
+                <div className="linked-record-meta">נמען: {delivery.recipient_name || delivery.recipient_email}</div>
+                <div className="linked-record-meta">אימייל: {delivery.recipient_email}</div>
+                <div className="linked-record-meta">פתיחות: {delivery.open_count || 0}</div>
+                <div className="linked-record-meta">נפתח: {delivery.opened_at ? new Date(delivery.opened_at).toLocaleString("he-IL") : "-"}</div>
+                <div className="linked-record-meta">נלחץ: {delivery.clicked_at ? new Date(delivery.clicked_at).toLocaleString("he-IL") : "-"}</div>
+              </div>
+            ))
+          )}
         </div>
       </details>
 
