@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAttendanceSession, saveAttendanceRecord } from "../../lib/attendance";
-import { requireTeamUser } from "../../lib/rbac";
+import { requireAttendanceUser } from "../../lib/rbac";
 
 function clean(value) {
   return String(value || "").trim();
 }
 
 export async function createAttendanceSessionAction(formData) {
-  const user = await requireTeamUser();
+  const user = await requireAttendanceUser();
   const institution = clean(formData.get("institution"));
   const title = clean(formData.get("title"));
   const sessionDate = clean(formData.get("sessionDate"));
@@ -30,7 +30,7 @@ export async function createAttendanceSessionAction(formData) {
 }
 
 export async function saveAttendanceRecordAction(input) {
-  const user = await requireTeamUser();
+  const user = await requireAttendanceUser();
   const payload = input instanceof FormData
     ? {
         sessionId: clean(input.get("sessionId")),
