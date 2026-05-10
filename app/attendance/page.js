@@ -59,6 +59,14 @@ function formatPercent(value) {
   return `${numeric % 1 === 0 ? numeric.toFixed(0) : numeric.toFixed(1)}%`;
 }
 
+function buildSummaryExportQuery(filters) {
+  const params = new URLSearchParams();
+  if (filters.institution) params.set("reportInstitution", filters.institution);
+  if (filters.start) params.set("reportStart", filters.start);
+  if (filters.end) params.set("reportEnd", filters.end);
+  return params.toString();
+}
+
 function resolveReportFilters(searchParams) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -103,6 +111,7 @@ export default async function AttendancePage({ searchParams }) {
   const created = clean(resolvedSearchParams?.created) === "1";
   const deleted = clean(resolvedSearchParams?.deleted) === "1";
   const reportFilters = resolveReportFilters(resolvedSearchParams);
+  const summaryExportQuery = buildSummaryExportQuery(reportFilters);
   const sessions = await listAttendanceSessions({ limit: 18 });
   const summaryReport = reportFilters.institution
     ? await getAttendanceSummaryReport({
@@ -124,6 +133,105 @@ export default async function AttendancePage({ searchParams }) {
           <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה ל-Neon</Link>
         </div>
       </div>
+
+      <section className="card glass">
+        <h3>סיכום נוכחות</h3>
+        <p className="muted">
+          דוח מסכם לפי מוסד וטווח תאריכים, עם עמודה לכל סוג מפגש ואחוז נוכחות כולל לכל תלמיד.
+        </p>
+        <form className="grid" method="get">
+          <select name="reportInstitution" defaultValue={reportFilters.institution} required>
+            <option value="">בחר מוסד לדוח</option>
+            {Object.entries(INSTITUTIONS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <select name="reportRange" defaultValue={reportFilters.range}>
+            <option value="week">שבוע נוכחי</option>
+            <option value="month">חודש נוכחי</option>
+            <option value="custom">מותאם אישית</option>
+          </select>
+          <input name="reportStart" type="date" defaultValue={reportFilters.start} />
+          <input name="reportEnd" type="date" defaultValue={reportFilters.end} />
+          <button type="submit">הצג סיכום</button>
+        </form>
+      </section>
+
+      {summaryReport ? (
+        <section className="card">
+          <div className="summary-row">
+            <div>
+              <h3 style={{ marginBottom: 6 }}>סיכום עבור {summaryReport.institutionLabel}</h3>
+              <div className="muted">
+                טווח: {summaryReport.dateFrom} עד {summaryReport.dateTo}
+              </div>
+            </div>
+            <div className="attendance-stats">
+              <span className="meta-chip">תלמידים: {summaryReport.totalStudents}</span>
+              <span className="meta-chip">מפגשים: {summaryReport.totalSessions}</span>
+              {summaryReport.sessionTypeTotals.map((item) => (
+                <span key={item.sessionType} className="meta-chip">{item.label}: {item.totalSessions}</span>
+              ))}
+            </div>
+          </div>
+
+          {summaryReport.totalSessions ? (
+            <div className="quick-actions" style={{ marginTop: 14 }}>
+              <a className="quick-action-btn quick-action-primary" href={`/api/attendance/summary/xlsx?${summaryExportQuery}`}>
+                הורד אקסל
+              </a>
+              <a className="quick-action-btn quick-action-outline" href={`/api/attendance/summary/pdf?${summaryExportQuery}`} target="_blank" rel="noreferrer">
+                הורד PDF
+              </a>
+            </div>
+          ) : null}
+
+          {!summaryReport.totalSessions ? (
+            <div className="card muted" style={{ marginTop: 14, marginBottom: 0 }}>
+              לא נמצאו מפגשים בטווח התאריכים שנבחר.
+            </div>
+          ) : (
+            <div className="attendance-table-wrap" style={{ marginTop: 14 }}>
+              <table className="attendance-table attendance-summary-table">
+                <thead>
+                  <tr>
+                    <th>שם תלמיד</th>
+                    <th>שיעור</th>
+                    {ATTENDANCE_SESSION_TYPE_ORDER.map((sessionType) => (
+                      <th key={sessionType}>{ATTENDANCE_SESSION_TYPE_LABELS[sessionType]}</th>
+                    ))}
+                    <th>אחוז מסכם</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryReport.rows.map((student) => (
+                    <tr key={student.id}>
+                      <td>
+                        <div className="attendance-student-name">{student.label}</div>
+                      </td>
+                      <td>{student.classLabel}</td>
+                      {ATTENDANCE_SESSION_TYPE_ORDER.map((sessionType) => (
+                        <td key={sessionType}>
+                          <div className="attendance-summary-cell">
+                            <strong>{student.byType[sessionType].displayValue}</strong>
+                            <span>{formatPercent(student.byType[sessionType].percent)}</span>
+                          </div>
+                        </td>
+                      ))}
+                      <td>
+                        <div className="attendance-summary-cell">
+                          <strong>{student.overall.displayValue}</strong>
+                          <span>{formatPercent(student.overall.percent)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
       {deleted ? <div className="ok">המפגש נמחק.</div> : null}
@@ -174,94 +282,6 @@ export default async function AttendancePage({ searchParams }) {
         </aside>
       </div>
       <div className="card muted">בחר מפגש קיים או צור מפגש חדש כדי להתחיל להזין נוכחות.</div>
-
-      <section className="card glass">
-        <h3>סיכום נוכחות</h3>
-        <p className="muted">
-          דוח מסכם לפי מוסד וטווח תאריכים, עם עמודה לכל סוג מפגש ואחוז נוכחות כולל לכל תלמיד.
-        </p>
-        <form className="grid" method="get">
-          <select name="reportInstitution" defaultValue={reportFilters.institution} required>
-            <option value="">בחר מוסד לדוח</option>
-            {Object.entries(INSTITUTIONS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <select name="reportRange" defaultValue={reportFilters.range}>
-            <option value="week">שבוע נוכחי</option>
-            <option value="month">חודש נוכחי</option>
-            <option value="custom">מותאם אישית</option>
-          </select>
-          <input name="reportStart" type="date" defaultValue={reportFilters.start} />
-          <input name="reportEnd" type="date" defaultValue={reportFilters.end} />
-          <button type="submit">הצג סיכום</button>
-        </form>
-      </section>
-
-      {summaryReport ? (
-        <section className="card">
-          <div className="summary-row">
-            <div>
-              <h3 style={{ marginBottom: 6 }}>סיכום עבור {summaryReport.institutionLabel}</h3>
-              <div className="muted">
-                טווח: {summaryReport.dateFrom} עד {summaryReport.dateTo}
-              </div>
-            </div>
-            <div className="attendance-stats">
-              <span className="meta-chip">תלמידים: {summaryReport.totalStudents}</span>
-              <span className="meta-chip">מפגשים: {summaryReport.totalSessions}</span>
-              {summaryReport.sessionTypeTotals.map((item) => (
-                <span key={item.sessionType} className="meta-chip">{item.label}: {item.totalSessions}</span>
-              ))}
-            </div>
-          </div>
-
-          {!summaryReport.totalSessions ? (
-            <div className="card muted" style={{ marginTop: 14, marginBottom: 0 }}>
-              לא נמצאו מפגשים בטווח התאריכים שנבחר.
-            </div>
-          ) : (
-            <div className="attendance-table-wrap" style={{ marginTop: 14 }}>
-              <table className="attendance-table attendance-summary-table">
-                <thead>
-                  <tr>
-                    <th>שם תלמיד</th>
-                    <th>שיעור</th>
-                    {ATTENDANCE_SESSION_TYPE_ORDER.map((sessionType) => (
-                      <th key={sessionType}>{ATTENDANCE_SESSION_TYPE_LABELS[sessionType]}</th>
-                    ))}
-                    <th>אחוז מסכם</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summaryReport.rows.map((student) => (
-                    <tr key={student.id}>
-                      <td>
-                        <div className="attendance-student-name">{student.label}</div>
-                      </td>
-                      <td>{student.classLabel}</td>
-                      {ATTENDANCE_SESSION_TYPE_ORDER.map((sessionType) => (
-                        <td key={sessionType}>
-                          <div className="attendance-summary-cell">
-                            <strong>{student.byType[sessionType].displayValue}</strong>
-                            <span>{formatPercent(student.byType[sessionType].percent)}</span>
-                          </div>
-                        </td>
-                      ))}
-                      <td>
-                        <div className="attendance-summary-cell">
-                          <strong>{student.overall.displayValue}</strong>
-                          <span>{formatPercent(student.overall.percent)}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      ) : null}
     </>
   );
 }
