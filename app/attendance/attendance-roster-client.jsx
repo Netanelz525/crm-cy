@@ -1,27 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
 
-function buildStats(records) {
-  const stats = {
-    totalStudents: records.length,
-    present: 0,
-    late: 0,
-    absent: 0,
-    excused: 0,
-    left_early: 0
-  };
-
-  for (const record of records) {
-    const status = String(record?.status || "absent").trim().toLowerCase();
-    if (stats[status] !== undefined) stats[status] += 1;
-  }
-
-  return stats;
-}
-
-export default function AttendanceRosterClient({ sessionId, students, statusOptions, initialStats }) {
+export default function AttendanceRosterClient({ sessionId, students, statusOptions }) {
   const [rows, setRows] = useState(students);
   const [, startTransition] = useTransition();
   const noteTimersRef = useRef(new Map());
@@ -42,9 +24,6 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
   }, []);
-
-  const stats = useMemo(() => buildStats(rows), [rows]);
-  const displayStats = initialStats?.totalStudents ? stats : { ...stats, totalStudents: rows.length };
 
   function persistRow(row) {
     if (!row?.id) return;
@@ -110,21 +89,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
 
   return (
     <>
-      <div className="card summary-row">
-        <div className="attendance-live-note">המסך חי. כל שינוי נשמר מיד ברקע בלי כפתור שמירה.</div>
-        <div className="attendance-stats">
-          <span className="meta-chip">תלמידים: {displayStats.totalStudents}</span>
-          <span className="meta-chip">נוכחים: {displayStats.present}</span>
-          <span className="meta-chip">איחרו: {displayStats.late}</span>
-          <span className="meta-chip">נעדרו: {displayStats.absent}</span>
-          <span className="meta-chip">מוצדקים: {displayStats.excused}</span>
-        </div>
-      </div>
-
       <div className="card">
         <h3>הזנת נוכחות</h3>
         <p className="muted">
-          ברירת המחדל היא נעדר. אפשר לעבור מהר שורה-שורה, לסמן סטטוס, והכל נשמר אוטומטית.
+          ברירת המחדל היא לא נמצא. אפשר לעבור מהר שורה-שורה, לסמן סטטוס, והכל נשמר אוטומטית.
         </p>
         <div className="attendance-table-wrap">
           <table className="attendance-table">

@@ -41,19 +41,19 @@ export default function AttendanceHistoryPanel({ summary, history }) {
           <span>נוכחות בפועל</span>
         </div>
         <div className="attendance-summary-card">
-          <strong>{summary?.absent || 0}</strong>
-          <span>נעדר</span>
+          <strong>{summary?.missing || 0}</strong>
+          <span>לא נמצא</span>
         </div>
         <div className="attendance-summary-card">
-          <strong>{summary?.excused || 0}</strong>
-          <span>נעדר מוצדק</span>
+          <strong>{summary?.sentHome || 0}</strong>
+          <span>נשלח לבית</span>
         </div>
       </div>
 
       <div className="student-meta-line" style={{ marginTop: 12 }}>
-        <span className="meta-chip">נוכח: {summary?.present || 0}</span>
+        <span className="meta-chip">נמצא: {summary?.found || 0}</span>
         <span className="meta-chip">איחר: {summary?.late || 0}</span>
-        <span className="meta-chip">יצא מוקדם: {summary?.leftEarly || 0}</span>
+        <span className="meta-chip">נשלח לבית: {summary?.sentHome || 0}</span>
       </div>
 
       {!history?.length ? (

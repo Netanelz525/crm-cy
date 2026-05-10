@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAttendanceSession, saveAttendanceRecord } from "../../lib/attendance";
+import { createAttendanceSession, deleteAttendanceSession, saveAttendanceRecord } from "../../lib/attendance";
 import { requireAttendanceUser } from "../../lib/rbac";
 
 function clean(value) {
@@ -12,21 +12,22 @@ function clean(value) {
 export async function createAttendanceSessionAction(formData) {
   const user = await requireAttendanceUser();
   const institution = clean(formData.get("institution"));
-  const title = clean(formData.get("title"));
+  const sessionType = clean(formData.get("sessionType"));
   const sessionDate = clean(formData.get("sessionDate"));
   const sourceNote = clean(formData.get("sourceNote"));
 
   const session = await createAttendanceSession({
     id: crypto.randomUUID(),
     institution,
-    title,
+    sessionType,
     sessionDate,
     sourceNote,
     createdByUserId: user.clerk_user_id
   });
 
   revalidatePath("/attendance");
-  redirect(`/attendance?sessionId=${session.id}&created=1`);
+  revalidatePath(`/attendance/${session.id}`);
+  redirect(`/attendance/${session.id}?created=1`);
 }
 
 export async function saveAttendanceRecordAction(input) {
@@ -63,4 +64,16 @@ export async function saveAttendanceRecordAction(input) {
 
   revalidatePath("/attendance");
   return { ok: true };
+}
+
+export async function deleteAttendanceSessionAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  const currentSessionId = clean(formData.get("currentSessionId"));
+
+  await deleteAttendanceSession(sessionId);
+
+  revalidatePath("/attendance");
+  if (currentSessionId && currentSessionId !== sessionId) redirect(`/attendance/${currentSessionId}`);
+  redirect("/attendance?deleted=1");
 }
