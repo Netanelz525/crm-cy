@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  ATTENDANCE_SUMMARY_SORT_LABELS,
   ATTENDANCE_SESSION_TYPE_ORDER,
   ATTENDANCE_SESSION_TYPE_LABELS,
   getAttendanceSummaryReport,
   listAttendanceSessions
 } from "../../lib/attendance";
-import { ATTENDANCE_SUMMARY_SORT_LABELS } from "../../lib/attendance-summary-exports";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { INSTITUTIONS } from "../../lib/student-view";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction } from "./actions";
