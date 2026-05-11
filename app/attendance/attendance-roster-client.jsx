@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
 
-export default function AttendanceRosterClient({ sessionId, students, statusOptions }) {
+export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
   const [rows, setRows] = useState(students);
+  const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
   const [, startTransition] = useTransition();
   const noteTimersRef = useRef(new Map());
   const rowsRef = useRef(rows);
 
   useEffect(() => {
     setRows(students);
+    setSelectedFilters(activeStatusFilters);
     rowsRef.current = students;
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
-  }, [students, sessionId]);
+  }, [students, sessionId, activeStatusFilters]);
 
   useEffect(() => {
     rowsRef.current = rows;
@@ -24,6 +26,11 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
   }, []);
+
+  const filteredRows = useMemo(() => {
+    if (!selectedFilters.length) return rows;
+    return rows.filter((row) => selectedFilters.includes(String(row?.status || "").trim().toLowerCase()));
+  }, [rows, selectedFilters]);
 
   function persistRow(row) {
     if (!row?.id) return;
@@ -87,6 +94,14 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     if (row) persistRow(row);
   }
 
+  function toggleFilter(statusValue) {
+    setSelectedFilters((current) => (
+      current.includes(statusValue)
+        ? current.filter((value) => value !== statusValue)
+        : [...current, statusValue]
+    ));
+  }
+
   return (
     <>
       <div className="card">
@@ -94,6 +109,26 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         <p className="muted">
           ברירת המחדל היא לא נמצא. אפשר לעבור מהר שורה-שורה, לסמן סטטוס, והכל נשמר אוטומטית.
         </p>
+        <div className="attendance-filter-toolbar">
+          <button
+            type="button"
+            className={`attendance-filter-chip${selectedFilters.length ? "" : " active"}`}
+            onClick={() => setSelectedFilters([])}
+          >
+            הכל
+          </button>
+          {statusOptions.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`attendance-filter-chip${selectedFilters.includes(value) ? " active" : ""}`}
+              onClick={() => toggleFilter(value)}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="muted">מוצגים: {filteredRows.length}</span>
+        </div>
         <div className="attendance-table-wrap">
           <table className="attendance-table">
             <thead>
@@ -105,7 +140,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               </tr>
             </thead>
             <tbody>
-              {rows.map((student) => (
+              {filteredRows.map((student) => (
                 <tr key={student.id}>
                   <td>
                     <div className="attendance-student-name">{student.label}</div>

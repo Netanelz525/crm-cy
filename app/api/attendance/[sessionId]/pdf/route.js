@@ -10,7 +10,7 @@ function asciiFallbackFilename(filename, fallback = "attendance-report.pdf") {
   return cleaned || fallback;
 }
 
-export async function GET(_request, { params }) {
+export async function GET(request, { params }) {
   const user = await getCurrentAppUser();
   if (!user || (!user.is_team_member && !user.is_manager)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -18,7 +18,10 @@ export async function GET(_request, { params }) {
 
   try {
     const resolvedParams = await params;
-    const result = await buildAttendancePdfExport(resolvedParams.sessionId);
+    const url = new URL(request.url);
+    const result = await buildAttendancePdfExport(resolvedParams.sessionId, {
+      sort: url.searchParams.get("sort")
+    });
 
     return new NextResponse(result.content, {
       status: 200,

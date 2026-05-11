@@ -343,6 +343,29 @@ button {
   gap: 6px;
 }
 
+.attendance-filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.attendance-filter-chip {
+  width: auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+}
+
+.attendance-filter-chip.active {
+  background: #0f5fa4;
+  color: #fff;
+}
+
 .attendance-status-option {
   position: relative;
   display: inline-flex;

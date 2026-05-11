@@ -6,6 +6,7 @@ import {
   getAttendanceSummaryReport,
   listAttendanceSessions
 } from "../../lib/attendance";
+import { ATTENDANCE_SUMMARY_SORT_LABELS } from "../../lib/attendance-summary-exports";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { INSTITUTIONS } from "../../lib/student-view";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction } from "./actions";
@@ -64,6 +65,7 @@ function buildSummaryExportQuery(filters) {
   if (filters.institution) params.set("reportInstitution", filters.institution);
   if (filters.start) params.set("reportStart", filters.start);
   if (filters.end) params.set("reportEnd", filters.end);
+  if (filters.sort) params.set("reportSort", filters.sort);
   return params.toString();
 }
 
@@ -75,13 +77,15 @@ function resolveReportFilters(searchParams) {
   const todayValue = inputDateFromDate(today);
   const range = clean(searchParams?.reportRange) || "month";
   const institution = clean(searchParams?.reportInstitution);
+  const sort = clean(searchParams?.reportSort).toLowerCase() || "class_name";
 
   if (range === "week") {
     return {
       institution,
       range,
       start: weekStart,
-      end: todayValue
+      end: todayValue,
+      sort
     };
   }
 
@@ -90,7 +94,8 @@ function resolveReportFilters(searchParams) {
       institution,
       range,
       start: clean(searchParams?.reportStart) || monthStart,
-      end: clean(searchParams?.reportEnd) || todayValue
+      end: clean(searchParams?.reportEnd) || todayValue,
+      sort
     };
   }
 
@@ -98,7 +103,8 @@ function resolveReportFilters(searchParams) {
     institution,
     range: "month",
     start: monthStart,
-    end: todayValue
+    end: todayValue,
+    sort
   };
 }
 
@@ -112,12 +118,22 @@ export default async function AttendancePage({ searchParams }) {
   const deleted = clean(resolvedSearchParams?.deleted) === "1";
   const reportFilters = resolveReportFilters(resolvedSearchParams);
   const summaryExportQuery = buildSummaryExportQuery(reportFilters);
-  const sessions = await listAttendanceSessions({ limit: 18 });
+  const sessions = await listAttendanceSessions(
+    reportFilters.institution
+      ? {
+          institution: reportFilters.institution,
+          dateFrom: reportFilters.start,
+          dateTo: reportFilters.end,
+          limit: 18
+        }
+      : { limit: 18 }
+  );
   const summaryReport = reportFilters.institution
     ? await getAttendanceSummaryReport({
         institution: reportFilters.institution,
         dateFrom: reportFilters.start,
-        dateTo: reportFilters.end
+        dateTo: reportFilters.end,
+        sort: reportFilters.sort
       })
     : null;
 
@@ -151,6 +167,11 @@ export default async function AttendancePage({ searchParams }) {
             <option value="month">חודש נוכחי</option>
             <option value="custom">מותאם אישית</option>
           </select>
+          <select name="reportSort" defaultValue={reportFilters.sort}>
+            {Object.entries(ATTENDANCE_SUMMARY_SORT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
           <input name="reportStart" type="date" defaultValue={reportFilters.start} />
           <input name="reportEnd" type="date" defaultValue={reportFilters.end} />
           <button type="submit">הצג סיכום</button>
@@ -163,7 +184,7 @@ export default async function AttendancePage({ searchParams }) {
             <div>
               <h3 style={{ marginBottom: 6 }}>סיכום עבור {summaryReport.institutionLabel}</h3>
               <div className="muted">
-                טווח: {summaryReport.dateFrom} עד {summaryReport.dateTo}
+                טווח: {summaryReport.dateFrom} עד {summaryReport.dateTo} | מיון: {ATTENDANCE_SUMMARY_SORT_LABELS[reportFilters.sort] || ATTENDANCE_SUMMARY_SORT_LABELS.class_name}
               </div>
             </div>
             <div className="attendance-stats">
@@ -258,9 +279,13 @@ export default async function AttendancePage({ searchParams }) {
         </section>
 
         <aside className="card glass">
-          <h3>מפגשים אחרונים</h3>
+          <h3>{reportFilters.institution ? "מפגשים לפי הסינון" : "מפגשים אחרונים"}</h3>
           {!sessions.length ? (
-            <p className="muted">עדיין לא נוצרו מפגשי נוכחות.</p>
+            <p className="muted">
+              {reportFilters.institution
+                ? "לא נמצאו מפגשים שתואמים לפילטרים של הדוח."
+                : "עדיין לא נוצרו מפגשי נוכחות."}
+            </p>
           ) : (
             <div className="attendance-session-list">
               {sessions.map((session) => (

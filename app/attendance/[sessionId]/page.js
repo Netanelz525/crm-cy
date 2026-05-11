@@ -5,6 +5,7 @@ import {
   ATTENDANCE_STATUS_LABELS,
   getAttendanceRoster
 } from "../../../lib/attendance";
+import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
 import { getCurrentAppUser } from "../../../lib/rbac";
 
 function clean(value) {
@@ -24,6 +25,11 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const sessionId = clean(resolvedParams?.sessionId);
   const created = clean(resolvedSearchParams?.created) === "1";
+  const activeStatusFilters = clean(resolvedSearchParams?.statusFilter)
+    .split(",")
+    .map((value) => clean(value).toLowerCase())
+    .filter(Boolean);
+  const exportSort = clean(resolvedSearchParams?.exportSort).toLowerCase() || "class_name";
   const roster = sessionId ? await getAttendanceRoster(sessionId) : null;
 
   if (!roster) {
@@ -49,14 +55,23 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </p>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
-          <a
-            className="quick-action-btn quick-action-primary"
-            href={`/api/attendance/${roster.session.id}/pdf`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            הורד PDF
-          </a>
+          <form method="get" className="quick-actions" style={{ marginTop: 0 }}>
+            {activeStatusFilters.length ? <input type="hidden" name="statusFilter" value={activeStatusFilters.join(",")} /> : null}
+            <select name="exportSort" defaultValue={PDF_SORT_LABELS[exportSort] ? exportSort : "class_name"} style={{ minWidth: 220 }}>
+              {Object.entries(PDF_SORT_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <button type="submit" className="quick-action-btn quick-action-outline">החל מיון</button>
+            <a
+              className="quick-action-btn quick-action-primary"
+              href={`/api/attendance/${roster.session.id}/pdf?sort=${encodeURIComponent(PDF_SORT_LABELS[exportSort] ? exportSort : "class_name")}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              הורד PDF
+            </a>
+          </form>
         </div>
       </div>
 
@@ -83,13 +98,14 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       </div>
 
       <div className="card summary-row">
-        <div className="muted">ייצוא PDF זמין ומסודר כמו באתר: לפי שיעור ואז לפי שם משפחה.</div>
+        <div className="muted">אפשר לסנן תלמידים לפי סטטוס, ולבחור את סדר ה-PDF לפני ההורדה.</div>
       </div>
 
       <AttendanceRosterClient
         sessionId={roster.session.id}
         students={roster.students}
         statusOptions={attendanceStatusOptions()}
+        activeStatusFilters={activeStatusFilters}
       />
     </>
   );
