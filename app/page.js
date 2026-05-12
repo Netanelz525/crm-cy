@@ -195,7 +195,6 @@ export default async function HomePage({ searchParams }) {
 
   const clearInstitutionFiltersPath = buildNextPath({ mode: "institution", institution, cols: selectedColumnKeys });
   const exportHref = currentQueryString ? `/api/export/institution?${currentQueryString}` : "/api/export/institution";
-  const builderHref = currentQueryString ? `/views?${currentQueryString}` : "/views";
   const hasInstitutionFilter = hasInstitutionScopedFilter(advancedFilters);
   const institutionCount = students.length;
 
@@ -209,7 +208,6 @@ export default async function HomePage({ searchParams }) {
           <Link className="quick-action-btn quick-action-outline" href="/admin">מעבר לאישור משתמשים</Link>
           <Link className="quick-action-btn quick-action-outline" href="/admin/deleted-students">אזור מחיקה זמני</Link>
           <Link className="quick-action-btn quick-action-outline" href="/finder">איתור תלמיד</Link>
-          <Link className="quick-action-btn quick-action-outline" href="/views">תצוגות</Link>
           <Link className="quick-action-btn quick-action-primary" href="/students/new">יצירת תלמיד</Link>
         </div>
       </div>
@@ -245,7 +243,6 @@ export default async function HomePage({ searchParams }) {
             <div>סה"כ תלמידים בתצוגה: <b>{institutionCount}</b></div>
             <div className="quick-actions" style={{ marginTop: 0 }}>
               <Link className="chip-link" href={clearInstitutionFiltersPath}>נקה סינונים</Link>
-              <Link className="chip-link" href={builderHref}>פתח תצוגות</Link>
               <a className="chip-link" href={exportHref}>ייצוא אקסל</a>
             </div>
           </div>
@@ -400,5 +397,4 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
-
 

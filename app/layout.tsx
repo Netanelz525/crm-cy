@@ -24,7 +24,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/email">מיילים</Link>
               <Link href="/announcements">הודעות</Link>
               <Link href="/attendance">נוכחות</Link>
-              <Link href="/views">תצוגות</Link>
               <Link href="/admin">ניהול</Link>
               {currentUser ? <Link href="/account">אזור אישי</Link> : null}
             </nav>
