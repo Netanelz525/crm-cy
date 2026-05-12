@@ -1,6 +1,13 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export default clerkMiddleware();
+export default clerkMiddleware(async (auth, req) => {
+  const { userId, redirectToSignIn } = await auth();
+  const pathname = req.nextUrl.pathname;
+
+  if (!userId && (pathname === "/email" || pathname.startsWith("/email/"))) {
+    return redirectToSignIn({ returnBackUrl: req.url });
+  }
+});
 
 export const config = {
   matcher: [
@@ -8,4 +15,3 @@ export const config = {
     "/(api|trpc)(.*)"
   ]
 };
-
