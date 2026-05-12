@@ -89,6 +89,7 @@ export default async function EmailCampaignListPage({ searchParams }) {
   }, { recipients: 0, sent: 0, failed: 0, opened: 0 });
   const openRate = totals.sent > 0 ? Math.round((totals.opened / totals.sent) * 100) : 0;
   const uniqueStatuses = Array.from(new Set(campaigns.map((campaign) => clean(campaign.status)).filter(Boolean)));
+  const hasActiveFilters = Boolean(filters.q || filters.institution || filters.status || filters.recipientMode || filters.sortBy !== "newest");
 
   return (
     <>
@@ -105,53 +106,58 @@ export default async function EmailCampaignListPage({ searchParams }) {
         </div>
       </div>
 
-      <form className="email-filter-card" action="/email/campaigns" method="get">
-        <h2>סינון ומיון קמפיינים</h2>
-        <div className="email-form-grid">
-          <label>
-            חיפוש חופשי
-            <input name="q" defaultValue={filters.q} placeholder="נושא, שולח, מוסד או סטטוס" />
-          </label>
-          <label>
-            מוסד
-            <select name="institution" defaultValue={filters.institution}>
-              <option value="">כל המוסדות</option>
-              {Object.entries(INSTITUTIONS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            סטטוס
-            <select name="status" defaultValue={filters.status}>
-              <option value="">כל הסטטוסים</option>
-              {uniqueStatuses.map((status) => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            סוג נמענים
-            <select name="recipientMode" defaultValue={filters.recipientMode}>
-              <option value="">כל הסוגים</option>
-              {Object.entries(RECIPIENT_MODE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            מיון
-            <select name="sortBy" defaultValue={filters.sortBy}>
-              <option value="newest">החדשים ביותר</option>
-              <option value="oldest">הישנים ביותר</option>
-              <option value="opens">אחוז פתיחה גבוה</option>
-              <option value="sent">נשלחו בהצלחה</option>
-              <option value="recipients">כמות נמענים</option>
-            </select>
-          </label>
-        </div>
-        <button type="submit">עדכן תצוגה</button>
-      </form>
+      <details className="email-filter-card display-settings" open={hasActiveFilters}>
+        <summary>
+          סינון ומיון קמפיינים
+          {hasActiveFilters ? " • יש סינון פעיל" : ""}
+        </summary>
+        <form action="/email/campaigns" method="get" style={{ display: "grid", gap: 14 }}>
+          <div className="email-form-grid">
+            <label>
+              חיפוש חופשי
+              <input name="q" defaultValue={filters.q} placeholder="נושא, שולח, מוסד או סטטוס" />
+            </label>
+            <label>
+              מוסד
+              <select name="institution" defaultValue={filters.institution}>
+                <option value="">כל המוסדות</option>
+                {Object.entries(INSTITUTIONS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              סטטוס
+              <select name="status" defaultValue={filters.status}>
+                <option value="">כל הסטטוסים</option>
+                {uniqueStatuses.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              סוג נמענים
+              <select name="recipientMode" defaultValue={filters.recipientMode}>
+                <option value="">כל הסוגים</option>
+                {Object.entries(RECIPIENT_MODE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              מיון
+              <select name="sortBy" defaultValue={filters.sortBy}>
+                <option value="newest">החדשים ביותר</option>
+                <option value="oldest">הישנים ביותר</option>
+                <option value="opens">אחוז פתיחה גבוה</option>
+                <option value="sent">נשלחו בהצלחה</option>
+                <option value="recipients">כמות נמענים</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit">עדכן תצוגה</button>
+        </form>
+      </details>
 
       <div className="email-certainty-card">
         <h2>תמונת מצב</h2>
