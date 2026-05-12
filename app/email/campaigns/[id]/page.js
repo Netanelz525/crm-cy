@@ -96,23 +96,23 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
             ].filter(Boolean).join(" | ")}
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
-            <Link className="chip-link" href="/email/campaigns">חזרה להודעות תפוצה קודמות</Link>
-            <a className="chip-link" href={`/api/email/campaigns/${campaignId}/export`}>יצוא לאקסל</a>
+            <Link className="chip-link" href="/email/campaigns">חזרה לארכיון התפוצות</Link>
+            <a className="chip-link" href={`/api/email/campaigns/${campaignId}/export`}>הורד דוח אקסל</a>
             <form action={reopenEmailCampaignAction}>
               <input type="hidden" name="campaignId" value={campaignId} />
-              <button type="submit" className="chip-link">שליחה מחדש</button>
+              <button type="submit" className="chip-link">פתח כטיוטה לשליחה מחדש</button>
             </form>
             {isFavorite ? (
               <form action={removeFavoriteEmailCampaignAction}>
                 <input type="hidden" name="campaignId" value={campaignId} />
                 <input type="hidden" name="returnTo" value={`/email/campaigns/${campaignId}`} />
-                <button type="submit" className="chip-link">הסר ממועדפים</button>
+                <button type="submit" className="chip-link">הסר מקמפיינים מועדפים</button>
               </form>
             ) : (
               <form action={saveFavoriteEmailCampaignAction}>
                 <input type="hidden" name="campaignId" value={campaignId} />
                 <input type="hidden" name="returnTo" value={`/email/campaigns/${campaignId}`} />
-                <button type="submit" className="chip-link">שמור כמועדף</button>
+                <button type="submit" className="chip-link">שמור בקמפיינים מועדפים</button>
               </form>
             )}
           </div>
