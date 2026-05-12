@@ -295,7 +295,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <button type="submit">העלה מסמך</button>
           </form>
         ) : null}
-        <AttendanceHistoryPanel summary={attendanceSummary} history={attendanceHistory} />
+        <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
           {!documents.length ? (
             <div className="linked-record-card">

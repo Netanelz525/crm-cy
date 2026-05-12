@@ -16,11 +16,14 @@ function formatDate(value) {
   return date.toLocaleDateString("he-IL");
 }
 
-export default function AttendanceHistoryPanel({ summary, history }) {
+export default function AttendanceHistoryPanel({ summary, history, embedded = false }) {
   const totalSessions = Number(summary?.totalSessions || 0);
+  const className = embedded
+    ? "attendance-history-panel attendance-history-panel-embedded"
+    : "card attendance-history-panel";
 
   return (
-    <div className="card attendance-history-panel">
+    <div className={className}>
       <div className="attendance-history-head">
         <div>
           <h3>היסטוריית נוכחות</h3>

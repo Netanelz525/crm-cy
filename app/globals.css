@@ -404,6 +404,10 @@ button {
   overflow: hidden;
 }
 
+.attendance-history-panel-embedded {
+  margin: 12px 0;
+}
+
 .attendance-history-head {
   display: flex;
   align-items: flex-start;

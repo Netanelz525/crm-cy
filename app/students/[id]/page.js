@@ -264,7 +264,7 @@ export default async function StudentPage({ params, searchParams }) {
             <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span>
           </div>
         </summary>
-        <AttendanceHistoryPanel summary={attendanceSummary} history={attendanceHistory} />
+        <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
           {!documents.length ? (
             <div className="linked-record-card">
