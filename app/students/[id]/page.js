@@ -39,6 +39,29 @@ function phoneHref(phoneObj) {
   return `tel:${prefix}${number}`.replace(/\s+/g, "");
 }
 
+function emailHref(value) {
+  const email = clean(value);
+  return email && email.includes("@") ? `mailto:${email}` : "";
+}
+
+function renderEmailValue(value) {
+  if (Array.isArray(value)) {
+    const emails = value.map(clean).filter(Boolean);
+    if (!emails.length) return "-";
+    return emails.map((email, index) => (
+      <span key={`${email}-${index}`}>
+        {index > 0 ? ", " : ""}
+        <a href={`mailto:${email}`}>{email}</a>
+      </span>
+    ));
+  }
+
+  const email = clean(value);
+  const href = emailHref(email);
+  if (!href) return email || "-";
+  return <a href={href}>{email}</a>;
+}
+
 function formatDisplayValue(field, value) {
   if (!hasDisplayValue(value)) return "-";
   if (field.type === "phone") {
@@ -46,11 +69,15 @@ function formatDisplayValue(field, value) {
     const href = phoneHref(value);
     const phoneDisplay = (
       <span dir="ltr" style={{ unicodeBidi: "isolate", display: "inline-block" }}>
+        <span aria-hidden="true" style={{ marginInlineEnd: 6 }}>☎</span>
         {text}
       </span>
     );
     if (!href || text === "-") return phoneDisplay;
     return <a href={href}>{phoneDisplay}</a>;
+  }
+  if (String(field?.key || "").toLowerCase().includes("email")) {
+    return renderEmailValue(value);
   }
   if (Array.isArray(value)) return value.join(", ");
   if (field.type === "date") return formatDate(value);
