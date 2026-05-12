@@ -167,6 +167,7 @@ button {
 .btn-ghost {
   border: 1px solid var(--line);
   background: #fff;
+  color: var(--text);
 }
 
 .btn-save {
@@ -487,6 +488,11 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.student-actions form {
+  display: inline-flex;
 }
 
 .student-document-title-row {
