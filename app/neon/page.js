@@ -30,8 +30,7 @@ import {
 import {
   prepareNeonStudentsImportAction,
   resetNeonPreferencesAction,
-  saveNeonPreferencesAction,
-  syncNeonStudentsAction
+  saveNeonPreferencesAction
 } from "./actions";
 import BulkStudentsClient from "./bulk-students-client";
 
@@ -312,9 +311,6 @@ export default async function NeonPage({ searchParams }) {
             </form>
             <form action={resetNeonPreferencesAction}>
               <button className="btn btn-ghost" type="submit">אפס העדפות</button>
-            </form>
-            <form action={syncNeonStudentsAction}>
-              <button className="btn btn-primary" type="submit">רענון נתונים</button>
             </form>
           </div>
         </div>
