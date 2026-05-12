@@ -26,12 +26,14 @@ import {
 import { getStudentsByInstitution, listAllStudents } from "../../lib/twenty";
 
 function buildQueryString(params) {
+  if (params instanceof URLSearchParams) return params.toString();
   const sp = new URLSearchParams();
   for (const [key, value] of Object.entries(params || {})) {
     if (Array.isArray(value)) {
       value.map((item) => clean(item)).filter(Boolean).forEach((item) => sp.append(key, item));
       continue;
     }
+    if (value && typeof value === "object") continue;
     const next = clean(value);
     if (next) sp.set(key, next);
   }
@@ -154,7 +156,6 @@ export default async function ViewsPage({ searchParams }) {
     />
   );
 }
-
 
 
 
