@@ -76,11 +76,23 @@ a {
 }
 
 .chip-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: #f8fbff;
+  color: #111111;
   font-weight: 600;
+  text-decoration: none;
+}
+
+.chip-link:hover {
+  color: #111111;
+  border-color: #bfd6ee;
+  background: #ffffff;
 }
 
 .quick-actions {
@@ -3267,6 +3279,7 @@ td {
   border-radius: 14px;
   padding: 10px 12px;
   background: #f8fbff;
+  color: #111111;
 }
 
 .email-final-check {
