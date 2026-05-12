@@ -23,7 +23,7 @@ function roleLabel(role) {
 function accessSummary(user) {
   return [
     user.is_super_admin ? "סופר אדמין" : null,
-    user.is_team_member ? "TEAM" : null,
+    user.is_team_member ? "צוות ניהול" : null,
     user.is_manager && !user.is_super_admin ? "מנהל CRM" : null,
     user.can_edit_own_card ? "עריכת כרטיס עצמי" : null
   ].filter(Boolean).join(" | ") || "צפייה בלבד";

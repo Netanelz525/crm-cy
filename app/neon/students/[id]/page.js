@@ -216,7 +216,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
       <div className="card glass">
         <div className="student-topbar">
           <div>
-            <h1>כרטיס תלמיד - Neon Beta</h1>
+            <h1>כרטיס תלמיד</h1>
             <div className="student-meta-line">
               <span className="meta-chip">מוסד: {institutionLabel(student?.currentInstitution)}</span>
               <span className="meta-chip">רישום: {registrationLabel(student?.registration)}</span>
@@ -225,7 +225,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             </div>
           </div>
           <div className="student-actions student-actions-wrap">
-            <Link className="btn btn-ghost" href="/neon">חזרה לרשימת Neon</Link>
+            <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link>
             {editMode ? (
               <>
                 <Link
@@ -263,7 +263,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
                 </form>
               </details>
             ) : null}
-            <Link className="btn btn-ghost" href={`/students/${studentId}`}>פתח בגרסה הראשית</Link>
           </div>
         </div>
       </div>
@@ -273,12 +272,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
         <p className="muted">{studentName}</p>
         <p className="muted">
           {canManageStudent
-            ? "השמירה במסך הזה מעדכנת את Twenty ואז מרעננת את המראה ב-Neon."
+            ? "השמירה במסך הזה מעדכנת את נתוני התלמיד במערכת."
             : "בכרטיס האישי ניתן לצפות בפרטים ולנהל מסמכים המשויכים אליך."}
         </p>
       </div>
 
-      {updated ? <div className="ok">השינויים נשמרו בהצלחה ב-Twenty וב-Neon.</div> : null}
+      {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}

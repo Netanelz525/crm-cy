@@ -19,8 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ClerkProvider>
           <header className="topbar">
             <nav className="nav">
-              <Link href="/">תלמידים</Link>
-              <Link href="/neon">Neon Beta</Link>
+              <Link href="/neon">תלמידים</Link>
               <Link href="/email">מיילים</Link>
               <Link href="/announcements">הודעות</Link>
               <Link href="/views">תצוגות</Link>

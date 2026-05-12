@@ -69,7 +69,7 @@ export default async function NewStudentPage({ searchParams }) {
       {errorText ? (
         <div className="card muted">
           <div>{errorText}</div>
-          {duplicate && existingStudentId ? <div style={{ marginTop: 10 }}><Link className="chip-link" href={`/students/${existingStudentId}`}>פתח תלמיד קיים</Link></div> : null}
+          {duplicate && existingStudentId ? <div style={{ marginTop: 10 }}><Link className="chip-link" href={`/neon/students/${existingStudentId}`}>פתח תלמיד קיים</Link></div> : null}
         </div>
       ) : null}
 

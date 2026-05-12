@@ -649,7 +649,7 @@ export default function ViewBuilderClient({
                       <tr key={row.id} style={row.hasMissing ? { background: "#fff1f2" } : undefined}>
                         {(preview.previewColumns || []).map((column) => (
                           <td key={column.key}>
-                            {column.key === "name" ? <Link className="student-link" href={`/students/${row.id}`}>{row.values[column.key]}</Link> : row.values[column.key]}
+                            {column.key === "name" ? <Link className="student-link" href={`/neon/students/${row.id}`}>{row.values[column.key]}</Link> : row.values[column.key]}
                           </td>
                         ))}
                       </tr>
@@ -664,13 +664,13 @@ export default function ViewBuilderClient({
                 ) : preview.previewRows.map((row) => (
                   <div key={row.id} className={`student-mobile-card ${row.hasMissing ? "missing" : ""}`}>
                     <div className="student-mobile-head">
-                      <Link className="student-link" href={`/students/${row.id}`}>{row.label}</Link>
+                      <Link className="student-link" href={`/neon/students/${row.id}`}>{row.label}</Link>
                       <span>{row.classLabel}</span>
                     </div>
                     <div className="student-mobile-grid">
                       {(preview.previewColumns || []).map((column) => (
                         <div key={column.key}>
-                          <b>{column.label}:</b> {column.key === "name" ? <Link className="student-link" href={`/students/${row.id}`}>{row.values[column.key]}</Link> : row.values[column.key]}
+                          <b>{column.label}:</b> {column.key === "name" ? <Link className="student-link" href={`/neon/students/${row.id}`}>{row.values[column.key]}</Link> : row.values[column.key]}
                         </div>
                       ))}
                     </div>
@@ -685,7 +685,6 @@ export default function ViewBuilderClient({
     </div>
   );
 }
-
 
 
 
