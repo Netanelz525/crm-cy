@@ -41,8 +41,13 @@ function formatDisplayValue(field, value) {
   if (field.type === "phone") {
     const text = phoneText(value);
     const href = phoneHref(value);
-    if (!href || text === "-") return text;
-    return <a href={href}>{text}</a>;
+    const phoneDisplay = (
+      <span dir="ltr" style={{ unicodeBidi: "isolate", display: "inline-block" }}>
+        {text}
+      </span>
+    );
+    if (!href || text === "-") return phoneDisplay;
+    return <a href={href}>{phoneDisplay}</a>;
   }
   if (Array.isArray(value)) return value.join(", ");
   if (field.type === "date") return formatDate(value);
@@ -240,6 +245,7 @@ export default async function StudentPage({ params, searchParams }) {
             <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
           </div>
         </summary>
+        <AttendanceHistoryPanel summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
           {!documents.length ? (
             <div className="linked-record-card">
