@@ -1,5 +1,7 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import AttendanceHistoryPanel from "../../../components/attendance-history-panel";
+import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from "../../../lib/attendance";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../lib/student-fields";
 import { listStudentDocuments } from "../../../lib/student-documents";
@@ -170,7 +172,11 @@ export default async function StudentPage({ params, searchParams }) {
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
-  const documents = await listStudentDocuments(studentId);
+  const [documents, attendanceSummary, attendanceHistory] = await Promise.all([
+    listStudentDocuments(studentId),
+    getAttendanceSummaryForStudent(studentId),
+    listAttendanceHistoryForStudent(studentId)
+  ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
@@ -245,7 +251,7 @@ export default async function StudentPage({ params, searchParams }) {
             <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
           </div>
         </summary>
-        <AttendanceHistoryPanel summary={attendanceSummary} history={attendanceHistory} />
+        <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
           {!documents.length ? (
             <div className="linked-record-card">

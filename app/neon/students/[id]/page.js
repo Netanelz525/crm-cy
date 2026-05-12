@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import AttendanceHistoryPanel from "../../../../components/attendance-history-panel";
+import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from "../../../../lib/attendance";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentDocuments } from "../../../../lib/student-documents";
@@ -175,7 +177,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const showChildrenCount = isMarried(student?.famliystatus);
-  const documents = await listStudentDocuments(studentId);
+  const [documents, attendanceSummary, attendanceHistory] = await Promise.all([
+    listStudentDocuments(studentId),
+    getAttendanceSummaryForStudent(studentId),
+    listAttendanceHistoryForStudent(studentId)
+  ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
@@ -276,7 +282,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <button type="submit">העלה מסמך</button>
           </form>
         ) : null}
-        <AttendanceHistoryPanel summary={attendanceSummary} history={attendanceHistory} />
+        <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
           {!documents.length ? (
             <div className="linked-record-card">
