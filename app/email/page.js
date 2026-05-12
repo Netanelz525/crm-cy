@@ -7,36 +7,13 @@ import {
   getEmailCandidateStudents,
   getUnsubscribedEmailSet,
   listEmailUnsubscribes,
-  listRecentEmailCampaigns,
-  listRecentEmailDeliveries,
   summarizeEmailCandidates
 } from "../../lib/email-campaigns";
 import { getResendConfigStatus } from "../../lib/resend";
 import { requireEmailSender } from "../../lib/rbac";
-import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
+import { clean, INSTITUTIONS } from "../../lib/student-view";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { addEmailUnsubscribeAction, createEmailCampaignConfirmAction, removeEmailUnsubscribeAction } from "./actions";
-
-function institutionLabel(value) {
-  const key = clean(value).toUpperCase();
-  return INSTITUTIONS[key] || clean(value) || "-";
-}
-
-function classLabel(value) {
-  const key = clean(value).toUpperCase();
-  return CLASS_LABELS[key] || clean(value) || "-";
-}
-
-function certaintyLabel(level, status) {
-  const numeric = Number(level || 0);
-  if (status === "unsubscribed") return "הוסר";
-  if (status === "failed") return "נכשל";
-  if (numeric >= 4) return "נלחץ";
-  if (numeric >= 3) return "נפתח";
-  if (numeric >= 2) return "נשלח";
-  if (numeric >= 1) return "בתור";
-  return "אין ודאות";
-}
 
 export default async function EmailPage({ searchParams }) {
   const user = await requireEmailSender();
@@ -68,6 +45,7 @@ export default async function EmailPage({ searchParams }) {
   const skipped = clean(resolvedSearchParams?.skipped);
   const error = clean(resolvedSearchParams?.error);
   const blacklistUpdated = clean(resolvedSearchParams?.blacklistUpdated) === "1";
+  const reopened = clean(resolvedSearchParams?.reopened) === "1";
 
   const resendStatus = getResendConfigStatus();
   const students = await getEmailCandidateStudents(filters);
@@ -95,8 +73,6 @@ export default async function EmailPage({ searchParams }) {
     ? (clean(draft?.senderName || resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(studentsWithBlacklistState))
     : buildDefaultSenderNameForStudents(studentsWithBlacklistState);
   const summary = summarizeEmailCandidates(studentsWithBlacklistState, filters.recipientMode);
-  const recentDeliveries = user.can_view_email_reports ? await listRecentEmailDeliveries(20) : [];
-  const recentCampaigns = user.can_view_email_reports ? await listRecentEmailCampaigns(8) : [];
   const unsubscribes = await listEmailUnsubscribes(200);
 
   return (
@@ -106,9 +82,11 @@ export default async function EmailPage({ searchParams }) {
           <p className="email-kicker">מרכז מיילים</p>
           <h1>שליחת הודעות לתלמידים והורים</h1>
           <p className="muted">
-            הרשימה נבנית מתוך תלמידים מסומנים ומסוננים, עם איחוד כתובות כפולות, מעקב פתיחה ודוח שליחה.
+            כאן מגדירים את התפוצה הנוכחית בלבד: מסננים, בוחרים נמענים, עורכים את ההודעה וממשיכים לאישור סופי.
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
+            <Link className="chip-link" href="/email">תפוצה חדשה</Link>
+            {user.can_view_email_reports ? <Link className="chip-link" href="/email/campaigns">הודעות תפוצה קודמות</Link> : null}
             <Link className="chip-link" href="/neon">חזרה למסך תלמידים</Link>
           </div>
         </div>
@@ -125,6 +103,7 @@ export default async function EmailPage({ searchParams }) {
           השליחה הסתיימה: {sent} נשלחו, {failed || 0} נכשלו, {skipped || 0} דולגו.
         </div>
       ) : null}
+      {reopened ? <div className="ok">ההודעה הקודמת נטענה כטיוטה חדשה, ואפשר לעדכן אותה לפני שליחה חוזרת.</div> : null}
       {blacklistUpdated ? <div className="ok">הרשימה השחורה עודכנה בהצלחה.</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
@@ -256,64 +235,6 @@ export default async function EmailPage({ searchParams }) {
               </div>
             )}
           </div>
-
-        {user.can_view_email_reports ? (
-          <>
-            <div className="email-log-card">
-              <div className="email-section-title">
-                <h2>קמפיינים אחרונים</h2>
-              </div>
-              {!recentCampaigns.length ? (
-                <div className="muted">עדיין אין קמפיינים מתועדים.</div>
-              ) : (
-                recentCampaigns.map((campaign) => {
-                  const delivered = Number(campaign.sent_count || 0);
-                  const opens = Number(campaign.opened_count || 0);
-                  const openRate = delivered > 0 ? Math.round((opens / delivered) * 100) : 0;
-                  return (
-                    <Link key={campaign.id} href={`/email/campaigns/${campaign.id}`} className="email-log-row email-log-row-link">
-                      <div>
-                        <b>{campaign.subject}</b>
-                        <small>
-                          {[
-                            campaign.sender_name || "-",
-                            campaign.institution ? institutionLabel(campaign.institution) : "",
-                            campaign.class_filter ? classLabel(campaign.class_filter) : ""
-                          ].filter(Boolean).join(" | ")}
-                        </small>
-                        <small>{campaign.total_recipients || 0} נמענים | {campaign.sent_count || 0} נשלחו | {campaign.failed_count || 0} נכשלו | {openRate}% פתיחה</small>
-                      </div>
-                      <span className={`email-certainty-badge email-certainty-${openRate > 0 ? 3 : 2}`}>
-                        {campaign.status || "draft"}
-                      </span>
-                    </Link>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="email-log-card">
-              <h2>שליחות אחרונות</h2>
-              {!recentDeliveries.length ? (
-                <div className="muted">עדיין אין שליחות מתועדות.</div>
-              ) : (
-                recentDeliveries.map((delivery) => (
-                  <Link key={delivery.id} href={`/email/campaigns/${delivery.campaign_id}?delivery=${delivery.id}`} className="email-log-row email-log-row-link">
-                    <div>
-                      <b>{delivery.recipient_name || delivery.student_name || delivery.recipient_email}</b>
-                      <small>{delivery.recipient_email} | {delivery.subject}</small>
-                      <small>{delivery.sender_name || "-"} | פתיחות: {delivery.open_count || 0}</small>
-                      {delivery.error_message ? <small className="email-error-text">{delivery.error_message}</small> : null}
-                    </div>
-                    <span className={`email-certainty-badge email-certainty-${delivery.certainty_level}`}>
-                      {certaintyLabel(delivery.certainty_level, delivery.status)}
-                    </span>
-                  </Link>
-                ))
-              )}
-            </div>
-          </>
-        ) : null}
         </aside>
       </div>
     </>

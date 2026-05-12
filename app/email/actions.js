@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireEmailSender } from "../../lib/rbac";
 import {
   addEmailUnsubscribe,
+  getEmailCampaignById,
   removeEmailUnsubscribe,
   saveEmailCampaignDraft,
   sendEmailCampaign
@@ -131,4 +132,37 @@ export async function removeEmailUnsubscribeAction(formData) {
   }
 
   redirect("/email?blacklistUpdated=1");
+}
+
+export async function reopenEmailCampaignAction(formData) {
+  const user = await requireEmailSender();
+  const campaignId = clean(formData.get("campaignId"));
+  const campaign = await getEmailCampaignById(campaignId);
+  if (!campaign) {
+    redirect(`/email/campaigns?error=${encodeURIComponent("קמפיין המייל לא נמצא")}`);
+  }
+
+  const filters = campaign.filter_json && typeof campaign.filter_json === "object" ? campaign.filter_json : {};
+  const payload = {
+    institution: clean(filters.institution || campaign.institution),
+    class: clean(filters.class || campaign.class_filter),
+    registration: clean(filters.registration),
+    familystatus: clean(filters.familystatus),
+    q: clean(filters.q),
+    recipientMode: clean(filters.recipientMode || campaign.recipient_mode) || "parents",
+    sendScope: clean(filters.sendScope || campaign.send_scope) || "selected",
+    selectedStudentIds: Array.isArray(filters.selectedStudentIds) ? filters.selectedStudentIds.map(clean).filter(Boolean) : [],
+    subject: clean(campaign.subject),
+    senderName: clean(campaign.sender_name),
+    bodyHtml: clean(campaign.body_html),
+    bodyText: clean(campaign.body_text),
+    includeGreeting: campaign.include_greeting !== false
+  };
+
+  const draftId = await saveEmailCampaignDraft({
+    createdByUserId: user.clerk_user_id,
+    payload
+  });
+
+  redirect(`/email?draft=${encodeURIComponent(draftId)}&reopened=1`);
 }

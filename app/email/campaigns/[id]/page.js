@@ -7,6 +7,7 @@ import {
 } from "../../../../lib/email-campaigns";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../../../lib/student-view";
+import { reopenEmailCampaignAction } from "../../actions";
 
 function institutionLabel(value) {
   const key = clean(value).toUpperCase();
@@ -86,8 +87,13 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
             ].filter(Boolean).join(" | ")}
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
-            <Link className="chip-link" href="/email">חזרה למרכז המיילים</Link>
+            <Link className="chip-link" href="/email/campaigns">חזרה להודעות תפוצה קודמות</Link>
+            <Link className="chip-link" href="/email">תפוצה חדשה</Link>
             <a className="chip-link" href={`/api/email/campaigns/${campaignId}/export`}>יצוא לאקסל</a>
+            <form action={reopenEmailCampaignAction}>
+              <input type="hidden" name="campaignId" value={campaignId} />
+              <button type="submit" className="chip-link">שליחה חוזרת</button>
+            </form>
           </div>
         </div>
         <div className="email-hero-status">
