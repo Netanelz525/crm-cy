@@ -168,5 +168,5 @@ export async function createStudentAction(formData) {
     console.error("Student webhook notification failed:", error?.message || error);
   }
 
-  redirect(`/students/${studentId}?created=1`);
+  redirect(`/neon/students/${studentId}?created=1`);
 }

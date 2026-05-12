@@ -482,7 +482,7 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div className="api-param-list"><div>כרגע exposed רק resource של `students`.</div></div>
           </FoldItem>
           <FoldItem title="מקור נתונים וכתיבה">
-            <div className="api-param-list"><div>הקריאה היא מ-Neon, הכתיבה עדיין מסונכרנת דרך Twenty.</div></div>
+            <div className="api-param-list"><div>הקריאה והכתיבה עוברות דרך שכבת הסנכרון של המערכת.</div></div>
           </FoldItem>
           <FoldItem title="חיפוש">
             <div className="api-param-list"><div>החיפוש המשוער הוא scoring אפליקטיבי, לא full-text index של Postgres.</div></div>

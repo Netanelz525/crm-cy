@@ -19,9 +19,9 @@ export default async function AdminPage() {
   return (
     <>
       <div className="card glass">
-        <h1>ניהול TEAM</h1>
+        <h1>ניהול מערכת</h1>
         <p className="muted">
-          רק משתמשי TEAM יכולים לאשר משתמשים לא מוכרים, לעדכן הרשאות, ולנהל גישת API ל-CRM.
+          משתמשי הניהול יכולים לאשר משתמשים לא מוכרים, לעדכן הרשאות, ולנהל גישת API ל-CRM.
           <br />
           מחובר: {currentUser.display_name}
         </p>

@@ -110,7 +110,7 @@ export default async function FinderPage({ searchParams }) {
         <h1>איתור תלמיד</h1>
         <p className="muted">בחר בדיוק איזה פרט אתה מחפש ועל מי הוא שייך.</p>
         <p>
-          <Link href="/">חזרה למסך הראשי</Link>
+          <Link href="/neon">חזרה למסך הראשי</Link>
           {" | "}
           <Link href="/students/new">יצירת תלמיד</Link>
         </p>
@@ -160,7 +160,7 @@ export default async function FinderPage({ searchParams }) {
             ) : (
               students.map((s) => (
                 <tr key={s.id}>
-                  <td><Link className="student-link" href={`/students/${s.id}`}>{s.label}</Link></td>
+                  <td><Link className="student-link" href={`/neon/students/${s.id}`}>{s.label}</Link></td>
                   <td>{(s._matchedBy || []).join(", ") || "-"}</td>
                   <td>{s.class || "-"}</td>
                   <td>{s.currentInstitution || "-"}</td>
@@ -182,7 +182,7 @@ export default async function FinderPage({ searchParams }) {
           students.map((s) => (
             <div key={s.id} className="generic-mobile-card">
               <div className="generic-mobile-head">
-                <Link className="student-link" href={`/students/${s.id}`}>{s.label}</Link>
+                <Link className="student-link" href={`/neon/students/${s.id}`}>{s.label}</Link>
               </div>
               <div className="generic-mobile-grid">
                 <div><b>נמצא לפי:</b> {(s._matchedBy || []).join(", ") || "-"}</div>

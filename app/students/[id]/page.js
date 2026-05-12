@@ -163,6 +163,20 @@ export default async function StudentPage({ params, searchParams }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const studentId = resolvedParams.id;
+  const redirectQuery = new URLSearchParams();
+
+  Object.entries(resolvedSearchParams || {}).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item !== undefined && item !== null) redirectQuery.append(key, String(item));
+      });
+      return;
+    }
+    if (value !== undefined && value !== null) redirectQuery.set(key, String(value));
+  });
+
+  const redirectSuffix = redirectQuery.toString();
+  redirect(redirectSuffix ? `/neon/students/${studentId}?${redirectSuffix}` : `/neon/students/${studentId}`);
 
   if (!assertStudentAccess(currentUser, studentId)) {
     if (currentUser.linked_student_id) {

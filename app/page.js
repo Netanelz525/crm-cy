@@ -123,6 +123,8 @@ export default async function HomePage({ searchParams }) {
   await purgeExpiredSoftDeletedStudents();
 
   const resolvedSearchParams = await searchParams;
+  const nextQueryString = sanitizeQueryString(buildQueryString(resolvedSearchParams));
+  redirect(nextQueryString ? `/neon?${nextQueryString}` : "/neon");
 
   if (!currentUser.is_team_member && !currentUser.is_manager) {
     if (currentUser.linked_student_id) redirect(`/students/${currentUser.linked_student_id}`);
@@ -397,4 +399,3 @@ export default async function HomePage({ searchParams }) {
     </>
   );
 }
-

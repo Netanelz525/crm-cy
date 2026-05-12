@@ -25,12 +25,12 @@ export async function updateStudentAction(formData) {
   const data = toFormData(raw, { preserveEmptyEnums: true });
 
   if (!Object.keys(data).length) {
-    redirect(`/students/${studentId}?edit=1&error=לא הוזנו נתונים לשמירה`);
+    redirect(`/neon/students/${studentId}?edit=1&error=לא הוזנו נתונים לשמירה`);
   }
 
   await updateStudentById(studentId, data);
   await syncNeonStudentFromTwentyById(studentId);
-  redirect(`/students/${studentId}?updated=1`);
+  redirect(`/neon/students/${studentId}?updated=1`);
 }
 
 export async function deleteStudentAction(formData) {
@@ -48,7 +48,7 @@ export async function deleteStudentAction(formData) {
   }
 
   if (confirmDelete !== "1" || confirmationText !== DELETE_CONFIRMATION_TEXT) {
-    redirect(`/students/${studentId}?error=${encodeURIComponent("כדי למחוק תלמיד צריך לסמן אישור ולהקליד בדיוק: אני מאשר")}`);
+    redirect(`/neon/students/${studentId}?error=${encodeURIComponent("כדי למחוק תלמיד צריך לסמן אישור ולהקליד בדיוק: אני מאשר")}`);
   }
 
   try {
@@ -58,7 +58,7 @@ export async function deleteStudentAction(formData) {
     revalidatePath("/admin/deleted-students");
   } catch (error) {
     const message = encodeURIComponent(error?.message || "מחיקת התלמיד נכשלה");
-    redirect(`/students/${studentId}?error=${message}`);
+    redirect(`/neon/students/${studentId}?error=${message}`);
   }
 
   redirect("/admin/deleted-students?deleted=1");
@@ -77,5 +77,5 @@ export async function updateNoteAction(formData) {
     directDebitActive: clean(formData.get("directDebitActive")),
     signedByUserId: user.clerk_user_id
   });
-  redirect(`/students/${studentId}?internalUpdated=1`);
+  redirect(`/neon/students/${studentId}?internalUpdated=1`);
 }

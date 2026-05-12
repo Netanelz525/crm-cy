@@ -299,12 +299,11 @@ export default async function NeonPage({ searchParams }) {
       <div className="card glass">
         <div className="student-topbar">
           <div>
-            <h1>Neon Students Beta</h1>
-            <p className="muted">טאב מקביל שעובד מול עותק הנתונים ב-Neon, עם עריכה שמסנכרנת חזרה ל-Twenty.</p>
+            <h1>תלמידים</h1>
+            <p className="muted">מרכז ניהול התלמידים הראשי במערכת.</p>
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-primary" href="/students/new">יצירת תלמיד חדש</Link>
-            <Link className="btn btn-ghost" href="/">חזרה לגרסה הראשית</Link>
             <Link className="btn btn-ghost" href="/admin/deleted-students">אזור מחיקה זמני</Link>
             <form action={saveNeonPreferencesAction}>
               <input type="hidden" name="queryString" value={currentQueryString} />
@@ -315,7 +314,7 @@ export default async function NeonPage({ searchParams }) {
               <button className="btn btn-ghost" type="submit">אפס העדפות</button>
             </form>
             <form action={syncNeonStudentsAction}>
-              <button className="btn btn-primary" type="submit">סנכרון מ-Twenty</button>
+              <button className="btn btn-primary" type="submit">רענון נתונים</button>
             </form>
           </div>
         </div>
