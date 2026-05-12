@@ -2,12 +2,17 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   getEmailCampaignById,
+  isEmailCampaignFavorite,
   listEmailCampaignDeliveries,
   renderEmailHtml
 } from "../../../../lib/email-campaigns";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../../../lib/student-view";
-import { reopenEmailCampaignAction } from "../../actions";
+import {
+  removeFavoriteEmailCampaignAction,
+  reopenEmailCampaignAction,
+  saveFavoriteEmailCampaignAction
+} from "../../actions";
 
 function institutionLabel(value) {
   const key = clean(value).toUpperCase();
@@ -59,10 +64,14 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
   const resolvedSearchParams = await searchParams;
   const campaignId = clean(resolvedParams?.id);
   const selectedDeliveryId = clean(resolvedSearchParams?.delivery);
+  const favoriteSaved = clean(resolvedSearchParams?.favoriteSaved) === "1";
+  const favoriteRemoved = clean(resolvedSearchParams?.favoriteRemoved) === "1";
+  const error = clean(resolvedSearchParams?.error);
   const campaign = await getEmailCampaignById(campaignId);
   if (!campaign) notFound();
 
   const deliveries = await listEmailCampaignDeliveries(campaignId);
+  const isFavorite = await isEmailCampaignFavorite(user.clerk_user_id, campaignId);
   const selectedDelivery = deliveries.find((delivery) => clean(delivery.id) === selectedDeliveryId) || deliveries[0] || null;
   const previewHtml = selectedDelivery ? buildDeliveryPreviewHtml(campaign, selectedDelivery) : renderEmailHtml({
     subject: clean(campaign.subject),
@@ -88,12 +97,24 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
             <Link className="chip-link" href="/email/campaigns">חזרה להודעות תפוצה קודמות</Link>
-            <Link className="chip-link" href="/email">תפוצה חדשה</Link>
             <a className="chip-link" href={`/api/email/campaigns/${campaignId}/export`}>יצוא לאקסל</a>
             <form action={reopenEmailCampaignAction}>
               <input type="hidden" name="campaignId" value={campaignId} />
-              <button type="submit" className="chip-link">שליחה חוזרת</button>
+              <button type="submit" className="chip-link">שליחה מחדש</button>
             </form>
+            {isFavorite ? (
+              <form action={removeFavoriteEmailCampaignAction}>
+                <input type="hidden" name="campaignId" value={campaignId} />
+                <input type="hidden" name="returnTo" value={`/email/campaigns/${campaignId}`} />
+                <button type="submit" className="chip-link">הסר ממועדפים</button>
+              </form>
+            ) : (
+              <form action={saveFavoriteEmailCampaignAction}>
+                <input type="hidden" name="campaignId" value={campaignId} />
+                <input type="hidden" name="returnTo" value={`/email/campaigns/${campaignId}`} />
+                <button type="submit" className="chip-link">שמור כמועדף</button>
+              </form>
+            )}
           </div>
         </div>
         <div className="email-hero-status">
@@ -103,6 +124,10 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
           <small>{campaign.sent_count || 0} נשלחו | {campaign.failed_count || 0} נכשלו | {openRate}% פתיחה</small>
         </div>
       </div>
+
+      {favoriteSaved ? <div className="ok">הקמפיין נשמר במועדפים ויופיע במסך המיילים.</div> : null}
+      {favoriteRemoved ? <div className="ok">הקמפיין הוסר מרשימת המועדפים.</div> : null}
+      {error ? <div className="card muted">{error}</div> : null}
 
       <div className="email-layout">
         <section className="email-panel">

@@ -6,14 +6,31 @@ import {
   getEmailCampaignDraft,
   getEmailCandidateStudents,
   getUnsubscribedEmailSet,
+  listFavoriteEmailCampaignsForUser,
   listEmailUnsubscribes,
   summarizeEmailCandidates
 } from "../../lib/email-campaigns";
 import { getResendConfigStatus } from "../../lib/resend";
 import { requireEmailSender } from "../../lib/rbac";
-import { clean, INSTITUTIONS } from "../../lib/student-view";
+import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { ENUM_LABELS } from "../../lib/student-fields";
-import { addEmailUnsubscribeAction, createEmailCampaignConfirmAction, removeEmailUnsubscribeAction } from "./actions";
+import {
+  addEmailUnsubscribeAction,
+  createEmailCampaignConfirmAction,
+  removeEmailUnsubscribeAction,
+  removeFavoriteEmailCampaignAction,
+  reopenEmailCampaignAction
+} from "./actions";
+
+function institutionLabel(value) {
+  const key = clean(value).toUpperCase();
+  return INSTITUTIONS[key] || clean(value) || "-";
+}
+
+function classLabel(value) {
+  const key = clean(value).toUpperCase();
+  return CLASS_LABELS[key] || clean(value) || "-";
+}
 
 export default async function EmailPage({ searchParams }) {
   const user = await requireEmailSender();
@@ -46,6 +63,8 @@ export default async function EmailPage({ searchParams }) {
   const error = clean(resolvedSearchParams?.error);
   const blacklistUpdated = clean(resolvedSearchParams?.blacklistUpdated) === "1";
   const reopened = clean(resolvedSearchParams?.reopened) === "1";
+  const favoriteSaved = clean(resolvedSearchParams?.favoriteSaved) === "1";
+  const favoriteRemoved = clean(resolvedSearchParams?.favoriteRemoved) === "1";
 
   const resendStatus = getResendConfigStatus();
   const students = await getEmailCandidateStudents(filters);
@@ -74,6 +93,7 @@ export default async function EmailPage({ searchParams }) {
     : buildDefaultSenderNameForStudents(studentsWithBlacklistState);
   const summary = summarizeEmailCandidates(studentsWithBlacklistState, filters.recipientMode);
   const unsubscribes = await listEmailUnsubscribes(200);
+  const favoriteCampaigns = await listFavoriteEmailCampaignsForUser(user.clerk_user_id, 10);
 
   return (
     <>
@@ -103,7 +123,9 @@ export default async function EmailPage({ searchParams }) {
           השליחה הסתיימה: {sent} נשלחו, {failed || 0} נכשלו, {skipped || 0} דולגו.
         </div>
       ) : null}
-      {reopened ? <div className="ok">ההודעה הקודמת נטענה כטיוטה חדשה, ואפשר לעדכן אותה לפני שליחה חוזרת.</div> : null}
+      {reopened ? <div className="ok">ההודעה הקודמת נטענה כטיוטה חדשה עם הגדרות הסינון המקוריות, ואפשר לעדכן אותה לפני שליחה מחדש.</div> : null}
+      {favoriteSaved ? <div className="ok">הקמפיין נשמר במועדפים לשימוש חוזר מהיר.</div> : null}
+      {favoriteRemoved ? <div className="ok">הקמפיין הוסר מרשימת המועדפים.</div> : null}
       {blacklistUpdated ? <div className="ok">הרשימה השחורה עודכנה בהצלחה.</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
@@ -191,6 +213,44 @@ export default async function EmailPage({ searchParams }) {
 
       <div className="email-layout" style={{ marginTop: 18 }}>
         <section className="email-panel">
+          <div className="email-log-card">
+            <div className="email-section-title">
+              <h2>קמפיינים מועדפים</h2>
+              <span>{favoriteCampaigns.length} שמורים</span>
+            </div>
+            {!favoriteCampaigns.length ? (
+              <div className="muted">שמור קמפיין מתוך דף קמפיין קיים, והוא יופיע כאן לפתיחה מהירה.</div>
+            ) : (
+              <div className="email-favorite-list">
+                {favoriteCampaigns.map((campaign) => (
+                  <div key={campaign.campaign_id} className="email-log-row email-favorite-row">
+                    <div>
+                      <b>{campaign.label || campaign.subject}</b>
+                      <small>{campaign.subject}</small>
+                      <small>{[
+                        campaign.sender_name || "-",
+                        campaign.institution ? institutionLabel(campaign.institution) : "",
+                        campaign.class_filter ? classLabel(campaign.class_filter) : ""
+                      ].filter(Boolean).join(" | ")}</small>
+                    </div>
+                    <div className="email-favorite-actions">
+                      <form action={reopenEmailCampaignAction}>
+                        <input type="hidden" name="campaignId" value={campaign.campaign_id} />
+                        <button type="submit" className="chip-link">שליחה מחדש</button>
+                      </form>
+                      <Link className="chip-link" href={`/email/campaigns/${campaign.campaign_id}`}>פתח</Link>
+                      <form action={removeFavoriteEmailCampaignAction}>
+                        <input type="hidden" name="campaignId" value={campaign.campaign_id} />
+                        <input type="hidden" name="returnTo" value="/email" />
+                        <button type="submit" className="chip-link">הסר</button>
+                      </form>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="email-certainty-card">
             <h2>מדרג ודאות</h2>
             <div className="email-certainty-steps">

@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { requireEmailSender } from "../../lib/rbac";
 import {
   addEmailUnsubscribe,
+  addFavoriteEmailCampaign,
   getEmailCampaignById,
+  removeFavoriteEmailCampaign,
   removeEmailUnsubscribe,
   saveEmailCampaignDraft,
   sendEmailCampaign
@@ -165,4 +167,39 @@ export async function reopenEmailCampaignAction(formData) {
   });
 
   redirect(`/email?draft=${encodeURIComponent(draftId)}&reopened=1`);
+}
+
+export async function saveFavoriteEmailCampaignAction(formData) {
+  const user = await requireEmailSender();
+  const campaignId = clean(formData.get("campaignId"));
+  const returnTo = clean(formData.get("returnTo")) || `/email/campaigns/${encodeURIComponent(campaignId)}`;
+
+  try {
+    await addFavoriteEmailCampaign({
+      clerkUserId: user.clerk_user_id,
+      campaignId,
+      label: clean(formData.get("label"))
+    });
+  } catch (error) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(clean(error?.message) || "שמירת המועדף נכשלה")}`);
+  }
+
+  redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}favoriteSaved=1`);
+}
+
+export async function removeFavoriteEmailCampaignAction(formData) {
+  const user = await requireEmailSender();
+  const campaignId = clean(formData.get("campaignId"));
+  const returnTo = clean(formData.get("returnTo")) || `/email/campaigns/${encodeURIComponent(campaignId)}`;
+
+  try {
+    await removeFavoriteEmailCampaign({
+      clerkUserId: user.clerk_user_id,
+      campaignId
+    });
+  } catch (error) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(clean(error?.message) || "הסרת המועדף נכשלה")}`);
+  }
+
+  redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}favoriteRemoved=1`);
 }

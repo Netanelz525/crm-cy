@@ -3354,6 +3354,22 @@ td {
   align-items: center;
 }
 
+.email-favorite-list {
+  display: grid;
+  gap: 10px;
+}
+
+.email-favorite-row {
+  align-items: flex-start;
+}
+
+.email-favorite-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .email-preview-card iframe {
   width: 100%;
   min-height: 520px;
