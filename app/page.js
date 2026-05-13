@@ -89,14 +89,25 @@ function columnNode(student, columnKey) {
 function buildQueryString(params) {
   if (params instanceof URLSearchParams) return params.toString();
   const sp = new URLSearchParams();
+  const invalidEntry = (key, value = "") => {
+    const normalizedKey = clean(key).toLowerCase();
+    const normalizedValue = clean(value).toLowerCase();
+    if (!normalizedKey) return true;
+    if (normalizedKey.includes("[object object]") || normalizedValue.includes("[object object]")) return true;
+    if (["undefined", "null"].includes(normalizedKey)) return true;
+    return false;
+  };
   for (const [key, value] of Object.entries(params || {})) {
+    if (invalidEntry(key)) continue;
     if (Array.isArray(value)) {
-      value.map(clean).filter(Boolean).forEach((item) => sp.append(key, item));
+      value.map(clean).filter(Boolean).forEach((item) => {
+        if (!invalidEntry(key, item)) sp.append(key, item);
+      });
       continue;
     }
     if (value && typeof value === "object") continue;
     const next = clean(value);
-    if (next) sp.set(key, next);
+    if (next && !invalidEntry(key, next)) sp.set(key, next);
   }
   return sp.toString();
 }
