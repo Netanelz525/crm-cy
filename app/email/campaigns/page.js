@@ -26,11 +26,31 @@ function recipientModeLabel(value) {
   return RECIPIENT_MODE_LABELS[clean(value)] || clean(value) || "-";
 }
 
+function campaignTimestamp(campaign) {
+  return clean(campaign.sent_at || campaign.created_at);
+}
+
+function formatCampaignDate(value) {
+  const stamp = clean(value);
+  if (!stamp) return "-";
+  const date = new Date(stamp);
+  if (Number.isNaN(date.getTime())) return stamp;
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
+}
+
+function normalizeDateInput(value) {
+  const cleaned = clean(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(cleaned) ? cleaned : "";
+}
+
 function sortCampaigns(campaigns, sortBy) {
   const items = [...campaigns];
   switch (sortBy) {
     case "oldest":
-      return items.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+      return items.sort((a, b) => new Date(campaignTimestamp(a) || 0).getTime() - new Date(campaignTimestamp(b) || 0).getTime());
     case "opens":
       return items.sort((a, b) => {
         const aRate = Number(a.sent_count || 0) > 0 ? Number(a.opened_count || 0) / Number(a.sent_count || 0) : 0;
@@ -42,7 +62,7 @@ function sortCampaigns(campaigns, sortBy) {
     case "sent":
       return items.sort((a, b) => Number(b.sent_count || 0) - Number(a.sent_count || 0));
     default:
-      return items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      return items.sort((a, b) => new Date(campaignTimestamp(b) || 0).getTime() - new Date(campaignTimestamp(a) || 0).getTime());
   }
 }
 
@@ -56,6 +76,8 @@ export default async function EmailCampaignListPage({ searchParams }) {
     institution: clean(resolvedSearchParams?.institution),
     status: clean(resolvedSearchParams?.status),
     recipientMode: clean(resolvedSearchParams?.recipientMode),
+    dateFrom: normalizeDateInput(resolvedSearchParams?.dateFrom),
+    dateTo: normalizeDateInput(resolvedSearchParams?.dateTo),
     sortBy: clean(resolvedSearchParams?.sortBy) || "newest"
   };
   const searchNeedle = filters.q.toLowerCase();
@@ -70,11 +92,23 @@ export default async function EmailCampaignListPage({ searchParams }) {
         clean(campaign.class_filter),
         clean(campaign.status),
         clean(campaign.recipient_mode)
-      ].join(" ").toLowerCase();
+        ].join(" ").toLowerCase();
+      const sentOrCreated = campaignTimestamp(campaign);
+      const campaignDate = sentOrCreated ? new Date(sentOrCreated) : null;
       if (searchNeedle && !haystack.includes(searchNeedle)) return false;
       if (filters.institution && clean(campaign.institution) !== filters.institution) return false;
       if (filters.status && clean(campaign.status) !== filters.status) return false;
       if (filters.recipientMode && clean(campaign.recipient_mode) !== filters.recipientMode) return false;
+      if (filters.dateFrom) {
+        if (!campaignDate || Number.isNaN(campaignDate.getTime())) return false;
+        const fromDate = new Date(`${filters.dateFrom}T00:00:00`);
+        if (campaignDate < fromDate) return false;
+      }
+      if (filters.dateTo) {
+        if (!campaignDate || Number.isNaN(campaignDate.getTime())) return false;
+        const toDate = new Date(`${filters.dateTo}T23:59:59`);
+        if (campaignDate > toDate) return false;
+      }
       return true;
     }),
     filters.sortBy
@@ -89,7 +123,7 @@ export default async function EmailCampaignListPage({ searchParams }) {
   }, { recipients: 0, sent: 0, failed: 0, opened: 0 });
   const openRate = totals.sent > 0 ? Math.round((totals.opened / totals.sent) * 100) : 0;
   const uniqueStatuses = Array.from(new Set(campaigns.map((campaign) => clean(campaign.status)).filter(Boolean)));
-  const hasActiveFilters = Boolean(filters.q || filters.institution || filters.status || filters.recipientMode || filters.sortBy !== "newest");
+  const hasActiveFilters = Boolean(filters.q || filters.institution || filters.status || filters.recipientMode || filters.dateFrom || filters.dateTo || filters.sortBy !== "newest");
 
   return (
     <>
@@ -101,7 +135,7 @@ export default async function EmailCampaignListPage({ searchParams }) {
             כאן אפשר לפתוח קמפיינים קודמים, לראות דוחות מלאים, ולצאת מהם לשליחה חוזרת כטיוטה חדשה.
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
-            <Link className="chip-link" href="/email">תפוצה חדשה</Link>
+            <Link className="chip-link" href="/email?compose=1">תפוצה חדשה</Link>
           </div>
         </div>
       </div>
@@ -143,6 +177,14 @@ export default async function EmailCampaignListPage({ searchParams }) {
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
+            </label>
+            <label>
+              מתאריך
+              <input type="date" name="dateFrom" defaultValue={filters.dateFrom} />
+            </label>
+            <label>
+              עד תאריך
+              <input type="date" name="dateTo" defaultValue={filters.dateTo} />
             </label>
             <label>
               מיון
@@ -187,6 +229,7 @@ export default async function EmailCampaignListPage({ searchParams }) {
                   <b>{campaign.subject}</b>
                   <small>
                     {[
+                      formatCampaignDate(campaignTimestamp(campaign)),
                       campaign.sender_name || "-",
                       campaign.institution ? institutionLabel(campaign.institution) : "",
                       campaign.class_filter ? classLabel(campaign.class_filter) : "",

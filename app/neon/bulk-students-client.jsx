@@ -162,6 +162,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
       if (key === "mode") continue;
       params.append(key, value);
     }
+    params.set("compose", "1");
     params.set("recipientMode", "parents");
     selectedIds.forEach((id) => params.append("studentIds", id));
     return `/email?${params.toString()}`;
