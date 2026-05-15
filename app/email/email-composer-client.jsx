@@ -310,10 +310,10 @@ export default function EmailComposerClient({
             <h2>לפני מעבר לאישור סופי</h2>
             <div className="email-certainty-steps">
               <div><b>{selectedStudents.length}</b><span>תלמידים נבחרו</span><small>אפשר לשלוח לכל התלמידים המסוננים או רק למסומנים.</small></div>
-              <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>בדף הבא תראה את רשימת הנמענים הסופית לפני שליחה.</small></div>
+              <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>בדף הבא תראה את רשימת הנמענים הסופית וגם תוכל לצרף קבצים לפני שליחה.</small></div>
             </div>
             <button type="submit" disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !selectedRecipientCount}>
-              המשך לדף אישור סופי
+              המשך למסך אישור וצירוף קבצים
             </button>
           </div>
         </div>

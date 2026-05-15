@@ -99,7 +99,7 @@ export default async function EmailConfirmPage({ searchParams }) {
           <p className="email-kicker">אישור סופי</p>
           <h1>בדיקה אחרונה לפני שליחה דרך Resend</h1>
           <p className="muted">
-            זהו המייל הסופי שיישלח בפועל. התצוגה המקדימה מוצגת לפי הנמען הראשון ברשימה, ולכן הפנייה האישית יכולה להשתנות מעט בין נמען לנמען.
+            זהו המייל הסופי שיישלח בפועל. כאן גם מצרפים קבצים לפני השליחה. התצוגה המקדימה מוצגת לפי הנמען הראשון ברשימה, ולכן הפנייה האישית יכולה להשתנות מעט בין נמען לנמען.
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
             <Link className="chip-link" href={backHref}>חזור לעריכת המייל</Link>

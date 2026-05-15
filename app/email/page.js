@@ -144,6 +144,20 @@ export default async function EmailPage({ searchParams }) {
       {blacklistUpdated ? <div className="ok">הרשימה השחורה עודכנה בהצלחה.</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
+      {!composeMode ? (
+        <div className="email-filter-card">
+          <h2>יצירת תפוצה חדשה</h2>
+          <p className="muted">
+            כדי לעבור למסך כתיבת ההודעה, אישור סופי וצירוף קבצים, יש ללחוץ על הכפתור הבא.
+          </p>
+          <div className="quick-actions" style={{ marginTop: 12 }}>
+            <Link className="btn btn-primary bulk-primary-btn" href="/email?compose=1">
+              פתח יצירת תפוצה חדשה
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {composeMode ? (
         <>
           <form className="email-filter-card" action="/email" method="get">
