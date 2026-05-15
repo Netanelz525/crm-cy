@@ -168,6 +168,7 @@ export default async function EmailConfirmPage({ searchParams }) {
             <label>
               קבצים מצורפים
               <input type="file" name="attachments" multiple />
+              <small className="muted">אפשר לצרף כמה קבצים. הסך הכולל המומלץ הוא עד כ־29MB לפני העלאה, בהתאם למגבלת Resend.</small>
             </label>
 
             <label className="email-final-check">
