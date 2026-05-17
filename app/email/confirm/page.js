@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import AttachmentsInputClient from "../attachments-input-client";
 import {
   buildDefaultSenderNameForStudents,
   buildDeliveryTargets,
@@ -165,11 +166,7 @@ export default async function EmailConfirmPage({ searchParams }) {
               </div>
             </div>
 
-            <label>
-              קבצים מצורפים
-              <input type="file" name="attachments" multiple />
-              <small className="muted">אפשר לצרף כמה קבצים. הסך הכולל המומלץ הוא עד כ־29MB לפני העלאה, בהתאם למגבלת Resend.</small>
-            </label>
+            <AttachmentsInputClient />
 
             <label className="email-final-check">
               <input type="checkbox" name="confirmFinalSend" value="1" required />

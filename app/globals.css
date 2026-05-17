@@ -102,6 +102,44 @@ a {
   margin-top: 12px;
 }
 
+.email-attachments-card {
+  display: grid;
+  gap: 10px;
+}
+
+.email-attachments-status {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.email-attachments-status-ok {
+  background: #eef8f1;
+  border-color: #b9dfc4;
+}
+
+.email-attachments-status-error {
+  background: var(--danger-bg);
+  border-color: #f3b5bf;
+}
+
+.email-attachments-list {
+  display: grid;
+  gap: 8px;
+}
+
+.email-attachments-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
 .quick-action-btn {
   display: inline-flex;
   align-items: center;
