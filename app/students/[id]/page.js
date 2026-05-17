@@ -351,8 +351,8 @@ export default async function StudentPage({ params, searchParams }) {
                 <div className="linked-record-meta">נמען: {delivery.recipient_name || delivery.recipient_email}</div>
                 <div className="linked-record-meta">אימייל: {delivery.recipient_email}</div>
                 <div className="linked-record-meta">פתיחות: {delivery.open_count || 0}</div>
-                <div className="linked-record-meta">נפתח: {delivery.opened_at ? new Date(delivery.opened_at).toLocaleString("he-IL") : "-"}</div>
-                <div className="linked-record-meta">נלחץ: {delivery.clicked_at ? new Date(delivery.clicked_at).toLocaleString("he-IL") : "-"}</div>
+                <div className="linked-record-meta">נפתח: {delivery.opened_at ? new Date(delivery.opened_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
+                <div className="linked-record-meta">נלחץ: {delivery.clicked_at ? new Date(delivery.clicked_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
               </div>
             ))
           )}

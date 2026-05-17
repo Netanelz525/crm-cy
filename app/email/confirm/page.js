@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AttachmentsInputClient from "../attachments-input-client";
+import FinalSendSubmitClient from "../final-send-submit-client";
 import {
   buildDefaultSenderNameForStudents,
   buildDeliveryTargets,
@@ -173,9 +174,7 @@ export default async function EmailConfirmPage({ searchParams }) {
               אני מאשר שליחה סופית של המייל הזה דרך Resend
             </label>
 
-            <button type="submit" disabled={!resendStatus.configured}>
-              אשר ושלח דרך Resend
-            </button>
+            <FinalSendSubmitClient resendConfigured={resendStatus.configured} />
           </form>
         </section>
 

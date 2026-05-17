@@ -140,6 +140,20 @@ a {
   background: #f8fbff;
 }
 
+.email-final-submit-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.email-final-submit-status {
+  border: 1px solid #bfd6ee;
+  background: #f4f9ff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
 .quick-action-btn {
   display: inline-flex;
   align-items: center;
