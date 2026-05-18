@@ -10,7 +10,7 @@ import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/stu
 import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { addStudentContactAction, deleteNeonStudentAction, removeStudentTagAction, updateNeonStudentAction, updateStudentTagsAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import { addStudentContactAction, addStudentTagAction, deleteNeonStudentAction, removeStudentTagAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -227,7 +227,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
     listAttendanceHistoryForStudent(studentId)
   ]);
   const assignedTags = studentTagsMap[studentId] || [];
-  const assignedTagIds = new Set(assignedTags.map((tag) => tag.id));
+  const availableTagOptions = availableTags.filter((tag) => !assignedTags.some((assignedTag) => assignedTag.id === tag.id));
   const contactLogs = await listStudentContactLogs(studentId, 8);
   const latestContact = contactLogs[0] || null;
   const defaultContactDate = todayInputValue();
@@ -245,9 +245,9 @@ export default async function NeonStudentPage({ params, searchParams }) {
               <span className="meta-chip">גיל: {ageOf(student?.dateofbirth) ?? "-"}</span>
               <span className="meta-chip meta-chip-strong">שיעור: {classLabel(student?.class)}</span>
             </div>
-            {assignedTags.length ? (
-              <div className="student-meta-line" style={{ marginTop: 10 }}>
-                {assignedTags.map((tag) => (
+            <div className="student-meta-line student-tags-topline" style={{ marginTop: 10 }}>
+              {assignedTags.length ? (
+                assignedTags.map((tag) => (
                   <form key={tag.id} action={removeStudentTagAction} className="student-tag-chip-form">
                     <input type="hidden" name="studentId" value={studentId} />
                     <input type="hidden" name="tagId" value={tag.id} />
@@ -256,9 +256,36 @@ export default async function NeonStudentPage({ params, searchParams }) {
                       <span aria-hidden="true">×</span>
                     </button>
                   </form>
-                ))}
-              </div>
-            ) : null}
+                ))
+              ) : (
+                <span className="muted">עדיין לא שויכו תגיות לתלמיד הזה.</span>
+              )}
+              {canManageStudent ? (
+                <details className="student-tag-inline-panel">
+                  <summary className="student-tag-inline-trigger" title="הוסף תגית">
+                    <span aria-hidden="true">+</span>
+                  </summary>
+                  <div className="student-tag-quick-body student-tag-inline-body">
+                    <div className="muted">
+                      {availableTagOptions.length
+                        ? "בחר תווית קיימת או צור תווית חדשה."
+                        : "כל התוויות הקיימות כבר משויכות. אפשר ליצור תווית חדשה."}
+                    </div>
+                    <form action={addStudentTagAction} className="student-tag-quick-form">
+                      <input type="hidden" name="studentId" value={studentId} />
+                      <select name="tagId" defaultValue="">
+                        <option value="">בחר תווית קיימת</option>
+                        {availableTagOptions.map((tag) => (
+                          <option key={tag.id} value={tag.id}>{tag.name}</option>
+                        ))}
+                      </select>
+                      <input name="newTagName" placeholder="או צור תווית חדשה" />
+                      <button type="submit">שמור תווית</button>
+                    </form>
+                  </div>
+                </details>
+              ) : null}
+            </div>
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link>
@@ -319,47 +346,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {tagsUpdated ? <div className="ok">תגיות התלמיד עודכנו בהצלחה.</div> : null}
       {contactSaved ? <div className="ok">רשומת יצירת הקשר נשמרה בהצלחה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
-
-      <div className="card">
-        <h3>תגיות תלמיד</h3>
-        {!assignedTags.length ? (
-          <p className="muted">עדיין לא שויכו תגיות לתלמיד הזה.</p>
-        ) : (
-          <div className="student-meta-line">
-            {assignedTags.map((tag) => (
-              <form key={tag.id} action={removeStudentTagAction} className="student-tag-chip-form">
-                <input type="hidden" name="studentId" value={studentId} />
-                <input type="hidden" name="tagId" value={tag.id} />
-                <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
-                  <span style={getStudentTagTheme(tag)}>{tag.name}</span>
-                  <span aria-hidden="true">×</span>
-                </button>
-              </form>
-            ))}
-          </div>
-        )}
-        {canManageStudent ? (
-          !availableTags.length ? (
-            <p className="muted" style={{ marginTop: 12 }}>כדי לשייך תגיות, צריך קודם ליצור אותן במסך התלמידים הראשי.</p>
-          ) : (
-            <form action={updateStudentTagsAction} style={{ marginTop: 12 }}>
-              <input type="hidden" name="studentId" value={studentId} />
-              <div className="column-grid">
-                {availableTags.map((tag) => (
-                  <label key={tag.id} className="column-item">
-                    <input type="checkbox" name="tagIds" value={tag.id} defaultChecked={assignedTagIds.has(tag.id)} />
-                    <span>{tag.name}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="quick-actions" style={{ marginTop: 12 }}>
-                <button type="submit">שמור תגיות</button>
-                <Link className="chip-link" href="/neon">פתח ניהול תגיות</Link>
-              </div>
-            </form>
-          )
-        ) : null}
-      </div>
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
         <summary className="linked-records-toggle">
