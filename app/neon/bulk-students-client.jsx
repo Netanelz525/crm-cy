@@ -126,6 +126,23 @@ function MatchScoreBadge({ score }) {
   return <span className={`match-score-pill ${scoreClassName(value)}`}>{Math.round(value * 100)}%</span>;
 }
 
+function formatDateValue(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString("he-IL");
+}
+
+function todayInputValue() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
 function StudentTagSummary({ student, action, returnTo }) {
   const tags = Array.isArray(student?.tags) ? student.tags : [];
   if (!tags.length) return null;
@@ -170,7 +187,31 @@ function TagActionButton({ student, availableTags, action, returnTo }) {
   );
 }
 
-export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [], addStudentTagAction, removeStudentTagAction }) {
+function ContactActionButton({ student, action, returnTo }) {
+  const latestContact = student?.latestContact || null;
+  const defaultDate = todayInputValue();
+  return (
+    <details className="student-tag-quick-panel">
+      <summary className="chip-link student-tag-quick-trigger">יצירת קשר</summary>
+      <div className="student-tag-quick-body">
+        <div className="muted">
+          {latestContact
+            ? `שיחה אחרונה: ${formatDateValue(latestContact.contactDate)} | ${latestContact.noteText || "-"}`
+            : "עדיין לא תועדה יצירת קשר."}
+        </div>
+        <form action={action} className="student-tag-quick-form">
+          <input type="hidden" name="studentId" value={student.id} />
+          <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
+          <input type="date" name="contactDate" defaultValue={defaultDate} />
+          <input name="noteText" placeholder="תיעוד קצר של יצירת הקשר" />
+          <button type="submit">שמור יצירת קשר</button>
+        </form>
+      </div>
+    </details>
+  );
+}
+
+export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [], addStudentTagAction, removeStudentTagAction, addStudentContactAction }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -380,6 +421,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <th>טלפון תלמיד</th>
                 <th>טלפון אב</th>
                 <th>טלפון אם</th>
+                <th>יצירת קשר</th>
                 <th>תוויות</th>
                 <th>חוסרים</th>
               </tr>
@@ -388,7 +430,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
           <tbody>
             {!students.length ? (
               <tr>
-                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 11 : 10)} className="muted">אין תוצאות</td>
+                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 12 : 11)} className="muted">אין תוצאות</td>
               </tr>
             ) : showInstitutionView ? (
               students.map((student) => {
@@ -429,6 +471,9 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td><PhoneLink phoneObj={student.dadPhone} /></td>
                     <td><PhoneLink phoneObj={student.momPhone} /></td>
                     <td>
+                      <ContactActionButton student={student} action={addStudentContactAction} returnTo={returnTo} />
+                    </td>
+                    <td>
                       <TagActionButton student={student} availableTags={availableTags} action={addStudentTagAction} returnTo={returnTo} />
                     </td>
                     <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>{hasMissing ? missingState.items.join(", ") : "-"}</td>
@@ -456,9 +501,13 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                 </div>
                 <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
+                <div className="student-mobile-contact">
+                  <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}
+                </div>
                 <div className="student-mobile-grid">
                   {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
                 </div>
+                <ContactActionButton student={student} action={addStudentContactAction} returnTo={returnTo} />
               </div>
             );
           })
@@ -478,6 +527,9 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <span>{classLabel(student.class)}</span>
                 </div>
                 <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
+                <div className="student-mobile-contact">
+                  <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}
+                </div>
                 <div className="student-mobile-grid">
                   <div><b>ת"ז:</b> {student.tznum || "-"}</div>
                   <div><b>גיל:</b> {ageOf(student.dateofbirth) ?? "-"}</div>
@@ -485,6 +537,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <div><b>טלפון אב:</b> <PhoneLink phoneObj={student.dadPhone} /></div>
                   <div><b>טלפון אם:</b> <PhoneLink phoneObj={student.momPhone} /></div>
                 </div>
+                <ContactActionButton student={student} action={addStudentContactAction} returnTo={returnTo} />
                 <TagActionButton student={student} availableTags={availableTags} action={addStudentTagAction} returnTo={returnTo} />
                 <div className="student-mobile-missing"><b>חוסרים:</b> {hasMissing ? missingState.items.join(", ") : "-"}</div>
               </div>

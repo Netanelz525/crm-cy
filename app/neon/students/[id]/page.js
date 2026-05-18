@@ -6,9 +6,10 @@ import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } fro
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentDocuments } from "../../../../lib/student-documents";
 import { getStudentTagTheme, getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
+import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { deleteNeonStudentAction, removeStudentTagAction, updateNeonStudentAction, updateStudentTagsAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import { addStudentContactAction, deleteNeonStudentAction, removeStudentTagAction, updateNeonStudentAction, updateStudentTagsAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -24,6 +25,16 @@ function formatDate(value) {
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return raw;
   return d.toLocaleDateString("he-IL");
+}
+
+function todayInputValue() {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  return formatter.format(new Date());
 }
 
 function phoneText(phoneObj) {
@@ -200,6 +211,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const documentUploaded = clean(resolvedSearchParams?.documentUploaded) === "1";
   const documentRenamed = clean(resolvedSearchParams?.documentRenamed) === "1";
   const tagsUpdated = clean(resolvedSearchParams?.tagsUpdated) === "1";
+  const contactSaved = clean(resolvedSearchParams?.contactSaved) === "1";
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
@@ -215,6 +227,9 @@ export default async function NeonStudentPage({ params, searchParams }) {
   ]);
   const assignedTags = studentTagsMap[studentId] || [];
   const assignedTagIds = new Set(assignedTags.map((tag) => tag.id));
+  const contactLogs = await listStudentContactLogs(studentId, 8);
+  const latestContact = contactLogs[0] || null;
+  const defaultContactDate = todayInputValue();
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
@@ -301,6 +316,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
       {tagsUpdated ? <div className="ok">תגיות התלמיד עודכנו בהצלחה.</div> : null}
+      {contactSaved ? <div className="ok">רשומת יצירת הקשר נשמרה בהצלחה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card">
@@ -353,8 +369,25 @@ export default async function NeonStudentPage({ params, searchParams }) {
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
             <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
+            <span className="linked-record-pill">יצירת קשר: {contactLogs.length}</span>
           </div>
         </summary>
+        <div className="linked-record-card contact-log-card">
+          <div className="linked-record-card-top">
+            <b>יצירת קשר אחרונה</b>
+            <span className="linked-record-pill">{latestContact ? formatDate(latestContact.contactDate) : "עדיין לא תועד"}</span>
+          </div>
+          <div className="linked-record-meta">{latestContact ? latestContact.noteText : "עדיין אין תיעוד יצירת קשר לתלמיד הזה."}</div>
+          {latestContact?.createdByDisplayName || latestContact?.createdByEmail ? (
+            <div className="linked-record-meta">תועד על ידי: {latestContact.createdByDisplayName || latestContact.createdByEmail}</div>
+          ) : null}
+        </div>
+        <form action={addStudentContactAction} className="grid" style={{ marginBottom: 12 }}>
+          <input type="hidden" name="studentId" value={studentId} />
+          <input type="date" name="contactDate" defaultValue={defaultContactDate} />
+          <input name="noteText" placeholder="תיעוד קצר של השיחה או יצירת הקשר" />
+          <button type="submit">הוסף יצירת קשר</button>
+        </form>
         {canManageDocuments ? (
           <form action={uploadStudentDocumentAction} className="grid" style={{ marginBottom: 12 }}>
             <input type="hidden" name="studentId" value={studentId} />
@@ -372,6 +405,26 @@ export default async function NeonStudentPage({ params, searchParams }) {
         ) : null}
         <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
+          {!contactLogs.length ? (
+            <div className="linked-record-card placeholder">
+              <b>יצירת קשר</b>
+              <div className="linked-record-meta">עדיין לא תועדה יצירת קשר עם התלמיד.</div>
+              <div className="linked-record-meta">כאן יופיעו התאריך והסיכום הקצר של כל שיחה או פניה.</div>
+            </div>
+          ) : (
+            contactLogs.map((contact) => (
+              <div key={contact.id} className="linked-record-card">
+                <div className="linked-record-card-top">
+                  <b>יצירת קשר</b>
+                  <span className="linked-record-pill">{formatDate(contact.contactDate)}</span>
+                </div>
+                <div className="linked-record-meta">{contact.noteText || "-"}</div>
+                <div className="linked-record-meta">
+                  תועד: {contact.createdByDisplayName || contact.createdByEmail || "-"}
+                </div>
+              </div>
+            ))
+          )}
           {!documents.length ? (
             <div className="linked-record-card">
               <b>מסמכים</b>
