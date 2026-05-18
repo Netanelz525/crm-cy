@@ -125,7 +125,37 @@ function MatchScoreBadge({ score }) {
   return <span className={`match-score-pill ${scoreClassName(value)}`}>{Math.round(value * 100)}%</span>;
 }
 
-export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo }) {
+function TagActionButton({ student, availableTags, action, returnTo }) {
+  const tags = Array.isArray(student?.tags) ? student.tags : [];
+  return (
+    <details className="student-tag-quick-panel">
+      <summary className="chip-link student-tag-quick-trigger">הוספת תווית</summary>
+      <div className="student-tag-quick-body">
+        {tags.length ? (
+          <div className="student-tag-chip-row">
+            {tags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
+          </div>
+        ) : (
+          <div className="muted">אין עדיין תוויות לתלמיד הזה.</div>
+        )}
+        <form action={action} className="student-tag-quick-form">
+          <input type="hidden" name="studentId" value={student.id} />
+          <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
+          <select name="tagId" defaultValue="">
+            <option value="">בחר תווית קיימת</option>
+            {availableTags.map((tag) => (
+              <option key={tag.id} value={tag.id}>{tag.name}</option>
+            ))}
+          </select>
+          <input name="newTagName" placeholder="או צור תווית חדשה" />
+          <button type="submit">שמור תווית</button>
+        </form>
+      </div>
+    </details>
+  );
+}
+
+export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [], addStudentTagAction }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -335,6 +365,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <th>טלפון תלמיד</th>
                 <th>טלפון אב</th>
                 <th>טלפון אם</th>
+                <th>תוויות</th>
                 <th>חוסרים</th>
               </tr>
             )}
@@ -342,7 +373,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
           <tbody>
             {!students.length ? (
               <tr>
-                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 10 : 9)} className="muted">אין תוצאות</td>
+                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 11 : 10)} className="muted">אין תוצאות</td>
               </tr>
             ) : showInstitutionView ? (
               students.map((student) => {
@@ -377,6 +408,9 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td><PhoneLink phoneObj={student.phone} /></td>
                     <td><PhoneLink phoneObj={student.dadPhone} /></td>
                     <td><PhoneLink phoneObj={student.momPhone} /></td>
+                    <td>
+                      <TagActionButton student={student} availableTags={availableTags} action={addStudentTagAction} returnTo={returnTo} />
+                    </td>
                     <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>{hasMissing ? missingState.items.join(", ") : "-"}</td>
                   </tr>
                 );
@@ -429,6 +463,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <div><b>טלפון אב:</b> <PhoneLink phoneObj={student.dadPhone} /></div>
                   <div><b>טלפון אם:</b> <PhoneLink phoneObj={student.momPhone} /></div>
                 </div>
+                <TagActionButton student={student} availableTags={availableTags} action={addStudentTagAction} returnTo={returnTo} />
                 <div className="student-mobile-missing"><b>חוסרים:</b> {hasMissing ? missingState.items.join(", ") : "-"}</div>
               </div>
             );

@@ -1095,6 +1095,35 @@ td {
   font-weight: 700;
 }
 
+.student-tag-quick-panel {
+  margin-top: 10px;
+}
+
+.student-tag-quick-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.student-tag-quick-body {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.student-tag-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.student-tag-quick-form {
+  display: grid;
+  gap: 8px;
+}
+
 .selection-cell {
   width: 44px;
   text-align: center;
