@@ -22,6 +22,14 @@ function clean(v) {
   return String(v || "").trim();
 }
 
+function formatDate(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString("he-IL");
+}
+
 function phoneText(phoneObj) {
   if (!phoneObj?.primaryPhoneNumber) return "-";
   return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
