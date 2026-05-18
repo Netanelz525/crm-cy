@@ -125,19 +125,23 @@ function MatchScoreBadge({ score }) {
   return <span className={`match-score-pill ${scoreClassName(value)}`}>{Math.round(value * 100)}%</span>;
 }
 
+function StudentTagSummary({ student }) {
+  const tags = Array.isArray(student?.tags) ? student.tags : [];
+  if (!tags.length) return null;
+  return (
+    <div className="student-card-tag-row">
+      {tags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
+    </div>
+  );
+}
+
 function TagActionButton({ student, availableTags, action, returnTo }) {
   const tags = Array.isArray(student?.tags) ? student.tags : [];
   return (
     <details className="student-tag-quick-panel">
       <summary className="chip-link student-tag-quick-trigger">הוספת תווית</summary>
       <div className="student-tag-quick-body">
-        {tags.length ? (
-          <div className="student-tag-chip-row">
-            {tags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
-          </div>
-        ) : (
-          <div className="muted">אין עדיין תוויות לתלמיד הזה.</div>
-        )}
+        {tags.length ? <div className="muted">תוויות משויכות: {tags.map((tag) => tag.name).join(", ")}</div> : <div className="muted">אין עדיין תוויות לתלמיד הזה.</div>}
         <form action={action} className="student-tag-quick-form">
           <input type="hidden" name="studentId" value={student.id} />
           <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
@@ -400,7 +404,12 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td className="selection-cell">
                       <input type="checkbox" checked={selectedSet.has(student.id)} onChange={(event) => toggleStudent(student.id, event.target.checked)} />
                     </td>
-                    <td><Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link></td>
+                    <td>
+                      <div className="student-table-name-cell">
+                        <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
+                        <StudentTagSummary student={student} />
+                      </div>
+                    </td>
                     {showMatchScores ? <td><MatchScoreBadge score={student._matchScore} /></td> : null}
                     <td>{classLabel(student.class)}</td>
                     <td>{student.tznum || "-"}</td>
@@ -435,6 +444,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <div className="student-mobile-head">
                   <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                 </div>
+                <StudentTagSummary student={student} />
                 <div className="student-mobile-grid">
                   {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
                 </div>
@@ -456,6 +466,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   {showMatchScores ? <MatchScoreBadge score={student._matchScore} /> : null}
                   <span>{classLabel(student.class)}</span>
                 </div>
+                <StudentTagSummary student={student} />
                 <div className="student-mobile-grid">
                   <div><b>ת"ז:</b> {student.tznum || "-"}</div>
                   <div><b>גיל:</b> {ageOf(student.dateofbirth) ?? "-"}</div>

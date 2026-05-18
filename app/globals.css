@@ -1090,6 +1090,18 @@ td {
   margin-bottom: 8px;
 }
 
+.student-card-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.student-table-name-cell {
+  display: grid;
+  gap: 8px;
+}
+
 .student-mobile-missing {
   color: #b42318;
   font-weight: 700;
@@ -1111,12 +1123,6 @@ td {
   display: grid;
   gap: 10px;
   min-width: 220px;
-}
-
-.student-tag-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .student-tag-quick-form {

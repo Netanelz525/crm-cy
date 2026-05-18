@@ -229,6 +229,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
               <span className="meta-chip">גיל: {ageOf(student?.dateofbirth) ?? "-"}</span>
               <span className="meta-chip meta-chip-strong">שיעור: {classLabel(student?.class)}</span>
             </div>
+            {assignedTags.length ? (
+              <div className="student-meta-line" style={{ marginTop: 10 }}>
+                {assignedTags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
+              </div>
+            ) : null}
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link>
