@@ -125,12 +125,22 @@ function MatchScoreBadge({ score }) {
   return <span className={`match-score-pill ${scoreClassName(value)}`}>{Math.round(value * 100)}%</span>;
 }
 
-function StudentTagSummary({ student }) {
+function StudentTagSummary({ student, action, returnTo }) {
   const tags = Array.isArray(student?.tags) ? student.tags : [];
   if (!tags.length) return null;
   return (
     <div className="student-card-tag-row">
-      {tags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
+      {tags.map((tag) => (
+        <form key={tag.id} action={action} className="student-tag-chip-form">
+          <input type="hidden" name="studentId" value={student.id} />
+          <input type="hidden" name="tagId" value={tag.id} />
+          <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
+          <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
+            <span>{tag.name}</span>
+            <span aria-hidden="true">×</span>
+          </button>
+        </form>
+      ))}
     </div>
   );
 }
@@ -159,7 +169,7 @@ function TagActionButton({ student, availableTags, action, returnTo }) {
   );
 }
 
-export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [], addStudentTagAction }) {
+export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [], addStudentTagAction, removeStudentTagAction }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -408,7 +418,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td>
                       <div className="student-table-name-cell">
                         <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
-                        <StudentTagSummary student={student} />
+                        <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
                       </div>
                     </td>
                     {showMatchScores ? <td><MatchScoreBadge score={student._matchScore} /></td> : null}
@@ -445,7 +455,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <div className="student-mobile-head">
                   <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                 </div>
-                <StudentTagSummary student={student} />
+                <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
                 <div className="student-mobile-grid">
                   {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
                 </div>
@@ -467,7 +477,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   {showMatchScores ? <MatchScoreBadge score={student._matchScore} /> : null}
                   <span>{classLabel(student.class)}</span>
                 </div>
-                <StudentTagSummary student={student} />
+                <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
                 <div className="student-mobile-grid">
                   <div><b>ת"ז:</b> {student.tznum || "-"}</div>
                   <div><b>גיל:</b> {ageOf(student.dateofbirth) ?? "-"}</div>

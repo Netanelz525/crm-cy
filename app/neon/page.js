@@ -30,6 +30,7 @@ import {
 } from "../../lib/neon-students";
 import {
   addStudentTagFromSearchAction,
+  removeStudentTagFromSearchAction,
   prepareNeonStudentsImportAction,
   resetNeonPreferencesAction,
   saveNeonPreferencesAction
@@ -699,6 +700,7 @@ export default async function NeonPage({ searchParams }) {
       <BulkStudentsClient
         addStudentTagAction={addStudentTagFromSearchAction}
         availableTags={availableTags}
+        removeStudentTagAction={removeStudentTagFromSearchAction}
         students={students}
         selectedColumns={selectedColumns}
         showInstitutionView={showInstitutionView}

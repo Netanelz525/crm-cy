@@ -14,6 +14,7 @@ import { getResendConfigStatus } from "../../lib/resend";
 import { requireEmailSender } from "../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { ENUM_LABELS } from "../../lib/student-fields";
+import { listStudentTags } from "../../lib/student-tags";
 import {
   addEmailUnsubscribeAction,
   createEmailCampaignConfirmAction,
@@ -54,6 +55,11 @@ export default async function EmailPage({ searchParams }) {
     class: clean(draft?.class || resolvedSearchParams?.class),
     registration: clean(draft?.registration || resolvedSearchParams?.registration),
     familystatus: clean(draft?.familystatus || resolvedSearchParams?.familystatus),
+    tagIds: Array.isArray(draft?.tagIds)
+      ? draft.tagIds.map(clean).filter(Boolean)
+      : Array.isArray(resolvedSearchParams?.tagIds)
+        ? resolvedSearchParams.tagIds.map(clean).filter(Boolean)
+        : clean(resolvedSearchParams?.tagIds) ? [clean(resolvedSearchParams.tagIds)] : [],
     q: clean(draft?.q || resolvedSearchParams?.q),
     recipientMode: clean(draft?.recipientMode || resolvedSearchParams?.recipientMode) || "parents",
     selectedStudentIds: Array.isArray(draft?.selectedStudentIds)
@@ -77,6 +83,7 @@ export default async function EmailPage({ searchParams }) {
   const favoriteRemoved = clean(resolvedSearchParams?.favoriteRemoved) === "1";
 
   const resendStatus = getResendConfigStatus();
+  const availableTags = await listStudentTags();
   const students = composeMode ? await getEmailCandidateStudents(filters) : [];
   const blacklistedEmails = composeMode
     ? await getUnsubscribedEmailSet(
@@ -204,6 +211,15 @@ export default async function EmailPage({ searchParams }) {
                 </select>
               </label>
               <label>
+                תווית
+                <select name="tagIds" defaultValue={filters.tagIds[0] || ""}>
+                  <option value="">כל התוויות</option>
+                  {availableTags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>{tag.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 למי לשלוח
                 <select name="recipientMode" defaultValue={filters.recipientMode}>
                   <option value="parents">הורים בלבד</option>
@@ -230,6 +246,7 @@ export default async function EmailPage({ searchParams }) {
             <input type="hidden" name="class" value={filters.class} />
             <input type="hidden" name="registration" value={filters.registration} />
             <input type="hidden" name="familystatus" value={filters.familystatus} />
+            {filters.tagIds.map((tagId) => <input key={tagId} type="hidden" name="tagIds" value={tagId} />)}
             <input type="hidden" name="q" value={filters.q} />
             <input type="hidden" name="recipientMode" value={filters.recipientMode} />
             <EmailComposerClient

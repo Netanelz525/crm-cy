@@ -9,7 +9,7 @@ import { listStudentDocuments } from "../../../../lib/student-documents";
 import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { deleteNeonStudentAction, updateNeonStudentAction, updateStudentTagsAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import { deleteNeonStudentAction, removeStudentTagAction, updateNeonStudentAction, updateStudentTagsAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -244,7 +244,16 @@ export default async function NeonStudentPage({ params, searchParams }) {
             </div>
             {assignedTags.length ? (
               <div className="student-meta-line" style={{ marginTop: 10 }}>
-                {assignedTags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
+                {assignedTags.map((tag) => (
+                  <form key={tag.id} action={removeStudentTagAction} className="student-tag-chip-form">
+                    <input type="hidden" name="studentId" value={studentId} />
+                    <input type="hidden" name="tagId" value={tag.id} />
+                    <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
+                      <span>{tag.name}</span>
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </form>
+                ))}
               </div>
             ) : null}
           </div>
@@ -313,7 +322,16 @@ export default async function NeonStudentPage({ params, searchParams }) {
           <p className="muted">עדיין לא שויכו תגיות לתלמיד הזה.</p>
         ) : (
           <div className="student-meta-line">
-            {assignedTags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
+            {assignedTags.map((tag) => (
+              <form key={tag.id} action={removeStudentTagAction} className="student-tag-chip-form">
+                <input type="hidden" name="studentId" value={studentId} />
+                <input type="hidden" name="tagId" value={tag.id} />
+                <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
+                  <span>{tag.name}</span>
+                  <span aria-hidden="true">×</span>
+                </button>
+              </form>
+            ))}
           </div>
         )}
         {canManageStudent ? (
