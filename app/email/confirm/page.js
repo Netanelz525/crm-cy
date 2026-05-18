@@ -35,6 +35,7 @@ export default async function EmailConfirmPage({ searchParams }) {
     class: clean(draft?.class),
     registration: clean(draft?.registration),
     familystatus: clean(draft?.familystatus),
+    tagIds: Array.isArray(draft?.tagIds) ? draft.tagIds.map(clean).filter(Boolean) : [],
     q: clean(draft?.q),
     recipientMode: clean(draft?.recipientMode) || "parents",
     sendScope: clean(draft?.sendScope) || "selected",
@@ -121,6 +122,7 @@ export default async function EmailConfirmPage({ searchParams }) {
             <input type="hidden" name="class" value={filters.class} />
             <input type="hidden" name="registration" value={filters.registration} />
             <input type="hidden" name="familystatus" value={filters.familystatus} />
+            {filters.tagIds.map((tagId) => <input key={tagId} type="hidden" name="tagIds" value={tagId} />)}
             <input type="hidden" name="q" value={filters.q} />
             <input type="hidden" name="recipientMode" value={filters.recipientMode} />
             <input type="hidden" name="sendScope" value={filters.sendScope} />

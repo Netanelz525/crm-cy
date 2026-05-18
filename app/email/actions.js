@@ -47,6 +47,9 @@ function buildConfirmRedirect(formData, errorMessage) {
   for (const studentId of formData.getAll("studentIds").map(clean).filter(Boolean)) {
     params.append("studentIds", studentId);
   }
+  for (const tagId of formData.getAll("tagIds").map(clean).filter(Boolean)) {
+    params.append("tagIds", tagId);
+  }
 
   params.set("error", clean(errorMessage) || "שליחת המייל נכשלה");
   return `/email/confirm?${params.toString()}`;
@@ -59,6 +62,7 @@ export async function createEmailCampaignConfirmAction(formData) {
     class: clean(formData.get("class")),
     registration: clean(formData.get("registration")),
     familystatus: clean(formData.get("familystatus")),
+    tagIds: formData.getAll("tagIds").map(clean).filter(Boolean),
     q: clean(formData.get("q")),
     recipientMode: clean(formData.get("recipientMode")) || "parents",
     sendScope: clean(formData.get("sendScope")) || "selected",
@@ -150,6 +154,7 @@ export async function reopenEmailCampaignAction(formData) {
     class: clean(filters.class || campaign.class_filter),
     registration: clean(filters.registration),
     familystatus: clean(filters.familystatus),
+    tagIds: Array.isArray(filters.tagIds) ? filters.tagIds.map(clean).filter(Boolean) : [],
     q: clean(filters.q),
     recipientMode: clean(filters.recipientMode || campaign.recipient_mode) || "parents",
     sendScope: clean(filters.sendScope || campaign.send_scope) || "selected",

@@ -7,7 +7,7 @@ import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/r
 import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
 import { toFormData } from "../../../../lib/student-fields";
 import { updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
-import { replaceStudentTags } from "../../../../lib/student-tags";
+import { removeStudentTagFromStudent, replaceStudentTags } from "../../../../lib/student-tags";
 
 function clean(v) {
   return String(v || "").trim();
@@ -140,6 +140,29 @@ export async function updateStudentTagsAction(formData) {
     revalidatePath(`/neon/students/${studentId}`);
   } catch (error) {
     const message = encodeURIComponent(error?.message || "עדכון התגיות נכשל");
+    redirect(`/neon/students/${studentId}?error=${message}`);
+  }
+
+  redirect(`/neon/students/${studentId}?tagsUpdated=1`);
+}
+
+export async function removeStudentTagAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  try {
+    await removeStudentTagFromStudent({
+      studentId,
+      tagId: formData.get("tagId")
+    });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${studentId}`);
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "הסרת התווית נכשלה");
     redirect(`/neon/students/${studentId}?error=${message}`);
   }
 

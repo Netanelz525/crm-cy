@@ -1097,6 +1097,41 @@ td {
   margin-bottom: 10px;
 }
 
+.student-tag-chip-form {
+  margin: 0;
+}
+
+.student-tag-chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.student-tag-chip-button .meta-chip,
+.student-tag-chip-button:hover .meta-chip {
+  color: inherit;
+}
+
+.student-tag-chip-button span:first-child {
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #e9f2ff;
+  border: 1px solid #c4daf8;
+  color: #0f3c68;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.student-tag-chip-button span:last-child {
+  font-weight: 700;
+  color: #7a8aa0;
+}
+
 .student-table-name-cell {
   display: grid;
   gap: 8px;
