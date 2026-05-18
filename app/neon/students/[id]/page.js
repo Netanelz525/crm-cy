@@ -5,7 +5,8 @@ import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from 
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentDocuments } from "../../../../lib/student-documents";
-import { getStudentTagTheme, getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
+import { getStudentTagTheme } from "../../../../lib/student-tag-theme";
+import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
 import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";

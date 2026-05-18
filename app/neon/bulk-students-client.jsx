@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
-import { getStudentTagTheme } from "../../lib/student-tags";
+import { getStudentTagTheme } from "../../lib/student-tag-theme";
 import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
 import { bulkDeleteNeonStudentsAction, bulkUpdateNeonStudentsAction } from "./actions";
 
