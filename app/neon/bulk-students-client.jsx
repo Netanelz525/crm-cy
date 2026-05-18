@@ -504,6 +504,19 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <textarea name="note" disabled={!enabled} placeholder="הערה שתתווסף לכל הרשומות שנבחרו" />
                 )}
               </BulkField>
+              <BulkField name="bulkTag" label="הוספת תווית">
+                {(enabled) => (
+                  <>
+                    <select name="bulkTagId" disabled={!enabled} defaultValue="">
+                      <option value="">בחר תווית קיימת</option>
+                      {tagOptions.map((tag) => (
+                        <option key={tag.id} value={tag.id}>{tag.name}</option>
+                      ))}
+                    </select>
+                    <input name="bulkNewTagName" disabled={!enabled} placeholder="או צור תווית חדשה לכל הבחירה" />
+                  </>
+                )}
+              </BulkField>
               <BulkSubmitBar selectedCount={selectedIds.length} onClose={closeBulk} />
             </form>
           </div>
