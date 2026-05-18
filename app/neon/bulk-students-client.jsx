@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
+import { getStudentTagTheme } from "../../lib/student-tags";
 import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
 import { bulkDeleteNeonStudentsAction, bulkUpdateNeonStudentsAction } from "./actions";
 
@@ -136,7 +137,7 @@ function StudentTagSummary({ student, action, returnTo }) {
           <input type="hidden" name="tagId" value={tag.id} />
           <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
           <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
-            <span>{tag.name}</span>
+            <span style={getStudentTagTheme(tag)}>{tag.name}</span>
             <span aria-hidden="true">×</span>
           </button>
         </form>

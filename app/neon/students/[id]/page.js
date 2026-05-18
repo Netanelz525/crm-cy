@@ -5,7 +5,7 @@ import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from 
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentDocuments } from "../../../../lib/student-documents";
-import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
+import { getStudentTagTheme, getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { deleteNeonStudentAction, removeStudentTagAction, updateNeonStudentAction, updateStudentTagsAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
@@ -236,7 +236,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
                     <input type="hidden" name="studentId" value={studentId} />
                     <input type="hidden" name="tagId" value={tag.id} />
                     <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
-                      <span>{tag.name}</span>
+                      <span style={getStudentTagTheme(tag)}>{tag.name}</span>
                       <span aria-hidden="true">×</span>
                     </button>
                   </form>
@@ -314,7 +314,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
                 <input type="hidden" name="studentId" value={studentId} />
                 <input type="hidden" name="tagId" value={tag.id} />
                 <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
-                  <span>{tag.name}</span>
+                  <span style={getStudentTagTheme(tag)}>{tag.name}</span>
                   <span aria-hidden="true">×</span>
                 </button>
               </form>
