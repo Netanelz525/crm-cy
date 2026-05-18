@@ -251,7 +251,12 @@ export async function bulkUpdateNeonStudentsAction(formData) {
   }
 
   const data = normalizeStudentInput(raw, { preserveEmptyEnums: true });
-  if (!Object.keys(data).length) {
+  const applyTag = clean(formData.get("apply_bulkTag")) === "1";
+  const bulkTagId = clean(formData.get("bulkTagId"));
+  const bulkNewTagName = clean(formData.get("bulkNewTagName"));
+  const hasBulkTagUpdate = applyTag && (bulkTagId || bulkNewTagName);
+
+  if (!Object.keys(data).length && !hasBulkTagUpdate) {
     redirect("/neon?bulkError=לא נבחרו שדות לעדכון");
   }
 
@@ -261,8 +266,19 @@ export async function bulkUpdateNeonStudentsAction(formData) {
 
   for (const studentId of studentIds) {
     try {
-      const { updateNeonStudentViaTwenty } = await import("../../lib/neon-students");
-      await updateNeonStudentViaTwenty(studentId, data);
+      if (Object.keys(data).length) {
+        const { updateNeonStudentViaTwenty } = await import("../../lib/neon-students");
+        await updateNeonStudentViaTwenty(studentId, data);
+      }
+      if (hasBulkTagUpdate) {
+        await addStudentTagToStudent({
+          studentId,
+          tagId: bulkTagId,
+          tagName: bulkNewTagName,
+          assignedByUserId: user.clerk_user_id,
+          createdByUserId: user.clerk_user_id
+        });
+      }
       updated += 1;
     } catch (error) {
       failed += 1;
