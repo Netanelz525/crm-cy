@@ -10,6 +10,7 @@ import { sanitizeQueryString } from "../../lib/student-view";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { syncStudentsToNeon } from "../../lib/neon-students";
 import { deleteNeonPreferencesForUser, saveNeonPreferencesForUser } from "../../lib/neon-preferences";
+import { createStudentContactLog } from "../../lib/student-contact-logs";
 import { addStudentTagToStudent, createStudentTag, deleteStudentTag, removeStudentTagFromStudent } from "../../lib/student-tags";
 
 function isRedirectError(error) {
@@ -192,6 +193,32 @@ export async function removeStudentTagFromSearchAction(formData) {
     if (isRedirectError(error)) throw error;
     const message = encodeURIComponent(error?.message || "הסרת התווית נכשלה");
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagsError=${message}`);
+  }
+}
+
+export async function addStudentContactFromSearchAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  const studentId = clean(formData.get("studentId"));
+  const returnTo = clean(formData.get("returnTo")) || "/neon";
+
+  try {
+    await createStudentContactLog({
+      studentId,
+      contactDate: formData.get("contactDate"),
+      noteText: formData.get("noteText"),
+      createdByUserId: user.clerk_user_id
+    });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${studentId}`);
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}contactSaved=1`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "שמירת יצירת הקשר נכשלה");
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}contactError=${message}`);
   }
 }
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../../../lib/deleted-students";
 import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/rbac";
+import { createStudentContactLog } from "../../../../lib/student-contact-logs";
 import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
 import { toFormData } from "../../../../lib/student-fields";
 import { updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
@@ -167,4 +168,29 @@ export async function removeStudentTagAction(formData) {
   }
 
   redirect(`/neon/students/${studentId}?tagsUpdated=1`);
+}
+
+export async function addStudentContactAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+
+  if (!assertStudentAccess(user, studentId)) {
+    redirect("/unauthorized");
+  }
+
+  try {
+    await createStudentContactLog({
+      studentId,
+      contactDate: formData.get("contactDate"),
+      noteText: formData.get("noteText"),
+      createdByUserId: user.clerk_user_id
+    });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${studentId}`);
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "שמירת יצירת הקשר נכשלה");
+    redirect(`/neon/students/${studentId}?error=${message}`);
+  }
+
+  redirect(`/neon/students/${studentId}?contactSaved=1`);
 }

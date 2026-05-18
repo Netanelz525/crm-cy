@@ -4,6 +4,7 @@ import { purgeExpiredSoftDeletedStudents } from "../../lib/deleted-students";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser } from "../../lib/rbac";
+import { attachLatestContactToStudents } from "../../lib/student-contact-logs";
 import { attachStudentTagsToStudents, listStudentTagsWithUsage } from "../../lib/student-tags";
 import {
   applyAdvancedFilters,
@@ -30,6 +31,7 @@ import {
 } from "../../lib/neon-students";
 import {
   addStudentTagFromSearchAction,
+  addStudentContactFromSearchAction,
   removeStudentTagFromSearchAction,
   prepareNeonStudentsImportAction,
   resetNeonPreferencesAction,
@@ -216,6 +218,8 @@ export default async function NeonPage({ searchParams }) {
   const tagCreated = clean(resolvedSearchParams?.tagCreated) === "1";
   const tagDeleted = clean(resolvedSearchParams?.tagDeleted) === "1";
   const tagsError = clean(resolvedSearchParams?.tagsError);
+  const contactSaved = clean(resolvedSearchParams?.contactSaved) === "1";
+  const contactError = clean(resolvedSearchParams?.contactError);
 
   const tz = clean(resolvedSearchParams?.tz).replace(/[^\d]/g, "");
   const q = clean(resolvedSearchParams?.q);
@@ -278,6 +282,7 @@ export default async function NeonPage({ searchParams }) {
         return { ...student, missingItems: missingState.items, missingFlags: missingState.flags };
       });
       students = await attachStudentTagsToStudents(students);
+      students = await attachLatestContactToStudents(students);
 
       if (missingType) students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
       if (selectedTagIds.length) {
@@ -289,6 +294,7 @@ export default async function NeonPage({ searchParams }) {
       if (tz) students = (await searchNeonStudentsByTz(tz)).slice(0, 10);
       else if (q) students = await searchNeonStudentsByText(q, 100, 0.4);
       students = await attachStudentTagsToStudents(students);
+      students = await attachLatestContactToStudents(students);
     }
   } catch (e) {
     error = e.message || "Search failed";
@@ -366,9 +372,11 @@ export default async function NeonPage({ searchParams }) {
       {prefsReset ? <div className="ok">העדפות ה־Neon אופסו, והמסך חזר לברירות המחדל.</div> : null}
       {tagCreated ? <div className="ok">התגית נוספה בהצלחה.</div> : null}
       {tagDeleted ? <div className="ok">התגית נמחקה בהצלחה.</div> : null}
+      {contactSaved ? <div className="ok">יצירת הקשר נשמרה בהצלחה.</div> : null}
       {prefsError ? <div className="card muted">{prefsError}</div> : null}
       {preferencesLoadError ? <div className="card muted">{preferencesLoadError}</div> : null}
       {tagsError ? <div className="card muted">{tagsError}</div> : null}
+      {contactError ? <div className="card muted">{contactError}</div> : null}
       {importError ? <div className="card muted">{importError}</div> : null}
       {bulkUpdated ? (
         <div className="ok">
@@ -699,6 +707,7 @@ export default async function NeonPage({ searchParams }) {
 
       <BulkStudentsClient
         addStudentTagAction={addStudentTagFromSearchAction}
+        addStudentContactAction={addStudentContactFromSearchAction}
         availableTags={availableTags}
         removeStudentTagAction={removeStudentTagFromSearchAction}
         students={students}

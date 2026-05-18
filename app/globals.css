@@ -723,6 +723,10 @@ button {
   border-color: #cfe3d8;
 }
 
+.contact-log-card {
+  margin-bottom: 12px;
+}
+
 .linked-record-card-top {
   display: flex;
   align-items: flex-start;
@@ -1140,6 +1144,11 @@ td {
   display: grid;
   gap: 6px;
   margin-bottom: 8px;
+}
+
+.student-mobile-contact {
+  margin-bottom: 8px;
+  color: var(--muted);
 }
 
 .student-card-tag-row {

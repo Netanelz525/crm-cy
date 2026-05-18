@@ -35,6 +35,15 @@ CREATE TABLE IF NOT EXISTS student_tag_assignments (
   PRIMARY KEY (student_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS student_contact_logs (
+  id TEXT PRIMARY KEY,
+  student_id TEXT NOT NULL,
+  contact_date DATE NOT NULL,
+  note_text TEXT,
+  created_by_user_id TEXT REFERENCES app_users(clerk_user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS neon_user_preferences (
   owner_user_id TEXT PRIMARY KEY REFERENCES app_users(clerk_user_id) ON DELETE CASCADE,
   query_string TEXT NOT NULL DEFAULT '',
