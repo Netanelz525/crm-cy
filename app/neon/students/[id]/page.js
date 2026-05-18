@@ -6,12 +6,13 @@ import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } fro
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentEmailDeliveries } from "../../../../lib/email-campaigns";
 import { listStudentDocuments } from "../../../../lib/student-documents";
-import { getStudentTagTheme } from "../../../../lib/student-tag-theme";
 import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
 import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { addStudentContactAction, addStudentTagAction, deleteNeonStudentAction, removeStudentTagAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import { deleteNeonStudentAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import StudentContactLiveClient from "./student-contact-live-client";
+import StudentTagsLiveClient from "./student-tags-live-client";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -19,24 +20,6 @@ const TOP_EDIT_FIELDS = ALL_FIELDS.filter((field) => TOP_EDIT_KEYS.has(field.key
 
 function clean(v) {
   return String(v || "").trim();
-}
-
-function formatDate(value) {
-  const raw = clean(value);
-  if (!raw) return "-";
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  return d.toLocaleDateString("he-IL");
-}
-
-function todayInputValue() {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jerusalem",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  });
-  return formatter.format(new Date());
 }
 
 function phoneText(phoneObj) {
@@ -223,8 +206,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const updated = clean(resolvedSearchParams?.updated) === "1";
   const documentUploaded = clean(resolvedSearchParams?.documentUploaded) === "1";
   const documentRenamed = clean(resolvedSearchParams?.documentRenamed) === "1";
-  const tagsUpdated = clean(resolvedSearchParams?.tagsUpdated) === "1";
-  const contactSaved = clean(resolvedSearchParams?.contactSaved) === "1";
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
@@ -235,15 +216,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const availableTags = await listStudentTags();
   const studentTagsMap = await getStudentTagsByStudentIds([studentId]);
   const assignedTags = studentTagsMap[studentId] || [];
-  const availableTagOptions = availableTags.filter((tag) => !assignedTags.some((assignedTag) => assignedTag.id === tag.id));
   const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
   const [attendanceSummary, attendanceHistory, contactLogs] = await Promise.all([
     getAttendanceSummaryForStudent(studentId),
     listAttendanceHistoryForStudent(studentId, { limit: 8 }),
     listStudentContactLogs(studentId, 8)
   ]);
-  const latestContact = contactLogs[0] || null;
-  const defaultContactDate = todayInputValue();
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
@@ -258,47 +236,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
               <span className="meta-chip">גיל: {ageOf(student?.dateofbirth) ?? "-"}</span>
               <span className="meta-chip meta-chip-strong">שיעור: {classLabel(student?.class)}</span>
             </div>
-            <div className="student-meta-line student-tags-topline" style={{ marginTop: 10 }}>
-              {assignedTags.length ? (
-                assignedTags.map((tag) => (
-                  <form key={tag.id} action={removeStudentTagAction} className="student-tag-chip-form">
-                    <input type="hidden" name="studentId" value={studentId} />
-                    <input type="hidden" name="tagId" value={tag.id} />
-                    <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
-                      <span style={getStudentTagTheme(tag)}>{tag.name}</span>
-                      <span aria-hidden="true">×</span>
-                    </button>
-                  </form>
-                ))
-              ) : (
-                <span className="muted">עדיין לא שויכו תגיות לתלמיד הזה.</span>
-              )}
-              {canManageStudent ? (
-                <details className="student-tag-inline-panel">
-                  <summary className="student-tag-inline-trigger" title="הוסף תגית">
-                    <span aria-hidden="true">+</span>
-                  </summary>
-                  <div className="student-tag-quick-body student-tag-inline-body">
-                    <div className="muted">
-                      {availableTagOptions.length
-                        ? "בחר תווית קיימת או צור תווית חדשה."
-                        : "כל התוויות הקיימות כבר משויכות. אפשר ליצור תווית חדשה."}
-                    </div>
-                    <form action={addStudentTagAction} className="student-tag-quick-form">
-                      <input type="hidden" name="studentId" value={studentId} />
-                      <select name="tagId" defaultValue="">
-                        <option value="">בחר תווית קיימת</option>
-                        {availableTagOptions.map((tag) => (
-                          <option key={tag.id} value={tag.id}>{tag.name}</option>
-                        ))}
-                      </select>
-                      <input name="newTagName" placeholder="או צור תווית חדשה" />
-                      <button type="submit">שמור תווית</button>
-                    </form>
-                  </div>
-                </details>
-              ) : null}
-            </div>
+            <StudentTagsLiveClient
+              studentId={studentId}
+              initialTags={assignedTags}
+              initialAvailableTags={availableTags}
+              canManageStudent={canManageStudent}
+            />
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link>
@@ -356,8 +299,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
-      {tagsUpdated ? <div className="ok">תגיות התלמיד עודכנו בהצלחה.</div> : null}
-      {contactSaved ? <div className="ok">רשומת יצירת הקשר נשמרה בהצלחה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
@@ -372,22 +313,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <span className="linked-record-pill">יצירת קשר: {contactLogs.length}</span>
           </div>
         </summary>
-        <div className="linked-record-card contact-log-card">
-          <div className="linked-record-card-top">
-            <b>יצירת קשר אחרונה</b>
-            <span className="linked-record-pill">{latestContact ? formatDate(latestContact.contactDate) : "עדיין לא תועד"}</span>
-          </div>
-          <div className="linked-record-meta">{latestContact ? latestContact.noteText : "עדיין אין תיעוד יצירת קשר לתלמיד הזה."}</div>
-          {latestContact?.createdByDisplayName || latestContact?.createdByEmail ? (
-            <div className="linked-record-meta">תועד על ידי: {latestContact.createdByDisplayName || latestContact.createdByEmail}</div>
-          ) : null}
-        </div>
-        <form action={addStudentContactAction} className="grid" style={{ marginBottom: 12 }}>
-          <input type="hidden" name="studentId" value={studentId} />
-          <input type="date" name="contactDate" defaultValue={defaultContactDate} />
-          <input name="noteText" placeholder="תיעוד קצר של השיחה או יצירת הקשר" />
-          <button type="submit">הוסף יצירת קשר</button>
-        </form>
         {canManageDocuments ? (
           <form action={uploadStudentDocumentAction} className="grid" style={{ marginBottom: 12 }}>
             <input type="hidden" name="studentId" value={studentId} />
@@ -405,26 +330,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
         ) : null}
         <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
-          {!contactLogs.length ? (
-            <div className="linked-record-card placeholder">
-              <b>יצירת קשר</b>
-              <div className="linked-record-meta">עדיין לא תועדה יצירת קשר עם התלמיד.</div>
-              <div className="linked-record-meta">כאן יופיעו התאריך והסיכום הקצר של כל שיחה או פניה.</div>
-            </div>
-          ) : (
-            contactLogs.map((contact) => (
-              <div key={contact.id} className="linked-record-card">
-                <div className="linked-record-card-top">
-                  <b>יצירת קשר</b>
-                  <span className="linked-record-pill">{formatDate(contact.contactDate)}</span>
-                </div>
-                <div className="linked-record-meta">{contact.noteText || "-"}</div>
-                <div className="linked-record-meta">
-                  תועד: {contact.createdByDisplayName || contact.createdByEmail || "-"}
-                </div>
-              </div>
-            ))
-          )}
+          <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} />
           {!documents.length ? (
             <div className="linked-record-card">
               <b>מסמכים</b>
