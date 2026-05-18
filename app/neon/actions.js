@@ -10,6 +10,7 @@ import { sanitizeQueryString } from "../../lib/student-view";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { syncStudentsToNeon } from "../../lib/neon-students";
 import { deleteNeonPreferencesForUser, saveNeonPreferencesForUser } from "../../lib/neon-preferences";
+import { createStudentTag, deleteStudentTag } from "../../lib/student-tags";
 
 function isRedirectError(error) {
   return Boolean(error?.digest && String(error.digest).startsWith("NEXT_REDIRECT"));
@@ -97,6 +98,49 @@ export async function resetNeonPreferencesAction() {
     if (isRedirectError(error)) throw error;
     const message = encodeURIComponent(error?.message || "איפוס ההעדפות נכשל");
     redirect(`/neon?prefsError=${message}`);
+  }
+}
+
+export async function createStudentTagAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  const returnTo = clean(formData.get("returnTo")) || "/neon";
+
+  try {
+    await createStudentTag({
+      name: formData.get("tagName"),
+      createdByUserId: user.clerk_user_id
+    });
+    revalidatePath("/neon");
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagCreated=1`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "יצירת התגית נכשלה");
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagsError=${message}`);
+  }
+}
+
+export async function deleteStudentTagAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  const tagId = clean(formData.get("tagId"));
+  const returnTo = clean(formData.get("returnTo")) || "/neon";
+
+  try {
+    await deleteStudentTag(tagId);
+    revalidatePath("/neon");
+    revalidatePath("/neon/students");
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagDeleted=1`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "מחיקת התגית נכשלה");
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagsError=${message}`);
   }
 }
 

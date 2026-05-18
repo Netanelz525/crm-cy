@@ -18,6 +18,23 @@ CREATE TABLE IF NOT EXISTS student_internal_notes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS student_tags (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL UNIQUE,
+  created_by_user_id TEXT REFERENCES app_users(clerk_user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS student_tag_assignments (
+  student_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL REFERENCES student_tags(id) ON DELETE CASCADE,
+  assigned_by_user_id TEXT REFERENCES app_users(clerk_user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (student_id, tag_id)
+);
+
 CREATE TABLE IF NOT EXISTS neon_user_preferences (
   owner_user_id TEXT PRIMARY KEY REFERENCES app_users(clerk_user_id) ON DELETE CASCADE,
   query_string TEXT NOT NULL DEFAULT '',
