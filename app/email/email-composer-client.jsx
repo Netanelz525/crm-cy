@@ -87,7 +87,7 @@ function ToolButton({ active = false, icon, text, onClick, disabled = false }) {
 }
 
 export default function EmailComposerClient({
-  institutionSelected,
+  hasRecipientSource,
   recipientMode,
   students,
   summary,
@@ -247,30 +247,30 @@ export default function EmailComposerClient({
             </label>
           </div>
 
-          <details className="display-settings" open={institutionSelected}>
+          <details className="display-settings" open={hasRecipientSource}>
             <summary>
-              {institutionSelected
+              {hasRecipientSource
                 ? `בחירת תלמידים: ${selectedIds.length} מסומנים מתוך ${students.length}`
-                : "בחירת תלמידים מתוך המוסד"}
+                : "בחירת תלמידים מתוך הסינון"}
             </summary>
             <div className="email-student-list">
               <div className="email-student-list-head">
                 <strong>בחירת תלמידים</strong>
                 <span>
-                  {institutionSelected
+                  {hasRecipientSource
                     ? `${selectedIds.length} מסומנים מתוך ${students.length} | ${summary.missingStudents} ללא כתובת מתאימה`
-                    : "יש לבחור מוסד כדי להציג תלמידים"}
+                    : "יש לבחור לפחות סינון אחד כדי להציג תלמידים"}
                 </span>
               </div>
-              {!institutionSelected ? (
-                <div className="muted">לאחר בחירת מוסד יוצגו כאן רק תלמידי המוסד, ואז יהיה אפשר לבחור את כולם או רק חלק מהם.</div>
+              {!hasRecipientSource ? (
+                <div className="muted">לאחר בחירת מוסד, תווית, חיפוש או סינון אחר יוצגו כאן התלמידים המתאימים, ואז יהיה אפשר לבחור את כולם או רק חלק מהם.</div>
               ) : !students.length ? (
                 <div className="muted">לא נמצאו תלמידים לפי הסינון שנבחר.</div>
               ) : (
                 <>
                   <div className="quick-actions" style={{ marginTop: 0 }}>
                     <button type="button" className="chip-link" onClick={() => setSelectedIds(students.map((student) => student.id))}>
-                      בחר את כל תלמידי המוסד
+                      בחר את כל הרשימה המסוננת
                     </button>
                     <button type="button" className="chip-link" onClick={() => setSelectedIds([])}>
                       נקה בחירה
@@ -312,8 +312,8 @@ export default function EmailComposerClient({
               <div><b>{selectedStudents.length}</b><span>תלמידים נבחרו</span><small>אפשר לשלוח לכל התלמידים המסוננים או רק למסומנים.</small></div>
               <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>בדף הבא תראה את רשימת הנמענים הסופית לפני שליחה.</small></div>
             </div>
-            <button type="submit" disabled={!resendConfigured || !institutionSelected || !selectedIds.length || !selectedRecipientCount}>
-              המשך לדף אישור סופי
+            <button type="submit" disabled={!resendConfigured || !hasRecipientSource || !selectedIds.length || !selectedRecipientCount}>
+              המשך למסך אישור וצירוף קבצים
             </button>
           </div>
         </div>

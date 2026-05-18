@@ -114,6 +114,15 @@ export default async function EmailPage({ searchParams }) {
   const summary = summarizeEmailCandidates(studentsWithBlacklistState, filters.recipientMode);
   const unsubscribes = await listEmailUnsubscribes(200);
   const favoriteCampaigns = await listFavoriteEmailCampaignsForUser(user.clerk_user_id, 10);
+  const hasRecipientSource = Boolean(
+    filters.institution
+    || filters.class
+    || filters.registration
+    || filters.familystatus
+    || filters.tagIds.length
+    || filters.q
+    || filters.selectedStudentIds.length
+  );
 
   return (
     <>
@@ -234,7 +243,7 @@ export default async function EmailPage({ searchParams }) {
             <input type="hidden" name="q" value={filters.q} />
             <input type="hidden" name="recipientMode" value={filters.recipientMode} />
             <EmailComposerClient
-              institutionSelected={Boolean(filters.institution)}
+              hasRecipientSource={hasRecipientSource}
               recipientMode={filters.recipientMode}
               students={studentsWithBlacklistState}
               summary={summary}

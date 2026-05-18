@@ -58,9 +58,6 @@ export default async function EmailConfirmPage({ searchParams }) {
     ? (clean(draft?.senderName) || buildDefaultSenderNameForStudents(selectedStudents))
     : buildDefaultSenderNameForStudents(selectedStudents);
 
-  if (!filters.institution) {
-    redirect("/email?error=" + encodeURIComponent("יש לבחור מוסד לפני מעבר לאישור הסופי."));
-  }
   if (!subject) {
     redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("יש להזין נושא למייל.")}`);
   }

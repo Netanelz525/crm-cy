@@ -6,8 +6,8 @@ import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getStudentTagTheme } from "../../lib/student-tag-theme";
 import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
-import { addStudentContactLiveAction, addStudentTagLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
-import { bulkDeleteNeonStudentsAction, bulkUpdateNeonStudentsAction } from "./actions";
+import { addStudentContactLiveAction, addStudentTagLiveAction, bulkUpdateStudentsLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
+import { bulkDeleteNeonStudentsAction } from "./actions";
 
 function PhoneLink({ phoneObj }) {
   const text = phoneText(phoneObj);
@@ -112,6 +112,16 @@ function BulkSubmitBar({ selectedCount, onClose }) {
     </div>
   );
 }
+
+const BULK_FIELDS = [
+  "currentInstitution",
+  "registration",
+  "class",
+  "famliystatus",
+  "healthInsurance",
+  "childrenCount",
+  "note"
+];
 
 function scoreClassName(score) {
   const value = Number(score);
@@ -364,6 +374,65 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
     return `/email?${params.toString()}`;
   }, [returnTo, selectedIds]);
 
+  function handleBulkSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const fields = {};
+    for (const field of BULK_FIELDS) {
+      if (clean(formData.get(`apply_${field}`)) !== "1") continue;
+      fields[field] = formData.get(field);
+    }
+
+    const bulkTagEnabled = clean(formData.get("apply_bulkTag")) === "1";
+    const bulkTagId = clean(formData.get("bulkTagId"));
+    const bulkNewTagName = clean(formData.get("bulkNewTagName"));
+
+    setFeedback("");
+    startTransition(async () => {
+      const result = await bulkUpdateStudentsLiveAction({
+        studentIds: selectedIds,
+        fields,
+        bulkTagId: bulkTagEnabled ? bulkTagId : "",
+        bulkNewTagName: bulkTagEnabled ? bulkNewTagName : ""
+      });
+
+      if (!result?.ok) {
+        setFeedback(result?.error || "העדכון המרוכז נכשל.");
+        return;
+      }
+
+      if (result.tag?.id) {
+        setTagOptions((current) => current.some((tag) => tag.id === result.tag.id) ? current : sortTags([...current, result.tag]));
+      }
+
+      setStudentRows((current) => current.map((student) => {
+        if (!selectedIds.includes(student.id)) return student;
+        let nextStudent = {
+          ...student,
+          ...result.fields
+        };
+
+        if (result.tag?.id && !(student.tags || []).some((tag) => tag.id === result.tag.id)) {
+          const nextTags = sortTags([...(student.tags || []), result.tag]);
+          nextStudent = {
+            ...nextStudent,
+            tags: nextTags,
+            tagIds: nextTags.map((tag) => tag.id),
+            tagNames: nextTags.map((tag) => tag.name)
+          };
+        }
+
+        return nextStudent;
+      }));
+
+      const summary = result.failed
+        ? `העדכון הוחל על ${result.updated} רשומות, ${result.failed} נכשלו.`
+        : `העדכון הוחל על ${result.updated} רשומות.`;
+      setFeedback(summary);
+      setBulkOpen(false);
+    });
+  }
+
   return (
     <>
       {students.length ? (
@@ -439,7 +508,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 ✕
               </button>
             </div>
-            <form action={bulkUpdateNeonStudentsAction} className="bulk-form-grid">
+            <form onSubmit={handleBulkSubmit} className="bulk-form-grid">
               <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
               {selectedIds.map((id) => (
                 <input key={id} type="hidden" name="studentIds" value={id} />
