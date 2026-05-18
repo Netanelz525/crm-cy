@@ -29,8 +29,7 @@ import {
   searchNeonStudentsByTz
 } from "../../lib/neon-students";
 import {
-  createStudentTagAction,
-  deleteStudentTagAction,
+  addStudentTagFromSearchAction,
   prepareNeonStudentsImportAction,
   resetNeonPreferencesAction,
   saveNeonPreferencesAction
@@ -476,35 +475,6 @@ export default async function NeonPage({ searchParams }) {
         </form>
       </div>
 
-      <div className="card glass">
-        <h3>ניהול תגיות</h3>
-        <p className="muted">כאן אפשר ליצור תגיות חדשות למחלקת התלמידים ולמחוק תגיות שלא בשימוש. השיוך בפועל נעשה מתוך כרטיס התלמיד.</p>
-        <form action={createStudentTagAction} className="grid" style={{ marginBottom: 12 }}>
-          <input type="hidden" name="returnTo" value={currentQueryString ? `/neon?${currentQueryString}` : "/neon"} />
-          <input name="tagName" placeholder="שם תגית חדשה" />
-          <button type="submit">הוסף תגית</button>
-        </form>
-        {!availableTags.length ? (
-          <div className="muted">עדיין אין תגיות מוגדרות.</div>
-        ) : (
-          <div className="column-grid">
-            {availableTags.map((tag) => (
-              <div key={tag.id} className="card" style={{ padding: 12 }}>
-                <div className="student-meta-line" style={{ justifyContent: "space-between" }}>
-                  <span className="meta-chip">{tag.name}</span>
-                  <span className="muted">משויך ל-{tag.usageCount} תלמידים</span>
-                </div>
-                <form action={deleteStudentTagAction} style={{ marginTop: 8 }}>
-                  <input type="hidden" name="tagId" value={tag.id} />
-                  <input type="hidden" name="returnTo" value={currentQueryString ? `/neon?${currentQueryString}` : "/neon"} />
-                  <button type="submit" className="btn btn-danger">מחק תגית</button>
-                </form>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       <details className="display-settings">
         <summary>עדכון מרוכז מאקסל</summary>
         <div className="display-settings-body">
@@ -727,6 +697,8 @@ export default async function NeonPage({ searchParams }) {
       {error ? <div className="card muted">{error}</div> : null}
 
       <BulkStudentsClient
+        addStudentTagAction={addStudentTagFromSearchAction}
+        availableTags={availableTags}
         students={students}
         selectedColumns={selectedColumns}
         showInstitutionView={showInstitutionView}

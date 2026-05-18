@@ -10,7 +10,7 @@ import { sanitizeQueryString } from "../../lib/student-view";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { syncStudentsToNeon } from "../../lib/neon-students";
 import { deleteNeonPreferencesForUser, saveNeonPreferencesForUser } from "../../lib/neon-preferences";
-import { createStudentTag, deleteStudentTag } from "../../lib/student-tags";
+import { addStudentTagToStudent, createStudentTag, deleteStudentTag } from "../../lib/student-tags";
 
 function isRedirectError(error) {
   return Boolean(error?.digest && String(error.digest).startsWith("NEXT_REDIRECT"));
@@ -140,6 +140,33 @@ export async function deleteStudentTagAction(formData) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     const message = encodeURIComponent(error?.message || "מחיקת התגית נכשלה");
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagsError=${message}`);
+  }
+}
+
+export async function addStudentTagFromSearchAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  const studentId = clean(formData.get("studentId"));
+  const returnTo = clean(formData.get("returnTo")) || "/neon";
+
+  try {
+    await addStudentTagToStudent({
+      studentId,
+      tagId: formData.get("tagId"),
+      tagName: formData.get("newTagName"),
+      assignedByUserId: user.clerk_user_id,
+      createdByUserId: user.clerk_user_id
+    });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${studentId}`);
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagCreated=1`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = encodeURIComponent(error?.message || "הוספת התווית נכשלה");
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}tagsError=${message}`);
   }
 }
