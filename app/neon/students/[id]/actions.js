@@ -7,6 +7,7 @@ import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/r
 import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
 import { toFormData } from "../../../../lib/student-fields";
 import { updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
+import { replaceStudentTags } from "../../../../lib/student-tags";
 
 function clean(v) {
   return String(v || "").trim();
@@ -119,4 +120,28 @@ export async function updateStudentDocumentNameAction(formData) {
   }
 
   redirect(`/neon/students/${studentId}?documentRenamed=1`);
+}
+
+export async function updateStudentTagsAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+
+  if (!user.is_team_member && !user.is_manager) {
+    redirect("/unauthorized");
+  }
+
+  try {
+    await replaceStudentTags({
+      studentId,
+      tagIds: formData.getAll("tagIds"),
+      assignedByUserId: user.clerk_user_id
+    });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${studentId}`);
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "עדכון התגיות נכשל");
+    redirect(`/neon/students/${studentId}?error=${message}`);
+  }
+
+  redirect(`/neon/students/${studentId}?tagsUpdated=1`);
 }

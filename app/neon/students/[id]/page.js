@@ -6,9 +6,10 @@ import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } fro
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentEmailDeliveries } from "../../../../lib/email-campaigns";
 import { listStudentDocuments } from "../../../../lib/student-documents";
+import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { deleteNeonStudentAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import { deleteNeonStudentAction, updateNeonStudentAction, updateStudentTagsAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -210,6 +211,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const updated = clean(resolvedSearchParams?.updated) === "1";
   const documentUploaded = clean(resolvedSearchParams?.documentUploaded) === "1";
   const documentRenamed = clean(resolvedSearchParams?.documentRenamed) === "1";
+  const tagsUpdated = clean(resolvedSearchParams?.tagsUpdated) === "1";
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
@@ -217,6 +219,10 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const showChildrenCount = isMarried(student?.famliystatus);
   const documents = await listStudentDocuments(studentId);
+  const availableTags = await listStudentTags();
+  const studentTagsMap = await getStudentTagsByStudentIds([studentId]);
+  const assignedTags = studentTagsMap[studentId] || [];
+  const assignedTagIds = new Set(assignedTags.map((tag) => tag.id));
   const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
   const [attendanceSummary, attendanceHistory] = await Promise.all([
     getAttendanceSummaryForStudent(studentId),
@@ -293,7 +299,40 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
+      {tagsUpdated ? <div className="ok">תגיות התלמיד עודכנו בהצלחה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
+
+      <div className="card">
+        <h3>תגיות תלמיד</h3>
+        {!assignedTags.length ? (
+          <p className="muted">עדיין לא שויכו תגיות לתלמיד הזה.</p>
+        ) : (
+          <div className="student-meta-line">
+            {assignedTags.map((tag) => <span key={tag.id} className="meta-chip">{tag.name}</span>)}
+          </div>
+        )}
+        {canManageStudent ? (
+          !availableTags.length ? (
+            <p className="muted" style={{ marginTop: 12 }}>כדי לשייך תגיות, צריך קודם ליצור אותן במסך התלמידים הראשי.</p>
+          ) : (
+            <form action={updateStudentTagsAction} style={{ marginTop: 12 }}>
+              <input type="hidden" name="studentId" value={studentId} />
+              <div className="column-grid">
+                {availableTags.map((tag) => (
+                  <label key={tag.id} className="column-item">
+                    <input type="checkbox" name="tagIds" value={tag.id} defaultChecked={assignedTagIds.has(tag.id)} />
+                    <span>{tag.name}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="quick-actions" style={{ marginTop: 12 }}>
+                <button type="submit">שמור תגיות</button>
+                <Link className="chip-link" href="/neon">פתח ניהול תגיות</Link>
+              </div>
+            </form>
+          )
+        ) : null}
+      </div>
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
         <summary className="linked-records-toggle">

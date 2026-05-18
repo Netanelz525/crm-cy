@@ -4,6 +4,7 @@ import { purgeExpiredSoftDeletedStudents } from "../../lib/deleted-students";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser } from "../../lib/rbac";
+import { attachStudentTagsToStudents, listStudentTagsWithUsage } from "../../lib/student-tags";
 import {
   applyAdvancedFilters,
   buildMissingState,
@@ -28,6 +29,8 @@ import {
   searchNeonStudentsByTz
 } from "../../lib/neon-students";
 import {
+  createStudentTagAction,
+  deleteStudentTagAction,
   prepareNeonStudentsImportAction,
   resetNeonPreferencesAction,
   saveNeonPreferencesAction
@@ -209,6 +212,10 @@ export default async function NeonPage({ searchParams }) {
   const selectedRegistrationCodes = normalizeMultiValues(resolvedSearchParams?.quickRegistration);
   const selectedFamilyStatusCodes = normalizeMultiValues(resolvedSearchParams?.quickFamilyStatus);
   const selectedHealthInsuranceCodes = normalizeMultiValues(resolvedSearchParams?.quickHealthInsurance);
+  const selectedTagIds = parseListParam(resolvedSearchParams?.tag).map(clean).filter(Boolean);
+  const tagCreated = clean(resolvedSearchParams?.tagCreated) === "1";
+  const tagDeleted = clean(resolvedSearchParams?.tagDeleted) === "1";
+  const tagsError = clean(resolvedSearchParams?.tagsError);
 
   const tz = clean(resolvedSearchParams?.tz).replace(/[^\d]/g, "");
   const q = clean(resolvedSearchParams?.q);
@@ -222,6 +229,7 @@ export default async function NeonPage({ searchParams }) {
     || selectedRegistrationCodes.length
     || selectedFamilyStatusCodes.length
     || selectedHealthInsuranceCodes.length
+    || selectedTagIds.length
     || advancedFilters.length
       ? "institution"
       : q || tz ? "search" : ""
@@ -246,6 +254,7 @@ export default async function NeonPage({ searchParams }) {
         || selectedRegistrationCodes.length
         || selectedFamilyStatusCodes.length
         || selectedHealthInsuranceCodes.length
+        || selectedTagIds.length
         || advancedFilters.length
       )
     ) {
@@ -268,19 +277,25 @@ export default async function NeonPage({ searchParams }) {
         const missingState = buildMissingState(student);
         return { ...student, missingItems: missingState.items, missingFlags: missingState.flags };
       });
+      students = await attachStudentTagsToStudents(students);
 
       if (missingType) students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
+      if (selectedTagIds.length) {
+        students = students.filter((student) => selectedTagIds.some((tagId) => (student.tagIds || []).includes(tagId)));
+      }
       students = applyAdvancedFilters(students, advancedFilters);
       students = sortStudents(students, sortLevels);
     } else if (mode === "search") {
       if (tz) students = (await searchNeonStudentsByTz(tz)).slice(0, 10);
       else if (q) students = await searchNeonStudentsByText(q, 100, 0.4);
+      students = await attachStudentTagsToStudents(students);
     }
   } catch (e) {
     error = e.message || "Search failed";
   }
 
   const stats = await getNeonStudentsStats();
+  const availableTags = await listStudentTagsWithUsage();
   const clearInstitutionFiltersPath = buildNextPath({
     mode: "institution",
     cols: selectedColumnKeys,
@@ -297,8 +312,9 @@ export default async function NeonPage({ searchParams }) {
     || selectedRegistrationCodes.length
     || selectedFamilyStatusCodes.length
     || selectedHealthInsuranceCodes.length
+    || selectedTagIds.length
   );
-  const showInstitutionView = mode === "institution" && (selectedInstitutions.length || hasInstitutionFilter || hasQuickFilters || advancedFilters.length);
+  const showInstitutionView = mode === "institution" && (selectedInstitutions.length || hasInstitutionFilter || hasQuickFilters || selectedTagIds.length || advancedFilters.length);
   const sortSummary = sortLevels
     .map((level, index) => {
       const label = NEON_SORT_OPTIONS.find((option) => option.key === level.sortBy)?.label || level.sortBy;
@@ -348,8 +364,11 @@ export default async function NeonPage({ searchParams }) {
       ) : null}
       {prefsSaved ? <div className="ok">העדפות ה־Neon שלך נשמרו למשתמש הנוכחי.</div> : null}
       {prefsReset ? <div className="ok">העדפות ה־Neon אופסו, והמסך חזר לברירות המחדל.</div> : null}
+      {tagCreated ? <div className="ok">התגית נוספה בהצלחה.</div> : null}
+      {tagDeleted ? <div className="ok">התגית נמחקה בהצלחה.</div> : null}
       {prefsError ? <div className="card muted">{prefsError}</div> : null}
       {preferencesLoadError ? <div className="card muted">{preferencesLoadError}</div> : null}
+      {tagsError ? <div className="card muted">{tagsError}</div> : null}
       {importError ? <div className="card muted">{importError}</div> : null}
       {bulkUpdated ? (
         <div className="ok">
@@ -414,6 +433,21 @@ export default async function NeonPage({ searchParams }) {
                 </div>
               );
             })}
+            <div>
+              <details className="display-settings" open={selectedTagIds.length > 0}>
+                <summary>{selectedTagIds.length ? `תגיות: ${selectedTagIds.length} נבחרו` : "תגיות: הכל"}</summary>
+                <div className="column-grid" style={{ marginTop: 10 }}>
+                  {!availableTags.length ? (
+                    <div className="muted">עדיין לא נוצרו תגיות במערכת.</div>
+                  ) : availableTags.map((tag) => (
+                    <label key={tag.id} className="column-item">
+                      <input type="checkbox" name="tag" value={tag.id} defaultChecked={selectedTagIds.includes(tag.id)} />
+                      <span>{tag.name} ({tag.usageCount})</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            </div>
           </div>
           <div className="quick-actions">
             <button type="submit">החל סינון מהיר</button>
@@ -431,6 +465,7 @@ export default async function NeonPage({ searchParams }) {
                 fj: advancedFilters.map((filter) => filter.joiner),
                 fg: advancedFilters.map((filter) => filter.groupId || "group-1"),
                 gj: advancedFilters.map((filter) => filter.groupJoiner || "AND"),
+                tag: selectedTagIds,
                 pdfBlankCol: pdfBlankColumnKeys,
                 pdfOrientation
               })}
@@ -439,6 +474,35 @@ export default async function NeonPage({ searchParams }) {
             </Link>
           </div>
         </form>
+      </div>
+
+      <div className="card glass">
+        <h3>ניהול תגיות</h3>
+        <p className="muted">כאן אפשר ליצור תגיות חדשות למחלקת התלמידים ולמחוק תגיות שלא בשימוש. השיוך בפועל נעשה מתוך כרטיס התלמיד.</p>
+        <form action={createStudentTagAction} className="grid" style={{ marginBottom: 12 }}>
+          <input type="hidden" name="returnTo" value={currentQueryString ? `/neon?${currentQueryString}` : "/neon"} />
+          <input name="tagName" placeholder="שם תגית חדשה" />
+          <button type="submit">הוסף תגית</button>
+        </form>
+        {!availableTags.length ? (
+          <div className="muted">עדיין אין תגיות מוגדרות.</div>
+        ) : (
+          <div className="column-grid">
+            {availableTags.map((tag) => (
+              <div key={tag.id} className="card" style={{ padding: 12 }}>
+                <div className="student-meta-line" style={{ justifyContent: "space-between" }}>
+                  <span className="meta-chip">{tag.name}</span>
+                  <span className="muted">משויך ל-{tag.usageCount} תלמידים</span>
+                </div>
+                <form action={deleteStudentTagAction} style={{ marginTop: 8 }}>
+                  <input type="hidden" name="tagId" value={tag.id} />
+                  <input type="hidden" name="returnTo" value={currentQueryString ? `/neon?${currentQueryString}` : "/neon"} />
+                  <button type="submit" className="btn btn-danger">מחק תגית</button>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <details className="display-settings">
@@ -478,6 +542,7 @@ export default async function NeonPage({ searchParams }) {
                 {hiddenValues("quickRegistration", selectedRegistrationCodes)}
                 {hiddenValues("quickFamilyStatus", selectedFamilyStatusCodes)}
                 {hiddenValues("quickHealthInsurance", selectedHealthInsuranceCodes)}
+                {hiddenValues("tag", selectedTagIds)}
                 {selectedColumnKeys.map((key) => (
                   <input key={`sort-col-${key}`} type="hidden" name="cols" value={key} />
                 ))}
@@ -532,6 +597,7 @@ export default async function NeonPage({ searchParams }) {
                       quickRegistration: selectedRegistrationCodes,
                       quickFamilyStatus: selectedFamilyStatusCodes,
                       quickHealthInsurance: selectedHealthInsuranceCodes,
+                      tag: selectedTagIds,
                       missingType,
                       ff: advancedFilters.map((filter) => filter.field),
                       fo: advancedFilters.map((filter) => filter.operator),
@@ -561,6 +627,7 @@ export default async function NeonPage({ searchParams }) {
                 {hiddenValues("quickRegistration", selectedRegistrationCodes)}
                 {hiddenValues("quickFamilyStatus", selectedFamilyStatusCodes)}
                 {hiddenValues("quickHealthInsurance", selectedHealthInsuranceCodes)}
+                {hiddenValues("tag", selectedTagIds)}
                 <input type="hidden" name="pdfOrientation" value={pdfOrientation} />
                 {pdfBlankColumnKeys.map((key) => (
                   <input key={`field-pdf-${key}`} type="hidden" name="pdfBlankCol" value={key} />
@@ -612,6 +679,7 @@ export default async function NeonPage({ searchParams }) {
                 {hiddenValues("quickRegistration", selectedRegistrationCodes)}
                 {hiddenValues("quickFamilyStatus", selectedFamilyStatusCodes)}
                 {hiddenValues("quickHealthInsurance", selectedHealthInsuranceCodes)}
+                {hiddenValues("tag", selectedTagIds)}
                 {selectedColumnKeys.map((key) => (
                   <input key={`pdf-col-${key}`} type="hidden" name="cols" value={key} />
                 ))}
