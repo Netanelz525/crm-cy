@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createStudentContactLog } from "../../lib/student-contact-logs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
+import { normalizeStudentInput } from "../../lib/student-fields";
+import { updateNeonStudentViaTwenty } from "../../lib/neon-students";
 import { addStudentTagToStudent, removeStudentTagFromStudent } from "../../lib/student-tags";
 
 function clean(value) {
@@ -81,4 +83,63 @@ export async function addStudentContactLiveAction({ studentId, contactDate, note
   } catch (error) {
     return fail(error?.message || "שמירת יצירת הקשר נכשלה.");
   }
+}
+
+export async function bulkUpdateStudentsLiveAction({ studentIds = [], fields = {}, bulkTagId = "", bulkNewTagName = "" }) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_team_member && !user.is_manager) {
+    return fail("אין הרשאה לעדכון מרוכז.");
+  }
+
+  const normalizedStudentIds = Array.isArray(studentIds) ? studentIds.map(clean).filter(Boolean) : [];
+  if (!normalizedStudentIds.length) {
+    return fail("לא נבחרו תלמידים לעדכון.");
+  }
+
+  const data = normalizeStudentInput(fields || {}, { preserveEmptyEnums: true });
+  const hasFieldUpdate = Object.keys(data).length > 0;
+  const hasBulkTagUpdate = clean(bulkTagId) || clean(bulkNewTagName);
+
+  if (!hasFieldUpdate && !hasBulkTagUpdate) {
+    return fail("לא נבחרו שדות או תווית לעדכון.");
+  }
+
+  let updated = 0;
+  let failed = 0;
+  const errors = [];
+  let createdTag = null;
+
+  for (const studentId of normalizedStudentIds) {
+    try {
+      if (hasFieldUpdate) {
+        await updateNeonStudentViaTwenty(studentId, data);
+      }
+      if (hasBulkTagUpdate) {
+        const tag = await addStudentTagToStudent({
+          studentId,
+          tagId: bulkTagId,
+          tagName: bulkNewTagName,
+          assignedByUserId: user.clerk_user_id,
+          createdByUserId: user.clerk_user_id
+        });
+        if (tag?.id) createdTag = tag;
+      }
+      updated += 1;
+    } catch (error) {
+      failed += 1;
+      errors.push(`${studentId}: ${error?.message || "העדכון נכשל"}`);
+    }
+  }
+
+  revalidatePath("/neon");
+  revalidatePath("/neon/students");
+
+  return ok({
+    updated,
+    failed,
+    errors,
+    fields: data,
+    tag: createdTag,
+    studentIds: normalizedStudentIds
+  });
 }
