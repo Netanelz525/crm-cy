@@ -1121,6 +1121,11 @@ td {
   color: inherit;
 }
 
+.student-tag-chip-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .student-tag-chip-button .meta-chip,
 .student-tag-chip-button:hover .meta-chip {
   color: inherit;
@@ -1194,6 +1199,20 @@ td {
   border: 1px solid var(--line);
   background: #fff;
   box-shadow: var(--shadow);
+}
+
+.student-inline-feedback {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.student-inline-feedback.ok {
+  color: #166534;
+}
+
+.student-inline-feedback.error {
+  color: #b42318;
 }
 
 .student-tag-quick-trigger {

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getStudentTagTheme } from "../../lib/student-tag-theme";
 import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
+import { addStudentContactLiveAction, addStudentTagLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
 import { bulkDeleteNeonStudentsAction, bulkUpdateNeonStudentsAction } from "./actions";
 
 function PhoneLink({ phoneObj }) {
@@ -143,55 +144,94 @@ function todayInputValue() {
   }).format(new Date());
 }
 
-function StudentTagSummary({ student, action, returnTo }) {
+function StudentTagSummary({ student, onRemoveTag, disabled = false }) {
   const tags = Array.isArray(student?.tags) ? student.tags : [];
   if (!tags.length) return null;
   return (
     <div className="student-card-tag-row">
       {tags.map((tag) => (
-        <form key={tag.id} action={action} className="student-tag-chip-form">
-          <input type="hidden" name="studentId" value={student.id} />
-          <input type="hidden" name="tagId" value={tag.id} />
-          <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
-          <button type="submit" className="student-tag-chip-button" title={`הסר תווית ${tag.name}`}>
-            <span style={getStudentTagTheme(tag)}>{tag.name}</span>
-            <span aria-hidden="true">×</span>
-          </button>
-        </form>
+        <button
+          key={tag.id}
+          type="button"
+          className="student-tag-chip-button"
+          title={`הסר תווית ${tag.name}`}
+          onClick={() => onRemoveTag(student.id, tag.id)}
+          disabled={disabled}
+        >
+          <span style={getStudentTagTheme(tag)}>{tag.name}</span>
+          <span aria-hidden="true">×</span>
+        </button>
       ))}
     </div>
   );
 }
 
-function TagActionButton({ student, availableTags, action, returnTo }) {
+function TagActionButton({ student, availableTags, onAddTag, disabled = false }) {
   const tags = Array.isArray(student?.tags) ? student.tags : [];
+  const assignedIds = new Set(tags.map((tag) => tag.id));
+  const selectableTags = availableTags.filter((tag) => !assignedIds.has(tag.id));
+  const detailsRef = useRef(null);
+  const formRef = useRef(null);
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    onAddTag(student.id, {
+      tagId: clean(formData.get("tagId")),
+      newTagName: clean(formData.get("newTagName"))
+    }, {
+      onSuccess() {
+        formRef.current?.reset();
+        if (detailsRef.current) detailsRef.current.open = false;
+      }
+    });
+  }
+
   return (
-    <details className="student-tag-quick-panel">
+    <details ref={detailsRef} className="student-tag-quick-panel">
       <summary className="chip-link student-tag-quick-trigger">הוספת תווית</summary>
       <div className="student-tag-quick-body">
         {tags.length ? <div className="muted">תוויות משויכות: {tags.map((tag) => tag.name).join(", ")}</div> : <div className="muted">אין עדיין תוויות לתלמיד הזה.</div>}
-        <form action={action} className="student-tag-quick-form">
-          <input type="hidden" name="studentId" value={student.id} />
-          <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
-          <select name="tagId" defaultValue="">
+        <form ref={formRef} onSubmit={handleSubmit} className="student-tag-quick-form">
+          <select name="tagId" defaultValue="" disabled={disabled}>
             <option value="">בחר תווית קיימת</option>
-            {availableTags.map((tag) => (
+            {selectableTags.map((tag) => (
               <option key={tag.id} value={tag.id}>{tag.name}</option>
             ))}
           </select>
-          <input name="newTagName" placeholder="או צור תווית חדשה" />
-          <button type="submit">שמור תווית</button>
+          <input name="newTagName" placeholder="או צור תווית חדשה" disabled={disabled} />
+          <button type="submit" disabled={disabled}>{disabled ? "שומר..." : "שמור תווית"}</button>
         </form>
       </div>
     </details>
   );
 }
 
-function ContactActionButton({ student, action, returnTo }) {
+function ContactActionButton({ student, onAddContact, disabled = false }) {
   const latestContact = student?.latestContact || null;
   const defaultDate = todayInputValue();
+  const detailsRef = useRef(null);
+  const formRef = useRef(null);
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    onAddContact(student.id, {
+      contactDate: clean(formData.get("contactDate")),
+      noteText: clean(formData.get("noteText"))
+    }, {
+      onSuccess() {
+        formRef.current?.reset();
+        if (formRef.current?.elements?.namedItem("contactDate")) {
+          formRef.current.elements.namedItem("contactDate").value = todayInputValue();
+        }
+        if (detailsRef.current) detailsRef.current.open = false;
+      }
+    });
+  }
+
   return (
-    <details className="student-tag-quick-panel">
+    <details ref={detailsRef} className="student-tag-quick-panel">
       <summary className="chip-link student-tag-quick-trigger">יצירת קשר</summary>
       <div className="student-tag-quick-body">
         <div className="muted">
@@ -199,25 +239,96 @@ function ContactActionButton({ student, action, returnTo }) {
             ? `שיחה אחרונה: ${formatDateValue(latestContact.contactDate)} | ${latestContact.noteText || "-"}`
             : "עדיין לא תועדה יצירת קשר."}
         </div>
-        <form action={action} className="student-tag-quick-form">
-          <input type="hidden" name="studentId" value={student.id} />
-          <input type="hidden" name="returnTo" value={returnTo || "/neon"} />
-          <input type="date" name="contactDate" defaultValue={defaultDate} />
-          <input name="noteText" placeholder="תיעוד קצר של יצירת הקשר" />
-          <button type="submit">שמור יצירת קשר</button>
+        <form ref={formRef} onSubmit={handleSubmit} className="student-tag-quick-form">
+          <input type="date" name="contactDate" defaultValue={defaultDate} disabled={disabled} />
+          <input name="noteText" placeholder="תיעוד קצר של יצירת הקשר" disabled={disabled} />
+          <button type="submit" disabled={disabled}>{disabled ? "שומר..." : "שמור יצירת קשר"}</button>
         </form>
       </div>
     </details>
   );
 }
 
-export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [], addStudentTagAction, removeStudentTagAction, addStudentContactAction }) {
+export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [] }) {
+  const [studentRows, setStudentRows] = useState(Array.isArray(students) ? students : []);
+  const [tagOptions, setTagOptions] = useState(Array.isArray(availableTags) ? availableTags : []);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const allVisibleSelected = students.length > 0 && students.every((student) => selectedSet.has(student.id));
+  const allVisibleSelected = studentRows.length > 0 && studentRows.every((student) => selectedSet.has(student.id));
+
+  function updateStudentRow(studentId, updater) {
+    setStudentRows((current) => current.map((student) => (
+      student.id === studentId ? updater(student) : student
+    )));
+  }
+
+  function sortTags(list) {
+    return [...list].sort((a, b) => clean(a?.name).localeCompare(clean(b?.name), "he"));
+  }
+
+  function handleRemoveTag(studentId, tagId) {
+    setFeedback("");
+    startTransition(async () => {
+      const result = await removeStudentTagLiveAction({ studentId, tagId });
+      if (!result?.ok) {
+        setFeedback(result?.error || "הסרת התווית נכשלה.");
+        return;
+      }
+      updateStudentRow(studentId, (student) => {
+        const nextTags = (student.tags || []).filter((tag) => tag.id !== tagId);
+        return {
+          ...student,
+          tags: nextTags,
+          tagIds: nextTags.map((tag) => tag.id),
+          tagNames: nextTags.map((tag) => tag.name)
+        };
+      });
+    });
+  }
+
+  function handleAddTag(studentId, payload, options = {}) {
+    setFeedback("");
+    startTransition(async () => {
+      const result = await addStudentTagLiveAction({ studentId, ...payload });
+      if (!result?.ok || !result?.tag?.id) {
+        setFeedback(result?.error || "שמירת התווית נכשלה.");
+        return;
+      }
+      setTagOptions((current) => current.some((tag) => tag.id === result.tag.id) ? current : sortTags([...current, result.tag]));
+      updateStudentRow(studentId, (student) => {
+        if ((student.tags || []).some((tag) => tag.id === result.tag.id)) return student;
+        const nextTags = sortTags([...(student.tags || []), result.tag]);
+        return {
+          ...student,
+          tags: nextTags,
+          tagIds: nextTags.map((tag) => tag.id),
+          tagNames: nextTags.map((tag) => tag.name)
+        };
+      });
+      options.onSuccess?.();
+    });
+  }
+
+  function handleAddContact(studentId, payload, options = {}) {
+    setFeedback("");
+    startTransition(async () => {
+      const result = await addStudentContactLiveAction({ studentId, ...payload });
+      if (!result?.ok || !result?.contact?.id) {
+        setFeedback(result?.error || "שמירת יצירת הקשר נכשלה.");
+        return;
+      }
+      updateStudentRow(studentId, (student) => ({
+        ...student,
+        latestContact: result.contact
+      }));
+      options.onSuccess?.();
+    });
+  }
 
   function toggleStudent(studentId, checked) {
     setSelectedIds((current) => {
@@ -229,7 +340,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
   }
 
   function toggleAll(checked) {
-    setSelectedIds(checked ? students.map((student) => student.id) : []);
+    setSelectedIds(checked ? studentRows.map((student) => student.id) : []);
   }
 
   function closeBulk() {
@@ -259,11 +370,12 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
         <div className="card bulk-toolbar">
           <div className="bulk-toolbar-copy">
             <strong>פעולות מרוכזות על התצוגה הנוכחית</strong>
-            <div className="muted">נבחרו לעדכון מרוכז: <b>{selectedIds.length}</b> מתוך <b>{students.length}</b> רשומות בתצוגה</div>
+            <div className="muted">נבחרו לעדכון מרוכז: <b>{selectedIds.length}</b> מתוך <b>{studentRows.length}</b> רשומות בתצוגה</div>
+            {feedback ? <div className="student-inline-feedback">{feedback}</div> : null}
           </div>
           <div className="quick-actions bulk-toolbar-actions" style={{ marginTop: 0 }}>
-            <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(students.map((student) => student.id))}>
-              בחר את כל {students.length} הרשומות בתצוגה
+            <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(studentRows.map((student) => student.id))}>
+              בחר את כל {studentRows.length} הרשומות בתצוגה
             </button>
             <Link className="btn btn-ghost bulk-open-btn" href={emailHref} aria-disabled={!selectedIds.length} onClick={(event) => {
               if (!selectedIds.length) event.preventDefault();
@@ -428,12 +540,12 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
             )}
           </thead>
           <tbody>
-            {!students.length ? (
+            {!studentRows.length ? (
               <tr>
                 <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 12 : 11)} className="muted">אין תוצאות</td>
               </tr>
             ) : showInstitutionView ? (
-              students.map((student) => {
+              studentRows.map((student) => {
                 const hasMissing = (student.missingItems || []).length > 0;
                 return (
                   <tr key={student.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
@@ -449,7 +561,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 );
               })
             ) : (
-              students.map((student) => {
+              studentRows.map((student) => {
                 const missingState = buildMissingState(student);
                 const hasMissing = missingState.items.length > 0;
                 return (
@@ -460,7 +572,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td>
                       <div className="student-table-name-cell">
                         <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
-                        <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
+                        <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
                       </div>
                     </td>
                     {showMatchScores ? <td><MatchScoreBadge score={student._matchScore} /></td> : null}
@@ -471,10 +583,10 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td><PhoneLink phoneObj={student.dadPhone} /></td>
                     <td><PhoneLink phoneObj={student.momPhone} /></td>
                     <td>
-                      <ContactActionButton student={student} action={addStudentContactAction} returnTo={returnTo} />
+                      <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
                     </td>
                     <td>
-                      <TagActionButton student={student} availableTags={availableTags} action={addStudentTagAction} returnTo={returnTo} />
+                      <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
                     </td>
                     <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>{hasMissing ? missingState.items.join(", ") : "-"}</td>
                   </tr>
@@ -486,10 +598,10 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
       </div>
 
       <div className="mobile-student-list">
-        {!students.length ? (
+        {!studentRows.length ? (
           <div className="card muted">אין תוצאות</div>
         ) : showInstitutionView ? (
-          students.map((student) => {
+          studentRows.map((student) => {
             const hasMissing = (student.missingItems || []).length > 0;
             return (
               <div key={student.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
@@ -500,19 +612,19 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <div className="student-mobile-head">
                   <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                 </div>
-                <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
+                <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
                 <div className="student-mobile-contact">
                   <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}
                 </div>
                 <div className="student-mobile-grid">
                   {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
                 </div>
-                <ContactActionButton student={student} action={addStudentContactAction} returnTo={returnTo} />
+                <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
               </div>
             );
           })
         ) : (
-          students.map((student) => {
+          studentRows.map((student) => {
             const missingState = buildMissingState(student);
             const hasMissing = missingState.items.length > 0;
             return (
@@ -526,7 +638,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   {showMatchScores ? <MatchScoreBadge score={student._matchScore} /> : null}
                   <span>{classLabel(student.class)}</span>
                 </div>
-                <StudentTagSummary student={student} action={removeStudentTagAction} returnTo={returnTo} />
+                <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
                 <div className="student-mobile-contact">
                   <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}
                 </div>
@@ -537,8 +649,8 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <div><b>טלפון אב:</b> <PhoneLink phoneObj={student.dadPhone} /></div>
                   <div><b>טלפון אם:</b> <PhoneLink phoneObj={student.momPhone} /></div>
                 </div>
-                <ContactActionButton student={student} action={addStudentContactAction} returnTo={returnTo} />
-                <TagActionButton student={student} availableTags={availableTags} action={addStudentTagAction} returnTo={returnTo} />
+                <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
+                <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
                 <div className="student-mobile-missing"><b>חוסרים:</b> {hasMissing ? missingState.items.join(", ") : "-"}</div>
               </div>
             );
