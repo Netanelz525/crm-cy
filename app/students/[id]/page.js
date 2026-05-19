@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import AttendanceHistoryPanel from "../../../components/attendance-history-panel";
 import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from "../../../lib/attendance";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../lib/rbac";
+import { listStudentEmailDeliveries } from "../../../lib/email-campaigns";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../lib/student-fields";
 import { listStudentDocuments } from "../../../lib/student-documents";
 import { ageOf } from "../../../lib/student-view";
@@ -147,6 +148,17 @@ function documentKindLabel(value) {
   return "מסמך כללי";
 }
 
+function emailStatusLabel(delivery) {
+  const numeric = Number(delivery?.certainty_level || 0);
+  if (clean(delivery?.status) === "unsubscribed") return "הוסר";
+  if (clean(delivery?.status) === "failed") return "נכשל";
+  if (numeric >= 4) return "נלחץ";
+  if (numeric >= 3) return "נפתח";
+  if (numeric >= 2) return "נשלח";
+  if (numeric >= 1) return "בתור";
+  return "אין ודאות";
+}
+
 function EditField({ field, value }) {
   if (field.enum && ENUM_LABELS[field.enum]) {
     const emptyOptionLabel = value ? "נקה בחירה" : "ללא בחירה";
@@ -213,10 +225,11 @@ export default async function StudentPage({ params, searchParams }) {
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
-  const [documents, attendanceSummary, attendanceHistory] = await Promise.all([
-    listStudentDocuments(studentId),
+  const documents = await listStudentDocuments(studentId);
+  const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
+  const [attendanceSummary, attendanceHistory] = await Promise.all([
     getAttendanceSummaryForStudent(studentId),
-    listAttendanceHistoryForStudent(studentId)
+    listAttendanceHistoryForStudent(studentId, { limit: 8 })
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
@@ -289,7 +302,7 @@ export default async function StudentPage({ params, searchParams }) {
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
-            <span className="linked-record-pill">רשומות עתידיות: בקרוב</span>
+            <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span>
           </div>
         </summary>
         <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
@@ -315,11 +328,34 @@ export default async function StudentPage({ params, searchParams }) {
               </div>
             ))
           )}
-          <div className="linked-record-card placeholder">
-            <b>רשומות נוספות</b>
-            <div className="linked-record-meta">האזור הזה מוכן להתרחב בהמשך לרשומות חדשות שנוסיף למערכת.</div>
-            <div className="linked-record-meta">לדוגמה: משימות, סטטוסים, קישורים ופריטים משויכים נוספים.</div>
-          </div>
+          {!currentUser.can_view_email_reports ? (
+            <div className="linked-record-card placeholder">
+              <b>מיילים</b>
+              <div className="linked-record-meta">היסטוריית מיילים זמינה למשתמשים עם הרשאת דוחות.</div>
+            </div>
+          ) : !emailDeliveries.length ? (
+            <div className="linked-record-card placeholder">
+              <b>מיילים</b>
+              <div className="linked-record-meta">עדיין לא נשלחו מיילים משויכים לתלמיד הזה.</div>
+              <div className="linked-record-meta">כאן יופיעו הודעות, פתיחות ולחיצות מתוך מערכת המיילים.</div>
+            </div>
+          ) : (
+            emailDeliveries.map((delivery) => (
+              <div key={delivery.id} className="linked-record-card">
+                <div className="linked-record-card-top">
+                  <Link className="linked-record-title" href={`/email/campaigns/${delivery.campaign_id}?delivery=${delivery.id}`}>
+                    {delivery.subject}
+                  </Link>
+                  <span className="linked-record-pill">{emailStatusLabel(delivery)}</span>
+                </div>
+                <div className="linked-record-meta">נמען: {delivery.recipient_name || delivery.recipient_email}</div>
+                <div className="linked-record-meta">אימייל: {delivery.recipient_email}</div>
+                <div className="linked-record-meta">פתיחות: {delivery.open_count || 0}</div>
+                <div className="linked-record-meta">נפתח: {delivery.opened_at ? new Date(delivery.opened_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
+                <div className="linked-record-meta">נלחץ: {delivery.clicked_at ? new Date(delivery.clicked_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
+              </div>
+            ))
+          )}
         </div>
       </details>
 

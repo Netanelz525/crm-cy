@@ -1,0 +1,312 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import {
+  ATTENDANCE_SUMMARY_SORT_LABELS,
+  ATTENDANCE_SESSION_TYPE_ORDER,
+  ATTENDANCE_SESSION_TYPE_LABELS,
+  getAttendanceSummaryReport,
+  listAttendanceSessions
+} from "../../lib/attendance";
+import { getCurrentAppUser } from "../../lib/rbac";
+import { INSTITUTIONS } from "../../lib/student-view";
+import { createAttendanceSessionAction, deleteAttendanceSessionAction } from "./actions";
+
+function clean(value) {
+  return String(value || "").trim();
+}
+
+function formatSessionLabel(session) {
+  const title = clean(session?.sessionTypeLabel || session?.title);
+  const institutionLabel = clean(session?.institutionLabel);
+  const sessionDate = clean(session?.sessionDate);
+  return [institutionLabel, title, sessionDate].filter(Boolean).join(" | ");
+}
+
+function formatSessionMeta(session) {
+  const parts = [
+    clean(session?.sessionWeekdayLabel),
+    clean(session?.sessionHebrewDateLabel)
+  ].filter(Boolean);
+  return parts.join(" | ");
+}
+
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function inputDateFromDate(date) {
+  const copy = new Date(date);
+  copy.setHours(12, 0, 0, 0);
+  return copy.toISOString().slice(0, 10);
+}
+
+function startOfWeek(date) {
+  const copy = new Date(date);
+  copy.setHours(12, 0, 0, 0);
+  copy.setDate(copy.getDate() - copy.getDay());
+  return copy;
+}
+
+function startOfMonth(date) {
+  const copy = new Date(date);
+  copy.setHours(12, 0, 0, 0);
+  copy.setDate(1);
+  return copy;
+}
+
+function formatPercent(value) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) return "0%";
+  return `${numeric % 1 === 0 ? numeric.toFixed(0) : numeric.toFixed(1)}%`;
+}
+
+function buildSummaryExportQuery(filters) {
+  const params = new URLSearchParams();
+  if (filters.institution) params.set("reportInstitution", filters.institution);
+  if (filters.start) params.set("reportStart", filters.start);
+  if (filters.end) params.set("reportEnd", filters.end);
+  if (filters.sort) params.set("reportSort", filters.sort);
+  return params.toString();
+}
+
+function resolveReportFilters(searchParams) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const monthStart = inputDateFromDate(startOfMonth(today));
+  const weekStart = inputDateFromDate(startOfWeek(today));
+  const todayValue = inputDateFromDate(today);
+  const range = clean(searchParams?.reportRange) || "month";
+  const institution = clean(searchParams?.reportInstitution);
+  const sort = clean(searchParams?.reportSort).toLowerCase() || "class_name";
+
+  if (range === "week") {
+    return {
+      institution,
+      range,
+      start: weekStart,
+      end: todayValue,
+      sort
+    };
+  }
+
+  if (range === "custom") {
+    return {
+      institution,
+      range,
+      start: clean(searchParams?.reportStart) || monthStart,
+      end: clean(searchParams?.reportEnd) || todayValue,
+      sort
+    };
+  }
+
+  return {
+    institution,
+    range: "month",
+    start: monthStart,
+    end: todayValue,
+    sort
+  };
+}
+
+export default async function AttendancePage({ searchParams }) {
+  const currentUser = await getCurrentAppUser();
+  if (!currentUser) redirect("/sign-in");
+  if (!currentUser.is_team_member && !currentUser.is_manager) redirect("/unauthorized");
+
+  const resolvedSearchParams = await searchParams;
+  const created = clean(resolvedSearchParams?.created) === "1";
+  const deleted = clean(resolvedSearchParams?.deleted) === "1";
+  const reportFilters = resolveReportFilters(resolvedSearchParams);
+  const summaryExportQuery = buildSummaryExportQuery(reportFilters);
+  const sessions = await listAttendanceSessions(
+    reportFilters.institution
+      ? {
+          institution: reportFilters.institution,
+          dateFrom: reportFilters.start,
+          dateTo: reportFilters.end,
+          limit: 18
+        }
+      : { limit: 18 }
+  );
+  const summaryReport = reportFilters.institution
+    ? await getAttendanceSummaryReport({
+        institution: reportFilters.institution,
+        dateFrom: reportFilters.start,
+        dateTo: reportFilters.end,
+        sort: reportFilters.sort
+      })
+    : null;
+
+  return (
+    <>
+      <div className="card glass">
+        <h1>נוכחות מוסדית</h1>
+        <p className="muted">
+          יוצרים מפגש לפי מוסד, פותחים את רשימת התלמידים של אותו מוסד, ומזינים את הנוכחות מהתיעוד הקיים.
+        </p>
+        <div className="quick-actions">
+          <Link className="quick-action-btn quick-action-outline" href="/">חזרה לתלמידים</Link>
+          <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה ל-Neon</Link>
+        </div>
+      </div>
+
+      <section className="card glass">
+        <h3>סיכום נוכחות</h3>
+        <p className="muted">
+          דוח מסכם לפי מוסד וטווח תאריכים, עם עמודה לכל סוג מפגש ואחוז נוכחות כולל לכל תלמיד.
+        </p>
+        <form className="grid" method="get">
+          <select name="reportInstitution" defaultValue={reportFilters.institution} required>
+            <option value="">בחר מוסד לדוח</option>
+            {Object.entries(INSTITUTIONS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <select name="reportRange" defaultValue={reportFilters.range}>
+            <option value="week">שבוע נוכחי</option>
+            <option value="month">חודש נוכחי</option>
+            <option value="custom">מותאם אישית</option>
+          </select>
+          <select name="reportSort" defaultValue={reportFilters.sort}>
+            {Object.entries(ATTENDANCE_SUMMARY_SORT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <input name="reportStart" type="date" defaultValue={reportFilters.start} />
+          <input name="reportEnd" type="date" defaultValue={reportFilters.end} />
+          <button type="submit">הצג סיכום</button>
+        </form>
+      </section>
+
+      {summaryReport ? (
+        <section className="card">
+          <div className="summary-row">
+            <div>
+              <h3 style={{ marginBottom: 6 }}>סיכום עבור {summaryReport.institutionLabel}</h3>
+              <div className="muted">
+                טווח: {summaryReport.dateFrom} עד {summaryReport.dateTo} | מיון: {ATTENDANCE_SUMMARY_SORT_LABELS[reportFilters.sort] || ATTENDANCE_SUMMARY_SORT_LABELS.class_name}
+              </div>
+            </div>
+            <div className="attendance-stats">
+              <span className="meta-chip">תלמידים: {summaryReport.totalStudents}</span>
+              <span className="meta-chip">מפגשים: {summaryReport.totalSessions}</span>
+              {summaryReport.sessionTypeTotals.map((item) => (
+                <span key={item.sessionType} className="meta-chip">{item.label}: {item.totalSessions}</span>
+              ))}
+            </div>
+          </div>
+
+          {summaryReport.totalSessions ? (
+            <div className="quick-actions" style={{ marginTop: 14 }}>
+              <a className="quick-action-btn quick-action-primary" href={`/api/attendance/summary/xlsx?${summaryExportQuery}`}>
+                הורד אקסל
+              </a>
+              <a className="quick-action-btn quick-action-outline" href={`/api/attendance/summary/pdf?${summaryExportQuery}`} target="_blank" rel="noreferrer">
+                הורד PDF
+              </a>
+            </div>
+          ) : null}
+
+          {!summaryReport.totalSessions ? (
+            <div className="card muted" style={{ marginTop: 14, marginBottom: 0 }}>
+              לא נמצאו מפגשים בטווח התאריכים שנבחר.
+            </div>
+          ) : (
+            <div className="attendance-table-wrap" style={{ marginTop: 14 }}>
+              <table className="attendance-table attendance-summary-table">
+                <thead>
+                  <tr>
+                    <th>שם תלמיד</th>
+                    <th>שיעור</th>
+                    {ATTENDANCE_SESSION_TYPE_ORDER.map((sessionType) => (
+                      <th key={sessionType}>{ATTENDANCE_SESSION_TYPE_LABELS[sessionType]}</th>
+                    ))}
+                    <th>אחוז מסכם</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryReport.rows.map((student) => (
+                    <tr key={student.id}>
+                      <td>
+                        <div className="attendance-student-name">{student.label}</div>
+                      </td>
+                      <td>{student.classLabel}</td>
+                      {ATTENDANCE_SESSION_TYPE_ORDER.map((sessionType) => (
+                        <td key={sessionType}>
+                          <div className="attendance-summary-cell">
+                            <strong>{student.byType[sessionType].displayValue}</strong>
+                            <span>{formatPercent(student.byType[sessionType].percent)}</span>
+                          </div>
+                        </td>
+                      ))}
+                      <td>
+                        <div className="attendance-summary-cell">
+                          <strong>{student.overall.displayValue}</strong>
+                          <span>{formatPercent(student.overall.percent)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
+      {deleted ? <div className="ok">המפגש נמחק.</div> : null}
+      <div className="attendance-layout">
+        <section className="card glass">
+          <h3>יצירת מפגש חדש</h3>
+          <form action={createAttendanceSessionAction} className="grid">
+            <select name="institution" defaultValue="" required>
+              <option value="">בחר מוסד</option>
+              {Object.entries(INSTITUTIONS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <select name="sessionType" defaultValue="" required>
+              <option value="">בחר סוג מפגש</option>
+              {Object.entries(ATTENDANCE_SESSION_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
+            <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
+            <button type="submit">צור מפגש והתחל להזין</button>
+          </form>
+        </section>
+
+        <aside className="card glass">
+          <h3>{reportFilters.institution ? "מפגשים לפי הסינון" : "מפגשים אחרונים"}</h3>
+          {!sessions.length ? (
+            <p className="muted">
+              {reportFilters.institution
+                ? "לא נמצאו מפגשים שתואמים לפילטרים של הדוח."
+                : "עדיין לא נוצרו מפגשי נוכחות."}
+            </p>
+          ) : (
+            <div className="attendance-session-list">
+              {sessions.map((session) => (
+                <div key={session.id} className="attendance-session-link">
+                  <Link href={`/attendance/${session.id}`}>
+                    <strong>{formatSessionLabel(session)}</strong>
+                    {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
+                    <span>נוצר על ידי: {session.createdByDisplayName}</span>
+                    {session.sourceNote ? <span>{session.sourceNote}</span> : <span>{session.id}</span>}
+                  </Link>
+                  <form action={deleteAttendanceSessionAction}>
+                    <input type="hidden" name="sessionId" value={session.id} />
+                    <button type="submit" className="quick-action-btn quick-action-outline">מחק</button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+      </div>
+      <div className="card muted">בחר מפגש קיים או צור מפגש חדש כדי להתחיל להזין נוכחות.</div>
+    </>
+  );
+}
