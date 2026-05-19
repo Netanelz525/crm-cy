@@ -4,8 +4,8 @@
   "private": true,
   "description": "CRM management app for Twenty, deployed on Vercel with Clerk + Neon",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --turbo",
+    "build": "next build --turbo",
     "start": "next start",
     "lint": "next lint",
     "backup:json": "node scripts/backup-crm-json.mjs"
