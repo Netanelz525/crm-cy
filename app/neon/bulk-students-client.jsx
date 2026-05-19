@@ -736,7 +736,15 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     </td>
                     {selectedColumns.map((col) => (
                       <td key={col.key} style={col.key === "missing" && hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>
-                        {columnNode(student, col.key)}
+                        {col.key === "name" ? (
+                          <div className="student-table-name-cell">
+                            {columnNode(student, col.key)}
+                            <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
+                            <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
+                          </div>
+                        ) : (
+                          columnNode(student, col.key)
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -809,6 +817,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 </div>
                 <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
                 <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
+                <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
               </div>
             );
           })
