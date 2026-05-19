@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getStudentTagTheme } from "../../lib/student-tag-theme";
 import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
-import { addStudentContactLiveAction, addStudentTagLiveAction, bulkUpdateStudentsLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
+import { addStudentContactLiveAction, addStudentEventLiveAction, addStudentTagLiveAction, bulkUpdateStudentsLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
 import { bulkDeleteNeonStudentsAction } from "./actions";
 
 function PhoneLink({ phoneObj }) {
@@ -154,6 +154,14 @@ function todayInputValue() {
   }).format(new Date());
 }
 
+function eventOffsetLabel(daysUntil) {
+  const normalized = Number(daysUntil);
+  if (!Number.isFinite(normalized)) return "";
+  if (normalized === 0) return "היום";
+  if (normalized === 1) return "מחר";
+  return `עוד ${normalized} ימים`;
+}
+
 function StudentTagSummary({ student, onRemoveTag, disabled = false }) {
   const tags = Array.isArray(student?.tags) ? student.tags : [];
   if (!tags.length) return null;
@@ -259,6 +267,73 @@ function ContactActionButton({ student, onAddContact, disabled = false }) {
   );
 }
 
+function EventActionButton({ student, onAddEvent, disabled = false }) {
+  const upcomingEvent = student?.upcomingEvent || null;
+  const detailsRef = useRef(null);
+  const formRef = useRef(null);
+  const [eventType, setEventType] = useState("birthday");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    onAddEvent(student.id, {
+      eventType: clean(formData.get("eventType")),
+      customEventLabel: clean(formData.get("customEventLabel")),
+      hebrewDay: clean(formData.get("hebrewDay")),
+      hebrewMonthCode: clean(formData.get("hebrewMonthCode"))
+    }, {
+      onSuccess() {
+        formRef.current?.reset();
+        setEventType("birthday");
+        if (detailsRef.current) detailsRef.current.open = false;
+      }
+    });
+  }
+
+  return (
+    <details ref={detailsRef} className="student-tag-quick-panel">
+      <summary className="chip-link student-tag-quick-trigger">הוסף אירוע</summary>
+      <div className="student-tag-quick-body">
+        <div className="muted">
+          {upcomingEvent
+            ? `הקרוב ביותר: ${upcomingEvent.eventLabel} | ${upcomingEvent.hebrewDateLabel} | ${eventOffsetLabel(upcomingEvent?.nextOccurrence?.daysUntil)}`
+            : "עדיין לא הוגדר אירוע לתלמיד הזה."}
+        </div>
+        <form ref={formRef} onSubmit={handleSubmit} className="student-tag-quick-form">
+          <select name="eventType" value={eventType} onChange={(event) => setEventType(event.target.value)} disabled={disabled}>
+            <option value="birthday">יום הולדת</option>
+            <option value="wedding">חתונה</option>
+            <option value="memorial">יום זיכרון</option>
+            <option value="other">אחר</option>
+          </select>
+          <input name="customEventLabel" placeholder="אם בחרת אחר, כתוב כאן" disabled={disabled || eventType !== "other"} />
+          <select name="hebrewDay" defaultValue="1" disabled={disabled}>
+            {Array.from({ length: 30 }, (_, index) => (
+              <option key={index + 1} value={index + 1}>{index + 1}</option>
+            ))}
+          </select>
+          <select name="hebrewMonthCode" defaultValue="TISHREI" disabled={disabled}>
+            <option value="TISHREI">תשרי</option>
+            <option value="CHESHVAN">חשוון</option>
+            <option value="KISLEV">כסלו</option>
+            <option value="TEVET">טבת</option>
+            <option value="SHVAT">שבט</option>
+            <option value="ADAR_I">אדר</option>
+            <option value="ADAR_II">אדר ב׳</option>
+            <option value="NISAN">ניסן</option>
+            <option value="IYYAR">אייר</option>
+            <option value="SIVAN">סיוון</option>
+            <option value="TAMUZ">תמוז</option>
+            <option value="AV">אב</option>
+            <option value="ELUL">אלול</option>
+          </select>
+          <button type="submit" disabled={disabled}>{disabled ? "שומר..." : "שמור אירוע"}</button>
+        </form>
+      </div>
+    </details>
+  );
+}
+
 export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [] }) {
   const [studentRows, setStudentRows] = useState(Array.isArray(students) ? students : []);
   const [tagOptions, setTagOptions] = useState(Array.isArray(availableTags) ? availableTags : []);
@@ -336,6 +411,29 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
         ...student,
         latestContact: result.contact
       }));
+      options.onSuccess?.();
+    });
+  }
+
+  function handleAddEvent(studentId, payload, options = {}) {
+    setFeedback("");
+    startTransition(async () => {
+      const result = await addStudentEventLiveAction({ studentId, ...payload });
+      if (!result?.ok || !result?.event?.id) {
+        setFeedback(result?.error || "שמירת האירוע נכשלה.");
+        return;
+      }
+      updateStudentRow(studentId, (student) => {
+        const currentUpcoming = student?.upcomingEvent || null;
+        const nextEvent = result.event;
+        const shouldReplace = !currentUpcoming
+          || Number(nextEvent?.nextOccurrence?.daysUntil ?? Number.POSITIVE_INFINITY)
+            <= Number(currentUpcoming?.nextOccurrence?.daysUntil ?? Number.POSITIVE_INFINITY);
+        return {
+          ...student,
+          upcomingEvent: shouldReplace ? nextEvent : currentUpcoming
+        };
+      });
       options.onSuccess?.();
     });
   }
@@ -617,6 +715,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <th>טלפון אב</th>
                 <th>טלפון אם</th>
                 <th>יצירת קשר</th>
+                <th>אירוע</th>
                 <th>תוויות</th>
                 <th>חוסרים</th>
               </tr>
@@ -625,7 +724,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
           <tbody>
             {!studentRows.length ? (
               <tr>
-                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 12 : 11)} className="muted">אין תוצאות</td>
+                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 13 : 12)} className="muted">אין תוצאות</td>
               </tr>
             ) : showInstitutionView ? (
               studentRows.map((student) => {
@@ -669,6 +768,9 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                       <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
                     </td>
                     <td>
+                      <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
+                    </td>
+                    <td>
                       <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
                     </td>
                     <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>{hasMissing ? missingState.items.join(", ") : "-"}</td>
@@ -699,10 +801,14 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <div className="student-mobile-contact">
                   <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}
                 </div>
+                <div className="student-mobile-contact">
+                  <b>אירוע קרוב:</b> {student?.upcomingEvent ? `${student.upcomingEvent.eventLabel} | ${student.upcomingEvent.hebrewDateLabel} | ${eventOffsetLabel(student.upcomingEvent?.nextOccurrence?.daysUntil)}` : "אין אירוע"}
+                </div>
                 <div className="student-mobile-grid">
                   {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
                 </div>
                 <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
+                <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
               </div>
             );
           })
@@ -725,6 +831,9 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <div className="student-mobile-contact">
                   <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}
                 </div>
+                <div className="student-mobile-contact">
+                  <b>אירוע קרוב:</b> {student?.upcomingEvent ? `${student.upcomingEvent.eventLabel} | ${student.upcomingEvent.hebrewDateLabel} | ${eventOffsetLabel(student.upcomingEvent?.nextOccurrence?.daysUntil)}` : "אין אירוע"}
+                </div>
                 <div className="student-mobile-grid">
                   <div><b>ת"ז:</b> {student.tznum || "-"}</div>
                   <div><b>גיל:</b> {ageOf(student.dateofbirth) ?? "-"}</div>
@@ -733,6 +842,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <div><b>טלפון אם:</b> <PhoneLink phoneObj={student.momPhone} /></div>
                 </div>
                 <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
+                <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
                 <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
                 <div className="student-mobile-missing"><b>חוסרים:</b> {hasMissing ? missingState.items.join(", ") : "-"}</div>
               </div>

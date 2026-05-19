@@ -5,7 +5,7 @@ import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { attachLatestContactToStudents } from "../../lib/student-contact-logs";
-import { listUpcomingStudentEvents } from "../../lib/student-events";
+import { attachUpcomingEventSummaryToStudents, listUpcomingStudentEvents } from "../../lib/student-events";
 import { attachStudentTagsToStudents, listStudentTagsWithUsage } from "../../lib/student-tags";
 import {
   applyAdvancedFilters,
@@ -284,6 +284,7 @@ export default async function NeonPage({ searchParams }) {
       });
       students = await attachStudentTagsToStudents(students);
       students = await attachLatestContactToStudents(students);
+      students = await attachUpcomingEventSummaryToStudents(students);
 
       if (missingType) students = students.filter((student) => matchesMissingFilter({ flags: student.missingFlags }, missingType));
       if (selectedTagIds.length) {
@@ -296,6 +297,7 @@ export default async function NeonPage({ searchParams }) {
       else if (q) students = await searchNeonStudentsByText(q, 100, 0.4);
       students = await attachStudentTagsToStudents(students);
       students = await attachLatestContactToStudents(students);
+      students = await attachUpcomingEventSummaryToStudents(students);
     }
   } catch (e) {
     error = e.message || "Search failed";

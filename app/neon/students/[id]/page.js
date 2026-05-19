@@ -307,6 +307,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
         </p>
       </div>
 
+      <div className="card">
+        <h3>אירועים לתלמיד</h3>
+        <p className="muted">כאן אפשר להוסיף אירוע לפי תאריך עברי בלי לפתוח את אזור הרשומות המקושרות.</p>
+        <StudentEventsLiveClient studentId={studentId} initialEvents={studentEvents} />
+      </div>
+
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
@@ -342,7 +348,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
         ) : null}
         <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
-          <StudentEventsLiveClient studentId={studentId} initialEvents={studentEvents} />
           <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} />
           {!documents.length ? (
             <div className="linked-record-card">
