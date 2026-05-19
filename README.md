@@ -194,14 +194,9 @@ node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs > /tmp/crm-ba
 node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs --env /path/to/.env.local --out /tmp/crm-backup.json
 ```
 
-הגיבוי כולל:
+הגיבוי כולל אוטומטית את כל טבלאות ה-`public` הקיימות בזמן הריצה.
 
-- `app_users`
-- `student_internal_notes`
-- `saved_student_views`
-- `neon_user_preferences`
-- `neon_students`
-- `api_tokens`
+זה אומר שגם טבלאות חדשות שנוצרות בהמשך ייכנסו לגיבוי השבועי בלי צורך לעדכן רשימה ידנית בקוד.
 
 ## גיבוי שבועי אוטומטי ב-Vercel
 
@@ -218,6 +213,6 @@ node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs --env /path/t
 
 מה נשלח:
 
-- קובץ JSON מצורף עם כל טבלאות ה-CRM
+- קובץ JSON מצורף עם כל טבלאות ה-CRM ב-`public`, כולל טבלאות חדשות שנוצרו מאז
 - ללא תמונות
 - עם מניעת הרצה כפולה לאותו יום כדי לצמצם כפילויות ב-cron
