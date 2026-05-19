@@ -744,6 +744,16 @@ button {
   box-shadow: 0 10px 24px rgba(41, 74, 103, 0.12);
 }
 
+.student-event-card-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.student-event-edit-form {
+  min-width: min(320px, calc(100vw - 56px));
+}
+
 .linked-record-card-top {
   display: flex;
   align-items: flex-start;

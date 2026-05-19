@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createStudentContactLog } from "../../lib/student-contact-logs";
-import { createStudentEvent } from "../../lib/student-events";
+import { createStudentEvent, deleteStudentEvent, updateStudentEvent } from "../../lib/student-events";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { normalizeStudentInput } from "../../lib/student-fields";
 import { updateNeonStudentViaTwenty } from "../../lib/neon-students";
@@ -114,6 +114,54 @@ export async function addStudentEventLiveAction({ studentId, eventType, customEv
     });
   } catch (error) {
     return fail(error?.message || "שמירת האירוע נכשלה.");
+  }
+}
+
+export async function updateStudentEventLiveAction({ id, studentId, eventType, customEventLabel, noteText, hebrewDay, hebrewMonthCode }) {
+  const user = await requireAuthenticatedUser();
+
+  if (!user.is_team_member && !user.is_manager && clean(user.linked_student_id) !== clean(studentId)) {
+    return fail("אין הרשאה לעדכן אירועים.");
+  }
+
+  try {
+    const updated = await updateStudentEvent({
+      id,
+      studentId,
+      eventType,
+      customEventLabel,
+      noteText,
+      hebrewDay,
+      hebrewMonthCode
+    });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${clean(studentId)}`);
+    return ok({
+      event: {
+        ...updated,
+        createdByDisplayName: clean(updated?.createdByDisplayName) || clean(user.display_name) || clean(user.email),
+        createdByEmail: clean(updated?.createdByEmail) || clean(user.email)
+      }
+    });
+  } catch (error) {
+    return fail(error?.message || "עדכון האירוע נכשל.");
+  }
+}
+
+export async function deleteStudentEventLiveAction({ id, studentId }) {
+  const user = await requireAuthenticatedUser();
+
+  if (!user.is_team_member && !user.is_manager && clean(user.linked_student_id) !== clean(studentId)) {
+    return fail("אין הרשאה למחוק אירועים.");
+  }
+
+  try {
+    await deleteStudentEvent({ id, studentId });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${clean(studentId)}`);
+    return ok({ id: clean(id) });
+  } catch (error) {
+    return fail(error?.message || "מחיקת האירוע נכשלה.");
   }
 }
 

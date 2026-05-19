@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { addStudentEventLiveAction } from "../../student-live-actions";
+import { addStudentEventLiveAction, deleteStudentEventLiveAction, updateStudentEventLiveAction } from "../../student-live-actions";
 
 const EVENT_TYPE_OPTIONS = [
   { value: "birthday", label: "יום הולדת" },
@@ -79,6 +79,36 @@ export default function StudentEventsLiveClient({ studentId, initialEvents = [] 
     });
   }
 
+  function handleUpdateEvent(eventId, payload, options = {}) {
+    setMessage("");
+    startTransition(async () => {
+      const result = await updateStudentEventLiveAction({ id: eventId, studentId, ...payload });
+      if (!result?.ok || !result?.event?.id) {
+        setMessage(result?.error || "עדכון האירוע נכשל.");
+        return;
+      }
+      setEvents((current) => current
+        .map((item) => (item.id === result.event.id ? result.event : item))
+        .sort((a, b) => Number(a?.nextOccurrence?.daysUntil || 0) - Number(b?.nextOccurrence?.daysUntil || 0)));
+      setMessage("האירוע עודכן.");
+      options.onSuccess?.();
+    });
+  }
+
+  function handleDeleteEvent(eventId, options = {}) {
+    setMessage("");
+    startTransition(async () => {
+      const result = await deleteStudentEventLiveAction({ id: eventId, studentId });
+      if (!result?.ok) {
+        setMessage(result?.error || "מחיקת האירוע נכשלה.");
+        return;
+      }
+      setEvents((current) => current.filter((item) => item.id !== eventId));
+      setMessage("האירוע נמחק.");
+      options.onSuccess?.();
+    });
+  }
+
   return (
     <>
       <div className="linked-record-card event-card-highlight">
@@ -128,26 +158,98 @@ export default function StudentEventsLiveClient({ studentId, initialEvents = [] 
         </div>
       ) : (
         sortedEvents.map((studentEvent) => (
-          <div key={studentEvent.id} className="linked-record-card">
-            <div className="linked-record-card-top">
-              <b>{studentEvent.eventLabel}</b>
-              <span className="linked-record-pill">{studentEvent.hebrewDateLabel}</span>
-            </div>
-            <div className="linked-record-meta">
-              מועד קרוב: {studentEvent?.nextOccurrence?.gregorianDisplay || "-"}
-            </div>
-            <div className="linked-record-meta">
-              תזמון: {dayLabel(studentEvent?.nextOccurrence?.daysUntil) || "ללא חישוב"}
-            </div>
-            <div className="linked-record-meta">
-              הערה: {studentEvent.noteText || "-"}
-            </div>
-            <div className="linked-record-meta">
-              נרשם על ידי: {studentEvent.createdByDisplayName || studentEvent.createdByEmail || "-"}
-            </div>
-          </div>
+          <StudentEventCard
+            key={studentEvent.id}
+            event={studentEvent}
+            isPending={isPending}
+            onUpdate={handleUpdateEvent}
+            onDelete={handleDeleteEvent}
+          />
         ))
       )}
     </>
+  );
+}
+
+function StudentEventCard({ event, isPending, onUpdate, onDelete }) {
+  const [eventType, setEventType] = useState(event.eventType || "birthday");
+  const detailsRef = useRef(null);
+
+  function handleUpdate(eventSubmit) {
+    eventSubmit.preventDefault();
+    const formData = new FormData(eventSubmit.currentTarget);
+    onUpdate(event.id, {
+      eventType: clean(formData.get("eventType")),
+      customEventLabel: clean(formData.get("customEventLabel")),
+      noteText: clean(formData.get("noteText")),
+      hebrewDay: clean(formData.get("hebrewDay")),
+      hebrewMonthCode: clean(formData.get("hebrewMonthCode"))
+    }, {
+      onSuccess() {
+        if (detailsRef.current) detailsRef.current.open = false;
+      }
+    });
+  }
+
+  function handleDeleteClick() {
+    onDelete(event.id, {
+      onSuccess() {
+        if (detailsRef.current) detailsRef.current.open = false;
+      }
+    });
+  }
+
+  return (
+    <div className="linked-record-card">
+      <div className="linked-record-card-top">
+        <b>{event.eventLabel}</b>
+        <div className="student-event-card-actions">
+          <span className="linked-record-pill">{event.hebrewDateLabel}</span>
+          <details ref={detailsRef} className="student-document-rename">
+            <summary title="ערוך אירוע">✎</summary>
+            <form onSubmit={handleUpdate} className="student-document-rename-form student-event-edit-form">
+              <select name="eventType" value={eventType} onChange={(nextEvent) => setEventType(nextEvent.target.value)} disabled={isPending}>
+                {EVENT_TYPE_OPTIONS.map((option) => (
+                  <option key={`${event.id}-${option.value}`} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <input
+                name="customEventLabel"
+                defaultValue={event.customEventLabel || ""}
+                placeholder="אם בחרת אחר, כתוב כאן"
+                disabled={isPending || eventType !== "other"}
+              />
+              <textarea name="noteText" defaultValue={event.noteText || ""} placeholder="הערה על האירוע" rows={3} disabled={isPending} />
+              <select name="hebrewDay" defaultValue={String(event.hebrewDay || 1)} disabled={isPending}>
+                {Array.from({ length: 30 }, (_, index) => (
+                  <option key={`${event.id}-day-${index + 1}`} value={index + 1}>{index + 1}</option>
+                ))}
+              </select>
+              <select name="hebrewMonthCode" defaultValue={event.hebrewMonthCode || "TISHREI"} disabled={isPending}>
+                {HEBREW_MONTH_OPTIONS.map((option) => (
+                  <option key={`${event.id}-${option.value}`} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <div className="quick-actions" style={{ marginTop: 0 }}>
+                <button type="submit" disabled={isPending}>{isPending ? "שומר..." : "שמור"}</button>
+                <button type="button" className="btn btn-danger" onClick={handleDeleteClick} disabled={isPending}>מחק אירוע</button>
+              </div>
+            </form>
+          </details>
+        </div>
+      </div>
+      <div className="linked-record-meta">
+        מועד קרוב: {event?.nextOccurrence?.gregorianDisplay || "-"}
+      </div>
+      <div className="linked-record-meta">
+        תזמון: {dayLabel(event?.nextOccurrence?.daysUntil) || "ללא חישוב"}
+      </div>
+      <div className="linked-record-meta">
+        הערה: {event.noteText || "-"}
+      </div>
+      <div className="linked-record-meta">
+        נרשם על ידי: {event.createdByDisplayName || event.createdByEmail || "-"}
+      </div>
+    </div>
   );
 }
