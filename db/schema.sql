@@ -44,6 +44,18 @@ CREATE TABLE IF NOT EXISTS student_contact_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS student_events (
+  id TEXT PRIMARY KEY,
+  student_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  custom_event_label TEXT,
+  hebrew_day INTEGER NOT NULL,
+  hebrew_month_code TEXT NOT NULL,
+  created_by_user_id TEXT REFERENCES app_users(clerk_user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS neon_user_preferences (
   owner_user_id TEXT PRIMARY KEY REFERENCES app_users(clerk_user_id) ON DELETE CASCADE,
   query_string TEXT NOT NULL DEFAULT '',

@@ -5,6 +5,7 @@ import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from 
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentEmailDeliveries } from "../../../../lib/email-campaigns";
+import { listStudentEvents } from "../../../../lib/student-events";
 import { listStudentDocuments } from "../../../../lib/student-documents";
 import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/student-tags";
 import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
@@ -12,6 +13,7 @@ import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { deleteNeonStudentAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
 import StudentContactLiveClient from "./student-contact-live-client";
+import StudentEventsLiveClient from "./student-events-live-client";
 import StudentTagsLiveClient from "./student-tags-live-client";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
@@ -225,10 +227,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const studentTagsMap = await getStudentTagsByStudentIds([studentId]);
   const assignedTags = studentTagsMap[studentId] || [];
   const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
-  const [attendanceSummary, attendanceHistory, contactLogs] = await Promise.all([
+  const [attendanceSummary, attendanceHistory, contactLogs, studentEvents] = await Promise.all([
     getAttendanceSummaryForStudent(studentId),
     listAttendanceHistoryForStudent(studentId, { limit: 8 }),
-    listStudentContactLogs(studentId, 8)
+    listStudentContactLogs(studentId, 8),
+    listStudentEvents(studentId, 12)
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
@@ -319,6 +322,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
             <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span>
             <span className="linked-record-pill">יצירת קשר: {contactLogs.length}</span>
+            <span className="linked-record-pill">אירועים: {studentEvents.length}</span>
           </div>
         </summary>
         {canManageDocuments ? (
@@ -338,6 +342,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
         ) : null}
         <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
         <div className="linked-records-grid">
+          <StudentEventsLiveClient studentId={studentId} initialEvents={studentEvents} />
           <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} />
           {!documents.length ? (
             <div className="linked-record-card">
