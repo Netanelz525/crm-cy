@@ -325,86 +325,129 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <span className="linked-record-pill">אירועים: {studentEvents.length}</span>
           </div>
         </summary>
-        {canManageDocuments ? (
-          <form action={uploadStudentDocumentAction} className="grid" style={{ marginBottom: 12 }}>
-            <input type="hidden" name="studentId" value={studentId} />
-            <input name="displayName" placeholder="שם מסמך" />
-            <select name="documentKind" defaultValue="general">
-              <option value="general">מסמך כללי</option>
-              <option value="id">תעודת זהות</option>
-              <option value="tuition">שכר לימוד</option>
-              <option value="medical">מסמך רפואי</option>
-            </select>
-            <textarea name="noteText" placeholder="הערות למסמך" />
-            <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp" />
-            <button type="submit">העלה מסמך</button>
-          </form>
-        ) : null}
-        <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
-        <div className="linked-records-grid">
+        <div className="linked-record-groups">
           <StudentEventsLiveClient studentId={studentId} initialEvents={studentEvents} />
           <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} />
-          {!documents.length ? (
-            <div className="linked-record-card">
-              <b>מסמכים</b>
-              <div className="linked-record-meta">אין מסמכים משויכים לתלמיד.</div>
-              <div className="linked-record-meta">ברגע שיעלו קבצים הם יופיעו כאן כחלק מהרשומות המקושרות.</div>
-            </div>
-          ) : (
-            documents.map((doc) => (
-              <div key={doc.id} className="linked-record-card">
-                <div className="linked-record-card-top">
-                  <a className="linked-record-title" href={`/api/student-documents/${doc.id}`} target="_blank">{doc.name}</a>
-                  <div className="student-document-title-row">
-                    <span className="linked-record-pill">{documentKindLabel(doc.documentKind)}</span>
-                    {canManageDocuments ? (
-                      <details className="student-document-rename">
-                        <summary title="ערוך שם מסמך">✎</summary>
-                        <form action={updateStudentDocumentNameAction} className="student-document-rename-form">
-                          <input type="hidden" name="studentId" value={studentId} />
-                          <input type="hidden" name="documentId" value={doc.id} />
-                          <input name="displayName" defaultValue={doc.name} aria-label="שם מסמך" />
-                          <button type="submit">שמור</button>
-                        </form>
-                      </details>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="linked-record-meta">קובץ מקור: {doc.fileName}</div>
-                <div className="linked-record-meta">הועלה: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("he-IL") : "-"}</div>
-                <div className="linked-record-meta">הערות: {doc.noteText || "-"}</div>
-                <div className="linked-record-meta">פורמט: {doc.contentType}</div>
+          <details className="linked-record-group">
+            <summary className="linked-record-group-summary">
+              <div>
+                <b>מסמכים</b>
+                <div className="linked-record-meta">קבצים משויכים לכרטיס התלמיד.</div>
               </div>
-            ))
-          )}
-          {!currentUser.can_view_email_reports ? (
-            <div className="linked-record-card placeholder">
-              <b>מיילים</b>
-              <div className="linked-record-meta">היסטוריית מיילים זמינה למשתמשים עם הרשאת דוחות.</div>
-            </div>
-          ) : !emailDeliveries.length ? (
-            <div className="linked-record-card placeholder">
-              <b>מיילים</b>
-              <div className="linked-record-meta">עדיין לא נשלחו מיילים משויכים לתלמיד הזה.</div>
-              <div className="linked-record-meta">כאן יופיעו הודעות, פתיחות ולחיצות מתוך מערכת המיילים.</div>
-            </div>
-          ) : (
-            emailDeliveries.map((delivery) => (
-              <div key={delivery.id} className="linked-record-card">
-                <div className="linked-record-card-top">
-                  <Link className="linked-record-title" href={`/email/campaigns/${delivery.campaign_id}?delivery=${delivery.id}`}>
-                    {delivery.subject}
-                  </Link>
-                  <span className="linked-record-pill">{emailStatusLabel(delivery)}</span>
-                </div>
-                <div className="linked-record-meta">נמען: {delivery.recipient_name || delivery.recipient_email}</div>
-                <div className="linked-record-meta">אימייל: {delivery.recipient_email}</div>
-                <div className="linked-record-meta">פתיחות: {delivery.open_count || 0}</div>
-                <div className="linked-record-meta">נפתח: {delivery.opened_at ? new Date(delivery.opened_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
-                <div className="linked-record-meta">נלחץ: {delivery.clicked_at ? new Date(delivery.clicked_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
+              <div className="linked-records-summary">
+                <span className="linked-record-pill">רשומות: {documents.length}</span>
               </div>
-            ))
-          )}
+            </summary>
+            <div className="linked-record-group-body">
+              {canManageDocuments ? (
+                <form action={uploadStudentDocumentAction} className="grid">
+                  <input type="hidden" name="studentId" value={studentId} />
+                  <input name="displayName" placeholder="שם מסמך" />
+                  <select name="documentKind" defaultValue="general">
+                    <option value="general">מסמך כללי</option>
+                    <option value="id">תעודת זהות</option>
+                    <option value="tuition">שכר לימוד</option>
+                    <option value="medical">מסמך רפואי</option>
+                  </select>
+                  <textarea name="noteText" placeholder="הערות למסמך" />
+                  <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp" />
+                  <button type="submit">העלה מסמך</button>
+                </form>
+              ) : null}
+              {!documents.length ? (
+                <div className="linked-record-card">
+                  <b>מסמכים</b>
+                  <div className="linked-record-meta">אין מסמכים משויכים לתלמיד.</div>
+                  <div className="linked-record-meta">ברגע שיעלו קבצים הם יופיעו כאן כחלק מהרשומות המקושרות.</div>
+                </div>
+              ) : (
+                <div className="linked-records-grid">
+                  {documents.map((doc) => (
+                    <div key={doc.id} className="linked-record-card">
+                      <div className="linked-record-card-top">
+                        <a className="linked-record-title" href={`/api/student-documents/${doc.id}`} target="_blank">{doc.name}</a>
+                        <div className="student-document-title-row">
+                          <span className="linked-record-pill">{documentKindLabel(doc.documentKind)}</span>
+                          {canManageDocuments ? (
+                            <details className="student-document-rename">
+                              <summary title="ערוך שם מסמך">✎</summary>
+                              <form action={updateStudentDocumentNameAction} className="student-document-rename-form">
+                                <input type="hidden" name="studentId" value={studentId} />
+                                <input type="hidden" name="documentId" value={doc.id} />
+                                <input name="displayName" defaultValue={doc.name} aria-label="שם מסמך" />
+                                <button type="submit">שמור</button>
+                              </form>
+                            </details>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="linked-record-meta">קובץ מקור: {doc.fileName}</div>
+                      <div className="linked-record-meta">הועלה: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("he-IL") : "-"}</div>
+                      <div className="linked-record-meta">הערות: {doc.noteText || "-"}</div>
+                      <div className="linked-record-meta">פורמט: {doc.contentType}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </details>
+          <details className="linked-record-group">
+            <summary className="linked-record-group-summary">
+              <div>
+                <b>מיילים</b>
+                <div className="linked-record-meta">היסטוריית שליחות, פתיחות ולחיצות.</div>
+              </div>
+              <div className="linked-records-summary">
+                <span className="linked-record-pill">רשומות: {emailDeliveries.length}</span>
+              </div>
+            </summary>
+            <div className="linked-record-group-body">
+              {!currentUser.can_view_email_reports ? (
+                <div className="linked-record-card placeholder">
+                  <b>מיילים</b>
+                  <div className="linked-record-meta">היסטוריית מיילים זמינה למשתמשים עם הרשאת דוחות.</div>
+                </div>
+              ) : !emailDeliveries.length ? (
+                <div className="linked-record-card placeholder">
+                  <b>מיילים</b>
+                  <div className="linked-record-meta">עדיין לא נשלחו מיילים משויכים לתלמיד הזה.</div>
+                  <div className="linked-record-meta">כאן יופיעו הודעות, פתיחות ולחיצות מתוך מערכת המיילים.</div>
+                </div>
+              ) : (
+                <div className="linked-records-grid">
+                  {emailDeliveries.map((delivery) => (
+                    <div key={delivery.id} className="linked-record-card">
+                      <div className="linked-record-card-top">
+                        <Link className="linked-record-title" href={`/email/campaigns/${delivery.campaign_id}?delivery=${delivery.id}`}>
+                          {delivery.subject}
+                        </Link>
+                        <span className="linked-record-pill">{emailStatusLabel(delivery)}</span>
+                      </div>
+                      <div className="linked-record-meta">נמען: {delivery.recipient_name || delivery.recipient_email}</div>
+                      <div className="linked-record-meta">אימייל: {delivery.recipient_email}</div>
+                      <div className="linked-record-meta">פתיחות: {delivery.open_count || 0}</div>
+                      <div className="linked-record-meta">נפתח: {delivery.opened_at ? new Date(delivery.opened_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
+                      <div className="linked-record-meta">נלחץ: {delivery.clicked_at ? new Date(delivery.clicked_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }) : "-"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </details>
+          <details className="linked-record-group">
+            <summary className="linked-record-group-summary">
+              <div>
+                <b>נוכחות</b>
+                <div className="linked-record-meta">היסטוריית מפגשים ונתוני נוכחות.</div>
+              </div>
+              <div className="linked-records-summary">
+                <span className="linked-record-pill">מפגשים: {attendanceSummary?.totalSessions || 0}</span>
+              </div>
+            </summary>
+            <div className="linked-record-group-body">
+              <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
+            </div>
+          </details>
         </div>
       </details>
 

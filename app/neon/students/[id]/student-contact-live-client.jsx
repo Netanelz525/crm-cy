@@ -60,41 +60,55 @@ export default function StudentContactLiveClient({ studentId, initialContactLogs
   }
 
   return (
-    <>
-      <div className="linked-record-card contact-log-card">
-        <div className="linked-record-card-top">
-          <b>יצירת קשר אחרונה</b>
+    <details className="linked-record-group">
+      <summary className="linked-record-group-summary">
+        <div>
+          <b>יצירת קשר</b>
+          <div className="linked-record-meta">יומן שיחות ופניות לתלמיד.</div>
+        </div>
+        <div className="linked-records-summary">
+          <span className="linked-record-pill">רשומות: {sortedLogs.length}</span>
           <span className="linked-record-pill">{latestContact ? formatDate(latestContact.contactDate) : "עדיין לא תועד"}</span>
         </div>
-        <div className="linked-record-meta">{latestContact ? latestContact.noteText : "עדיין אין תיעוד יצירת קשר לתלמיד הזה."}</div>
-        {latestContact?.createdByDisplayName || latestContact?.createdByEmail ? (
-          <div className="linked-record-meta">תועד על ידי: {latestContact.createdByDisplayName || latestContact.createdByEmail}</div>
-        ) : null}
-      </div>
-      <form ref={formRef} onSubmit={handleSubmit} className="grid" style={{ marginBottom: 12 }}>
-        <input type="date" name="contactDate" defaultValue={defaultContactDate} disabled={isPending} />
-        <input name="noteText" placeholder="תיעוד קצר של השיחה או יצירת הקשר" disabled={isPending} />
-        <button type="submit" disabled={isPending}>{isPending ? "שומר..." : "הוסף יצירת קשר"}</button>
-      </form>
-      {message ? <div className={message.includes("נכש") ? "student-inline-feedback error" : "student-inline-feedback ok"}>{message}</div> : null}
-      {!sortedLogs.length ? (
-        <div className="linked-record-card placeholder">
-          <b>יצירת קשר</b>
-          <div className="linked-record-meta">עדיין לא תועדה יצירת קשר עם התלמיד.</div>
-          <div className="linked-record-meta">כאן יופיעו התאריך והסיכום הקצר של כל שיחה או פניה.</div>
-        </div>
-      ) : (
-        sortedLogs.map((contact) => (
-          <div key={contact.id} className="linked-record-card">
-            <div className="linked-record-card-top">
-              <b>יצירת קשר</b>
-              <span className="linked-record-pill">{formatDate(contact.contactDate)}</span>
-            </div>
-            <div className="linked-record-meta">{contact.noteText || "-"}</div>
-            <div className="linked-record-meta">תועד: {contact.createdByDisplayName || contact.createdByEmail || "-"}</div>
+      </summary>
+      <div className="linked-record-group-body">
+        <div className="linked-record-card contact-log-card">
+          <div className="linked-record-card-top">
+            <b>יצירת קשר אחרונה</b>
+            <span className="linked-record-pill">{latestContact ? formatDate(latestContact.contactDate) : "עדיין לא תועד"}</span>
           </div>
-        ))
-      )}
-    </>
+          <div className="linked-record-meta">{latestContact ? latestContact.noteText : "עדיין אין תיעוד יצירת קשר לתלמיד הזה."}</div>
+          {latestContact?.createdByDisplayName || latestContact?.createdByEmail ? (
+            <div className="linked-record-meta">תועד על ידי: {latestContact.createdByDisplayName || latestContact.createdByEmail}</div>
+          ) : null}
+        </div>
+        <form ref={formRef} onSubmit={handleSubmit} className="grid">
+          <input type="date" name="contactDate" defaultValue={defaultContactDate} disabled={isPending} />
+          <input name="noteText" placeholder="תיעוד קצר של השיחה או יצירת הקשר" disabled={isPending} />
+          <button type="submit" disabled={isPending}>{isPending ? "שומר..." : "הוסף יצירת קשר"}</button>
+        </form>
+        {message ? <div className={message.includes("נכש") ? "student-inline-feedback error" : "student-inline-feedback ok"}>{message}</div> : null}
+        {!sortedLogs.length ? (
+          <div className="linked-record-card placeholder">
+            <b>יצירת קשר</b>
+            <div className="linked-record-meta">עדיין לא תועדה יצירת קשר עם התלמיד.</div>
+            <div className="linked-record-meta">כאן יופיעו התאריך והסיכום הקצר של כל שיחה או פניה.</div>
+          </div>
+        ) : (
+          <div className="linked-records-grid">
+            {sortedLogs.map((contact) => (
+              <div key={contact.id} className="linked-record-card">
+                <div className="linked-record-card-top">
+                  <b>יצירת קשר</b>
+                  <span className="linked-record-pill">{formatDate(contact.contactDate)}</span>
+                </div>
+                <div className="linked-record-meta">{contact.noteText || "-"}</div>
+                <div className="linked-record-meta">תועד: {contact.createdByDisplayName || contact.createdByEmail || "-"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </details>
   );
 }

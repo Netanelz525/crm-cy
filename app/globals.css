@@ -601,6 +601,51 @@ button {
   min-width: 220px;
 }
 
+.linked-record-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.linked-record-group {
+  border: 1px solid #d6e3f0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  padding: 14px;
+}
+
+.linked-record-group-summary {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+
+.linked-record-group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.linked-record-group-summary::before {
+  content: "▾";
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 800;
+  margin-top: 4px;
+  transition: transform 0.18s ease;
+}
+
+.linked-record-group:not([open]) .linked-record-group-summary::before {
+  transform: rotate(-90deg);
+}
+
+.linked-record-group-body {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .sticky-save-bar {
   position: sticky;
   top: 68px;
@@ -757,10 +802,48 @@ button {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .student-event-edit-form {
-  min-width: min(320px, calc(100vw - 56px));
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 10px;
+}
+
+.student-event-edit-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.student-event-edit-trigger {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #cfe0f0;
+  background: #f7fbff;
+  color: #294a67;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.student-event-edit-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.student-event-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .linked-record-card-top {
@@ -3284,6 +3367,33 @@ td {
 
   .editor-action-bar-group,
   .editor-action-bar .btn {
+    width: 100%;
+  }
+
+  .linked-record-group-summary,
+  .linked-records-toggle {
+    display: grid;
+    gap: 10px;
+  }
+
+  .linked-record-group-body,
+  .linked-records-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .linked-record-card-top,
+  .student-event-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .student-event-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-document-rename-form,
+  .student-event-edit-form {
+    min-width: 0;
     width: 100%;
   }
 }
