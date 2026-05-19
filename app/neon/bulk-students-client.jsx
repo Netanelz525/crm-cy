@@ -279,6 +279,7 @@ function EventActionButton({ student, onAddEvent, disabled = false }) {
     onAddEvent(student.id, {
       eventType: clean(formData.get("eventType")),
       customEventLabel: clean(formData.get("customEventLabel")),
+      noteText: clean(formData.get("noteText")),
       hebrewDay: clean(formData.get("hebrewDay")),
       hebrewMonthCode: clean(formData.get("hebrewMonthCode"))
     }, {
@@ -307,6 +308,7 @@ function EventActionButton({ student, onAddEvent, disabled = false }) {
             <option value="other">אחר</option>
           </select>
           <input name="customEventLabel" placeholder="אם בחרת אחר, כתוב כאן" disabled={disabled || eventType !== "other"} />
+          <textarea name="noteText" placeholder="הערה על האירוע" rows={3} disabled={disabled} />
           <select name="hebrewDay" defaultValue="1" disabled={disabled}>
             {Array.from({ length: 30 }, (_, index) => (
               <option key={index + 1} value={index + 1}>{index + 1}</option>

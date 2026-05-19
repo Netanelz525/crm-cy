@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS student_events (
   student_id TEXT NOT NULL,
   event_type TEXT NOT NULL,
   custom_event_label TEXT,
+  note_text TEXT,
   hebrew_day INTEGER NOT NULL,
   hebrew_month_code TEXT NOT NULL,
   created_by_user_id TEXT REFERENCES app_users(clerk_user_id),

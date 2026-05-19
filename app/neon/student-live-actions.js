@@ -86,7 +86,7 @@ export async function addStudentContactLiveAction({ studentId, contactDate, note
   }
 }
 
-export async function addStudentEventLiveAction({ studentId, eventType, customEventLabel, hebrewDay, hebrewMonthCode }) {
+export async function addStudentEventLiveAction({ studentId, eventType, customEventLabel, noteText, hebrewDay, hebrewMonthCode }) {
   const user = await requireAuthenticatedUser();
 
   if (!user.is_team_member && !user.is_manager && clean(user.linked_student_id) !== clean(studentId)) {
@@ -98,6 +98,7 @@ export async function addStudentEventLiveAction({ studentId, eventType, customEv
       studentId,
       eventType,
       customEventLabel,
+      noteText,
       hebrewDay,
       hebrewMonthCode,
       createdByUserId: user.clerk_user_id
