@@ -57,6 +57,7 @@ export default function StudentEventsLiveClient({ studentId, initialEvents = [] 
       studentId,
       eventType: clean(formData.get("eventType")),
       customEventLabel: clean(formData.get("customEventLabel")),
+      noteText: clean(formData.get("noteText")),
       hebrewDay: clean(formData.get("hebrewDay")),
       hebrewMonthCode: clean(formData.get("hebrewMonthCode"))
     };
@@ -100,6 +101,12 @@ export default function StudentEventsLiveClient({ studentId, initialEvents = [] 
           placeholder="אם בחרת אחר, כתוב כאן"
           disabled={isPending || eventType !== "other"}
         />
+        <textarea
+          name="noteText"
+          placeholder="הערה על האירוע"
+          rows={3}
+          disabled={isPending}
+        />
         <select name="hebrewDay" defaultValue="1" disabled={isPending}>
           {Array.from({ length: 30 }, (_, index) => (
             <option key={index + 1} value={index + 1}>{index + 1}</option>
@@ -131,6 +138,9 @@ export default function StudentEventsLiveClient({ studentId, initialEvents = [] 
             </div>
             <div className="linked-record-meta">
               תזמון: {dayLabel(studentEvent?.nextOccurrence?.daysUntil) || "ללא חישוב"}
+            </div>
+            <div className="linked-record-meta">
+              הערה: {studentEvent.noteText || "-"}
             </div>
             <div className="linked-record-meta">
               נרשם על ידי: {studentEvent.createdByDisplayName || studentEvent.createdByEmail || "-"}
