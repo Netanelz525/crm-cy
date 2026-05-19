@@ -1,4 +1,4 @@
-﻿import { ClerkProvider, SignedIn, UserButton } from "@clerk/nextjs";
+﻿import { ClerkProvider, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import AiChatWidget from "./ai-chat-widget";
 import { getCurrentAppUser } from "../lib/rbac";
@@ -27,17 +27,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {currentUser ? <Link href="/account">אזור אישי</Link> : null}
             </nav>
             <div style={{ display: "flex", gap: 8 }}>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
+              {currentUser ? <UserButton /> : null}
             </div>
           </header>
           <main className="container">{children}</main>
-          {canUseAiChat ? (
-            <SignedIn>
-              <AiChatWidget />
-            </SignedIn>
-          ) : null}
+          {canUseAiChat ? <AiChatWidget /> : null}
         </ClerkProvider>
       </body>
     </html>
