@@ -39,6 +39,7 @@ import {
   saveNeonPreferencesAction
 } from "./actions";
 import BulkStudentsClient from "./bulk-students-client";
+import UpcomingEventsBoardClient from "./upcoming-events-board-client";
 
 const NEON_SORT_LEVEL_COUNT = 3;
 const NEON_SORT_OPTIONS = SORT_OPTIONS.map((option) => (
@@ -366,35 +367,7 @@ export default async function NeonPage({ searchParams }) {
             <span className="linked-record-pill">קרובים ב-45 יום: {upcomingEvents.length}</span>
           </div>
         </summary>
-        {!upcomingEvents.length ? (
-          <div className="linked-record-card placeholder">
-            <b>עדיין אין אירועים קרובים</b>
-            <div className="linked-record-meta">לא נמצאו אירועים מקושרים לטווח הקרוב.</div>
-            <div className="linked-record-meta">לאחר שתוסיפו אירועים בכרטיסי תלמיד, הם יופיעו כאן אוטומטית.</div>
-          </div>
-        ) : (
-          <div className="linked-records-grid">
-            {upcomingEvents.map((event) => (
-              <Link key={event.id} className="linked-record-card event-board-card" href={`/neon/students/${event.studentId}`}>
-                <div className="linked-record-card-top">
-                  <b>{event.eventLabel}</b>
-                  <span className="linked-record-pill">{event.hebrewDateLabel}</span>
-                </div>
-                <div className="linked-record-title">{event.studentName || "ללא שם"}</div>
-                <div className="linked-record-meta">מועד קרוב: {event?.nextOccurrence?.gregorianDisplay || "-"}</div>
-                <div className="linked-record-meta">
-                  {Number(event?.nextOccurrence?.daysUntil) === 0
-                    ? "האירוע חל היום"
-                    : Number(event?.nextOccurrence?.daysUntil) === 1
-                      ? "האירוע חל מחר"
-                      : `האירוע בעוד ${event?.nextOccurrence?.daysUntil || 0} ימים`}
-                </div>
-                <div className="linked-record-meta">מוסד: {event.currentInstitution || "-"}</div>
-                <div className="linked-record-meta">שיעור: {event.studentClass || "-"}</div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <UpcomingEventsBoardClient initialEvents={upcomingEvents} />
       </details>
 
       {synced ? <div className="ok">הסנכרון הושלם. עודכנו {syncCount || 0} תלמידים.</div> : null}
