@@ -5,6 +5,7 @@ import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { attachLatestContactToStudents } from "../../lib/student-contact-logs";
+import { listUpcomingStudentEvents } from "../../lib/student-events";
 import { attachStudentTagsToStudents, listStudentTagsWithUsage } from "../../lib/student-tags";
 import {
   applyAdvancedFilters,
@@ -300,6 +301,7 @@ export default async function NeonPage({ searchParams }) {
 
   const stats = await getNeonStudentsStats();
   const availableTags = await listStudentTagsWithUsage();
+  const upcomingEvents = await listUpcomingStudentEvents({ daysAhead: 45, limit: 16 });
   const clearInstitutionFiltersPath = buildNextPath({
     mode: "institution",
     cols: selectedColumnKeys,
@@ -353,6 +355,47 @@ export default async function NeonPage({ searchParams }) {
           <span className="meta-chip">{savedPreferenceQueryString ? "העדפות אישיות שמורות" : "ללא העדפות שמורות"}</span>
         </div>
       </div>
+
+      <details className="card linked-records-panel">
+        <summary className="linked-records-toggle">
+          <div>
+            <h3>אירועים קרובים לתלמידים</h3>
+            <p className="muted" style={{ marginBottom: 0 }}>לוח מתקפל של האירועים הקרובים מתוך הרשומות המקושרות לתלמידים.</p>
+          </div>
+          <div className="linked-records-summary">
+            <span className="linked-record-pill">קרובים ב-45 יום: {upcomingEvents.length}</span>
+          </div>
+        </summary>
+        {!upcomingEvents.length ? (
+          <div className="linked-record-card placeholder">
+            <b>עדיין אין אירועים קרובים</b>
+            <div className="linked-record-meta">לא נמצאו אירועים מקושרים לטווח הקרוב.</div>
+            <div className="linked-record-meta">לאחר שתוסיפו אירועים בכרטיסי תלמיד, הם יופיעו כאן אוטומטית.</div>
+          </div>
+        ) : (
+          <div className="linked-records-grid">
+            {upcomingEvents.map((event) => (
+              <Link key={event.id} className="linked-record-card event-board-card" href={`/neon/students/${event.studentId}`}>
+                <div className="linked-record-card-top">
+                  <b>{event.eventLabel}</b>
+                  <span className="linked-record-pill">{event.hebrewDateLabel}</span>
+                </div>
+                <div className="linked-record-title">{event.studentName || "ללא שם"}</div>
+                <div className="linked-record-meta">מועד קרוב: {event?.nextOccurrence?.gregorianDisplay || "-"}</div>
+                <div className="linked-record-meta">
+                  {Number(event?.nextOccurrence?.daysUntil) === 0
+                    ? "האירוע חל היום"
+                    : Number(event?.nextOccurrence?.daysUntil) === 1
+                      ? "האירוע חל מחר"
+                      : `האירוע בעוד ${event?.nextOccurrence?.daysUntil || 0} ימים`}
+                </div>
+                <div className="linked-record-meta">מוסד: {event.currentInstitution || "-"}</div>
+                <div className="linked-record-meta">שיעור: {event.studentClass || "-"}</div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </details>
 
       {synced ? <div className="ok">הסנכרון הושלם. עודכנו {syncCount || 0} תלמידים.</div> : null}
       {imported ? (

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createStudentContactLog } from "../../lib/student-contact-logs";
+import { createStudentEvent } from "../../lib/student-events";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { normalizeStudentInput } from "../../lib/student-fields";
 import { updateNeonStudentViaTwenty } from "../../lib/neon-students";
@@ -82,6 +83,36 @@ export async function addStudentContactLiveAction({ studentId, contactDate, note
     });
   } catch (error) {
     return fail(error?.message || "שמירת יצירת הקשר נכשלה.");
+  }
+}
+
+export async function addStudentEventLiveAction({ studentId, eventType, customEventLabel, hebrewDay, hebrewMonthCode }) {
+  const user = await requireAuthenticatedUser();
+
+  if (!user.is_team_member && !user.is_manager && clean(user.linked_student_id) !== clean(studentId)) {
+    return fail("אין הרשאה לעדכן אירועים.");
+  }
+
+  try {
+    const created = await createStudentEvent({
+      studentId,
+      eventType,
+      customEventLabel,
+      hebrewDay,
+      hebrewMonthCode,
+      createdByUserId: user.clerk_user_id
+    });
+    revalidatePath("/neon");
+    revalidatePath(`/neon/students/${clean(studentId)}`);
+    return ok({
+      event: {
+        ...created,
+        createdByDisplayName: clean(created?.createdByDisplayName) || clean(user.display_name) || clean(user.email),
+        createdByEmail: clean(created?.createdByEmail) || clean(user.email)
+      }
+    });
+  } catch (error) {
+    return fail(error?.message || "שמירת האירוע נכשלה.");
   }
 }
 

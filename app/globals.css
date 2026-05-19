@@ -727,6 +727,23 @@ button {
   margin-bottom: 12px;
 }
 
+.event-card-highlight {
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, #fffdf7, #fff8ea);
+  border-color: #ead9ad;
+}
+
+.event-board-card {
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.event-board-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(41, 74, 103, 0.12);
+}
+
 .linked-record-card-top {
   display: flex;
   align-items: flex-start;
