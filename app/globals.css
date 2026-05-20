@@ -303,6 +303,18 @@ button {
   font-weight: 800;
 }
 
+.automation-chip-ok {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: rgba(22, 163, 74, 0.28);
+  color: #166534;
+}
+
+.automation-chip-error {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.28);
+  color: #991b1b;
+}
+
 .edit-focus-card {
   border: 1px solid #9bc2e7;
   background: linear-gradient(180deg, #f6fbff, #eef6ff);

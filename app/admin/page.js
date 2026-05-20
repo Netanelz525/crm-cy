@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listApiTokens } from "../../lib/api-tokens";
 import { listAppUsers, listPendingUnknownUsers, requireTeamUser } from "../../lib/rbac";
 import ApiAccessClient from "./api-access-client";
+import SystemAutomationsCard from "./system-automations-card";
 import UserManagementClient from "./user-management-client";
 import {
   approveUserAction,
@@ -33,6 +34,7 @@ export default async function AdminPage() {
       </div>
 
       {currentUser.is_super_admin ? <UserManagementClient users={users} /> : null}
+      {currentUser.is_super_admin ? <SystemAutomationsCard /> : null}
 
       <ApiAccessClient apiBaseUrl={apiBaseUrl} />
 
