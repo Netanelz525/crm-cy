@@ -39,6 +39,7 @@ function hasPhone(phoneObj) {
 export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
   const [rows, setRows] = useState(students);
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
+  const [query, setQuery] = useState("");
   const [, startTransition] = useTransition();
   const noteTimersRef = useRef(new Map());
   const rowsRef = useRef(rows);
@@ -46,6 +47,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   useEffect(() => {
     setRows(students);
     setSelectedFilters(activeStatusFilters);
+    setQuery("");
     rowsRef.current = students;
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
@@ -61,9 +63,24 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }, []);
 
   const filteredRows = useMemo(() => {
-    if (!selectedFilters.length) return rows;
-    return rows.filter((row) => selectedFilters.includes(String(row?.status || "").trim().toLowerCase()));
-  }, [rows, selectedFilters]);
+    const normalizedQuery = clean(query).toLowerCase();
+
+    return rows.filter((row) => {
+      const matchesStatus = !selectedFilters.length
+        || selectedFilters.includes(String(row?.status || "").trim().toLowerCase());
+      if (!matchesStatus) return false;
+      if (!normalizedQuery) return true;
+
+      return [
+        row?.label,
+        row?.classLabel,
+        row?.class,
+        phoneText(row?.phone),
+        phoneText(row?.dadPhone),
+        phoneText(row?.momPhone)
+      ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
+    });
+  }, [rows, selectedFilters, query]);
 
   function persistRow(row) {
     if (!row?.id) return;
@@ -142,6 +159,18 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         <p className="muted">
           ברירת המחדל היא לא נמצא. אפשר לעבור מהר שורה-שורה, לסמן סטטוס, והכל נשמר אוטומטית.
         </p>
+        <div className="summary-row" style={{ alignItems: "flex-end", gap: 12 }}>
+          <div style={{ minWidth: 260, flex: "1 1 320px" }}>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="חיפוש לפי שם תלמיד, שיעור או מספר טלפון"
+            />
+          </div>
+          <div className="muted">
+            מוצגים כרגע {filteredRows.length} מתוך {rows.length}
+          </div>
+        </div>
         <div className="attendance-filter-toolbar">
           <button
             type="button"
@@ -160,7 +189,9 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               {label}
             </button>
           ))}
-          <span className="muted">מוצגים: {filteredRows.length}</span>
+          <span className="muted">
+            במצב סינון, תלמיד שעודכן לסטטוס אחר יוסר אוטומטית מהרשימה אם כבר לא מתאים למסנן.
+          </span>
         </div>
         <div className="attendance-table-wrap">
           <table className="attendance-table">
