@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/weekly-backup",
       "schedule": "0 19 * * 4"
+    },
+    {
+      "path": "/api/cron/event-reminders",
+      "schedule": "10 19 * * 4"
     }
   ]
 }

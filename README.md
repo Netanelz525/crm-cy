@@ -208,13 +208,21 @@ node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs --env /path/t
 נוסף cron route:
 
 - `GET /api/cron/weekly-backup`
+- `GET /api/cron/event-reminders`
 
 הגדרות:
 
 - בקובץ [vercel.json](/Users/netanelzevin/Documents/crm/vercel.json) הוגדר cron שבועי ליום חמישי ב-`19:00 UTC`
+- בקובץ [vercel.json](/Users/netanelzevin/Documents/crm/vercel.json) הוגדר גם cron נוסף לתזכורות אירועים ב-`19:10 UTC`
 - ב-Vercel צריך להגדיר `CRON_SECRET` כדי שהקריאה תגיע עם `Authorization: Bearer <CRON_SECRET>`
 - מקבלי הגיבוי הם רק משתמשים בתפקיד `super_admin`
 - לכל סופר אדמין אפשר להגדיר בעמוד `/admin/users/{id}` אם לקבל את הגיבוי ב-`Email`, `Telegram`, או `Email + Telegram`
+
+תזכורות אירועים:
+
+- נשלחות בכל יום חמישי למשתמשי מערכת שהכרטיס המקושר שלהם מסומן בתגית `צוות חכמי`
+- המייל כולל שני מקטעים: אירועים ב-10 הימים הקרובים, ואירועים שחלו ב-10 הימים האחרונים
+- האירועים משתמשים באותה לוגיקת תאריך עברי של המערכת, כולל איחוד אדר בשנה רגילה והעברת ל׳ ל-א׳ בחודש הבא כשצריך
 
 מה נשלח:
 
