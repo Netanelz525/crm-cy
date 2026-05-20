@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { exportCrmData } from "../lib/crm-export.js";
 
 function readEnvFile(filePath) {
   const out = {};
@@ -66,6 +65,7 @@ if (!env.DATABASE_URL) {
 }
 
 process.env.DATABASE_URL = env.DATABASE_URL;
+const { exportCrmData } = await import("../lib/crm-export.js");
 const payload = await exportCrmData("all");
 
 const json = JSON.stringify(payload, null, cliArgs.pretty ? 2 : 0);
