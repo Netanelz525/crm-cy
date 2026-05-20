@@ -400,6 +400,91 @@ button {
   font-weight: 700;
 }
 
+.attendance-contact-actions {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.attendance-contact-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #c9d9ea;
+  background: #f8fbff;
+  color: #0f4c9b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.attendance-contact-btn.disabled {
+  color: #8aa0b8;
+  background: #f6f8fb;
+  border-color: #dbe4ee;
+  pointer-events: none;
+}
+
+.attendance-contact-details {
+  position: relative;
+}
+
+.attendance-contact-details summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid #c9d9ea;
+  background: #fff;
+  color: #0f4c9b;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+.attendance-contact-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.attendance-contact-details-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  min-width: min(360px, calc(100vw - 64px));
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid #d7e1ef;
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
+  box-shadow: var(--shadow);
+}
+
+.attendance-contact-line {
+  display: grid;
+  gap: 6px;
+}
+
+.attendance-contact-line-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.attendance-contact-line-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .attendance-summary-cell {
   display: grid;
   gap: 2px;
@@ -2205,6 +2290,15 @@ td {
 
   .mobile-generic-list {
     display: block;
+  }
+
+  .attendance-contact-details-body {
+    min-width: 0;
+  }
+
+  .attendance-contact-line-top {
+    flex-direction: column;
+    gap: 2px;
   }
 
   .summary-row {

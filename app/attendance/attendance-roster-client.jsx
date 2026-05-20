@@ -3,6 +3,39 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
 
+function clean(value) {
+  return String(value || "").trim();
+}
+
+function normalizeDigits(value) {
+  return clean(value).replace(/[^\d]/g, "");
+}
+
+function phoneText(phoneObj) {
+  if (!phoneObj?.primaryPhoneNumber) return "";
+  return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
+}
+
+function phoneHref(phoneObj) {
+  const number = normalizeDigits(phoneObj?.primaryPhoneNumber);
+  if (!number) return "";
+  const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d+]/g, "");
+  const prefix = calling || "+";
+  return `tel:${prefix}${number}`.replace(/\s+/g, "");
+}
+
+function whatsappHref(phoneObj) {
+  const number = normalizeDigits(phoneObj?.primaryPhoneNumber);
+  if (!number) return "";
+  const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d]/g, "");
+  const fullNumber = `${calling}${number}`.replace(/^0+/, "").replace(/[^\d]/g, "");
+  return fullNumber ? `https://wa.me/${fullNumber}` : "";
+}
+
+function hasPhone(phoneObj) {
+  return Boolean(normalizeDigits(phoneObj?.primaryPhoneNumber));
+}
+
 export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
   const [rows, setRows] = useState(students);
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
@@ -144,6 +177,18 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                 <tr key={student.id}>
                   <td>
                     <div className="attendance-student-name">{student.label}</div>
+                    <div className="attendance-contact-actions">
+                      <ContactActionButton href={phoneHref(student.phone)} label="חיוג" />
+                      <ContactActionButton href={whatsappHref(student.phone)} label="WhatsApp" external />
+                      <details className="attendance-contact-details">
+                        <summary>▾</summary>
+                        <div className="attendance-contact-details-body">
+                          <ContactLine label="תלמיד" phoneObj={student.phone} />
+                          <ContactLine label="אב" phoneObj={student.dadPhone} />
+                          <ContactLine label="אם" phoneObj={student.momPhone} />
+                        </div>
+                      </details>
+                    </div>
                   </td>
                   <td>{student.classLabel}</td>
                   <td>
@@ -180,5 +225,41 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         </div>
       </div>
     </>
+  );
+}
+
+function ContactActionButton({ href, label, external = false }) {
+  if (!href) {
+    return <span className="attendance-contact-btn disabled">{label}</span>;
+  }
+
+  return (
+    <a
+      className="attendance-contact-btn"
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+    >
+      {label}
+    </a>
+  );
+}
+
+function ContactLine({ label, phoneObj }) {
+  const text = phoneText(phoneObj);
+  const hasValue = hasPhone(phoneObj);
+
+  return (
+    <div className="attendance-contact-line">
+      <div className="attendance-contact-line-top">
+        <b>{label}</b>
+        <span>{text || "-"}</span>
+      </div>
+      <div className="attendance-contact-line-actions">
+        <ContactActionButton href={phoneHref(phoneObj)} label="חיוג" />
+        <ContactActionButton href={whatsappHref(phoneObj)} label="WhatsApp" external />
+        {!hasValue ? <span className="muted">אין מספר</span> : null}
+      </div>
+    </div>
   );
 }
