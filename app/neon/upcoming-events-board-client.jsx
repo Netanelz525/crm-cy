@@ -180,9 +180,15 @@ function UpcomingEventCard({ event, isPending, onUpdate, onDelete }) {
       </div>
       <Link className="linked-record-title" href={`/neon/students/${event.studentId}`}>{event.studentName || "ללא שם"}</Link>
       <div className="linked-record-meta">מועד קרוב: {event?.nextOccurrence?.gregorianDisplay || "-"}</div>
+      {event?.nextOccurrence?.hebrewDateDisplay && event.nextOccurrence.hebrewDateDisplay !== event.hebrewDateLabel ? (
+        <div className="linked-record-meta">התאריך בפועל השנה: {event.nextOccurrence.hebrewDateDisplay}</div>
+      ) : null}
       <div className="linked-record-meta">{dayLabel(event?.nextOccurrence?.daysUntil)}</div>
       <div className="linked-record-meta">מוסד: {event.currentInstitution || "-"}</div>
       <div className="linked-record-meta">שיעור: {event.studentClass || "-"}</div>
+      {event?.nextOccurrence?.adjustmentNote ? (
+        <div className="linked-record-meta">התאמה שנתית: {event.nextOccurrence.adjustmentNote}</div>
+      ) : null}
       <div className="linked-record-meta">הערה: {event.noteText || "-"}</div>
     </div>
   );

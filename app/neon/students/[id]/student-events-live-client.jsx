@@ -218,6 +218,9 @@ function StudentEventCard({ event, isPending, onUpdate, onDelete }) {
         <div>
           <b>{event.eventLabel}</b>
           <div className="linked-record-meta">מועד קרוב: {event?.nextOccurrence?.gregorianDisplay || "-"}</div>
+          {event?.nextOccurrence?.hebrewDateDisplay && event.nextOccurrence.hebrewDateDisplay !== event.hebrewDateLabel ? (
+            <div className="linked-record-meta">התאריך בפועל השנה: {event.nextOccurrence.hebrewDateDisplay}</div>
+          ) : null}
         </div>
         <div className="student-event-card-actions">
           <span className="linked-record-pill">{event.hebrewDateLabel}</span>
@@ -227,6 +230,11 @@ function StudentEventCard({ event, isPending, onUpdate, onDelete }) {
       <div className="linked-record-meta">
         הערה: {event.noteText || "-"}
       </div>
+      {event?.nextOccurrence?.adjustmentNote ? (
+        <div className="linked-record-meta">
+          התאמה שנתית: {event.nextOccurrence.adjustmentNote}
+        </div>
+      ) : null}
       <div className="linked-record-meta">
         נרשם על ידי: {event.createdByDisplayName || event.createdByEmail || "-"}
       </div>
