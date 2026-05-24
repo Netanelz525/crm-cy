@@ -47,6 +47,10 @@ function getSearchParamList(value) {
   return single ? [single] : [];
 }
 
+function hasSearchParam(searchParams, key) {
+  return Boolean(searchParams) && Object.prototype.hasOwnProperty.call(searchParams, key);
+}
+
 function summarizeFilterSettings(filters, recipientMode, availableTags) {
   const parts = [];
   if (filters.institution) parts.push({ label: "מוסד", value: institutionLabel(filters.institution) });
@@ -79,19 +83,25 @@ function buildComposeFilterHref({ draftId, filters, clearField, clearTagId }) {
   params.set("compose", "1");
   if (draftId) params.set("draft", draftId);
 
-  if (clearField !== "institution" && filters.institution) params.set("institution", filters.institution);
-  if (clearField !== "class" && filters.class) params.set("class", filters.class);
-  if (clearField !== "registration" && filters.registration) params.set("registration", filters.registration);
-  if (clearField !== "familystatus" && filters.familystatus) params.set("familystatus", filters.familystatus);
-  if (clearField !== "q" && filters.q) params.set("q", filters.q);
-  if (clearField !== "recipientMode" && filters.recipientMode) params.set("recipientMode", filters.recipientMode);
+  params.set("institution", clearField === "institution" ? "" : filters.institution);
+  params.set("class", clearField === "class" ? "" : filters.class);
+  params.set("registration", clearField === "registration" ? "" : filters.registration);
+  params.set("familystatus", clearField === "familystatus" ? "" : filters.familystatus);
+  params.set("q", clearField === "q" ? "" : filters.q);
+  params.set("recipientMode", clearField === "recipientMode" ? "parents" : filters.recipientMode);
 
-  if (clearField !== "tagIds") {
+  if (clearField === "tagIds") {
+    params.set("tagIds", "");
+  } else {
     const nextTagIds = clearTagId
       ? filters.tagIds.filter((tagId) => tagId !== clearTagId)
       : filters.tagIds;
-    for (const tagId of nextTagIds) {
-      params.append("tagIds", tagId);
+    if (!nextTagIds.length) {
+      params.set("tagIds", "");
+    } else {
+      for (const tagId of nextTagIds) {
+        params.append("tagIds", tagId);
+      }
     }
   }
 
@@ -107,6 +117,13 @@ export default async function EmailPage({ searchParams }) {
   const draftRecord = draftId ? await getEmailCampaignDraft(draftId) : null;
   const draft = draftRecord?.draft_json || null;
   const composeMode = clean(resolvedSearchParams?.compose) === "1" || Boolean(draftId);
+  const hasInstitutionParam = hasSearchParam(resolvedSearchParams, "institution");
+  const hasClassParam = hasSearchParam(resolvedSearchParams, "class");
+  const hasRegistrationParam = hasSearchParam(resolvedSearchParams, "registration");
+  const hasFamilyStatusParam = hasSearchParam(resolvedSearchParams, "familystatus");
+  const hasTagIdsParam = hasSearchParam(resolvedSearchParams, "tagIds");
+  const hasQueryParam = hasSearchParam(resolvedSearchParams, "q");
+  const hasRecipientModeParam = hasSearchParam(resolvedSearchParams, "recipientMode");
   const searchTagIds = getSearchParamList(resolvedSearchParams?.tagIds);
   const searchInstitution = clean(resolvedSearchParams?.institution);
   const searchClass = clean(resolvedSearchParams?.class);
@@ -115,15 +132,15 @@ export default async function EmailPage({ searchParams }) {
   const searchQuery = clean(resolvedSearchParams?.q);
   const searchRecipientMode = clean(resolvedSearchParams?.recipientMode);
   const filters = {
-    institution: searchInstitution || clean(draft?.institution),
-    class: searchClass || clean(draft?.class),
-    registration: searchRegistration || clean(draft?.registration),
-    familystatus: searchFamilyStatus || clean(draft?.familystatus),
-    tagIds: searchTagIds.length
+    institution: hasInstitutionParam ? searchInstitution : clean(draft?.institution),
+    class: hasClassParam ? searchClass : clean(draft?.class),
+    registration: hasRegistrationParam ? searchRegistration : clean(draft?.registration),
+    familystatus: hasFamilyStatusParam ? searchFamilyStatus : clean(draft?.familystatus),
+    tagIds: hasTagIdsParam
       ? searchTagIds
       : Array.isArray(draft?.tagIds) ? draft.tagIds.map(clean).filter(Boolean) : [],
-    q: searchQuery || clean(draft?.q),
-    recipientMode: searchRecipientMode || clean(draft?.recipientMode) || "parents",
+    q: hasQueryParam ? searchQuery : clean(draft?.q),
+    recipientMode: hasRecipientModeParam ? (searchRecipientMode || "parents") : (clean(draft?.recipientMode) || "parents"),
     selectedStudentIds: Array.isArray(draft?.selectedStudentIds)
       ? draft.selectedStudentIds.map(clean).filter(Boolean)
       : Array.isArray(resolvedSearchParams?.studentIds)
@@ -272,6 +289,14 @@ export default async function EmailPage({ searchParams }) {
               <input type="hidden" name="draft" value={draftId} />
               {activeFilterLinks.length ? (
                 <div className="email-active-filter-actions">
+                  <Link
+                    className="email-filter-pill email-filter-pill-clear"
+                    href={`/email?compose=1${draftId ? `&draft=${encodeURIComponent(draftId)}` : ""}&institution=&class=&registration=&familystatus=&tagIds=&q=&recipientMode=parents`}
+                  >
+                    <b>נקה הכול</b>
+                    <span>חזור לברירת המחדל של הסינון</span>
+                    <strong>איפוס</strong>
+                  </Link>
                   {activeFilterLinks.map((item) => (
                     <Link
                       key={`clear-${item.label}-${item.value}`}
