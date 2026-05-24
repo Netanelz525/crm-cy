@@ -3660,6 +3660,13 @@ td {
   gap: 8px;
 }
 
+.email-active-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
 .email-filter-pill {
   display: inline-flex;
   align-items: center;
@@ -3682,6 +3689,16 @@ td {
   background: #eaf7ef;
   border-color: #bfe1ca;
   color: #1f5d35;
+}
+
+.email-filter-pill-clear {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.email-filter-pill-clear strong {
+  color: #0b4f8c;
+  font-size: 0.8rem;
 }
 
 .email-form-grid {
