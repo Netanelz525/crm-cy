@@ -319,7 +319,7 @@ export default function EmailComposerClient({
               <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>בדף הבא תראה את רשימת הנמענים הסופית לפני שליחה.</small></div>
             </div>
             <button type="submit" disabled={!resendConfigured || !hasRecipientSource || !selectedIds.length || !selectedRecipientCount}>
-              המשך למסך אישור וצירוף קבצים
+              מעבר לאישור סופי ושליחה ללא צירוף קבצים
             </button>
           </div>
         </div>
