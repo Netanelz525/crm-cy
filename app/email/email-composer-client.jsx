@@ -253,7 +253,7 @@ export default function EmailComposerClient({
             helperText="בחר כאן את הקבצים שיישמרו לטיוטה. במסך האישור הסופי רק תבדוק אותם ותאשר שליחה."
           />
 
-          <details className="display-settings" open={hasRecipientSource}>
+          <details className="display-settings">
             <summary>
               {hasRecipientSource
                 ? `בחירת תלמידים: ${selectedIds.length} מסומנים מתוך ${students.length}`
@@ -319,7 +319,7 @@ export default function EmailComposerClient({
               <div><b>{selectedRecipientCount}</b><span>נמענים ייחודיים</span><small>בדף הבא תראה את רשימת הנמענים הסופית לפני שליחה.</small></div>
             </div>
             <button type="submit" disabled={!resendConfigured || !hasRecipientSource || !selectedIds.length || !selectedRecipientCount}>
-              מעבר לאישור סופי ושליחה ללא צירוף קבצים
+              מעבר לאישור סופי
             </button>
           </div>
         </div>

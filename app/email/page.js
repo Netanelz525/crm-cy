@@ -41,6 +41,33 @@ function renderFavoriteMeta(campaign) {
   ].filter(Boolean).join(" | ");
 }
 
+function summarizeFilterSettings(filters, recipientMode, availableTags) {
+  const parts = [];
+  if (filters.institution) parts.push(`מוסד: ${institutionLabel(filters.institution)}`);
+  if (filters.class) parts.push(`שיעור: ${classLabel(filters.class)}`);
+  if (filters.registration) parts.push(`רישום: ${ENUM_LABELS.registration?.[filters.registration] || filters.registration}`);
+  if (filters.familystatus) parts.push(`מצב משפחתי: ${ENUM_LABELS.familystatus?.[filters.familystatus] || filters.familystatus}`);
+  if (filters.tagIds.length) {
+    const names = availableTags
+      .filter((tag) => filters.tagIds.includes(tag.id))
+      .map((tag) => tag.name)
+      .filter(Boolean);
+    if (names.length) parts.push(`תוויות: ${names.join(", ")}`);
+  }
+  if (filters.q) parts.push(`חיפוש: ${filters.q}`);
+
+  const recipientModeLabels = {
+    parents: "הורים בלבד",
+    father: "אב בלבד",
+    mother: "אם בלבד",
+    student: "תלמיד בלבד",
+    all: "הורים ותלמיד"
+  };
+  parts.push(`למי לשלוח: ${recipientModeLabels[recipientMode] || "הורים בלבד"}`);
+
+  return parts.length ? parts.join(" | ") : "לא הוגדרו מסננים עדיין";
+}
+
 export default async function EmailPage({ searchParams }) {
   const user = await requireEmailSender();
   if (!user) redirect("/sign-in");
@@ -124,6 +151,7 @@ export default async function EmailPage({ searchParams }) {
     || filters.q
     || filters.selectedStudentIds.length
   );
+  const filterSummary = summarizeFilterSettings(filters, filters.recipientMode, availableTags);
 
   return (
     <>
@@ -164,76 +192,81 @@ export default async function EmailPage({ searchParams }) {
 
       {composeMode ? (
         <>
-          <form className="email-filter-card" action="/email" method="get">
-            <input type="hidden" name="compose" value="1" />
-            <input type="hidden" name="draft" value={draftId} />
-            <h2>סינון נמענים</h2>
-            <div className="email-form-grid">
-              <label>
-                מוסד
-                <select name="institution" defaultValue={filters.institution}>
-                  <option value="">כל המוסדות</option>
-                  {Object.entries(INSTITUTIONS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                שיעור
-                <select name="class" defaultValue={filters.class}>
-                  <option value="">כל השיעורים</option>
-                  {Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                רישום
-                <select name="registration" defaultValue={filters.registration}>
-                  <option value="">כל מצבי הרישום</option>
-                  {Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                מצב משפחתי
-                <select name="familystatus" defaultValue={filters.familystatus}>
-                  <option value="">כל המצבים</option>
-                  {Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                תווית
-                <select name="tagIds" defaultValue={filters.tagIds[0] || ""}>
-                  <option value="">כל התוויות</option>
-                  {availableTags.map((tag) => (
-                    <option key={tag.id} value={tag.id}>{tag.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                למי לשלוח
-                <select name="recipientMode" defaultValue={filters.recipientMode}>
-                  <option value="parents">הורים בלבד</option>
-                  <option value="father">אב בלבד</option>
-                  <option value="mother">אם בלבד</option>
-                  <option value="student">תלמיד בלבד</option>
-                  <option value="all">שניהם</option>
-                </select>
-              </label>
-              <label>
-                חיפוש תלמיד
-                <input name="q" defaultValue={filters.q} placeholder="שם, מייל או טלפון" />
-              </label>
-            </div>
-            <input type="hidden" name="subject" value={subject} />
-            <input type="hidden" name="senderName" value={senderName} />
-            <input type="hidden" name="contentHtml" value={initialHtml} />
-            <button type="submit">עדכן רשימה</button>
-          </form>
+          <details className="email-filter-card" open={false}>
+            <summary>
+              <span>סינון נמענים</span>
+              <small>{filterSummary}</small>
+            </summary>
+            <form action="/email" method="get">
+              <input type="hidden" name="compose" value="1" />
+              <input type="hidden" name="draft" value={draftId} />
+              <div className="email-form-grid">
+                <label>
+                  מוסד
+                  <select name="institution" defaultValue={filters.institution}>
+                    <option value="">כל המוסדות</option>
+                    {Object.entries(INSTITUTIONS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  שיעור
+                  <select name="class" defaultValue={filters.class}>
+                    <option value="">כל השיעורים</option>
+                    {Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  רישום
+                  <select name="registration" defaultValue={filters.registration}>
+                    <option value="">כל מצבי הרישום</option>
+                    {Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  מצב משפחתי
+                  <select name="familystatus" defaultValue={filters.familystatus}>
+                    <option value="">כל המצבים</option>
+                    {Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  תווית
+                  <select name="tagIds" defaultValue={filters.tagIds[0] || ""}>
+                    <option value="">כל התוויות</option>
+                    {availableTags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  למי לשלוח
+                  <select name="recipientMode" defaultValue={filters.recipientMode}>
+                    <option value="parents">הורים בלבד</option>
+                    <option value="father">אב בלבד</option>
+                    <option value="mother">אם בלבד</option>
+                    <option value="student">תלמיד בלבד</option>
+                    <option value="all">שניהם</option>
+                  </select>
+                </label>
+                <label>
+                  חיפוש תלמיד
+                  <input name="q" defaultValue={filters.q} placeholder="שם, מייל או טלפון" />
+                </label>
+              </div>
+              <input type="hidden" name="subject" value={subject} />
+              <input type="hidden" name="senderName" value={senderName} />
+              <input type="hidden" name="contentHtml" value={initialHtml} />
+              <button type="submit">עדכן רשימה</button>
+            </form>
+          </details>
 
           <form action={createEmailCampaignConfirmAction} encType="multipart/form-data">
             <input type="hidden" name="draftId" value={draftId} />
