@@ -6,10 +6,12 @@ import { requireEmailSender } from "../../lib/rbac";
 import {
   addEmailUnsubscribe,
   addFavoriteEmailCampaign,
+  buildAttachmentsFromForm,
   claimEmailCampaignDraftForSend,
   dispatchEmailCampaign,
   finalizeEmailCampaignDraftSend,
   getEmailCampaignById,
+  getEmailCampaignDraft,
   releaseEmailCampaignDraftSendClaim,
   removeFavoriteEmailCampaign,
   removeEmailUnsubscribe,
@@ -62,6 +64,13 @@ function buildConfirmRedirect(formData, errorMessage) {
 
 export async function createEmailCampaignConfirmAction(formData) {
   const user = await requireEmailSender();
+  const existingDraft = await getEmailCampaignDraft(clean(formData.get("draftId")));
+  const nextAttachments = await buildAttachmentsFromForm(formData);
+  const preservedAttachments = nextAttachments.length
+    ? nextAttachments
+    : Array.isArray(existingDraft?.draft_json?.attachments)
+      ? existingDraft.draft_json.attachments
+      : [];
   const payload = {
     institution: clean(formData.get("institution")),
     class: clean(formData.get("class")),
@@ -76,7 +85,8 @@ export async function createEmailCampaignConfirmAction(formData) {
     bodyHtml: clean(formData.get("contentHtml")) || clean(formData.get("bodyHtml")),
     bodyText: clean(formData.get("bodyText")),
     includeGreeting: clean(formData.get("includeGreeting")) !== "0",
-    selectedStudentIds: formData.getAll("studentIds").map(clean).filter(Boolean)
+    selectedStudentIds: formData.getAll("studentIds").map(clean).filter(Boolean),
+    attachments: preservedAttachments
   };
 
   const draftId = await saveEmailCampaignDraft({

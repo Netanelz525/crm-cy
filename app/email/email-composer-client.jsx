@@ -7,6 +7,7 @@ import Underline from "@tiptap/extension-underline";
 import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { useEffect, useMemo, useState } from "react";
+import AttachmentsInputClient from "./attachments-input-client";
 
 function clean(value) {
   return String(value || "");
@@ -246,6 +247,11 @@ export default function EmailComposerClient({
               הוסף פנייה אישית
             </label>
           </div>
+
+          <AttachmentsInputClient
+            title="קבצים שיצורפו למייל"
+            helperText="בחר כאן את הקבצים שיישמרו לטיוטה. במסך האישור הסופי רק תבדוק אותם ותאשר שליחה."
+          />
 
           <details className="display-settings" open={hasRecipientSource}>
             <summary>

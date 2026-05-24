@@ -235,7 +235,7 @@ export default async function EmailPage({ searchParams }) {
             <button type="submit">עדכן רשימה</button>
           </form>
 
-          <form action={createEmailCampaignConfirmAction}>
+          <form action={createEmailCampaignConfirmAction} encType="multipart/form-data">
             <input type="hidden" name="draftId" value={draftId} />
             <input type="hidden" name="institution" value={filters.institution} />
             <input type="hidden" name="class" value={filters.class} />
@@ -260,98 +260,88 @@ export default async function EmailPage({ searchParams }) {
         </>
       ) : null}
 
-      <div className="email-layout" style={{ marginTop: 18 }}>
-        <section className="email-panel">
-          <div className="email-log-card">
-            <div className="email-section-title">
-              <h2>קמפיינים מועדפים</h2>
-              <span>{favoriteCampaigns.length} שמורים</span>
-            </div>
-            {!favoriteCampaigns.length ? (
-              <div className="muted">שמור קמפיין מתוך דף קמפיין קיים, והוא יופיע כאן לפתיחה מהירה.</div>
-            ) : (
-              <div className="email-favorite-list">
-                {favoriteCampaigns.map((campaign) => (
-                  <div key={campaign.campaign_id} className="email-log-row email-favorite-row">
-                    <div>
-                      <b>{campaign.label || campaign.subject}</b>
-                      <small>{campaign.subject}</small>
-                      <small>{renderFavoriteMeta(campaign)}</small>
-                    </div>
-                    <div className="email-favorite-actions">
-                      <form action={reopenEmailCampaignAction}>
-                        <input type="hidden" name="campaignId" value={campaign.campaign_id} />
-                        <button type="submit" className="chip-link">שליחה מחדש</button>
-                      </form>
-                      <Link className="chip-link" href={`/email/campaigns/${campaign.campaign_id}`}>פתח</Link>
-                      <form action={removeFavoriteEmailCampaignAction}>
-                        <input type="hidden" name="campaignId" value={campaign.campaign_id} />
-                        <input type="hidden" name="returnTo" value="/email" />
-                        <button type="submit" className="chip-link">הסר</button>
-                      </form>
-                    </div>
-                  </div>
-                ))}
+      {!composeMode ? (
+        <div className="email-layout" style={{ marginTop: 18 }}>
+          <section className="email-panel">
+            <div className="email-log-card">
+              <div className="email-section-title">
+                <h2>קמפיינים מועדפים</h2>
+                <span>{favoriteCampaigns.length} שמורים</span>
               </div>
-            )}
-          </div>
-
-          <div className="email-certainty-card">
-            <h2>{composeMode ? "מדרג ודאות" : "מה אפשר לעשות מכאן"}</h2>
-            <div className="email-certainty-steps">
-              {composeMode ? (
-                <>
-                  <div><b>0</b><span>אין כתובת</span><small>לא נמצא אימייל מתאים לנמען.</small></div>
-                  <div><b>1</b><span>בתור</span><small>נוצרה רשומת שליחה.</small></div>
-                  <div><b>2</b><span>נשלח</span><small>Resend קיבל את ההודעה.</small></div>
-                  <div><b>3</b><span>נפתח</span><small>פיקסל המעקב נטען לפחות פעם אחת.</small></div>
-                  <div><b>4</b><span>נלחץ</span><small>נלחץ קישור מתוך המייל.</small></div>
-                </>
+              {!favoriteCampaigns.length ? (
+                <div className="muted">שמור קמפיין מתוך דף קמפיין קיים, והוא יופיע כאן לפתיחה מהירה.</div>
               ) : (
-                <>
-                  <div><b>חדש</b><span>פתיחת תפוצה</span><small>לחץ על תפוצה חדשה כדי לעבור למסך הכתיבה.</small></div>
-                  <div><b>מועדף</b><span>שימוש חוזר</span><small>פתח קמפיין שמור והמשך לשליחה מחדש במהירות.</small></div>
-                  <div><b>חסום</b><span>רשימה שחורה</span><small>ניהול כתובות שלא יקבלו הודעות מהמערכת.</small></div>
-                </>
+                <div className="email-favorite-list">
+                  {favoriteCampaigns.map((campaign) => (
+                    <div key={campaign.campaign_id} className="email-log-row email-favorite-row">
+                      <div>
+                        <b>{campaign.label || campaign.subject}</b>
+                        <small>{campaign.subject}</small>
+                        <small>{renderFavoriteMeta(campaign)}</small>
+                      </div>
+                      <div className="email-favorite-actions">
+                        <form action={reopenEmailCampaignAction}>
+                          <input type="hidden" name="campaignId" value={campaign.campaign_id} />
+                          <button type="submit" className="chip-link">שליחה מחדש</button>
+                        </form>
+                        <Link className="chip-link" href={`/email/campaigns/${campaign.campaign_id}`}>פתח</Link>
+                        <form action={removeFavoriteEmailCampaignAction}>
+                          <input type="hidden" name="campaignId" value={campaign.campaign_id} />
+                          <input type="hidden" name="returnTo" value="/email" />
+                          <button type="submit" className="chip-link">הסר</button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-        </section>
 
-        <aside className="email-panel">
-          <div className="email-log-card">
-            <div className="email-section-title">
-              <h2>רשימה שחורה</h2>
-              <span>{unsubscribes.length} כתובות</span>
-            </div>
-            <form action={addEmailUnsubscribeAction} className="email-blacklist-form">
-              <input name="recipientEmail" type="email" placeholder="כתובת מייל" required />
-              <input name="recipientName" placeholder="שם נמען" />
-              <input name="reasonText" placeholder="סיבת חסימה" />
-              <button type="submit">הוסף לרשימה</button>
-            </form>
-            {!unsubscribes.length ? (
-              <div className="muted">עדיין אין כתובות חסומות.</div>
-            ) : (
-              <div className="email-blacklist-list">
-                {unsubscribes.map((entry) => (
-                  <div key={entry.recipient_email} className="email-log-row email-blacklist-row">
-                    <div>
-                      <b>{entry.recipient_name || entry.recipient_email}</b>
-                      <small>{entry.recipient_email}</small>
-                      <small>{entry.reason_text || "ללא סיבה"}</small>
-                    </div>
-                    <form action={removeEmailUnsubscribeAction}>
-                      <input type="hidden" name="recipientEmail" value={entry.recipient_email} />
-                      <button type="submit" className="chip-link">הסר מהרשימה</button>
-                    </form>
-                  </div>
-                ))}
+            <div className="email-certainty-card">
+              <h2>מה אפשר לעשות מכאן</h2>
+              <div className="email-certainty-steps">
+                <div><b>חדש</b><span>פתיחת תפוצה</span><small>לחץ על תפוצה חדשה כדי לעבור למסך הכתיבה.</small></div>
+                <div><b>מועדף</b><span>שימוש חוזר</span><small>פתח קמפיין שמור והמשך לשליחה מחדש במהירות.</small></div>
+                <div><b>חסום</b><span>רשימה שחורה</span><small>ניהול כתובות שלא יקבלו הודעות מהמערכת.</small></div>
               </div>
-            )}
-          </div>
-        </aside>
-      </div>
+            </div>
+          </section>
+
+          <aside className="email-panel">
+            <div className="email-log-card">
+              <div className="email-section-title">
+                <h2>רשימה שחורה</h2>
+                <span>{unsubscribes.length} כתובות</span>
+              </div>
+              <form action={addEmailUnsubscribeAction} className="email-blacklist-form">
+                <input name="recipientEmail" type="email" placeholder="כתובת מייל" required />
+                <input name="recipientName" placeholder="שם נמען" />
+                <input name="reasonText" placeholder="סיבת חסימה" />
+                <button type="submit">הוסף לרשימה</button>
+              </form>
+              {!unsubscribes.length ? (
+                <div className="muted">עדיין אין כתובות חסומות.</div>
+              ) : (
+                <div className="email-blacklist-list">
+                  {unsubscribes.map((entry) => (
+                    <div key={entry.recipient_email} className="email-log-row email-blacklist-row">
+                      <div>
+                        <b>{entry.recipient_name || entry.recipient_email}</b>
+                        <small>{entry.recipient_email}</small>
+                        <small>{entry.reason_text || "ללא סיבה"}</small>
+                      </div>
+                      <form action={removeEmailUnsubscribeAction}>
+                        <input type="hidden" name="recipientEmail" value={entry.recipient_email} />
+                        <button type="submit" className="chip-link">הסר מהרשימה</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </>
   );
 }

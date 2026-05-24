@@ -11,8 +11,14 @@ function formatSize(bytes) {
   return `${value}B`;
 }
 
-export default function AttachmentsInputClient() {
-  const [files, setFiles] = useState([]);
+export default function AttachmentsInputClient({
+  inputName = "attachments",
+  title = "קבצים מצורפים",
+  helperText = "אפשר לצרף כמה קבצים, אבל הסך הכולל מוגבל ל־20MB כדי להבטיח קבלה נוחה ובטוחה יותר אצל הנמען.",
+  initialFiles = [],
+  readOnly = false
+}) {
+  const [files, setFiles] = useState(initialFiles);
 
   const totalBytes = useMemo(
     () => files.reduce((sum, file) => sum + Number(file.size || 0), 0),
@@ -23,24 +29,30 @@ export default function AttachmentsInputClient() {
 
   return (
     <div className="email-attachments-card">
-      <label>
-        קבצים מצורפים
-        <input
-          type="file"
-          name="attachments"
-          multiple
-          onChange={(event) => {
-            const nextFiles = Array.from(event.target.files || []);
-            const nextTotalBytes = nextFiles.reduce((sum, file) => sum + Number(file.size || 0), 0);
-            event.target.setCustomValidity(
-              nextTotalBytes > MAX_TOTAL_BYTES
-                ? "סך הקבצים המצורפים חורג מהמגבלה של 20MB."
-                : ""
-            );
-            setFiles(nextFiles);
-          }}
-        />
-      </label>
+      {!readOnly ? (
+        <label>
+          {title}
+          <input
+            type="file"
+            name={inputName}
+            multiple
+            onChange={(event) => {
+              const nextFiles = Array.from(event.target.files || []);
+              const nextTotalBytes = nextFiles.reduce((sum, file) => sum + Number(file.size || 0), 0);
+              event.target.setCustomValidity(
+                nextTotalBytes > MAX_TOTAL_BYTES
+                  ? "סך הקבצים המצורפים חורג מהמגבלה של 20MB."
+                  : ""
+              );
+              setFiles(nextFiles);
+            }}
+          />
+        </label>
+      ) : (
+        <div>
+          <b>{title}</b>
+        </div>
+      )}
 
       <div className={`email-attachments-status ${overLimit ? "email-attachments-status-error" : "email-attachments-status-ok"}`}>
         <b>{overLimit ? "הקבצים חורגים מהמגבלה" : "הקבצים תקינים לשליחה"}</b>
@@ -51,7 +63,7 @@ export default function AttachmentsInputClient() {
       </div>
 
       <small className="muted">
-        אפשר לצרף כמה קבצים, אבל הסך הכולל מוגבל ל־20MB כדי להבטיח קבלה נוחה ובטוחה יותר אצל הנמען.
+        {helperText}
       </small>
 
       {files.length ? (

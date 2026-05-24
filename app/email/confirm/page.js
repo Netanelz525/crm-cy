@@ -48,6 +48,7 @@ export default async function EmailConfirmPage({ searchParams }) {
   const bodyHtml = clean(draft?.bodyHtml);
   const bodyText = clean(draft?.bodyText);
   const includeGreeting = draft?.includeGreeting !== false;
+  const savedAttachments = Array.isArray(draft?.attachments) ? draft.attachments : [];
   const error = clean(resolvedSearchParams?.error);
   const resendStatus = getResendConfigStatus();
 
@@ -99,7 +100,7 @@ export default async function EmailConfirmPage({ searchParams }) {
           <p className="email-kicker">אישור סופי</p>
           <h1>בדיקה אחרונה לפני שליחה דרך Resend</h1>
           <p className="muted">
-            זהו המייל הסופי שיישלח בפועל. אפשר לצרף כאן קבצים, לאשר את השליחה, ואז לחזור מיד למסך הראשי בזמן שהמערכת משלימה את השליחה ברקע.
+            זהו המייל הסופי שיישלח בפועל. כאן בודקים את רשימת הנמענים והקבצים שכבר נבחרו, מאשרים, והמערכת משלימה את השליחה ברקע.
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
             <Link className="chip-link" href={backHref}>חזור לעריכת המייל</Link>
@@ -115,7 +116,7 @@ export default async function EmailConfirmPage({ searchParams }) {
 
       <div className="email-layout">
         <section className="email-panel">
-          <form action={sendEmailCampaignAction} className="email-compose-card" encType="multipart/form-data">
+          <form action={sendEmailCampaignAction} className="email-compose-card">
             <input type="hidden" name="draftId" value={draftId} />
             <input type="hidden" name="institution" value={filters.institution} />
             <input type="hidden" name="class" value={filters.class} />
@@ -166,7 +167,12 @@ export default async function EmailConfirmPage({ searchParams }) {
               </div>
             </div>
 
-            <AttachmentsInputClient />
+            <AttachmentsInputClient
+              title="קבצים שיצורפו למייל"
+              helperText="הקבצים נבחרו בשלב העריכה. כאן אפשר רק לבדוק מה יישלח בפועל לפני האישור הסופי."
+              initialFiles={savedAttachments.map((file) => ({ name: file.filename, size: Number(file.sizeBytes || 0), lastModified: 0 }))}
+              readOnly
+            />
 
             <label className="email-final-check">
               <input type="checkbox" name="confirmFinalSend" value="1" required />
