@@ -43,18 +43,18 @@ function renderFavoriteMeta(campaign) {
 
 function summarizeFilterSettings(filters, recipientMode, availableTags) {
   const parts = [];
-  if (filters.institution) parts.push(`מוסד: ${institutionLabel(filters.institution)}`);
-  if (filters.class) parts.push(`שיעור: ${classLabel(filters.class)}`);
-  if (filters.registration) parts.push(`רישום: ${ENUM_LABELS.registration?.[filters.registration] || filters.registration}`);
-  if (filters.familystatus) parts.push(`מצב משפחתי: ${ENUM_LABELS.familystatus?.[filters.familystatus] || filters.familystatus}`);
+  if (filters.institution) parts.push({ label: "מוסד", value: institutionLabel(filters.institution) });
+  if (filters.class) parts.push({ label: "שיעור", value: classLabel(filters.class) });
+  if (filters.registration) parts.push({ label: "רישום", value: ENUM_LABELS.registration?.[filters.registration] || filters.registration });
+  if (filters.familystatus) parts.push({ label: "מצב משפחתי", value: ENUM_LABELS.familystatus?.[filters.familystatus] || filters.familystatus });
   if (filters.tagIds.length) {
     const names = availableTags
       .filter((tag) => filters.tagIds.includes(tag.id))
       .map((tag) => tag.name)
       .filter(Boolean);
-    if (names.length) parts.push(`תוויות: ${names.join(", ")}`);
+    if (names.length) parts.push({ label: "תוויות", value: names.join(", ") });
   }
-  if (filters.q) parts.push(`חיפוש: ${filters.q}`);
+  if (filters.q) parts.push({ label: "חיפוש", value: filters.q });
 
   const recipientModeLabels = {
     parents: "הורים בלבד",
@@ -63,9 +63,9 @@ function summarizeFilterSettings(filters, recipientMode, availableTags) {
     student: "תלמיד בלבד",
     all: "הורים ותלמיד"
   };
-  parts.push(`למי לשלוח: ${recipientModeLabels[recipientMode] || "הורים בלבד"}`);
+  parts.push({ label: "למי לשלוח", value: recipientModeLabels[recipientMode] || "הורים בלבד", accent: true });
 
-  return parts.length ? parts.join(" | ") : "לא הוגדרו מסננים עדיין";
+  return parts;
 }
 
 export default async function EmailPage({ searchParams }) {
@@ -195,7 +195,21 @@ export default async function EmailPage({ searchParams }) {
           <details className="email-filter-card" open={false}>
             <summary>
               <span>סינון נמענים</span>
-              <small>{filterSummary}</small>
+              <div className="email-active-filters">
+                {filterSummary.length ? filterSummary.map((item) => (
+                  <span
+                    key={`${item.label}-${item.value}`}
+                    className={`email-filter-pill${item.accent ? " email-filter-pill-accent" : ""}`}
+                  >
+                    <b>{item.label}</b>
+                    <span>{item.value}</span>
+                  </span>
+                )) : (
+                  <span className="email-filter-pill">
+                    <span>לא הוגדרו מסננים עדיין</span>
+                  </span>
+                )}
+              </div>
             </summary>
             <form action="/email" method="get">
               <input type="hidden" name="compose" value="1" />

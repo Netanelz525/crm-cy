@@ -3649,6 +3649,41 @@ td {
   box-shadow: var(--shadow);
 }
 
+.email-filter-card summary {
+  display: grid;
+  gap: 12px;
+}
+
+.email-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.email-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #f5f8fd;
+  border: 1px solid #d5e1f0;
+  color: #23405f;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.email-filter-pill b {
+  color: #0f2e52;
+  font-size: 0.82rem;
+}
+
+.email-filter-pill-accent {
+  background: #eaf7ef;
+  border-color: #bfe1ca;
+  color: #1f5d35;
+}
+
 .email-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
