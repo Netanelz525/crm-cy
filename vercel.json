@@ -6,8 +6,16 @@
       "schedule": "0 19 * * 4"
     },
     {
+      "path": "/api/cron/weekly-backup",
+      "schedule": "5 19 * * 4"
+    },
+    {
       "path": "/api/cron/event-reminders",
       "schedule": "10 19 * * 4"
+    },
+    {
+      "path": "/api/cron/event-reminders",
+      "schedule": "15 19 * * 4"
     }
   ]
 }
