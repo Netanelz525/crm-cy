@@ -76,6 +76,7 @@ export default async function EmailPage({ searchParams }) {
   const failed = clean(resolvedSearchParams?.failed);
   const skipped = clean(resolvedSearchParams?.skipped);
   const error = clean(resolvedSearchParams?.error);
+  const notice = clean(resolvedSearchParams?.notice);
   const blacklistUpdated = clean(resolvedSearchParams?.blacklistUpdated) === "1";
   const reopened = clean(resolvedSearchParams?.reopened) === "1";
   const favoriteSaved = clean(resolvedSearchParams?.favoriteSaved) === "1";
@@ -154,6 +155,7 @@ export default async function EmailPage({ searchParams }) {
           השליחה הסתיימה: {sent} נשלחו, {failed || 0} נכשלו, {skipped || 0} דולגו.
         </div>
       ) : null}
+      {!sent && notice ? <div className="ok">{notice}</div> : null}
       {reopened ? <div className="ok">ההודעה הקודמת נטענה כטיוטה חדשה עם הגדרות הסינון המקוריות, ואפשר לעדכן אותה לפני שליחה מחדש.</div> : null}
       {favoriteSaved ? <div className="ok">הקמפיין נשמר במועדפים לשימוש חוזר מהיר.</div> : null}
       {favoriteRemoved ? <div className="ok">הקמפיין הוסר מרשימת המועדפים.</div> : null}

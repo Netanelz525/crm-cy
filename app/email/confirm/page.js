@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import AttachmentsInputClient from "../attachments-input-client";
+import FinalSendSubmitClient from "../final-send-submit-client";
 import {
   buildDefaultSenderNameForStudents,
   buildDeliveryTargets,
@@ -97,7 +99,7 @@ export default async function EmailConfirmPage({ searchParams }) {
           <p className="email-kicker">אישור סופי</p>
           <h1>בדיקה אחרונה לפני שליחה דרך Resend</h1>
           <p className="muted">
-            זהו המייל הסופי שיישלח בפועל. התצוגה המקדימה מוצגת לפי הנמען הראשון ברשימה, ולכן הפנייה האישית יכולה להשתנות מעט בין נמען לנמען.
+            זהו המייל הסופי שיישלח בפועל. אפשר לצרף כאן קבצים, לאשר את השליחה, ואז לחזור מיד למסך הראשי בזמן שהמערכת משלימה את השליחה ברקע.
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
             <Link className="chip-link" href={backHref}>חזור לעריכת המייל</Link>
@@ -164,19 +166,14 @@ export default async function EmailConfirmPage({ searchParams }) {
               </div>
             </div>
 
-            <label>
-              קבצים מצורפים
-              <input type="file" name="attachments" multiple />
-            </label>
+            <AttachmentsInputClient />
 
             <label className="email-final-check">
               <input type="checkbox" name="confirmFinalSend" value="1" required />
               אני מאשר שליחה סופית של המייל הזה דרך Resend
             </label>
 
-            <button type="submit" disabled={!resendStatus.configured}>
-              אשר ושלח דרך Resend
-            </button>
+            <FinalSendSubmitClient resendConfigured={resendStatus.configured} />
           </form>
         </section>
 

@@ -40,7 +40,7 @@ function formatDateTime(value) {
   if (!raw) return "-";
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
-  return date.toLocaleString("he-IL");
+  return date.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" });
 }
 
 function buildDeliveryPreviewHtml(campaign, delivery) {

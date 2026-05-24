@@ -37,7 +37,8 @@ function formatCampaignDate(value) {
   if (Number.isNaN(date.getTime())) return stamp;
   return new Intl.DateTimeFormat("he-IL", {
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
+    timeZone: "Asia/Jerusalem"
   }).format(date);
 }
 

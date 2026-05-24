@@ -1,11 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { requireEmailSender } from "../../lib/rbac";
 import {
   addEmailUnsubscribe,
   addFavoriteEmailCampaign,
+  claimEmailCampaignDraftForSend,
+  dispatchEmailCampaign,
+  finalizeEmailCampaignDraftSend,
   getEmailCampaignById,
+  releaseEmailCampaignDraftSendClaim,
   removeFavoriteEmailCampaign,
   removeEmailUnsubscribe,
   saveEmailCampaignDraft,
@@ -85,8 +90,24 @@ export async function createEmailCampaignConfirmAction(formData) {
 
 export async function sendEmailCampaignAction(formData) {
   const user = await requireEmailSender();
+  const draftId = clean(formData.get("draftId"));
   if (clean(formData.get("confirmFinalSend")) !== "1") {
     redirect(buildConfirmRedirect(formData, "יש לאשר שליחה סופית לפני הביצוע."));
+  }
+
+  const claim = await claimEmailCampaignDraftForSend(draftId);
+  if (!claim.ok) {
+    if (claim.status === "already-sent") {
+      const params = new URLSearchParams({
+        campaignId: claim.campaignId || "",
+        notice: "המייל כבר נשלח קודם. נמנעה שליחה כפולה."
+      });
+      redirect(`/email?${params.toString()}`);
+    }
+    if (claim.status === "sending") {
+      redirect(`/email?notice=${encodeURIComponent("המייל כבר נמצא בתהליך שליחה. אין צורך ללחוץ שוב.")}`);
+    }
+    redirect(buildConfirmRedirect(formData, "טיוטת השליחה אינה זמינה יותר. יש לפתוח אישור חדש."));
   }
 
   let result = null;
@@ -100,14 +121,22 @@ export async function sendEmailCampaignAction(formData) {
       }
     });
   } catch (error) {
+    await releaseEmailCampaignDraftSendClaim(draftId);
     redirect(buildConfirmRedirect(formData, clean(error?.message) || "שליחת המייל נכשלה"));
   }
 
+  after(async () => {
+    try {
+      await dispatchEmailCampaign(result);
+      await finalizeEmailCampaignDraftSend(draftId, result.campaignId);
+    } catch (_error) {
+      await releaseEmailCampaignDraftSendClaim(draftId);
+    }
+  });
+
   const params = new URLSearchParams({
-    sent: String(result.sent),
-    failed: String(result.failed),
-    skipped: String(result.skipped),
-    campaignId: result.campaignId
+    campaignId: result.campaignId,
+    notice: "השליחה התחילה ותושלם ברקע. אפשר לסגור את הדף."
   });
   redirect(`/email?${params.toString()}`);
 }
