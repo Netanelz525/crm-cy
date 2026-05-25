@@ -36,17 +36,25 @@ function dayLabel(daysUntil) {
   if (!Number.isFinite(normalized)) return "";
   if (normalized === 0) return "האירוע חל היום";
   if (normalized === 1) return "האירוע חל מחר";
+  if (normalized === -1) return "האירוע חל אתמול";
+  if (normalized < -1) return `האירוע חל לפני ${Math.abs(normalized)} ימים`;
   return `האירוע בעוד ${normalized} ימים`;
 }
 
-export default function UpcomingEventsBoardClient({ initialEvents = [] }) {
+export default function UpcomingEventsBoardClient({ initialEvents = [], initialRecentPastEvents = [] }) {
   const [events, setEvents] = useState(Array.isArray(initialEvents) ? initialEvents : []);
+  const [recentPastEvents, setRecentPastEvents] = useState(Array.isArray(initialRecentPastEvents) ? initialRecentPastEvents : []);
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => Number(a?.nextOccurrence?.daysUntil || 0) - Number(b?.nextOccurrence?.daysUntil || 0)),
     [events]
+  );
+
+  const sortedRecentPastEvents = useMemo(
+    () => [...recentPastEvents].sort((a, b) => Number(b?.relevantOccurrence?.daysUntil || -999) - Number(a?.relevantOccurrence?.daysUntil || -999)),
+    [recentPastEvents]
   );
 
   function handleUpdateEvent(eventId, payload, options = {}) {
@@ -60,6 +68,9 @@ export default function UpcomingEventsBoardClient({ initialEvents = [] }) {
       setEvents((current) => current
         .map((item) => (item.id === result.event.id ? { ...item, ...result.event } : item))
         .sort((a, b) => Number(a?.nextOccurrence?.daysUntil || 0) - Number(b?.nextOccurrence?.daysUntil || 0)));
+      setRecentPastEvents((current) => current
+        .map((item) => (item.id === result.event.id ? { ...item, ...result.event } : item))
+        .sort((a, b) => Number(b?.relevantOccurrence?.daysUntil || -999) - Number(a?.relevantOccurrence?.daysUntil || -999)));
       setMessage("האירוע עודכן.");
       options.onSuccess?.();
     });
@@ -74,12 +85,13 @@ export default function UpcomingEventsBoardClient({ initialEvents = [] }) {
         return;
       }
       setEvents((current) => current.filter((item) => item.id !== eventId));
+      setRecentPastEvents((current) => current.filter((item) => item.id !== eventId));
       setMessage("האירוע נמחק.");
       options.onSuccess?.();
     });
   }
 
-  if (!sortedEvents.length) {
+  if (!sortedEvents.length && !sortedRecentPastEvents.length) {
     return (
       <>
         {message ? <div className={message.includes("נכש") ? "student-inline-feedback error" : "student-inline-feedback ok"}>{message}</div> : null}
@@ -95,22 +107,47 @@ export default function UpcomingEventsBoardClient({ initialEvents = [] }) {
   return (
     <>
       {message ? <div className={message.includes("נכש") ? "student-inline-feedback error" : "student-inline-feedback ok"}>{message}</div> : null}
-      <div className="linked-records-grid">
-        {sortedEvents.map((event) => (
-          <UpcomingEventCard
-            key={event.id}
-            event={event}
-            isPending={isPending}
-            onUpdate={handleUpdateEvent}
-            onDelete={handleDeleteEvent}
-          />
-        ))}
-      </div>
+      {sortedEvents.length ? (
+        <>
+          <div className="linked-record-meta" style={{ marginBottom: 10 }}><b>אירועים קרובים</b></div>
+          <div className="linked-records-grid">
+            {sortedEvents.map((event) => (
+              <UpcomingEventCard
+                key={`upcoming-${event.id}`}
+                event={event}
+                isPending={isPending}
+                onUpdate={handleUpdateEvent}
+                onDelete={handleDeleteEvent}
+                occurrence={event?.nextOccurrence}
+                mode="upcoming"
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+      {sortedRecentPastEvents.length ? (
+        <>
+          <div className="linked-record-meta" style={{ marginTop: sortedEvents.length ? 18 : 0, marginBottom: 10 }}><b>אירועים שחלו בשבועיים האחרונים</b></div>
+          <div className="linked-records-grid">
+            {sortedRecentPastEvents.map((event) => (
+              <UpcomingEventCard
+                key={`recent-${event.id}`}
+                event={event}
+                isPending={isPending}
+                onUpdate={handleUpdateEvent}
+                onDelete={handleDeleteEvent}
+                occurrence={event?.relevantOccurrence || event?.nextOccurrence}
+                mode="recentPast"
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
     </>
   );
 }
 
-function UpcomingEventCard({ event, isPending, onUpdate, onDelete }) {
+function UpcomingEventCard({ event, isPending, onUpdate, onDelete, occurrence, mode = "upcoming" }) {
   const [eventType, setEventType] = useState(event.eventType || "birthday");
   const detailsRef = useRef(null);
 
@@ -179,15 +216,15 @@ function UpcomingEventCard({ event, isPending, onUpdate, onDelete }) {
         </div>
       </div>
       <Link className="linked-record-title" href={`/neon/students/${event.studentId}`}>{event.studentName || "ללא שם"}</Link>
-      <div className="linked-record-meta">מועד קרוב: {event?.nextOccurrence?.gregorianDisplay || "-"}</div>
-      {event?.nextOccurrence?.hebrewDateDisplay && event.nextOccurrence.hebrewDateDisplay !== event.hebrewDateLabel ? (
-        <div className="linked-record-meta">התאריך בפועל השנה: {event.nextOccurrence.hebrewDateDisplay}</div>
+      <div className="linked-record-meta">{mode === "recentPast" ? "חל בתאריך:" : "מועד קרוב:"} {occurrence?.gregorianDisplay || "-"}</div>
+      {occurrence?.hebrewDateDisplay && occurrence.hebrewDateDisplay !== event.hebrewDateLabel ? (
+        <div className="linked-record-meta">התאריך בפועל השנה: {occurrence.hebrewDateDisplay}</div>
       ) : null}
-      <div className="linked-record-meta">{dayLabel(event?.nextOccurrence?.daysUntil)}</div>
+      <div className="linked-record-meta">{dayLabel(occurrence?.daysUntil)}</div>
       <div className="linked-record-meta">מוסד: {event.currentInstitution || "-"}</div>
       <div className="linked-record-meta">שיעור: {event.studentClass || "-"}</div>
-      {event?.nextOccurrence?.adjustmentNote ? (
-        <div className="linked-record-meta">התאמה שנתית: {event.nextOccurrence.adjustmentNote}</div>
+      {occurrence?.adjustmentNote ? (
+        <div className="linked-record-meta">התאמה שנתית: {occurrence.adjustmentNote}</div>
       ) : null}
       <div className="linked-record-meta">הערה: {event.noteText || "-"}</div>
     </div>

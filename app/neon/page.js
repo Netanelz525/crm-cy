@@ -5,7 +5,7 @@ import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { attachLatestContactToStudents } from "../../lib/student-contact-logs";
-import { listUpcomingStudentEvents } from "../../lib/student-events";
+import { listStudentEventReminderDigest } from "../../lib/student-events";
 import { attachStudentTagsToStudents, listStudentTagsWithUsage } from "../../lib/student-tags";
 import {
   applyAdvancedFilters,
@@ -302,7 +302,9 @@ export default async function NeonPage({ searchParams }) {
 
   const stats = await getNeonStudentsStats();
   const availableTags = await listStudentTagsWithUsage();
-  const upcomingEvents = await listUpcomingStudentEvents({ daysAhead: 45, limit: 16 });
+  const eventBoard = await listStudentEventReminderDigest({ daysAhead: 45, daysBack: 14 });
+  const upcomingEvents = (eventBoard?.upcoming || []).slice(0, 16);
+  const recentPastEvents = (eventBoard?.recentPast || []).slice(0, 16);
   const clearInstitutionFiltersPath = buildNextPath({
     mode: "institution",
     cols: selectedColumnKeys,
@@ -365,9 +367,10 @@ export default async function NeonPage({ searchParams }) {
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">קרובים ב-45 יום: {upcomingEvents.length}</span>
+            <span className="linked-record-pill">חלפו ב-14 יום: {recentPastEvents.length}</span>
           </div>
         </summary>
-        <UpcomingEventsBoardClient initialEvents={upcomingEvents} />
+        <UpcomingEventsBoardClient initialEvents={upcomingEvents} initialRecentPastEvents={recentPastEvents} />
       </details>
 
       {synced ? <div className="ok">הסנכרון הושלם. עודכנו {syncCount || 0} תלמידים.</div> : null}
