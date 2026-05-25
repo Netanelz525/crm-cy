@@ -35,6 +35,15 @@ export default async function AdminPage() {
 
       {currentUser.is_super_admin ? <UserManagementClient users={users} /> : null}
       {currentUser.is_super_admin ? <SystemAutomationsCard /> : null}
+      {currentUser.is_super_admin ? (
+        <div className="card">
+          <h2>ספר אנשים ומוסדות</h2>
+          <p className="muted">
+            שכבת נתונים מקבילה למסך התלמידים הקיים, עם קשרי הורים, מוסדות, והתרעות על התאמות וכפילויות.
+          </p>
+          <Link href="/admin/canonical-directory">פתח את שכבת הנתונים החדשה</Link>
+        </div>
+      ) : null}
 
       <ApiAccessClient apiBaseUrl={apiBaseUrl} />
 
