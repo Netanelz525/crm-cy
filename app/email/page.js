@@ -51,33 +51,6 @@ function hasSearchParam(searchParams, key) {
   return Boolean(searchParams) && Object.prototype.hasOwnProperty.call(searchParams, key);
 }
 
-function summarizeFilterSettings(filters, recipientMode, availableTags) {
-  const parts = [];
-  if (filters.institution) parts.push({ label: "מוסד", value: institutionLabel(filters.institution) });
-  if (filters.class) parts.push({ label: "שיעור", value: classLabel(filters.class) });
-  if (filters.registration) parts.push({ label: "רישום", value: ENUM_LABELS.registration?.[filters.registration] || filters.registration });
-  if (filters.familystatus) parts.push({ label: "מצב משפחתי", value: ENUM_LABELS.familystatus?.[filters.familystatus] || filters.familystatus });
-  if (filters.tagIds.length) {
-    const names = availableTags
-      .filter((tag) => filters.tagIds.includes(tag.id))
-      .map((tag) => tag.name)
-      .filter(Boolean);
-    if (names.length) parts.push({ label: "תוויות", value: names.join(", ") });
-  }
-  if (filters.q) parts.push({ label: "חיפוש", value: filters.q });
-
-  const recipientModeLabels = {
-    parents: "הורים בלבד",
-    father: "אב בלבד",
-    mother: "אם בלבד",
-    student: "תלמיד בלבד",
-    all: "הורים ותלמיד"
-  };
-  parts.push({ label: "למי לשלוח", value: recipientModeLabels[recipientMode] || "הורים בלבד", accent: true });
-
-  return parts;
-}
-
 function buildComposeFilterHref({ draftId, filters, clearField, clearTagId }) {
   const params = new URLSearchParams();
   params.set("compose", "1");
@@ -203,29 +176,16 @@ export default async function EmailPage({ searchParams }) {
     || filters.q
     || filters.selectedStudentIds.length
   );
-  const filterSummary = summarizeFilterSettings(filters, filters.recipientMode, availableTags);
-  const activeFilterLinks = filterSummary.map((item) => {
-    if (item.label === "מוסד") {
-      return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "institution" }) };
-    }
-    if (item.label === "שיעור") {
-      return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "class" }) };
-    }
-    if (item.label === "רישום") {
-      return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "registration" }) };
-    }
-    if (item.label === "מצב משפחתי") {
-      return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "familystatus" }) };
-    }
-    if (item.label === "חיפוש") {
-      return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "q" }) };
-    }
-    if (item.label === "למי לשלוח") {
-      return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "recipientMode" }) };
-    }
-    return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "tagIds" }) };
-  });
   const resetFiltersHref = `/email?compose=1${draftId ? `&draft=${encodeURIComponent(draftId)}` : ""}&institution=&class=&registration=&familystatus=&tagIds=&q=&recipientMode=parents`;
+  const hasActiveFilterValues = Boolean(
+    filters.institution
+    || filters.class
+    || filters.registration
+    || filters.familystatus
+    || filters.tagIds.length
+    || filters.q
+    || filters.recipientMode !== "parents"
+  );
 
   return (
     <>
@@ -269,35 +229,17 @@ export default async function EmailPage({ searchParams }) {
           <details className="email-filter-card" open={false}>
             <summary>
               <span>סינון נמענים</span>
-              <div className="email-active-filters">
-                {activeFilterLinks.length ? activeFilterLinks.map((item) => (
-                  <Link
-                    key={`${item.label}-${item.value}`}
-                    className={`email-filter-pill email-filter-pill-clear${item.accent ? " email-filter-pill-accent" : ""}`}
-                    href={item.href}
-                  >
-                    <b>{item.label}</b>
-                    <span>{item.value}</span>
-                    <strong>נקה</strong>
-                  </Link>
-                )) : (
-                  <span className="email-filter-pill">
-                    <span>לא הוגדרו מסננים עדיין</span>
-                  </span>
-                )}
-                {activeFilterLinks.length ? (
-                  <Link className="email-filter-pill email-filter-pill-clear" href={resetFiltersHref}>
-                    <b>נקה הכול</b>
-                  </Link>
-                ) : null}
-              </div>
+              {hasActiveFilterValues ? <Link className="email-clear-link" href={resetFiltersHref}>נקה הכול</Link> : null}
             </summary>
             <form action="/email" method="get">
               <input type="hidden" name="compose" value="1" />
               <input type="hidden" name="draft" value={draftId} />
               <div className="email-form-grid">
                 <label>
-                  מוסד
+                  <span className="email-field-header">
+                    <span>מוסד</span>
+                    {filters.institution ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "institution" })}>נקה בחירה</Link> : null}
+                  </span>
                   <select name="institution" defaultValue={filters.institution}>
                     <option value="">כל המוסדות</option>
                     {Object.entries(INSTITUTIONS).map(([value, label]) => (
@@ -306,7 +248,10 @@ export default async function EmailPage({ searchParams }) {
                   </select>
                 </label>
                 <label>
-                  שיעור
+                  <span className="email-field-header">
+                    <span>שיעור</span>
+                    {filters.class ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "class" })}>נקה בחירה</Link> : null}
+                  </span>
                   <select name="class" defaultValue={filters.class}>
                     <option value="">כל השיעורים</option>
                     {Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => (
@@ -315,7 +260,10 @@ export default async function EmailPage({ searchParams }) {
                   </select>
                 </label>
                 <label>
-                  רישום
+                  <span className="email-field-header">
+                    <span>רישום</span>
+                    {filters.registration ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "registration" })}>נקה בחירה</Link> : null}
+                  </span>
                   <select name="registration" defaultValue={filters.registration}>
                     <option value="">כל מצבי הרישום</option>
                     {Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => (
@@ -324,7 +272,10 @@ export default async function EmailPage({ searchParams }) {
                   </select>
                 </label>
                 <label>
-                  מצב משפחתי
+                  <span className="email-field-header">
+                    <span>מצב משפחתי</span>
+                    {filters.familystatus ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "familystatus" })}>נקה בחירה</Link> : null}
+                  </span>
                   <select name="familystatus" defaultValue={filters.familystatus}>
                     <option value="">כל המצבים</option>
                     {Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => (
@@ -333,7 +284,10 @@ export default async function EmailPage({ searchParams }) {
                   </select>
                 </label>
                 <label>
-                  תווית
+                  <span className="email-field-header">
+                    <span>תווית</span>
+                    {filters.tagIds.length ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "tagIds" })}>נקה בחירה</Link> : null}
+                  </span>
                   <select name="tagIds" defaultValue={filters.tagIds[0] || ""}>
                     <option value="">כל התוויות</option>
                     {availableTags.map((tag) => (
@@ -342,7 +296,10 @@ export default async function EmailPage({ searchParams }) {
                   </select>
                 </label>
                 <label>
-                  למי לשלוח
+                  <span className="email-field-header">
+                    <span>למי לשלוח</span>
+                    {filters.recipientMode !== "parents" ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "recipientMode" })}>נקה בחירה</Link> : null}
+                  </span>
                   <select name="recipientMode" defaultValue={filters.recipientMode}>
                     <option value="parents">הורים בלבד</option>
                     <option value="father">אב בלבד</option>
@@ -352,7 +309,10 @@ export default async function EmailPage({ searchParams }) {
                   </select>
                 </label>
                 <label>
-                  חיפוש תלמיד
+                  <span className="email-field-header">
+                    <span>חיפוש תלמיד</span>
+                    {filters.q ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "q" })}>נקה בחירה</Link> : null}
+                  </span>
                   <input name="q" defaultValue={filters.q} placeholder="שם, מייל או טלפון" />
                 </label>
               </div>
