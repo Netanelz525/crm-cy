@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createApiToken, revokeApiToken } from "../../lib/api-tokens";
+import { syncCanonicalDirectoryFromNeon } from "../../lib/canonical-directory";
 import {
   approveUnknownUser,
   deleteAppUser,
@@ -174,4 +175,11 @@ export async function unlinkUserWhatsAppAction(targetUserId) {
   await requireSuperAdmin();
   await unlinkWhatsAppByClerkUserId(targetUserId);
   revalidatePath("/admin");
+}
+
+export async function syncCanonicalDirectoryAction() {
+  await requireSuperAdmin();
+  await syncCanonicalDirectoryFromNeon();
+  revalidatePath("/admin");
+  revalidatePath("/admin/canonical-directory");
 }
