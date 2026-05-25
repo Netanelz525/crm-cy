@@ -3,6 +3,8 @@ import { getCanonicalDirectoryDashboard } from "../../../lib/canonical-directory
 import { requireSuperAdmin } from "../../../lib/rbac";
 import { syncCanonicalDirectoryAction } from "../actions";
 
+export const maxDuration = 300;
+
 function formatConfidence(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
   return `${Math.round(Number(value) * 100)}%`;
@@ -22,7 +24,7 @@ function severityLabel(value) {
 
 export default async function CanonicalDirectoryPage() {
   await requireSuperAdmin();
-  const dashboard = await getCanonicalDirectoryDashboard({ autoSync: true });
+  const dashboard = await getCanonicalDirectoryDashboard({ autoSync: false });
 
   return (
     <>
@@ -31,6 +33,10 @@ export default async function CanonicalDirectoryPage() {
         <p className="muted">
           שכבת הנתונים החדשה רצה במקביל למסך הקיים. כאן אפשר לראות אנשים, קשרי הורים-תלמידים,
           שיוכים למוסדות, והתראות על התאמות או כפילויות לפני שמעבירים את העבודה השוטפת למודל החדש.
+        </p>
+        <p className="muted">
+          הסנכרון הראשוני אינו רץ אוטומטית בטעינת העמוד כדי לא להכביד על פרודקשן. אם זו הכניסה הראשונה,
+          לחץ על כפתור הסנכרון כדי למלא את השכבה החדשה.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
           <form action={syncCanonicalDirectoryAction}>
