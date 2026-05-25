@@ -3650,7 +3650,10 @@ td {
 }
 
 .email-filter-card summary {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -3658,13 +3661,9 @@ td {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.email-active-filter-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 12px;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1 1 520px;
 }
 
 .email-filter-pill {
@@ -3992,6 +3991,14 @@ td {
   .email-form-grid,
   .email-send-scope {
     grid-template-columns: 1fr;
+  }
+
+  .email-filter-card summary {
+    align-items: flex-start;
+  }
+
+  .email-active-filters {
+    flex-basis: 100%;
   }
 
   .email-student-row {

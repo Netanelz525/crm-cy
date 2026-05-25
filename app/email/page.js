@@ -225,6 +225,7 @@ export default async function EmailPage({ searchParams }) {
     }
     return { ...item, href: buildComposeFilterHref({ draftId, filters, clearField: "tagIds" }) };
   });
+  const resetFiltersHref = `/email?compose=1${draftId ? `&draft=${encodeURIComponent(draftId)}` : ""}&institution=&class=&registration=&familystatus=&tagIds=&q=&recipientMode=parents`;
 
   return (
     <>
@@ -270,46 +271,30 @@ export default async function EmailPage({ searchParams }) {
               <span>סינון נמענים</span>
               <div className="email-active-filters">
                 {activeFilterLinks.length ? activeFilterLinks.map((item) => (
-                  <span
+                  <Link
                     key={`${item.label}-${item.value}`}
-                    className={`email-filter-pill${item.accent ? " email-filter-pill-accent" : ""}`}
+                    className={`email-filter-pill email-filter-pill-clear${item.accent ? " email-filter-pill-accent" : ""}`}
+                    href={item.href}
                   >
                     <b>{item.label}</b>
                     <span>{item.value}</span>
-                  </span>
+                    <strong>נקה</strong>
+                  </Link>
                 )) : (
                   <span className="email-filter-pill">
                     <span>לא הוגדרו מסננים עדיין</span>
                   </span>
                 )}
+                {activeFilterLinks.length ? (
+                  <Link className="email-filter-pill email-filter-pill-clear" href={resetFiltersHref}>
+                    <b>נקה הכול</b>
+                  </Link>
+                ) : null}
               </div>
             </summary>
             <form action="/email" method="get">
               <input type="hidden" name="compose" value="1" />
               <input type="hidden" name="draft" value={draftId} />
-              {activeFilterLinks.length ? (
-                <div className="email-active-filter-actions">
-                  <Link
-                    className="email-filter-pill email-filter-pill-clear"
-                    href={`/email?compose=1${draftId ? `&draft=${encodeURIComponent(draftId)}` : ""}&institution=&class=&registration=&familystatus=&tagIds=&q=&recipientMode=parents`}
-                  >
-                    <b>נקה הכול</b>
-                    <span>חזור לברירת המחדל של הסינון</span>
-                    <strong>איפוס</strong>
-                  </Link>
-                  {activeFilterLinks.map((item) => (
-                    <Link
-                      key={`clear-${item.label}-${item.value}`}
-                      className={`email-filter-pill email-filter-pill-clear${item.accent ? " email-filter-pill-accent" : ""}`}
-                      href={item.href}
-                    >
-                      <b>{item.label}</b>
-                      <span>{item.value}</span>
-                      <strong>נקה</strong>
-                    </Link>
-                  ))}
-                </div>
-              ) : null}
               <div className="email-form-grid">
                 <label>
                   מוסד
