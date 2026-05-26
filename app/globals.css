@@ -3645,7 +3645,7 @@ td {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 22px;
-  padding: 18px;
+  padding: 16px;
   box-shadow: var(--shadow);
 }
 
@@ -3659,7 +3659,7 @@ td {
 
 .email-filter-summary {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .email-filter-summary-title {
@@ -3669,31 +3669,31 @@ td {
 
 .email-filter-summary-hint {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .email-filter-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .email-filter-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: #f5f8fd;
   border: 1px solid #d5e1f0;
   color: #23405f;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   line-height: 1.2;
 }
 
 .email-filter-pill b {
   color: #0f2e52;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
 }
 
 .email-clear-link {
@@ -3722,38 +3722,86 @@ td {
 
 .email-filter-fieldset {
   margin: 0;
-  padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 18px;
-  display: grid;
-  gap: 12px;
+  border-radius: 16px;
   min-width: 0;
-  background: linear-gradient(180deg, #ffffff, #f8fbff);
-}
-
-.email-filter-fieldset legend {
-  padding: 0;
-  font-weight: 800;
-  color: #102542;
+  background: #fbfdff;
+  overflow: hidden;
 }
 
 .email-filter-fieldset-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.email-filter-fieldset-head::-webkit-details-marker {
+  display: none;
+}
+
+.email-filter-fieldset-title,
+.email-filter-fieldset-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.email-filter-fieldset-meta {
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.email-filter-legend {
+  font-weight: 800;
+  color: #102542;
+  white-space: nowrap;
+}
+
+.email-filter-inline-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-filter-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #eff5fb;
+  color: #0b4f8c;
+  font-size: 1rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.email-filter-fieldset-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+  border-top: 1px solid #edf2f7;
 }
 
 .email-filter-fieldset-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .email-filter-count {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
@@ -3763,9 +3811,9 @@ td {
   background: #fff;
   color: #0b4f8c;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -3773,14 +3821,14 @@ td {
 .email-filter-chip-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .email-filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 7px 10px;
   border-radius: 999px;
   border: 1px solid #d5e1f0;
   background: #fff;
@@ -3788,7 +3836,8 @@ td {
   font-weight: 700;
   cursor: pointer;
   line-height: 1.2;
-  min-height: 42px;
+  min-height: 34px;
+  font-size: 0.84rem;
 }
 
 .email-filter-chip-active {
@@ -3804,24 +3853,6 @@ td {
   pointer-events: none;
 }
 
-.email-filter-chip-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #486581;
-  font-size: 0.9rem;
-  font-weight: 900;
-}
-
-.email-filter-chip-active .email-filter-chip-mark {
-  background: #0b4f8c;
-  color: #fff;
-}
-
 .email-field-header {
   display: flex;
   align-items: center;
@@ -3833,8 +3864,12 @@ td {
 .email-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.email-filter-body {
+  margin-top: 8px;
 }
 
 .email-compose-card {
@@ -4124,17 +4159,17 @@ td {
   }
 
   .email-filter-fieldset-head {
-    align-items: flex-start;
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .email-filter-chip-list {
-    gap: 8px;
+  .email-filter-fieldset-meta {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .email-filter-chip {
-    width: 100%;
-    justify-content: flex-start;
+    min-height: 32px;
   }
 
   .email-student-row {

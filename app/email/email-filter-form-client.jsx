@@ -9,12 +9,36 @@ function unique(values) {
 
 function CheckboxGroup({ legend, name, options, values, onToggle, onSetAll, onClear }) {
   const selectedCount = values.length;
+  const selectedLabels = options
+    .filter((option) => values.includes(option.value))
+    .map((option) => option.label)
+    .join(", ");
+  const [isOpen, setIsOpen] = useState(selectedCount > 0 || name === "recipientRoles");
+
+  useEffect(() => {
+    if (selectedCount > 0) setIsOpen(true);
+  }, [selectedCount]);
+
   return (
-    <fieldset className="email-filter-fieldset">
-      <div className="email-filter-fieldset-head">
-        <legend>{legend}</legend>
-        <div className="email-filter-fieldset-tools">
+    <details className="email-filter-fieldset" open={isOpen}>
+      <summary
+        className="email-filter-fieldset-head"
+        onClick={(event) => {
+          event.preventDefault();
+          setIsOpen((current) => !current);
+        }}
+      >
+        <div className="email-filter-fieldset-title">
+          <span className="email-filter-legend">{legend}</span>
           <span className="email-filter-count">{selectedCount ? `${selectedCount} נבחרו` : "ללא בחירה"}</span>
+        </div>
+        <div className="email-filter-fieldset-meta">
+          <span className="email-filter-inline-summary">{selectedLabels || "בחר ערכים"}</span>
+          <span className="email-filter-chevron" aria-hidden="true">{isOpen ? "−" : "+"}</span>
+        </div>
+      </summary>
+      <div className="email-filter-fieldset-body">
+        <div className="email-filter-fieldset-tools">
           <button type="button" className="email-filter-mini-action" onClick={() => onSetAll(name, options.map((option) => option.value))}>
             הכול
           </button>
@@ -22,25 +46,24 @@ function CheckboxGroup({ legend, name, options, values, onToggle, onSetAll, onCl
             נקה
           </button>
         </div>
+        <div className="email-filter-chip-list">
+          {options.map((option) => (
+            <label
+              key={`${name}-${option.value}`}
+              className={`email-filter-chip${values.includes(option.value) ? " email-filter-chip-active" : ""}`}
+            >
+              <input
+                type="checkbox"
+                className="email-filter-chip-input"
+                checked={values.includes(option.value)}
+                onChange={() => onToggle(name, option.value)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
       </div>
-      <div className="email-filter-chip-list">
-        {options.map((option) => (
-          <label
-            key={`${name}-${option.value}`}
-            className={`email-filter-chip${values.includes(option.value) ? " email-filter-chip-active" : ""}`}
-          >
-            <input
-              type="checkbox"
-              className="email-filter-chip-input"
-              checked={values.includes(option.value)}
-              onChange={() => onToggle(name, option.value)}
-            />
-            <span className="email-filter-chip-mark" aria-hidden="true">{values.includes(option.value) ? "✓" : "+"}</span>
-            <span>{option.label}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    </details>
   );
 }
 
@@ -186,7 +209,7 @@ export default function EmailFilterFormClient({
           </button>
         ) : null}
       </summary>
-      <div aria-busy={isPending}>
+      <div aria-busy={isPending} className="email-filter-body">
         <div className="email-form-grid">
           <CheckboxGroup legend="מוסד" name="institution" options={institutionOptions} values={formState.institution} onToggle={toggleValue} onSetAll={setFieldValues} onClear={clearField} />
           <CheckboxGroup legend="שיעור" name="class" options={classOptions} values={formState.class} onToggle={toggleValue} onSetAll={setFieldValues} onClear={clearField} />
