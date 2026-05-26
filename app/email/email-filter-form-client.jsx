@@ -7,18 +7,35 @@ function unique(values) {
   return Array.from(new Set((values || []).filter(Boolean)));
 }
 
-function CheckboxGroup({ legend, name, options, values, onToggle }) {
+function CheckboxGroup({ legend, name, options, values, onToggle, onSetAll, onClear }) {
+  const selectedCount = values.length;
   return (
     <fieldset className="email-filter-fieldset">
-      <legend>{legend}</legend>
-      <div className="email-checkbox-grid">
+      <div className="email-filter-fieldset-head">
+        <legend>{legend}</legend>
+        <div className="email-filter-fieldset-tools">
+          <span className="email-filter-count">{selectedCount ? `${selectedCount} נבחרו` : "ללא בחירה"}</span>
+          <button type="button" className="email-filter-mini-action" onClick={() => onSetAll(name, options.map((option) => option.value))}>
+            הכול
+          </button>
+          <button type="button" className="email-filter-mini-action" onClick={() => onClear(name)}>
+            נקה
+          </button>
+        </div>
+      </div>
+      <div className="email-filter-chip-list">
         {options.map((option) => (
-          <label key={`${name}-${option.value}`} className="email-checkbox-option">
+          <label
+            key={`${name}-${option.value}`}
+            className={`email-filter-chip${values.includes(option.value) ? " email-filter-chip-active" : ""}`}
+          >
             <input
               type="checkbox"
+              className="email-filter-chip-input"
               checked={values.includes(option.value)}
               onChange={() => onToggle(name, option.value)}
             />
+            <span className="email-filter-chip-mark" aria-hidden="true">{values.includes(option.value) ? "✓" : "+"}</span>
             <span>{option.label}</span>
           </label>
         ))}
@@ -112,6 +129,13 @@ export default function EmailFilterFormClient({
     navigate(nextState);
   }
 
+  function setFieldValues(field, values) {
+    const nextValues = unique(values);
+    const nextState = { ...formState, [field]: nextValues, q: query };
+    setFormState((prev) => ({ ...prev, [field]: nextValues }));
+    navigate(nextState);
+  }
+
   function clearAll() {
     const nextState = {
       institution: [],
@@ -164,16 +188,18 @@ export default function EmailFilterFormClient({
       </summary>
       <div aria-busy={isPending}>
         <div className="email-form-grid">
-          <CheckboxGroup legend="מוסד" name="institution" options={institutionOptions} values={formState.institution} onToggle={toggleValue} />
-          <CheckboxGroup legend="שיעור" name="class" options={classOptions} values={formState.class} onToggle={toggleValue} />
-          <CheckboxGroup legend="רישום" name="registration" options={registrationOptions} values={formState.registration} onToggle={toggleValue} />
-          <CheckboxGroup legend="מצב משפחתי" name="familystatus" options={familystatusOptions} values={formState.familystatus} onToggle={toggleValue} />
+          <CheckboxGroup legend="מוסד" name="institution" options={institutionOptions} values={formState.institution} onToggle={toggleValue} onSetAll={setFieldValues} onClear={clearField} />
+          <CheckboxGroup legend="שיעור" name="class" options={classOptions} values={formState.class} onToggle={toggleValue} onSetAll={setFieldValues} onClear={clearField} />
+          <CheckboxGroup legend="רישום" name="registration" options={registrationOptions} values={formState.registration} onToggle={toggleValue} onSetAll={setFieldValues} onClear={clearField} />
+          <CheckboxGroup legend="מצב משפחתי" name="familystatus" options={familystatusOptions} values={formState.familystatus} onToggle={toggleValue} onSetAll={setFieldValues} onClear={clearField} />
           <CheckboxGroup
             legend="תוויות"
             name="tagIds"
             options={availableTags.map((tag) => ({ value: tag.id, label: tag.name }))}
             values={formState.tagIds}
             onToggle={toggleValue}
+            onSetAll={setFieldValues}
+            onClear={clearField}
           />
           <CheckboxGroup
             legend="למי לשלוח"
@@ -185,6 +211,8 @@ export default function EmailFilterFormClient({
             ]}
             values={formState.recipientRoles}
             onToggle={toggleValue}
+            onSetAll={setFieldValues}
+            onClear={clearField}
           />
           <div className="email-filter-field">
             <span className="email-field-header">
