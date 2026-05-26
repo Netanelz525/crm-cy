@@ -3657,12 +3657,96 @@ td {
   gap: 12px;
 }
 
+.email-filter-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.email-filter-summary-title {
+  font-weight: 800;
+  color: #102542;
+}
+
+.email-filter-summary-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.email-filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.email-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #f5f8fd;
+  border: 1px solid #d5e1f0;
+  color: #23405f;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.email-filter-pill b {
+  color: #0f2e52;
+  font-size: 0.82rem;
+}
+
 .email-clear-link {
   text-decoration: none;
   cursor: pointer;
   color: #0b4f8c;
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.email-clear-button {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+}
+
+.email-filter-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.email-filter-fieldset {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.email-filter-fieldset legend {
+  padding: 0 6px;
+  font-weight: 800;
+  color: #102542;
+}
+
+.email-checkbox-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.email-checkbox-option {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600 !important;
+  color: #23405f !important;
 }
 
 .email-field-header {

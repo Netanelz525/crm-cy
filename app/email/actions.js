@@ -31,12 +31,7 @@ function buildConfirmRedirect(formData, errorMessage) {
 
   const params = new URLSearchParams();
   const keys = [
-    "institution",
-    "class",
-    "registration",
-    "familystatus",
     "q",
-    "recipientMode",
     "sendScope",
     "subject",
     "senderName",
@@ -49,6 +44,12 @@ function buildConfirmRedirect(formData, errorMessage) {
   for (const key of keys) {
     const value = clean(formData.get(key));
     if (value) params.set(key, value);
+  }
+
+  for (const key of ["institution", "class", "registration", "familystatus", "recipientRoles"]) {
+    for (const value of formData.getAll(key).map(clean).filter(Boolean)) {
+      params.append(key, value);
+    }
   }
 
   for (const studentId of formData.getAll("studentIds").map(clean).filter(Boolean)) {
@@ -72,13 +73,13 @@ export async function createEmailCampaignConfirmAction(formData) {
       ? existingDraft.draft_json.attachments
       : [];
   const payload = {
-    institution: clean(formData.get("institution")),
-    class: clean(formData.get("class")),
-    registration: clean(formData.get("registration")),
-    familystatus: clean(formData.get("familystatus")),
+    institution: formData.getAll("institution").map(clean).filter(Boolean),
+    class: formData.getAll("class").map(clean).filter(Boolean),
+    registration: formData.getAll("registration").map(clean).filter(Boolean),
+    familystatus: formData.getAll("familystatus").map(clean).filter(Boolean),
     tagIds: formData.getAll("tagIds").map(clean).filter(Boolean),
     q: clean(formData.get("q")),
-    recipientMode: clean(formData.get("recipientMode")) || "parents",
+    recipientRoles: formData.getAll("recipientRoles").map(clean).filter(Boolean),
     sendScope: clean(formData.get("sendScope")) || "selected",
     subject: clean(formData.get("subject")),
     senderName: clean(formData.get("senderName")),
@@ -189,13 +190,17 @@ export async function reopenEmailCampaignAction(formData) {
 
   const filters = campaign.filter_json && typeof campaign.filter_json === "object" ? campaign.filter_json : {};
   const payload = {
-    institution: clean(filters.institution || campaign.institution),
-    class: clean(filters.class || campaign.class_filter),
-    registration: clean(filters.registration),
-    familystatus: clean(filters.familystatus),
+    institution: Array.isArray(filters.institution) ? filters.institution.map(clean).filter(Boolean) : clean(filters.institution || campaign.institution) ? [clean(filters.institution || campaign.institution)] : [],
+    class: Array.isArray(filters.class) ? filters.class.map(clean).filter(Boolean) : clean(filters.class || campaign.class_filter) ? [clean(filters.class || campaign.class_filter)] : [],
+    registration: Array.isArray(filters.registration) ? filters.registration.map(clean).filter(Boolean) : clean(filters.registration) ? [clean(filters.registration)] : [],
+    familystatus: Array.isArray(filters.familystatus) ? filters.familystatus.map(clean).filter(Boolean) : clean(filters.familystatus) ? [clean(filters.familystatus)] : [],
     tagIds: Array.isArray(filters.tagIds) ? filters.tagIds.map(clean).filter(Boolean) : [],
     q: clean(filters.q),
-    recipientMode: clean(filters.recipientMode || campaign.recipient_mode) || "parents",
+    recipientRoles: Array.isArray(filters.recipientRoles)
+      ? filters.recipientRoles.map(clean).filter(Boolean)
+      : clean(filters.recipientMode || campaign.recipient_mode)
+        ? [clean(filters.recipientMode || campaign.recipient_mode)]
+        : ["father", "mother"],
     sendScope: clean(filters.sendScope || campaign.send_scope) || "selected",
     selectedStudentIds: Array.isArray(filters.selectedStudentIds) ? filters.selectedStudentIds.map(clean).filter(Boolean) : [],
     subject: clean(campaign.subject),

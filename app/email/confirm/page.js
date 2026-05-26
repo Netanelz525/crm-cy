@@ -8,6 +8,7 @@ import {
   buildPreviewMessageParts,
   getEmailCampaignDraft,
   getEmailCandidateStudents,
+  normalizeRecipientRoles,
   renderEmailHtml
 } from "../../../lib/email-campaigns";
 import { getResendConfigStatus } from "../../../lib/resend";
@@ -33,13 +34,13 @@ export default async function EmailConfirmPage({ searchParams }) {
   }
 
   const filters = {
-    institution: clean(draft?.institution),
-    class: clean(draft?.class),
-    registration: clean(draft?.registration),
-    familystatus: clean(draft?.familystatus),
+    institution: Array.isArray(draft?.institution) ? draft.institution.map(clean).filter(Boolean) : clean(draft?.institution) ? [clean(draft.institution)] : [],
+    class: Array.isArray(draft?.class) ? draft.class.map(clean).filter(Boolean) : clean(draft?.class) ? [clean(draft.class)] : [],
+    registration: Array.isArray(draft?.registration) ? draft.registration.map(clean).filter(Boolean) : clean(draft?.registration) ? [clean(draft.registration)] : [],
+    familystatus: Array.isArray(draft?.familystatus) ? draft.familystatus.map(clean).filter(Boolean) : clean(draft?.familystatus) ? [clean(draft.familystatus)] : [],
     tagIds: Array.isArray(draft?.tagIds) ? draft.tagIds.map(clean).filter(Boolean) : [],
     q: clean(draft?.q),
-    recipientMode: clean(draft?.recipientMode) || "parents",
+    recipientRoles: normalizeRecipientRoles(draft?.recipientRoles || draft?.recipientMode),
     sendScope: clean(draft?.sendScope) || "selected",
     selectedStudentIds: Array.isArray(draft?.selectedStudentIds) ? draft.selectedStudentIds.map(clean).filter(Boolean) : []
   };
@@ -71,7 +72,7 @@ export default async function EmailConfirmPage({ searchParams }) {
     redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("לא נבחרו תלמידים לשליחה.")}`);
   }
 
-  const targets = buildDeliveryTargets(selectedStudents, filters.recipientMode);
+  const targets = buildDeliveryTargets(selectedStudents, filters.recipientRoles);
   if (!targets.length) {
     redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("לא נמצאו נמענים עם כתובת מייל.")}`);
   }
@@ -118,13 +119,13 @@ export default async function EmailConfirmPage({ searchParams }) {
         <section className="email-panel">
           <form action={sendEmailCampaignAction} className="email-compose-card">
             <input type="hidden" name="draftId" value={draftId} />
-            <input type="hidden" name="institution" value={filters.institution} />
-            <input type="hidden" name="class" value={filters.class} />
-            <input type="hidden" name="registration" value={filters.registration} />
-            <input type="hidden" name="familystatus" value={filters.familystatus} />
+            {filters.institution.map((value) => <input key={`institution-${value}`} type="hidden" name="institution" value={value} />)}
+            {filters.class.map((value) => <input key={`class-${value}`} type="hidden" name="class" value={value} />)}
+            {filters.registration.map((value) => <input key={`registration-${value}`} type="hidden" name="registration" value={value} />)}
+            {filters.familystatus.map((value) => <input key={`familystatus-${value}`} type="hidden" name="familystatus" value={value} />)}
             {filters.tagIds.map((tagId) => <input key={tagId} type="hidden" name="tagIds" value={tagId} />)}
             <input type="hidden" name="q" value={filters.q} />
-            <input type="hidden" name="recipientMode" value={filters.recipientMode} />
+            {filters.recipientRoles.map((value) => <input key={`recipient-${value}`} type="hidden" name="recipientRoles" value={value} />)}
             <input type="hidden" name="sendScope" value={filters.sendScope} />
             <input type="hidden" name="subject" value={subject} />
             <input type="hidden" name="senderName" value={senderName} />
@@ -162,7 +163,7 @@ export default async function EmailConfirmPage({ searchParams }) {
               <div className="email-log-row">
                 <div>
                   <b>מוסד</b>
-                  <small>{institutionLabel(filters.institution)}</small>
+                  <small>{filters.institution.length ? filters.institution.map((value) => institutionLabel(value)).join(", ") : "-"}</small>
                 </div>
               </div>
             </div>
