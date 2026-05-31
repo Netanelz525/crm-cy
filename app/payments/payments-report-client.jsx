@@ -32,6 +32,10 @@ function formatDateTime(value) {
   return date.toLocaleString("he-IL");
 }
 
+function hasFxConversion(transaction) {
+  return clean(transaction?.originalCurrency || transaction?.currency || "ILS").toUpperCase() !== "ILS";
+}
+
 export default function PaymentsReportClient({
   dateFrom,
   dateTo,
@@ -111,15 +115,15 @@ export default function PaymentsReportClient({
           </div>
           <div>
             <div className="muted">סכום כולל</div>
-            <strong>{formatMoney(summary.totalAmount)}</strong>
+            <strong>{formatMoney(summary.totalAmount, "ILS")}</strong>
           </div>
           <div>
             <div className="muted">נטו</div>
-            <strong>{formatMoney(summary.totalNetAmount)}</strong>
+            <strong>{formatMoney(summary.totalNetAmount, "ILS")}</strong>
           </div>
           <div>
             <div className="muted">עמלות</div>
-            <strong>{formatMoney(summary.totalFees)}</strong>
+            <strong>{formatMoney(summary.totalFees, "ILS")}</strong>
           </div>
         </div>
       </section>
@@ -196,7 +200,12 @@ export default function PaymentsReportClient({
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{transaction.connectionLabel}</span>
                     <span className="meta-chip">{transaction.providerLabel}</span>
-                    <strong>{formatMoney(transaction.amount, transaction.currency)}</strong>
+                    <div style={{ display: "grid", justifyItems: "end" }}>
+                      <strong>{formatMoney(transaction.originalAmount ?? transaction.amount, transaction.originalCurrency || transaction.currency)}</strong>
+                      {hasFxConversion(transaction) ? (
+                        <span className="muted">שווי בש&quot;ח: {formatMoney(transaction.amountIls, "ILS")}</span>
+                      ) : null}
+                    </div>
                   </div>
                 </summary>
                 <div className="payments-report-body">
@@ -213,10 +222,16 @@ export default function PaymentsReportClient({
                     <div><b>ספק סולק:</b> {transaction.clearingCompany || "-"}</div>
                     <div><b>מותג:</b> {transaction.brand || "-"}</div>
                     <div><b>מקור:</b> {transaction.connectionLabel}</div>
+                    <div><b>מטבע מקורי:</b> {transaction.originalCurrency || transaction.currency || "-"}</div>
+                    <div><b>שער לש&quot;ח:</b> {transaction.fxRateToIls ? transaction.fxRateToIls : "-"}</div>
+                    <div><b>תאריך שער:</b> {transaction.fxRateDate || "-"}</div>
                     <div className="payments-report-grid-wide"><b>תיאור:</b> {transaction.description || "-"}</div>
-                    <div><b>ברוטו:</b> {formatMoney(transaction.amount, transaction.currency)}</div>
-                    <div><b>נטו:</b> {formatMoney(transaction.netAmount, transaction.currency)}</div>
-                    <div><b>עמלה:</b> {formatMoney(transaction.feeAmount, transaction.currency)}</div>
+                    <div><b>ברוטו מקורי:</b> {formatMoney(transaction.originalAmount ?? transaction.amount, transaction.originalCurrency || transaction.currency)}</div>
+                    <div><b>נטו מקורי:</b> {formatMoney(transaction.originalNetAmount ?? transaction.netAmount, transaction.originalCurrency || transaction.currency)}</div>
+                    <div><b>עמלה מקורית:</b> {formatMoney(transaction.originalFeeAmount ?? transaction.feeAmount, transaction.originalCurrency || transaction.currency)}</div>
+                    <div><b>ברוטו בש&quot;ח:</b> {formatMoney(transaction.amountIls ?? transaction.amount, "ILS")}</div>
+                    <div><b>נטו בש&quot;ח:</b> {formatMoney(transaction.netAmountIls ?? transaction.netAmount, "ILS")}</div>
+                    <div><b>עמלה בש&quot;ח:</b> {formatMoney(transaction.feeAmountIls ?? transaction.feeAmount, "ILS")}</div>
                   </div>
                 </div>
               </details>
