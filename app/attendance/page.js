@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER,
   ATTENDANCE_SUMMARY_SORT_LABELS,
-  ATTENDANCE_SESSION_TYPE_ORDER,
   ATTENDANCE_SESSION_TYPE_LABELS,
+  ATTENDANCE_SESSION_TYPE_ORDER,
   getAttendanceSummaryReport,
   listAttendanceSessions
 } from "../../lib/attendance";
@@ -185,6 +186,12 @@ export default async function AttendancePage({ searchParams }) {
   const classOptions = checkboxOptionsFromMap(CLASS_LABELS);
   const registrationOptions = checkboxOptionsFromMap(ENUM_LABELS.registration || {});
   const familyStatusOptions = checkboxOptionsFromMap(ENUM_LABELS.familystatus || {});
+  const selectableSessionTypes = currentUser.is_manager || currentUser.is_super_admin
+    ? ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER
+    : ATTENDANCE_SESSION_TYPE_ORDER;
+  const defaultSessionType = currentUser.is_manager && !currentUser.is_team_member && !currentUser.is_super_admin
+    ? "manager_default"
+    : "";
 
   return (
     <>
@@ -315,10 +322,10 @@ export default async function AttendancePage({ searchParams }) {
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
-            <select name="sessionType" defaultValue="" required>
+            <select name="sessionType" defaultValue={defaultSessionType} required>
               <option value="">בחר סוג מפגש</option>
-              {Object.entries(ATTENDANCE_SESSION_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+              {selectableSessionTypes.map((value) => (
+                <option key={value} value={value}>{ATTENDANCE_SESSION_TYPE_LABELS[value]}</option>
               ))}
             </select>
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
