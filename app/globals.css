@@ -3825,8 +3825,10 @@ td {
 }
 
 .email-filter-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 7px 10px;
   border-radius: 999px;
@@ -3838,6 +3840,7 @@ td {
   line-height: 1.2;
   min-height: 34px;
   font-size: 0.84rem;
+  overflow: hidden;
 }
 
 .email-filter-chip-active {
@@ -3847,10 +3850,25 @@ td {
   box-shadow: inset 0 0 0 1px rgba(11, 79, 140, 0.06);
 }
 
+.email-filter-chip:has(.email-filter-chip-input:checked) {
+  background: #edf6ff;
+  border-color: #8ab4df;
+  color: #0f2e52;
+  box-shadow: inset 0 0 0 1px rgba(11, 79, 140, 0.06);
+}
+
+.email-filter-chip:has(.email-filter-chip-input:focus-visible) {
+  outline: 2px solid rgba(11, 79, 140, 0.28);
+  outline-offset: 2px;
+}
+
 .email-filter-chip-input {
   position: absolute;
+  inset: 0;
+  margin: 0;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .email-field-header {
