@@ -7,6 +7,7 @@ import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { INSTITUTION_COLUMN_MAP, INSTITUTION_COLUMNS_FULL } from "../../../../lib/student-view";
+import { buildPaymentReportExcelExport, buildPaymentReportPdfExport } from "../../../../lib/payment-report-exports";
 
 function clean(value) {
   return String(value || "").trim();
@@ -101,6 +102,22 @@ function splitFullTelegramMessage(text, maxChars = 3800) {
   }
   if (remaining) chunks.push(remaining);
   return chunks;
+}
+
+function isPaymentReportLink(url) {
+  const raw = clean(url);
+  return raw.startsWith("/api/payments/export/");
+}
+
+function isPaymentViewLink(url) {
+  const raw = clean(url);
+  return raw.startsWith("/payments");
+}
+
+function isPaymentReportMessage(messageRecord) {
+  return isPaymentReportLink(messageRecord?.exportUrl)
+    || isPaymentReportLink(messageRecord?.pdfUrl)
+    || isPaymentViewLink(messageRecord?.viewUrl);
 }
 
 function buildTelegramStudentCardsText(studentCards = []) {
@@ -222,6 +239,7 @@ function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) 
 
 function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true }) {
   const inlineKeyboard = [];
+  const isPaymentReport = isPaymentReportLink(exportUrl) || isPaymentReportLink(pdfUrl) || isPaymentViewLink(viewUrl);
 
   if (pendingAction) {
     inlineKeyboard.push([
@@ -240,12 +258,14 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
       { text: "אקסל", callback_data: `xlsx:${messageId}` },
       { text: "PDF", callback_data: `pdf:${messageId}` }
     ]);
-    const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "class";
-    inlineKeyboard.push([
-      { text: activeSort === "name" ? "✅ מיון שם" : "מיון שם", callback_data: `sort:name:${messageId}` },
-      { text: activeSort === "class" ? "✅ מיון שיעור" : "מיון שיעור", callback_data: `sort:class:${messageId}` }
-    ]);
-    inlineKeyboard.push([{ text: "עמודות", callback_data: `cols:${messageId}` }]);
+    if (!isPaymentReport) {
+      const activeSort = normalizeSortLevels(sortLevels)[0]?.sortBy || "class";
+      inlineKeyboard.push([
+        { text: activeSort === "name" ? "✅ מיון שם" : "מיון שם", callback_data: `sort:name:${messageId}` },
+        { text: activeSort === "class" ? "✅ מיון שיעור" : "מיון שיעור", callback_data: `sort:class:${messageId}` }
+      ]);
+      inlineKeyboard.push([{ text: "עמודות", callback_data: `cols:${messageId}` }]);
+    }
   }
 
   const cardButtons = (Array.isArray(studentCards) ? studentCards : [])
@@ -339,6 +359,23 @@ function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevel
 }
 
 async function sendInstitutionAttachment(chatId, type, messageRecord) {
+  if (isPaymentReportMessage(messageRecord)) {
+    if (type === "xlsx" && messageRecord?.exportUrl) {
+      const excelFile = await buildPaymentReportExcelExport(messageRecord.exportUrl);
+      await sendTelegramDocumentFile(chatId, excelFile, {
+        caption: "קובץ אקסל של דוח התרומות מוכן."
+      });
+      return;
+    }
+    if (type === "pdf" && messageRecord?.pdfUrl) {
+      const pdfFile = await buildPaymentReportPdfExport(messageRecord.pdfUrl);
+      await sendTelegramDocumentFile(chatId, pdfFile, {
+        caption: "קובץ PDF של דוח התרומות מוכן."
+      });
+    }
+    return;
+  }
+
   const columns = withRequiredColumns(messageRecord?.exportColumns || []);
   const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "class", sortDir: "asc" }]);
   if (type === "xlsx" && messageRecord?.exportUrl) {
@@ -565,6 +602,10 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           messageId: exportMessageId
         });
+        if (isPaymentReportMessage(messageRecord)) {
+          await answerTelegramCallbackQuery(callback.id, "בדוח תרומות אין בחירת עמודות.");
+          return NextResponse.json({ ok: true });
+        }
         if (!messageRecord?.exportUrl) {
           await answerTelegramCallbackQuery(callback.id, "אין עמודות לבחירה בתשובה הזו.");
           return NextResponse.json({ ok: true });
@@ -599,6 +640,10 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           messageId: exportMessageId
         });
+        if (isPaymentReportMessage(messageRecord)) {
+          await answerTelegramCallbackQuery(callback.id, "בדוח תרומות אין התאמת עמודות.");
+          return NextResponse.json({ ok: true });
+        }
         if (!messageRecord?.exportUrl) {
           await answerTelegramCallbackQuery(callback.id, "אין עמודות לבחירה בתשובה הזו.");
           return NextResponse.json({ ok: true });
@@ -643,6 +688,10 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           messageId: exportMessageId
         });
+        if (isPaymentReportMessage(messageRecord)) {
+          await answerTelegramCallbackQuery(callback.id, "בדוח תרומות אין פריסטי עמודות של תלמידים.");
+          return NextResponse.json({ ok: true });
+        }
         if (!messageRecord?.exportUrl || !presetColumns) {
           await answerTelegramCallbackQuery(callback.id, "הפריסט לא זמין.");
           return NextResponse.json({ ok: true });
@@ -677,6 +726,10 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           messageId: exportMessageId
         });
+        if (isPaymentReportMessage(messageRecord)) {
+          await answerTelegramCallbackQuery(callback.id, "בדוח תרומות אין מיון תלמידים מתוך Telegram.");
+          return NextResponse.json({ ok: true });
+        }
         if (!messageRecord?.exportUrl && !messageRecord?.pdfUrl) {
           await answerTelegramCallbackQuery(callback.id, "אין דוח זמין למיון.");
           return NextResponse.json({ ok: true });

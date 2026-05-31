@@ -18,6 +18,7 @@ import {
 } from "../../../../lib/whatsapp";
 import { INSTITUTION_COLUMN_MAP } from "../../../../lib/student-view";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
+import { buildPaymentReportExcelExport, buildPaymentReportPdfExport } from "../../../../lib/payment-report-exports";
 
 const REQUIRED_EXPORT_COLUMNS = ["name"];
 const REPORT_EXCLUDED_COLUMNS = new Set([
@@ -199,13 +200,14 @@ function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) 
 
 function buildReplyText(result) {
   const parts = [clean(result?.reply || result?.content)];
+  const isPaymentReport = isPaymentReportLink(result?.exportUrl) || isPaymentReportLink(result?.pdfUrl) || isPaymentViewLink(result?.viewUrl);
   const exportColumns = withRequiredColumns(result?.exportColumns || []);
   const sortLevels = normalizeSortLevels(result?.sortLevels || [{ sortBy: "class", sortDir: "asc" }]);
 
   const hasStudentCards = Array.isArray(result?.studentCards) && result.studentCards.length > 0;
   const absoluteViewUrl = toAbsoluteUrl(result?.viewUrl);
   if (absoluteViewUrl && !hasStudentCards) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
-  if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
+  if ((clean(result?.exportUrl) || clean(result?.pdfUrl)) && !isPaymentReport) {
     parts.push(`מיון דוח: ${sortLevels[0]?.sortBy === "class" ? "שיעור" : "שם משפחה"}`);
     parts.push(`עמודות: ${exportColumns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`);
   }
@@ -226,7 +228,39 @@ function buildReplyText(result) {
   return parts.filter(Boolean).join("\n\n");
 }
 
+function isPaymentReportLink(url) {
+  const raw = clean(url);
+  return raw.startsWith("/api/payments/export/");
+}
+
+function isPaymentViewLink(url) {
+  const raw = clean(url);
+  return raw.startsWith("/payments");
+}
+
+function isPaymentReportMessage(messageRecord) {
+  return isPaymentReportLink(messageRecord?.exportUrl)
+    || isPaymentReportLink(messageRecord?.pdfUrl)
+    || isPaymentViewLink(messageRecord?.viewUrl);
+}
+
 async function sendInstitutionAttachments(waId, messageRecord) {
+  if (isPaymentReportMessage(messageRecord)) {
+    if (messageRecord?.exportUrl) {
+      const excelFile = await buildPaymentReportExcelExport(messageRecord.exportUrl);
+      await sendWhatsAppDocumentFile(waId, excelFile, {
+        caption: "אקסל של דוח התרומות מוכן."
+      });
+    }
+    if (messageRecord?.pdfUrl) {
+      const pdfFile = await buildPaymentReportPdfExport(messageRecord.pdfUrl);
+      await sendWhatsAppDocumentFile(waId, pdfFile, {
+        caption: "PDF של דוח התרומות מוכן."
+      });
+    }
+    return;
+  }
+
   const columns = withRequiredColumns(messageRecord?.exportColumns || []);
   const sortLevels = normalizeSortLevels(messageRecord?.sortLevels || [{ sortBy: "class", sortDir: "asc" }]);
 
@@ -264,14 +298,24 @@ async function sendWhatsAppResult(waId, result) {
 
   if (result?.id) {
     if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
-      await sendWhatsAppReplyButtons(waId, {
-        bodyText: "אפשר להתאים את הדוח מתוך השיחה.",
-        buttons: [
-          { id: `xlsx:${result.id}`, title: "אקסל" },
-          { id: `pdf:${result.id}`, title: "PDF" },
-          { id: `cols:${result.id}`, title: "התאמה" }
-        ]
-      });
+      if (isPaymentReportMessage(result)) {
+        await sendWhatsAppReplyButtons(waId, {
+          bodyText: "אפשר להוריד את דוח התרומות ישירות מתוך השיחה.",
+          buttons: [
+            { id: `xlsx:${result.id}`, title: "אקסל" },
+            { id: `pdf:${result.id}`, title: "PDF" }
+          ]
+        });
+      } else {
+        await sendWhatsAppReplyButtons(waId, {
+          bodyText: "אפשר להתאים את הדוח מתוך השיחה.",
+          buttons: [
+            { id: `xlsx:${result.id}`, title: "אקסל" },
+            { id: `pdf:${result.id}`, title: "PDF" },
+            { id: `cols:${result.id}`, title: "התאמה" }
+          ]
+        });
+      }
       return;
     }
     if (Array.isArray(result?.studentCards) && result.studentCards.length) {
@@ -461,6 +505,14 @@ export async function POST(request) {
 
       if (interactiveActionId.startsWith("cols:")) {
         const [, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (isPaymentReportMessage(messageRecord)) {
+          await sendWhatsAppTextMessages(waId, "בדוח תרומות אין בחירת עמודות מתוך WhatsApp. אפשר להוריד ישר אקסל או PDF.");
+          return NextResponse.json({ ok: true });
+        }
         await sendWhatsAppReplyButtons(waId, {
           bodyText: "בחר פריסט עמודות או סוג מיון.",
           buttons: [
@@ -531,6 +583,10 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           messageId
         });
+        if (isPaymentReportMessage(messageRecord)) {
+          await sendWhatsAppTextMessages(waId, "בדוח תרומות אין התאמת עמודות בסגנון דוח תלמידים.");
+          return NextResponse.json({ ok: true });
+        }
         if (!messageRecord) {
           await sendWhatsAppTextMessages(waId, "לא מצאתי את הדוח המקורי.");
           return NextResponse.json({ ok: true });
