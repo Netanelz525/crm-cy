@@ -1,28 +1,16 @@
 import Link from "next/link";
-import { listApiTokens } from "../../lib/api-tokens";
-import { listAppUsers, listPendingUnknownUsers, requireTeamUser } from "../../lib/rbac";
-import ApiAccessClient from "./api-access-client";
-import SystemAutomationsCard from "./system-automations-card";
-import UserManagementClient from "./user-management-client";
-import {
-  approveUserAction,
-  revokeApiTokenAction,
-  setEditPermissionAction
-} from "./actions";
+import { requireTeamUser } from "../../lib/rbac";
+import { AdminAreaLinkCard } from "./admin-ui";
 
 export default async function AdminPage() {
   const currentUser = await requireTeamUser();
-  const pendingUsers = await listPendingUnknownUsers();
-  const users = await listAppUsers();
-  const apiTokens = await listApiTokens();
-  const apiBaseUrl = process.env.CRM_BASE_URL || process.env.APP_BASE_URL || "http://localhost:3000";
 
   return (
     <>
       <div className="card glass">
         <h1>ניהול מערכת</h1>
         <p className="muted">
-          משתמשי הניהול יכולים לאשר משתמשים לא מוכרים, לעדכן הרשאות, ולנהל גישת API ל-CRM.
+          מכאן בוחרים לאיזה אזור ניהול לעבור. כל תחום קיבל עמוד ייעודי כדי שהעבודה תהיה נקייה ומהירה יותר.
           <br />
           מחובר: {currentUser.display_name}
         </p>
@@ -31,257 +19,63 @@ export default async function AdminPage() {
             <span className="meta-chip meta-chip-strong">סופר אדמין</span>
           </div>
         ) : null}
-      </div>
-
-      {currentUser.is_super_admin ? <UserManagementClient users={users} /> : null}
-      {currentUser.is_super_admin ? <SystemAutomationsCard /> : null}
-
-      {currentUser.is_super_admin ? (
-        <div className="card">
-          <h2>מערכות תשלום</h2>
-          <p className="muted">
-            הגדרת חיבורי נדרים פלוס ו־Stripe לדוחות עסקאות מתוך המערכת.
-          </p>
-          <div className="quick-actions">
-            <Link className="quick-action-btn quick-action-outline" href="/admin/payments">ניהול חיבורי תשלום</Link>
-            <Link className="quick-action-btn quick-action-outline" href="/payments">פתיחת דוח עסקאות</Link>
-          </div>
-        </div>
-      ) : null}
-
-      <ApiAccessClient apiBaseUrl={apiBaseUrl} />
-
-      <div className="card">
-        <h2>טוקני API פעילים והיסטוריים</h2>
-
-        <div className="desktop-table">
-          <table>
-            <thead>
-              <tr>
-                <th>שם</th>
-                <th>Prefix</th>
-                <th>Scopes</th>
-                <th>נוצר</th>
-                <th>שימוש אחרון</th>
-                <th>סטטוס</th>
-                <th>פעולה</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!apiTokens.length ? (
-                <tr>
-                  <td colSpan={7} className="muted">עדיין אין טוקנים.</td>
-                </tr>
-              ) : (
-                apiTokens.map((token) => (
-                  <tr key={token.id}>
-                    <td>{token.label}</td>
-                    <td><code>{token.token_prefix}</code></td>
-                    <td>{Array.isArray(token.scopes) ? token.scopes.join(", ") : "-"}</td>
-                    <td>{token.created_at ? new Date(token.created_at).toLocaleString("he-IL") : "-"}</td>
-                    <td>{token.last_used_at ? new Date(token.last_used_at).toLocaleString("he-IL") : "-"}</td>
-                    <td>{token.revoked_at ? "מבוטל" : "פעיל"}</td>
-                    <td>
-                      {token.revoked_at ? "-" : (
-                        <form action={revokeApiTokenAction}>
-                          <input type="hidden" name="tokenId" value={token.id} />
-                          <button type="submit">בטל טוקן</button>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mobile-generic-list">
-          {!apiTokens.length ? (
-            <div className="card muted">עדיין אין טוקנים.</div>
-          ) : (
-            apiTokens.map((token) => (
-              <div key={token.id} className="generic-mobile-card">
-                <div className="generic-mobile-head">{token.label}</div>
-                <div className="generic-mobile-grid">
-                  <div><b>Prefix:</b> <code>{token.token_prefix}</code></div>
-                  <div><b>Scopes:</b> {Array.isArray(token.scopes) ? token.scopes.join(", ") : "-"}</div>
-                  <div><b>נוצר:</b> {token.created_at ? new Date(token.created_at).toLocaleString("he-IL") : "-"}</div>
-                  <div><b>שימוש אחרון:</b> {token.last_used_at ? new Date(token.last_used_at).toLocaleString("he-IL") : "-"}</div>
-                  <div><b>סטטוס:</b> {token.revoked_at ? "מבוטל" : "פעיל"}</div>
-                </div>
-                {!token.revoked_at ? (
-                  <form action={revokeApiTokenAction}>
-                    <input type="hidden" name="tokenId" value={token.id} />
-                    <button type="submit">בטל טוקן</button>
-                  </form>
-                ) : null}
-              </div>
-            ))
-          )}
+        <div className="quick-actions">
+          <Link className="quick-action-btn quick-action-outline" href="/">
+            חזרה למסך הראשי
+          </Link>
         </div>
       </div>
 
-      <div className="card">
-        <h2>משתמשים לא מוכרים שממתינים לאישור</h2>
-
-        <div className="desktop-table">
-          <table>
-            <thead>
-              <tr>
-                <th>שם</th>
-                <th>אימייל</th>
-                <th>סטטוס</th>
-                <th>עריכה</th>
-                <th>פעולה</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!pendingUsers.length ? (
-                <tr>
-                  <td colSpan={5} className="muted">אין משתמשים ממתינים.</td>
-                </tr>
-              ) : (
-                pendingUsers.map((u) => (
-                  <tr key={u.clerk_user_id}>
-                    <td>{u.display_name}</td>
-                    <td>{u.email}</td>
-                    <td>{u.access_status}</td>
-                    <td>{u.can_edit_own_card ? "כן" : "לא"}</td>
-                    <td>
-                      <div style={{ display: "grid", gap: 8 }}>
-                        <form action={approveUserAction}>
-                          <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
-                          <input type="hidden" name="withEdit" value="0" />
-                          <button type="submit">אשר משתמש</button>
-                        </form>
-                        <form action={approveUserAction}>
-                          <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
-                          <input type="hidden" name="withEdit" value="1" />
-                          <button type="submit">אשר + עריכה</button>
-                        </form>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mobile-generic-list">
-          {!pendingUsers.length ? (
-            <div className="card muted">אין משתמשים ממתינים.</div>
-          ) : (
-            pendingUsers.map((u) => (
-              <div key={u.clerk_user_id} className="generic-mobile-card">
-                <div className="generic-mobile-head">{u.display_name}</div>
-                <div className="generic-mobile-grid">
-                  <div><b>אימייל:</b> {u.email}</div>
-                  <div><b>סטטוס:</b> {u.access_status}</div>
-                  <div><b>עריכה:</b> {u.can_edit_own_card ? "כן" : "לא"}</div>
-                </div>
-                <div style={{ display: "grid", gap: 8 }}>
-                  <form action={approveUserAction}>
-                    <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
-                    <input type="hidden" name="withEdit" value="0" />
-                    <button type="submit">אשר משתמש</button>
-                  </form>
-                  <form action={approveUserAction}>
-                    <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
-                    <input type="hidden" name="withEdit" value="1" />
-                    <button type="submit">אשר + עריכה</button>
-                  </form>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="card">
-        <h2>כל המשתמשים</h2>
+      <section style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+        <AdminAreaLinkCard
+          title="הרשאות ואישורי משתמשים"
+          description="אישור משתמשים ממתינים, הרשאות, וגישה מהירה לכל המשתמשים במערכת."
+          href="/admin/access"
+          cta="פתח ניהול הרשאות"
+          badge="למנהלים"
+        />
+        <AdminAreaLinkCard
+          title="גישת API וטוקנים"
+          description="יצירת טוקנים, תיעוד endpointים, וסקירה של שימושים קיימים והיסטוריים."
+          href="/admin/api-access"
+          cta="פתח אזור API"
+          badge="למנהלים"
+        />
         {currentUser.is_super_admin ? (
-          <div className="muted" style={{ marginBottom: 12 }}>
-            לניהול מלא של משתמש וסוכן, עברו מתוך רשימת המשתמשים העליונה לעמוד המשתמש.
-          </div>
+          <AdminAreaLinkCard
+            title="משתמשים וסוכנים"
+            description="חיפוש משתמשים, כניסה לעמודי משתמש, וניהול חיבורים אישיים של סוכנים."
+            href="/admin/users"
+            cta="פתח ניהול משתמשים"
+            badge="סופר אדמין"
+          />
         ) : null}
-
-        <div className="desktop-table">
-          <table>
-            <thead>
-              <tr>
-                <th>שם</th>
-                <th>אימייל</th>
-                <th>סטטוס</th>
-                <th>תלמיד מקושר</th>
-                <th>שיעור</th>
-                <th>עריכת כרטיס עצמי</th>
-                <th>פעולה</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!users.length ? (
-                <tr>
-                  <td colSpan={7} className="muted">אין נתונים</td>
-                </tr>
-              ) : (
-                users.map((u) => (
-                  <tr key={u.clerk_user_id}>
-                    <td>{u.display_name}</td>
-                    <td>{u.email}</td>
-                    <td>{u.access_status}</td>
-                    <td>{u.linked_student_id || "-"}</td>
-                    <td>{u.linked_student_class || "-"}</td>
-                    <td>{u.can_edit_own_card ? "כן" : "לא"}</td>
-                    <td>
-                      {currentUser.is_super_admin ? (
-                        <Link href={`/admin/users/${encodeURIComponent(u.clerk_user_id)}`}>עמוד משתמש</Link>
-                      ) : String(u.linked_student_class || "").toUpperCase() === "TEAM" ? (
-                        "-"
-                      ) : (
-                        <form action={setEditPermissionAction}>
-                          <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
-                          <input type="hidden" name="enabled" value={u.can_edit_own_card ? "0" : "1"} />
-                          <button type="submit">{u.can_edit_own_card ? "בטל עריכה" : "אפשר עריכה"}</button>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mobile-generic-list">
-          {!users.length ? (
-            <div className="card muted">אין נתונים</div>
-          ) : (
-            users.map((u) => (
-              <div key={u.clerk_user_id} className="generic-mobile-card">
-                <div className="generic-mobile-head">{u.display_name}</div>
-                <div className="generic-mobile-grid">
-                  <div><b>אימייל:</b> {u.email}</div>
-                  <div><b>סטטוס:</b> {u.access_status}</div>
-                  <div><b>תלמיד מקושר:</b> {u.linked_student_id || "-"}</div>
-                  <div><b>שיעור:</b> {u.linked_student_class || "-"}</div>
-                  <div><b>עריכת כרטיס עצמי:</b> {u.can_edit_own_card ? "כן" : "לא"}</div>
-                </div>
-                {currentUser.is_super_admin ? (
-                  <Link className="quick-action-btn quick-action-outline" href={`/admin/users/${encodeURIComponent(u.clerk_user_id)}`}>עמוד משתמש</Link>
-                ) : String(u.linked_student_class || "").toUpperCase() === "TEAM" ? null : (
-                  <form action={setEditPermissionAction}>
-                    <input type="hidden" name="targetUserId" value={u.clerk_user_id} />
-                    <input type="hidden" name="enabled" value={u.can_edit_own_card ? "0" : "1"} />
-                    <button type="submit">{u.can_edit_own_card ? "בטל עריכה" : "אפשר עריכה"}</button>
-                  </form>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+        {currentUser.is_super_admin ? (
+          <AdminAreaLinkCard
+            title="תהליכים אוטומטיים"
+            description="סקירת cron jobs, ריצות אחרונות, וסטטוס של תהליכי מערכת."
+            href="/admin/automations"
+            cta="פתח אוטומציות"
+            badge="סופר אדמין"
+          />
+        ) : null}
+        {currentUser.is_super_admin ? (
+          <AdminAreaLinkCard
+            title="מערכות תשלום"
+            description="הגדרת חיבורי נדרים פלוס ו-Stripe לדוחות העסקאות של המערכת."
+            href="/admin/payments"
+            cta="פתח חיבורי תשלום"
+            badge="סופר אדמין"
+          />
+        ) : null}
+        <AdminAreaLinkCard
+          title="תלמידים שנמחקו זמנית"
+          description="צפייה בתלמידים שנמחקו, שחזורם, או מחיקה סופית לפני תום חלון השחזור."
+          href="/admin/deleted-students"
+          cta="פתח אזור מחיקה זמני"
+          badge="למנהלים"
+        />
+      </section>
     </>
   );
 }

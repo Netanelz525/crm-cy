@@ -167,7 +167,7 @@ export default function UserSettingsClient({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div className="quick-actions">
-        <Link className="quick-action-btn quick-action-outline" href="/admin">חזרה לרשימת משתמשים</Link>
+        <Link className="quick-action-btn quick-action-outline" href="/admin/users">חזרה לרשימת משתמשים</Link>
       </div>
 
       <div className="card glass">

@@ -121,6 +121,7 @@ export default function ApiAccessClient({ apiBaseUrl }) {
   const [builderMinScore, setBuilderMinScore] = useState("0.42");
   const baseUrl = cleanBaseUrl(apiBaseUrl) || "http://localhost:3000";
   const activeBaseUrl = cleanBaseUrl(baseUrlInput) || baseUrl;
+  const sessionIdPlaceholder = "{sessionId}";
 
   useEffect(() => {
     if (state.token) {
@@ -345,9 +346,9 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div className="api-param-list">
               <div><code>GET</code> <span>{`${baseUrl}/api/attendance/sessions?institution=CY&dateFrom=2026-05-01&dateTo=2026-05-31`}</span></div>
               <div><code>POST</code> <span>{`${baseUrl}/api/attendance/sessions`}</span></div>
-              <div><code>GET</code> <span>{`${baseUrl}/api/attendance/sessions/{sessionId}`}</span></div>
-              <div><code>PATCH</code> <span>{`${baseUrl}/api/attendance/sessions/{sessionId}`}</span></div>
-              <div><code>DELETE</code> <span>{`${baseUrl}/api/attendance/sessions/{sessionId}`}</span></div>
+              <div><code>GET</code> <span>{`${baseUrl}/api/attendance/sessions/${sessionIdPlaceholder}`}</span></div>
+              <div><code>PATCH</code> <span>{`${baseUrl}/api/attendance/sessions/${sessionIdPlaceholder}`}</span></div>
+              <div><code>DELETE</code> <span>{`${baseUrl}/api/attendance/sessions/${sessionIdPlaceholder}`}</span></div>
             </div>
           </FoldItem>
           <FoldItem title="ייצוא" subtitle="GET /api/crm/export">
