@@ -5,7 +5,7 @@
 - אימות: Clerk
 - הרשאות: RBAC (`admin`, `editor`, `viewer`)
 - DB: Neon Postgres
-- נתוני תלמידים: Twenty GraphQL
+- נתוני תלמידים: Neon Postgres (`neon_students`)
 
 ## מה מוכן בקוד
 
@@ -35,9 +35,8 @@
   - `DATABASE_URL` (Neon)
 - Roles bootstrap:
   - `BOOTSTRAP_ADMIN_EMAILS=you@example.com`
-- Twenty:
-  - `TWENTY_API_URL=https://api.twenty.com/graphql`
-  - `TWENTY_API_TOKEN=...`
+- App URL:
+  - `CRM_BASE_URL=https://your-domain.example` (אופציונלי, עבור קישורים בהתראות)
 
 ## חיבור מהיר ל־Vercel
 
@@ -59,7 +58,7 @@ npm run dev
 
 ## הרשאות וגישה (מודל חדש)
 
-- זיהוי משתמשים מתבצע לפי אימייל Clerk מול `email.primaryEmail` בכרטיס תלמיד ב־Twenty.
+- זיהוי משתמשים מתבצע לפי אימייל Clerk מול `email.primaryEmail` בכרטיס תלמיד ב־Neon.
 - ברירת מחדל: לכל משתמש גישה רק לכרטיס התלמיד שלו (`/students/{id}`), בלי גישה לחיפוש.
 - רק משתמשים שתלמידם שייך ל־`class=TEAM` יכולים:
   - לחפש תלמידים

@@ -2,7 +2,7 @@
   "name": "crm-vercel-app",
   "version": "2.0.0",
   "private": true,
-  "description": "CRM management app for Twenty, deployed on Vercel with Clerk + Neon",
+  "description": "CRM management app deployed on Vercel with Clerk + Neon",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
