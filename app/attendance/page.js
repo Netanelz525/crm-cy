@@ -189,7 +189,7 @@ export default async function AttendancePage({ searchParams }) {
   const selectableSessionTypes = currentUser.is_manager || currentUser.is_super_admin
     ? ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER
     : ATTENDANCE_SESSION_TYPE_ORDER;
-  const defaultSessionType = currentUser.is_manager && !currentUser.is_team_member && !currentUser.is_super_admin
+  const defaultSessionType = currentUser.is_manager && !currentUser.is_super_admin
     ? "manager_default"
     : "";
 
@@ -334,7 +334,7 @@ export default async function AttendancePage({ searchParams }) {
               <>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <div className="muted" style={{ marginBottom: 10 }}>
-                    אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד.
+                    אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד. לסופר אדמין בלי מוסד ובלי מסנן מוסדות, המפגש יחול על כל המוסדות.
                   </div>
                   <div className="email-form-grid">
                     {currentUser.is_super_admin ? (
