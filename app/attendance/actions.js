@@ -9,12 +9,19 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function cleanList(values) {
+  return (Array.isArray(values) ? values : [values]).map(clean).filter(Boolean);
+}
+
 export async function createAttendanceSessionAction(formData) {
   const user = await requireAttendanceUser();
   const institution = clean(formData.get("institution"));
   const sessionType = clean(formData.get("sessionType"));
   const sessionDate = clean(formData.get("sessionDate"));
   const sourceNote = clean(formData.get("sourceNote"));
+  const classFilter = user.is_super_admin ? cleanList(formData.getAll("classFilter")) : [];
+  const registrationFilter = user.is_super_admin ? cleanList(formData.getAll("registrationFilter")) : [];
+  const familyStatusFilter = user.is_super_admin ? cleanList(formData.getAll("familyStatusFilter")) : [];
 
   const session = await createAttendanceSession({
     id: crypto.randomUUID(),
@@ -22,6 +29,9 @@ export async function createAttendanceSessionAction(formData) {
     sessionType,
     sessionDate,
     sourceNote,
+    classFilter,
+    registrationFilter,
+    familyStatusFilter,
     createdByUserId: user.clerk_user_id
   });
 

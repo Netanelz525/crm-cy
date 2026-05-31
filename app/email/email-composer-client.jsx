@@ -89,7 +89,7 @@ function ToolButton({ active = false, icon, text, onClick, disabled = false }) {
 
 export default function EmailComposerClient({
   hasRecipientSource,
-  recipientMode,
+  recipientRoles,
   students,
   summary,
   initialSubject,
@@ -160,21 +160,21 @@ export default function EmailComposerClient({
   const selectedRecipientCount = useMemo(() => {
     const emails = new Set();
     for (const student of selectedStudents) {
-      if (recipientMode === "student" || recipientMode === "all") {
+      if (recipientRoles.includes("student")) {
         const email = clean(student?.email?.primaryEmail).toLowerCase();
         if (email) emails.add(email);
       }
-      if (recipientMode === "father" || recipientMode === "parents" || recipientMode === "all") {
+      if (recipientRoles.includes("father")) {
         const email = clean(student?.fatherEmail?.primaryEmail).toLowerCase();
         if (email) emails.add(email);
       }
-      if (recipientMode === "mother" || recipientMode === "parents" || recipientMode === "all") {
+      if (recipientRoles.includes("mother")) {
         const email = clean(student?.motherEmail?.primaryEmail).toLowerCase();
         if (email) emails.add(email);
       }
     }
     return emails.size;
-  }, [selectedStudents, recipientMode]);
+  }, [selectedStudents, recipientRoles]);
 
   function toggleStudent(studentId, checked) {
     setSelectedIds((current) => {

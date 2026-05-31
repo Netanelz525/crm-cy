@@ -3645,7 +3645,7 @@ td {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 22px;
-  padding: 18px;
+  padding: 16px;
   box-shadow: var(--shadow);
 }
 
@@ -3657,12 +3657,200 @@ td {
   gap: 12px;
 }
 
+.email-filter-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.email-filter-summary-title {
+  font-weight: 800;
+  color: #102542;
+}
+
+.email-filter-summary-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.email-filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.email-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f5f8fd;
+  border: 1px solid #d5e1f0;
+  color: #23405f;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.email-filter-pill b {
+  color: #0f2e52;
+  font-size: 0.76rem;
+}
+
 .email-clear-link {
   text-decoration: none;
   cursor: pointer;
   color: #0b4f8c;
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.email-clear-button {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+}
+
+.email-filter-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.email-filter-fieldset {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  min-width: 0;
+  background: #fbfdff;
+  overflow: hidden;
+}
+
+.email-filter-fieldset-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.email-filter-fieldset-head::-webkit-details-marker {
+  display: none;
+}
+
+.email-filter-fieldset-title,
+.email-filter-fieldset-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.email-filter-fieldset-meta {
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.email-filter-legend {
+  font-weight: 800;
+  color: #102542;
+  white-space: nowrap;
+}
+
+.email-filter-inline-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-filter-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #eff5fb;
+  color: #0b4f8c;
+  font-size: 1rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.email-filter-fieldset-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+  border-top: 1px solid #edf2f7;
+}
+
+.email-filter-fieldset-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.email-filter-count {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.email-filter-mini-action {
+  appearance: none;
+  border: 1px solid #d5e1f0;
+  background: #fff;
+  color: #0b4f8c;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.email-filter-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.email-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid #d5e1f0;
+  background: #fff;
+  color: #23405f;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+  min-height: 34px;
+  font-size: 0.84rem;
+}
+
+.email-filter-chip-active {
+  background: #edf6ff;
+  border-color: #8ab4df;
+  color: #0f2e52;
+  box-shadow: inset 0 0 0 1px rgba(11, 79, 140, 0.06);
+}
+
+.email-filter-chip-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .email-field-header {
@@ -3676,8 +3864,12 @@ td {
 .email-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.email-filter-body {
+  margin-top: 8px;
 }
 
 .email-compose-card {
@@ -3964,6 +4156,20 @@ td {
   .email-form-grid,
   .email-send-scope {
     grid-template-columns: 1fr;
+  }
+
+  .email-filter-fieldset-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .email-filter-fieldset-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .email-filter-chip {
+    min-height: 32px;
   }
 
   .email-student-row {

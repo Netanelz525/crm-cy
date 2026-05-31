@@ -7,8 +7,9 @@ import {
   getAttendanceSummaryReport,
   listAttendanceSessions
 } from "../../lib/attendance";
+import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser } from "../../lib/rbac";
-import { INSTITUTIONS } from "../../lib/student-view";
+import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction } from "./actions";
 
 function clean(value) {
@@ -28,6 +29,48 @@ function formatSessionMeta(session) {
     clean(session?.sessionHebrewDateLabel)
   ].filter(Boolean);
   return parts.join(" | ");
+}
+
+function formatSessionAudience(session) {
+  const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
+  const registrationLabels = (session?.registrationFilterOptions || []).map((item) => item.label);
+  const familyStatusLabels = (session?.familyStatusFilterOptions || []).map((item) => item.label);
+  const parts = [];
+  if (classLabels.length) parts.push(`שיעורים: ${classLabels.join(", ")}`);
+  if (registrationLabels.length) parts.push(`רישום: ${registrationLabels.join(", ")}`);
+  if (familyStatusLabels.length) parts.push(`סטטוס משפחתי: ${familyStatusLabels.join(", ")}`);
+  return parts.join(" | ");
+}
+
+function checkboxOptionsFromMap(options) {
+  return Object.entries(options || {}).map(([value, label]) => ({ value, label }));
+}
+
+function FilterCheckboxFieldset({ legend, name, options }) {
+  return (
+    <details className="email-filter-fieldset">
+      <summary className="email-filter-fieldset-head">
+        <div className="email-filter-fieldset-title">
+          <span className="email-filter-legend">{legend}</span>
+          <span className="email-filter-count">אופציונלי</span>
+        </div>
+        <div className="email-filter-fieldset-meta">
+          <span className="email-filter-inline-summary">בחר ערכים למפגש</span>
+          <span className="email-filter-chevron" aria-hidden="true">+</span>
+        </div>
+      </summary>
+      <div className="email-filter-fieldset-body">
+        <div className="email-filter-chip-list">
+          {options.map((option) => (
+            <label key={`${name}-${option.value}`} className="email-filter-chip">
+              <input type="checkbox" className="email-filter-chip-input" name={name} value={option.value} />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+    </details>
+  );
 }
 
 function todayInputValue() {
@@ -111,7 +154,7 @@ function resolveReportFilters(searchParams) {
 export default async function AttendancePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
-  if (!currentUser.is_team_member && !currentUser.is_manager) redirect("/unauthorized");
+  if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
 
   const resolvedSearchParams = await searchParams;
   const created = clean(resolvedSearchParams?.created) === "1";
@@ -136,6 +179,9 @@ export default async function AttendancePage({ searchParams }) {
         sort: reportFilters.sort
       })
     : null;
+  const classOptions = checkboxOptionsFromMap(CLASS_LABELS);
+  const registrationOptions = checkboxOptionsFromMap(ENUM_LABELS.registration || {});
+  const familyStatusOptions = checkboxOptionsFromMap(ENUM_LABELS.familystatus || {});
 
   return (
     <>
@@ -274,6 +320,20 @@ export default async function AttendancePage({ searchParams }) {
             </select>
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
+            {currentUser.is_super_admin ? (
+              <>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div className="muted" style={{ marginBottom: 10 }}>
+                    לסופר אדמין אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד.
+                  </div>
+                  <div className="email-form-grid">
+                    <FilterCheckboxFieldset legend="שיעורים" name="classFilter" options={classOptions} />
+                    <FilterCheckboxFieldset legend="רישום" name="registrationFilter" options={registrationOptions} />
+                    <FilterCheckboxFieldset legend="סטטוס משפחתי" name="familyStatusFilter" options={familyStatusOptions} />
+                  </div>
+                </div>
+              </>
+            ) : null}
             <button type="submit">צור מפגש והתחל להזין</button>
           </form>
         </section>
@@ -294,6 +354,7 @@ export default async function AttendancePage({ searchParams }) {
                     <strong>{formatSessionLabel(session)}</strong>
                     {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
                     <span>נוצר על ידי: {session.createdByDisplayName}</span>
+                    {formatSessionAudience(session) ? <span>{formatSessionAudience(session)}</span> : null}
                     {session.sourceNote ? <span>{session.sourceNote}</span> : <span>{session.id}</span>}
                   </Link>
                   <form action={deleteAttendanceSessionAction}>

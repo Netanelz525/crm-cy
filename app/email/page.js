@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import EmailComposerClient from "./email-composer-client";
+import EmailFilterFormClient from "./email-filter-form-client";
 import {
   buildDefaultSenderNameForStudents,
   getEmailCampaignDraft,
@@ -8,6 +9,7 @@ import {
   getUnsubscribedEmailSet,
   listFavoriteEmailCampaignsForUser,
   listEmailUnsubscribes,
+  normalizeRecipientRoles,
   summarizeEmailCandidates
 } from "../../lib/email-campaigns";
 import { getResendConfigStatus } from "../../lib/resend";
@@ -51,34 +53,29 @@ function hasSearchParam(searchParams, key) {
   return Boolean(searchParams) && Object.prototype.hasOwnProperty.call(searchParams, key);
 }
 
-function buildComposeFilterHref({ draftId, filters, clearField, clearTagId }) {
-  const params = new URLSearchParams();
-  params.set("compose", "1");
-  if (draftId) params.set("draft", draftId);
-
-  params.set("institution", clearField === "institution" ? "" : filters.institution);
-  params.set("class", clearField === "class" ? "" : filters.class);
-  params.set("registration", clearField === "registration" ? "" : filters.registration);
-  params.set("familystatus", clearField === "familystatus" ? "" : filters.familystatus);
-  params.set("q", clearField === "q" ? "" : filters.q);
-  params.set("recipientMode", clearField === "recipientMode" ? "parents" : filters.recipientMode);
-
-  if (clearField === "tagIds") {
-    params.set("tagIds", "");
-  } else {
-    const nextTagIds = clearTagId
-      ? filters.tagIds.filter((tagId) => tagId !== clearTagId)
-      : filters.tagIds;
-    if (!nextTagIds.length) {
-      params.set("tagIds", "");
-    } else {
-      for (const tagId of nextTagIds) {
-        params.append("tagIds", tagId);
-      }
-    }
+function summarizeActiveFilters(filters, availableTags) {
+  const parts = [];
+  if (filters.institution.length) parts.push({ label: "מוסד", value: filters.institution.map(institutionLabel).join(", ") });
+  if (filters.class.length) parts.push({ label: "שיעור", value: filters.class.map(classLabel).join(", ") });
+  if (filters.registration.length) parts.push({ label: "רישום", value: filters.registration.map((value) => ENUM_LABELS.registration?.[value] || value).join(", ") });
+  if (filters.familystatus.length) parts.push({ label: "מצב משפחתי", value: filters.familystatus.map((value) => ENUM_LABELS.familystatus?.[value] || value).join(", ") });
+  if (filters.tagIds.length) {
+    const names = availableTags
+      .filter((tag) => filters.tagIds.includes(tag.id))
+      .map((tag) => tag.name)
+      .filter(Boolean);
+    if (names.length) parts.push({ label: "תווית", value: names.join(", ") });
   }
-
-  return `/email?${params.toString()}`;
+  if (filters.q) parts.push({ label: "חיפוש", value: filters.q });
+  if (filters.recipientRoles.length !== 2 || !filters.recipientRoles.includes("father") || !filters.recipientRoles.includes("mother")) {
+    const recipientModeLabels = {
+      father: "אבא",
+      mother: "אמא",
+      student: "תלמיד"
+    };
+    parts.push({ label: "למי לשלוח", value: filters.recipientRoles.map((value) => recipientModeLabels[value] || value).join(", ") });
+  }
+  return parts;
 }
 
 export default async function EmailPage({ searchParams }) {
@@ -96,24 +93,26 @@ export default async function EmailPage({ searchParams }) {
   const hasFamilyStatusParam = hasSearchParam(resolvedSearchParams, "familystatus");
   const hasTagIdsParam = hasSearchParam(resolvedSearchParams, "tagIds");
   const hasQueryParam = hasSearchParam(resolvedSearchParams, "q");
-  const hasRecipientModeParam = hasSearchParam(resolvedSearchParams, "recipientMode");
+  const hasRecipientRolesParam = hasSearchParam(resolvedSearchParams, "recipientRoles");
   const searchTagIds = getSearchParamList(resolvedSearchParams?.tagIds);
-  const searchInstitution = clean(resolvedSearchParams?.institution);
-  const searchClass = clean(resolvedSearchParams?.class);
-  const searchRegistration = clean(resolvedSearchParams?.registration);
-  const searchFamilyStatus = clean(resolvedSearchParams?.familystatus);
+  const searchInstitution = getSearchParamList(resolvedSearchParams?.institution);
+  const searchClass = getSearchParamList(resolvedSearchParams?.class);
+  const searchRegistration = getSearchParamList(resolvedSearchParams?.registration);
+  const searchFamilyStatus = getSearchParamList(resolvedSearchParams?.familystatus);
   const searchQuery = clean(resolvedSearchParams?.q);
-  const searchRecipientMode = clean(resolvedSearchParams?.recipientMode);
+  const searchRecipientRoles = getSearchParamList(resolvedSearchParams?.recipientRoles);
   const filters = {
-    institution: hasInstitutionParam ? searchInstitution : clean(draft?.institution),
-    class: hasClassParam ? searchClass : clean(draft?.class),
-    registration: hasRegistrationParam ? searchRegistration : clean(draft?.registration),
-    familystatus: hasFamilyStatusParam ? searchFamilyStatus : clean(draft?.familystatus),
+    institution: hasInstitutionParam ? searchInstitution : Array.isArray(draft?.institution) ? draft.institution.map(clean).filter(Boolean) : clean(draft?.institution) ? [clean(draft.institution)] : [],
+    class: hasClassParam ? searchClass : Array.isArray(draft?.class) ? draft.class.map(clean).filter(Boolean) : clean(draft?.class) ? [clean(draft.class)] : [],
+    registration: hasRegistrationParam ? searchRegistration : Array.isArray(draft?.registration) ? draft.registration.map(clean).filter(Boolean) : clean(draft?.registration) ? [clean(draft.registration)] : [],
+    familystatus: hasFamilyStatusParam ? searchFamilyStatus : Array.isArray(draft?.familystatus) ? draft.familystatus.map(clean).filter(Boolean) : clean(draft?.familystatus) ? [clean(draft.familystatus)] : [],
     tagIds: hasTagIdsParam
       ? searchTagIds
       : Array.isArray(draft?.tagIds) ? draft.tagIds.map(clean).filter(Boolean) : [],
     q: hasQueryParam ? searchQuery : clean(draft?.q),
-    recipientMode: hasRecipientModeParam ? (searchRecipientMode || "parents") : (clean(draft?.recipientMode) || "parents"),
+    recipientRoles: hasRecipientRolesParam
+      ? normalizeRecipientRoles(searchRecipientRoles)
+      : normalizeRecipientRoles(draft?.recipientRoles || draft?.recipientMode),
     selectedStudentIds: Array.isArray(draft?.selectedStudentIds)
       ? draft.selectedStudentIds.map(clean).filter(Boolean)
       : Array.isArray(resolvedSearchParams?.studentIds)
@@ -164,28 +163,34 @@ export default async function EmailPage({ searchParams }) {
   const senderName = user.can_edit_email_sender
     ? (clean(draft?.senderName || resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(studentsWithBlacklistState))
     : buildDefaultSenderNameForStudents(studentsWithBlacklistState);
-  const summary = summarizeEmailCandidates(studentsWithBlacklistState, filters.recipientMode);
+  const summary = summarizeEmailCandidates(studentsWithBlacklistState, filters.recipientRoles);
   const unsubscribes = await listEmailUnsubscribes(200);
   const favoriteCampaigns = await listFavoriteEmailCampaignsForUser(user.clerk_user_id, 10);
   const hasRecipientSource = Boolean(
-    filters.institution
-    || filters.class
-    || filters.registration
-    || filters.familystatus
+    filters.institution.length
+    || filters.class.length
+    || filters.registration.length
+    || filters.familystatus.length
     || filters.tagIds.length
     || filters.q
     || filters.selectedStudentIds.length
   );
-  const resetFiltersHref = `/email?compose=1${draftId ? `&draft=${encodeURIComponent(draftId)}` : ""}&institution=&class=&registration=&familystatus=&tagIds=&q=&recipientMode=parents`;
   const hasActiveFilterValues = Boolean(
-    filters.institution
-    || filters.class
-    || filters.registration
-    || filters.familystatus
+    filters.institution.length
+    || filters.class.length
+    || filters.registration.length
+    || filters.familystatus.length
     || filters.tagIds.length
     || filters.q
-    || filters.recipientMode !== "parents"
+    || filters.recipientRoles.length !== 2
+    || !filters.recipientRoles.includes("father")
+    || !filters.recipientRoles.includes("mother")
   );
+  const activeFilterSummary = summarizeActiveFilters(filters, availableTags);
+  const institutionOptions = Object.entries(INSTITUTIONS).map(([value, label]) => ({ value, label }));
+  const classOptions = Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => ({ value, label }));
+  const registrationOptions = Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => ({ value, label }));
+  const familystatusOptions = Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => ({ value, label }));
 
   return (
     <>
@@ -226,115 +231,30 @@ export default async function EmailPage({ searchParams }) {
 
       {composeMode ? (
         <>
-          <details className="email-filter-card" open={false}>
-            <summary>
-              <span>סינון נמענים</span>
-              {hasActiveFilterValues ? <Link className="email-clear-link" href={resetFiltersHref}>נקה הכול</Link> : null}
-            </summary>
-            <form action="/email" method="get">
-              <input type="hidden" name="compose" value="1" />
-              <input type="hidden" name="draft" value={draftId} />
-              <div className="email-form-grid">
-                <label>
-                  <span className="email-field-header">
-                    <span>מוסד</span>
-                    {filters.institution ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "institution" })}>נקה בחירה</Link> : null}
-                  </span>
-                  <select name="institution" defaultValue={filters.institution}>
-                    <option value="">כל המוסדות</option>
-                    {Object.entries(INSTITUTIONS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="email-field-header">
-                    <span>שיעור</span>
-                    {filters.class ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "class" })}>נקה בחירה</Link> : null}
-                  </span>
-                  <select name="class" defaultValue={filters.class}>
-                    <option value="">כל השיעורים</option>
-                    {Object.entries(ENUM_LABELS.class || {}).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="email-field-header">
-                    <span>רישום</span>
-                    {filters.registration ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "registration" })}>נקה בחירה</Link> : null}
-                  </span>
-                  <select name="registration" defaultValue={filters.registration}>
-                    <option value="">כל מצבי הרישום</option>
-                    {Object.entries(ENUM_LABELS.registration || {}).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="email-field-header">
-                    <span>מצב משפחתי</span>
-                    {filters.familystatus ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "familystatus" })}>נקה בחירה</Link> : null}
-                  </span>
-                  <select name="familystatus" defaultValue={filters.familystatus}>
-                    <option value="">כל המצבים</option>
-                    {Object.entries(ENUM_LABELS.familystatus || {}).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="email-field-header">
-                    <span>תווית</span>
-                    {filters.tagIds.length ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "tagIds" })}>נקה בחירה</Link> : null}
-                  </span>
-                  <select name="tagIds" defaultValue={filters.tagIds[0] || ""}>
-                    <option value="">כל התוויות</option>
-                    {availableTags.map((tag) => (
-                      <option key={tag.id} value={tag.id}>{tag.name}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="email-field-header">
-                    <span>למי לשלוח</span>
-                    {filters.recipientMode !== "parents" ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "recipientMode" })}>נקה בחירה</Link> : null}
-                  </span>
-                  <select name="recipientMode" defaultValue={filters.recipientMode}>
-                    <option value="parents">הורים בלבד</option>
-                    <option value="father">אב בלבד</option>
-                    <option value="mother">אם בלבד</option>
-                    <option value="student">תלמיד בלבד</option>
-                    <option value="all">שניהם</option>
-                  </select>
-                </label>
-                <label>
-                  <span className="email-field-header">
-                    <span>חיפוש תלמיד</span>
-                    {filters.q ? <Link className="email-clear-link" href={buildComposeFilterHref({ draftId, filters, clearField: "q" })}>נקה בחירה</Link> : null}
-                  </span>
-                  <input name="q" defaultValue={filters.q} placeholder="שם, מייל או טלפון" />
-                </label>
-              </div>
-              <input type="hidden" name="subject" value={subject} />
-              <input type="hidden" name="senderName" value={senderName} />
-              <input type="hidden" name="contentHtml" value={initialHtml} />
-              <button type="submit">עדכן רשימה</button>
-            </form>
-          </details>
+          <EmailFilterFormClient
+            draftId={draftId}
+            filters={filters}
+            hasActiveFilterValues={hasActiveFilterValues}
+            activeFilterSummary={activeFilterSummary}
+            institutionOptions={institutionOptions}
+            classOptions={classOptions}
+            registrationOptions={registrationOptions}
+            familystatusOptions={familystatusOptions}
+            availableTags={availableTags}
+          />
 
           <form action={createEmailCampaignConfirmAction} encType="multipart/form-data">
             <input type="hidden" name="draftId" value={draftId} />
-            <input type="hidden" name="institution" value={filters.institution} />
-            <input type="hidden" name="class" value={filters.class} />
-            <input type="hidden" name="registration" value={filters.registration} />
-            <input type="hidden" name="familystatus" value={filters.familystatus} />
+            {filters.institution.map((value) => <input key={`institution-${value}`} type="hidden" name="institution" value={value} />)}
+            {filters.class.map((value) => <input key={`class-${value}`} type="hidden" name="class" value={value} />)}
+            {filters.registration.map((value) => <input key={`registration-${value}`} type="hidden" name="registration" value={value} />)}
+            {filters.familystatus.map((value) => <input key={`familystatus-${value}`} type="hidden" name="familystatus" value={value} />)}
             {filters.tagIds.map((tagId) => <input key={tagId} type="hidden" name="tagIds" value={tagId} />)}
             <input type="hidden" name="q" value={filters.q} />
-            <input type="hidden" name="recipientMode" value={filters.recipientMode} />
+            {filters.recipientRoles.map((value) => <input key={`recipient-${value}`} type="hidden" name="recipientRoles" value={value} />)}
             <EmailComposerClient
               hasRecipientSource={hasRecipientSource}
-              recipientMode={filters.recipientMode}
+              recipientRoles={filters.recipientRoles}
               students={studentsWithBlacklistState}
               summary={summary}
               initialSubject={subject}

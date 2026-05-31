@@ -15,10 +15,10 @@ function normalizePhone(v) {
 }
 
 function buildStudentUrl(studentId) {
-  const base = clean(process.env.TWENTY_LINK);
+  const base = clean(process.env.CRM_BASE_URL || process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL);
   if (!base) return "";
-  const normalized = base.endsWith("/") ? base : `${base}/`;
-  return `${normalized}${encodeURIComponent(studentId)}`;
+  const normalized = base.endsWith("/") ? base.slice(0, -1) : base;
+  return `${normalized}/neon/students/${encodeURIComponent(studentId)}`;
 }
 
 function escapeHtml(value) {
