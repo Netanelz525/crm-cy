@@ -23,12 +23,13 @@ export default async function PaymentsPage({ searchParams }) {
   const defaults = getDefaultPaymentDateRange();
   const dateFrom = clean(resolvedSearchParams?.dateFrom) || defaults.dateFrom;
   const dateTo = clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
+  const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
   const activeProviders = [...new Set(activeConnections.map((connection) => connection.provider))].map((provider) => ({
     value: provider,
     label: getPaymentProviderLabel(provider)
   }));
-  const dashboard = activeConnections.length
+  const dashboard = shouldRunReport && activeConnections.length
     ? await (await import("../../lib/payment-systems")).getPaymentDashboard({
         connectionIds: activeConnections.map((connection) => connection.id),
         dateFrom,
@@ -61,6 +62,7 @@ export default async function PaymentsPage({ searchParams }) {
           </div>
         ) : (
           <form method="get" className="grid">
+            <input type="hidden" name="run" value="1" />
             <input type="date" name="dateFrom" defaultValue={dateFrom} required />
             <input type="date" name="dateTo" defaultValue={dateTo} required />
             <button type="submit">הפק דוח עסקאות</button>
@@ -68,7 +70,7 @@ export default async function PaymentsPage({ searchParams }) {
         )}
       </section>
 
-      {activeConnections.length ? (
+      {activeConnections.length && shouldRunReport ? (
         <>
           {dashboard.errors.length ? (
             <section className="card">
@@ -90,6 +92,10 @@ export default async function PaymentsPage({ searchParams }) {
             providerOptions={activeProviders}
           />
         </>
+      ) : activeConnections.length ? (
+        <section className="card muted">
+          הדוח לא נוצר עדיין. בחר טווח תאריכים ולחץ על `הפק דוח עסקאות` כדי לבצע את השליפה.
+        </section>
       ) : null}
     </div>
   );
