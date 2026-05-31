@@ -1,0 +1,118 @@
+import Link from "next/link";
+import { listPaymentConnections, getPaymentProviderLabel } from "../../../lib/payment-systems";
+import { requireSuperAdmin } from "../../../lib/rbac";
+import {
+  createNedarimConnectionAction,
+  createStripeConnectionAction,
+  togglePaymentConnectionAction
+} from "./actions";
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("he-IL");
+}
+
+export default async function AdminPaymentsPage() {
+  await requireSuperAdmin();
+  const connections = await listPaymentConnections();
+
+  return (
+    <div style={{ display: "grid", gap: 20 }}>
+      <section className="card glass">
+        <h1 style={{ marginTop: 0 }}>ניהול מערכות תשלום</h1>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          כאן סופר אדמין מגדיר את חיבורי נדרים פלוס ו־Stripe שמהם המשתמשים יוכלו להפיק דוחות עסקאות.
+        </p>
+        <div className="quick-actions">
+          <Link className="quick-action-btn quick-action-outline" href="/payments">מעבר לדוח העסקאות</Link>
+          <Link className="quick-action-btn quick-action-outline" href="/admin">חזרה לניהול</Link>
+        </div>
+      </section>
+
+      <div style={{ display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>חיבור מוסד נדרים פלוס</h2>
+          <form action={createNedarimConnectionAction} className="grid">
+            <input name="label" placeholder="שם תצוגה למוסד" required />
+            <input name="externalId" placeholder="MosadNumber / מזהה מוסד" required />
+            <input name="secret" type="password" placeholder="ApiPassword" required />
+            <button type="submit">שמור חיבור נדרים</button>
+          </form>
+        </section>
+
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>חיבור חשבון Stripe</h2>
+          <form action={createStripeConnectionAction} className="grid">
+            <input name="label" placeholder="שם תצוגה לחשבון" required />
+            <input name="externalId" placeholder="מזהה אופציונלי / תיאור" />
+            <input name="secret" type="password" placeholder="Stripe Secret Key" required />
+            <button type="submit">שמור חיבור Stripe</button>
+          </form>
+        </section>
+      </div>
+
+      <section className="card">
+        <h2 style={{ marginTop: 0 }}>חיבורים קיימים</h2>
+        {!connections.length ? (
+          <div className="muted">עדיין לא הוגדרו חיבורי תשלום.</div>
+        ) : (
+          <>
+            <div className="desktop-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ספק</th>
+                    <th>שם</th>
+                    <th>מזהה</th>
+                    <th>סטטוס</th>
+                    <th>עודכן</th>
+                    <th>פעולה</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {connections.map((connection) => (
+                    <tr key={connection.id}>
+                      <td>{getPaymentProviderLabel(connection.provider)}</td>
+                      <td>{connection.label}</td>
+                      <td>{connection.external_id || "-"}</td>
+                      <td>{connection.is_active ? "פעיל" : "מושבת"}</td>
+                      <td>{formatDateTime(connection.updated_at)}</td>
+                      <td>
+                        <form action={togglePaymentConnectionAction}>
+                          <input type="hidden" name="connectionId" value={connection.id} />
+                          <input type="hidden" name="active" value={connection.is_active ? "0" : "1"} />
+                          <button type="submit">{connection.is_active ? "השבת חיבור" : "הפעל חיבור"}</button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-generic-list">
+              {connections.map((connection) => (
+                <div key={connection.id} className="generic-mobile-card">
+                  <div className="generic-mobile-head">{connection.label}</div>
+                  <div className="generic-mobile-grid">
+                    <div><b>ספק:</b> {getPaymentProviderLabel(connection.provider)}</div>
+                    <div><b>מזהה:</b> {connection.external_id || "-"}</div>
+                    <div><b>סטטוס:</b> {connection.is_active ? "פעיל" : "מושבת"}</div>
+                    <div><b>עודכן:</b> {formatDateTime(connection.updated_at)}</div>
+                  </div>
+                  <form action={togglePaymentConnectionAction}>
+                    <input type="hidden" name="connectionId" value={connection.id} />
+                    <input type="hidden" name="active" value={connection.is_active ? "0" : "1"} />
+                    <button type="submit">{connection.is_active ? "השבת חיבור" : "הפעל חיבור"}</button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}

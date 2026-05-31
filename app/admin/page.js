@@ -36,6 +36,19 @@ export default async function AdminPage() {
       {currentUser.is_super_admin ? <UserManagementClient users={users} /> : null}
       {currentUser.is_super_admin ? <SystemAutomationsCard /> : null}
 
+      {currentUser.is_super_admin ? (
+        <div className="card">
+          <h2>מערכות תשלום</h2>
+          <p className="muted">
+            הגדרת חיבורי נדרים פלוס ו־Stripe לדוחות עסקאות מתוך המערכת.
+          </p>
+          <div className="quick-actions">
+            <Link className="quick-action-btn quick-action-outline" href="/admin/payments">ניהול חיבורי תשלום</Link>
+            <Link className="quick-action-btn quick-action-outline" href="/payments">פתיחת דוח עסקאות</Link>
+          </div>
+        </div>
+      ) : null}
+
       <ApiAccessClient apiBaseUrl={apiBaseUrl} />
 
       <div className="card">
