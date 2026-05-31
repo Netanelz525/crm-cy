@@ -17,10 +17,12 @@ function attendanceStatusOptions() {
 }
 
 function formatSessionAudience(session) {
+  const institutionLabels = (session?.institutionFilterOptions || []).map((item) => item.label);
   const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
   const registrationLabels = (session?.registrationFilterOptions || []).map((item) => item.label);
   const familyStatusLabels = (session?.familyStatusFilterOptions || []).map((item) => item.label);
   const parts = [];
+  if (institutionLabels.length) parts.push(`מוסדות: ${institutionLabels.join(", ")}`);
   if (classLabels.length) parts.push(`שיעורים: ${classLabels.join(", ")}`);
   if (registrationLabels.length) parts.push(`רישום: ${registrationLabels.join(", ")}`);
   if (familyStatusLabels.length) parts.push(`סטטוס משפחתי: ${familyStatusLabels.join(", ")}`);

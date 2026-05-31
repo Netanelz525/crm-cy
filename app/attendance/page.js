@@ -32,10 +32,12 @@ function formatSessionMeta(session) {
 }
 
 function formatSessionAudience(session) {
+  const institutionLabels = (session?.institutionFilterOptions || []).map((item) => item.label);
   const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
   const registrationLabels = (session?.registrationFilterOptions || []).map((item) => item.label);
   const familyStatusLabels = (session?.familyStatusFilterOptions || []).map((item) => item.label);
   const parts = [];
+  if (institutionLabels.length) parts.push(`מוסדות: ${institutionLabels.join(", ")}`);
   if (classLabels.length) parts.push(`שיעורים: ${classLabels.join(", ")}`);
   if (registrationLabels.length) parts.push(`רישום: ${registrationLabels.join(", ")}`);
   if (familyStatusLabels.length) parts.push(`סטטוס משפחתי: ${familyStatusLabels.join(", ")}`);
@@ -46,20 +48,19 @@ function checkboxOptionsFromMap(options) {
   return Object.entries(options || {}).map(([value, label]) => ({ value, label }));
 }
 
-function FilterCheckboxFieldset({ legend, name, options }) {
+function FilterCheckboxFieldset({ legend, name, options, helperText = "" }) {
   return (
-    <details className="email-filter-fieldset">
-      <summary className="email-filter-fieldset-head">
+    <div className="email-filter-fieldset" style={{ padding: 14 }}>
+      <div className="email-filter-fieldset-head" style={{ padding: 0, marginBottom: 10, cursor: "default" }}>
         <div className="email-filter-fieldset-title">
           <span className="email-filter-legend">{legend}</span>
           <span className="email-filter-count">אופציונלי</span>
         </div>
         <div className="email-filter-fieldset-meta">
-          <span className="email-filter-inline-summary">בחר ערכים למפגש</span>
-          <span className="email-filter-chevron" aria-hidden="true">+</span>
+          <span className="email-filter-inline-summary">{helperText || "בחר ערכים למפגש"}</span>
         </div>
-      </summary>
-      <div className="email-filter-fieldset-body">
+      </div>
+      <div className="email-filter-fieldset-body" style={{ padding: 0, borderTop: "none" }}>
         <div className="email-filter-chip-list">
           {options.map((option) => (
             <label key={`${name}-${option.value}`} className="email-filter-chip">
@@ -69,7 +70,7 @@ function FilterCheckboxFieldset({ legend, name, options }) {
           ))}
         </div>
       </div>
-    </details>
+    </div>
   );
 }
 
@@ -180,6 +181,7 @@ export default async function AttendancePage({ searchParams }) {
         sort: reportFilters.sort
       })
     : null;
+  const institutionOptions = checkboxOptionsFromMap(INSTITUTIONS);
   const classOptions = checkboxOptionsFromMap(CLASS_LABELS);
   const registrationOptions = checkboxOptionsFromMap(ENUM_LABELS.registration || {});
   const familyStatusOptions = checkboxOptionsFromMap(ENUM_LABELS.familystatus || {});
@@ -307,8 +309,8 @@ export default async function AttendancePage({ searchParams }) {
         <section className="card glass">
           <h3>יצירת מפגש חדש</h3>
           <form action={createAttendanceSessionAction} className="grid">
-            <select name="institution" defaultValue="" required>
-              <option value="">בחר מוסד</option>
+            <select name="institution" defaultValue="" required={!currentUser.is_super_admin}>
+              <option value="">{currentUser.is_super_admin ? "כל המוסדות או בחר מסנן מוסדות" : "בחר מוסד"}</option>
               {Object.entries(INSTITUTIONS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
@@ -328,6 +330,9 @@ export default async function AttendancePage({ searchParams }) {
                     אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד.
                   </div>
                   <div className="email-form-grid">
+                    {currentUser.is_super_admin ? (
+                      <FilterCheckboxFieldset legend="מוסדות" name="institutionFilter" options={institutionOptions} helperText="לסופר אדמין אין חובה לבחור מוסד יחיד" />
+                    ) : null}
                     <FilterCheckboxFieldset legend="שיעורים" name="classFilter" options={classOptions} />
                     <FilterCheckboxFieldset legend="רישום" name="registrationFilter" options={registrationOptions} />
                     <FilterCheckboxFieldset legend="סטטוס משפחתי" name="familyStatusFilter" options={familyStatusOptions} />

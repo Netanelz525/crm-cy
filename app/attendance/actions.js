@@ -20,6 +20,7 @@ export async function createAttendanceSessionAction(formData) {
   const sessionType = clean(formData.get("sessionType"));
   const sessionDate = clean(formData.get("sessionDate"));
   const sourceNote = clean(formData.get("sourceNote"));
+  const institutionFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("institutionFilter")) : [];
   const classFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("classFilter")) : [];
   const registrationFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("registrationFilter")) : [];
   const familyStatusFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("familyStatusFilter")) : [];
@@ -30,6 +31,7 @@ export async function createAttendanceSessionAction(formData) {
     sessionType,
     sessionDate,
     sourceNote,
+    institutionFilter,
     classFilter,
     registrationFilter,
     familyStatusFilter,
