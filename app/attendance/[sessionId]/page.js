@@ -16,10 +16,21 @@ function attendanceStatusOptions() {
   return Object.entries(ATTENDANCE_STATUS_LABELS);
 }
 
+function formatSessionAudience(session) {
+  const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
+  const registrationLabels = (session?.registrationFilterOptions || []).map((item) => item.label);
+  const familyStatusLabels = (session?.familyStatusFilterOptions || []).map((item) => item.label);
+  const parts = [];
+  if (classLabels.length) parts.push(`שיעורים: ${classLabels.join(", ")}`);
+  if (registrationLabels.length) parts.push(`רישום: ${registrationLabels.join(", ")}`);
+  if (familyStatusLabels.length) parts.push(`סטטוס משפחתי: ${familyStatusLabels.join(", ")}`);
+  return parts.join(" | ");
+}
+
 export default async function AttendanceSessionPage({ params, searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
-  if (!currentUser.is_team_member && !currentUser.is_manager) redirect("/unauthorized");
+  if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
 
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
@@ -87,6 +98,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           {roster.session.sessionWeekdayLabel ? ` | ${roster.session.sessionWeekdayLabel}` : ""}
           {roster.session.sessionHebrewDateLabel ? ` | ${roster.session.sessionHebrewDateLabel}` : ""}
           {roster.session.createdByDisplayName ? ` | נוצר על ידי: ${roster.session.createdByDisplayName}` : ""}
+          {formatSessionAudience(roster.session) ? ` | ${formatSessionAudience(roster.session)}` : ""}
         </div>
         <div className="attendance-stats">
           <span className="meta-chip">תלמידים: {roster.stats.totalStudents}</span>

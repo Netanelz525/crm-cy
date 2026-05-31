@@ -133,6 +133,23 @@ export default function ApiAccessClient({ apiBaseUrl }) {
     const studentsSearchUrl = `${activeBaseUrl}/api/crm/students?q=${encodeURIComponent("כהן")}&limit=10&minScore=0.55`;
     const studentsInstitutionUrl = `${activeBaseUrl}/api/crm/students?institution=CY&limit=5`;
     const exportUrl = `${activeBaseUrl}/api/crm/export?resource=all`;
+    const attendanceSessionsUrl = `${activeBaseUrl}/api/attendance/sessions?institution=CY&limit=10`;
+    const attendanceSessionUrl = `${activeBaseUrl}/api/attendance/sessions/session_123`;
+    const attendancePatchBody = JSON.stringify(
+      {
+        records: [
+          {
+            studentId: "student_123",
+            studentName: "אברהם כהן",
+            studentClass: "A",
+            status: "found",
+            noteText: "עודכן ממערכת חיצונית"
+          }
+        ]
+      },
+      null,
+      2
+    );
     const studentBody = JSON.stringify(
       {
         fullName: { firstName: "אברהם", lastName: "כהן" },
@@ -157,6 +174,19 @@ export default function ApiAccessClient({ apiBaseUrl }) {
       exportAll: {
         url: exportUrl,
         curl: `curl -H "${authHeader}" \\\n  "${exportUrl}"`
+      },
+      attendanceSessions: {
+        url: attendanceSessionsUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${attendanceSessionsUrl}"`
+      },
+      attendanceSession: {
+        url: attendanceSessionUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${attendanceSessionUrl}"`
+      },
+      attendanceUpdate: {
+        url: attendanceSessionUrl,
+        body: attendancePatchBody,
+        curl: `curl -X PATCH \\\n  -H "${authHeader}" \\\n  -H "Content-Type: application/json" \\\n  -d '${attendancePatchBody.replace(/\n/g, "\n  ")}' \\\n  "${attendanceSessionUrl}"`
       },
       createStudent: {
         url: createUrl,
@@ -214,16 +244,17 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         <div>
           <h2>גישת API ל-Neon CRM</h2>
           <p className="muted">
-            הטוקנים כאן עובדים מול ה-API המקומי של ה-CRM ב-Neon, ונבנו כך שבהמשך אפשר יהיה להרחיב אותם גם לאובייקטים נוספים.
+            הטוקנים כאן עובדים מול ה-API המקומי של ה-CRM ב-Neon, כולל תלמידים ונוכחות למפגשים, ונבנו כך שבהמשך אפשר יהיה להרחיב אותם גם לאובייקטים נוספים.
           </p>
         </div>
-        <div className="api-doc-badge">Students API</div>
+        <div className="api-doc-badge">Students + Attendance API</div>
       </div>
 
       <form action={formAction} className="grid">
         <input name="label" placeholder="שם פנימי לטוקן" />
         <select name="resource" defaultValue="students">
           <option value="students">students</option>
+          <option value="attendance">attendance</option>
           <option value="backup">backup</option>
         </select>
         <select name="access" defaultValue="read">
@@ -308,6 +339,15 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           <FoldItem title="יצירת תלמיד" subtitle="POST /api/crm/students">
             <div className="api-param-list">
               <div><code>POST</code> <span>{`${baseUrl}/api/crm/students`}</span></div>
+            </div>
+          </FoldItem>
+          <FoldItem title="מפגשי נוכחות" subtitle="GET / POST / PATCH / DELETE">
+            <div className="api-param-list">
+              <div><code>GET</code> <span>{`${baseUrl}/api/attendance/sessions?institution=CY&dateFrom=2026-05-01&dateTo=2026-05-31`}</span></div>
+              <div><code>POST</code> <span>{`${baseUrl}/api/attendance/sessions`}</span></div>
+              <div><code>GET</code> <span>{`${baseUrl}/api/attendance/sessions/{sessionId}`}</span></div>
+              <div><code>PATCH</code> <span>{`${baseUrl}/api/attendance/sessions/{sessionId}`}</span></div>
+              <div><code>DELETE</code> <span>{`${baseUrl}/api/attendance/sessions/{sessionId}`}</span></div>
             </div>
           </FoldItem>
           <FoldItem title="ייצוא" subtitle="GET /api/crm/export">
@@ -439,6 +479,15 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           <FoldItem title="backup:read">
             <div className="api-param-list"><div>`GET /api/crm/export`</div></div>
           </FoldItem>
+          <FoldItem title="attendance:read">
+            <div className="api-param-list"><div>`GET /api/attendance/sessions` + `GET /api/attendance/sessions/{sessionId}`</div></div>
+          </FoldItem>
+          <FoldItem title="attendance:write">
+            <div className="api-param-list"><div>`POST /api/attendance/sessions` + `PATCH /api/attendance/sessions/{sessionId}`</div></div>
+          </FoldItem>
+          <FoldItem title="attendance:delete">
+            <div className="api-param-list"><div>`DELETE /api/attendance/sessions/{sessionId}`</div></div>
+          </FoldItem>
         </DocBlock>
 
         <DocBlock title="Examples">
@@ -466,6 +515,25 @@ export default function ApiAccessClient({ apiBaseUrl }) {
               subtitle="GET /export?resource=all"
               url={examples.exportAll.url}
               curl={examples.exportAll.curl}
+            />
+            <ExampleCard
+              title="רשימת מפגשים"
+              subtitle="GET /api/attendance/sessions"
+              url={examples.attendanceSessions.url}
+              curl={examples.attendanceSessions.curl}
+            />
+            <ExampleCard
+              title="מפגש עם תלמידים"
+              subtitle="GET /api/attendance/sessions/{sessionId}"
+              url={examples.attendanceSession.url}
+              curl={examples.attendanceSession.curl}
+            />
+            <ExampleCard
+              title="עדכון נוכחות חיצוני"
+              subtitle="PATCH /api/attendance/sessions/{sessionId}"
+              url={examples.attendanceUpdate.url}
+              curl={examples.attendanceUpdate.curl}
+              body={examples.attendanceUpdate.body}
             />
             <ExampleCard
               title="יצירת תלמיד"
