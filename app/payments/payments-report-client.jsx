@@ -41,10 +41,13 @@ export default function PaymentsReportClient({
   dateTo,
   transactions,
   connections,
-  providerOptions
+  providerOptions,
+  initialSelectedConnectionIds = []
 }) {
   const [selectedProviders, setSelectedProviders] = useState(providerOptions.map((option) => option.value));
-  const [selectedConnectionIds, setSelectedConnectionIds] = useState(connections.map((connection) => connection.id));
+  const [selectedConnectionIds, setSelectedConnectionIds] = useState(
+    initialSelectedConnectionIds.length ? initialSelectedConnectionIds : connections.map((connection) => connection.id)
+  );
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
 

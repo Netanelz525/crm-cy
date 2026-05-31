@@ -7,7 +7,7 @@ const INITIAL_MESSAGES = [
   {
     id: "welcome",
     role: "assistant",
-    content: "אפשר לשאול אותי על תלמידים, מיילים, כתובות, ערכי שדות בחירה ומוסדות. כל תשובה תחזור עם קישור לכרטיס תלמיד כשיש התאמה."
+    content: "אפשר לשאול אותי על תלמידים, מיילים, כתובות, ערכי שדות בחירה, מוסדות וגם על דוחות תרומות ממערכות התשלום. כשיש התאמה אחזיר קישורים למסך, לאקסל ול-PDF."
   }
 ];
 
@@ -373,7 +373,7 @@ export default function AiChatWidget() {
           <div className="ai-chat-panel-head">
             <div>
               <strong>סוכן CRM</strong>
-              <div className="muted">חיפוש תלמידים, שדות מערכת וערכי בחירה</div>
+              <div className="muted">חיפוש תלמידים, שדות מערכת, ערכי בחירה ודוחות תרומות</div>
             </div>
             <button type="button" className="ai-chat-close" onClick={() => setOpen(false)}>סגור</button>
           </div>
@@ -392,7 +392,7 @@ export default function AiChatWidget() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleInputKeyDown}
-              placeholder="למשל: מי גר בירושלים? אפשר גם להעלות צילום מסמך לזיהוי."
+              placeholder="למשל: מי גר בירושלים? או: הפק דוח תרומות בין 2026-05-01 ל-2026-05-31."
             />
             <label className="ai-chat-file-input">
               <input

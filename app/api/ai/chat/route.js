@@ -26,7 +26,7 @@ import { getStudentDocumentsStats } from "../../../../lib/student-documents";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-const CRM_SCOPE_MESSAGE = "אני עונה רק על שאלות שקשורות ל-CRM, תלמידים, שדות, סטטוסים, מסמכים ופעולות עבודה במערכת.";
+const CRM_SCOPE_MESSAGE = "אני עונה רק על שאלות שקשורות ל-CRM, תלמידים, שדות, סטטוסים, מסמכים, מערכות תשלום ודוחות תרומות/עסקאות.";
 
 function clean(value) {
   return String(value || "").trim();
@@ -205,7 +205,18 @@ function isCrmRelevant(text, hasAttachment = false) {
     "מסמך",
     "צילום",
     "אקסל",
-    "כרטיס"
+    "כרטיס",
+    "תרומה",
+    "תרומות",
+    "עסקה",
+    "עסקאות",
+    "תשלום",
+    "תשלומים",
+    "סטרייפ",
+    "stripe",
+    "נדרים",
+    "דוח תרומות",
+    "דוח עסקאות"
   ].some((pattern) => raw.includes(pattern));
 }
 

@@ -7,6 +7,7 @@ import {
 } from "../../lib/payment-systems";
 import { getCurrentAppUser } from "../../lib/rbac";
 import PaymentsReportClient from "./payments-report-client";
+import PaymentFilterFormClient from "./payment-filter-form-client";
 
 function clean(value) {
   return String(value || "").trim();
@@ -25,13 +26,21 @@ export default async function PaymentsPage({ searchParams }) {
   const dateTo = clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
   const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
+  const requestedConnectionIds = Array.isArray(resolvedSearchParams?.connectionId)
+    ? resolvedSearchParams.connectionId.map(clean).filter(Boolean)
+    : clean(resolvedSearchParams?.connectionId)
+      ? [clean(resolvedSearchParams.connectionId)]
+      : [];
+  const selectedConnectionIds = requestedConnectionIds.length
+    ? activeConnections.map((connection) => connection.id).filter((id) => requestedConnectionIds.includes(id))
+    : activeConnections.map((connection) => connection.id);
   const activeProviders = [...new Set(activeConnections.map((connection) => connection.provider))].map((provider) => ({
     value: provider,
     label: getPaymentProviderLabel(provider)
   }));
   const dashboard = shouldRunReport && activeConnections.length
     ? await (await import("../../lib/payment-systems")).getPaymentDashboard({
-        connectionIds: activeConnections.map((connection) => connection.id),
+        connectionIds: selectedConnectionIds,
         dateFrom,
         dateTo
       })
@@ -61,12 +70,12 @@ export default async function PaymentsPage({ searchParams }) {
             <Link href="/admin/payments">ניהול מערכות תשלום</Link>.
           </div>
         ) : (
-          <form method="get" className="grid">
-            <input type="hidden" name="run" value="1" />
-            <input type="date" name="dateFrom" defaultValue={dateFrom} required />
-            <input type="date" name="dateTo" defaultValue={dateTo} required />
-            <button type="submit">הפק דוח עסקאות</button>
-          </form>
+          <PaymentFilterFormClient
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            connections={activeConnections}
+            selectedConnectionIds={selectedConnectionIds}
+          />
         )}
       </section>
 
@@ -90,6 +99,7 @@ export default async function PaymentsPage({ searchParams }) {
             transactions={dashboard.transactions}
             connections={dashboard.connections}
             providerOptions={activeProviders}
+            initialSelectedConnectionIds={selectedConnectionIds}
           />
         </>
       ) : activeConnections.length ? (
