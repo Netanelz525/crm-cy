@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/event-reminders",
       "schedule": "15 19 * * 4"
+    },
+    {
+      "path": "/api/cron/automation-recovery",
+      "schedule": "20 19 * * 4"
     }
   ]
 }
