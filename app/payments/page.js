@@ -154,9 +154,14 @@ export default async function PaymentsPage({ searchParams }) {
                         <th>תאריך</th>
                         <th>מקור</th>
                         <th>ספק</th>
+                        <th>שם</th>
+                        <th>מייל</th>
+                        <th>טלפון</th>
                         <th>סוג</th>
                         <th>סטטוס</th>
                         <th>אסמכתא</th>
+                        <th>קבלה</th>
+                        <th>עסקה</th>
                         <th>תיאור</th>
                         <th>ברוטו</th>
                         <th>נטו</th>
@@ -169,9 +174,14 @@ export default async function PaymentsPage({ searchParams }) {
                           <td>{formatDateTime(transaction.createdAt)}</td>
                           <td>{transaction.connectionLabel}</td>
                           <td>{transaction.providerLabel}</td>
+                          <td>{transaction.customerName || "-"}</td>
+                          <td>{transaction.email || "-"}</td>
+                          <td>{transaction.phone || "-"}</td>
                           <td>{transaction.type || "-"}</td>
                           <td>{transaction.status || "-"}</td>
                           <td>{transaction.reference || "-"}</td>
+                          <td>{transaction.receiptNumber || "-"}</td>
+                          <td>{transaction.transactionNumber || "-"}</td>
                           <td>{transaction.description || transaction.customerName || "-"}</td>
                           <td>{formatMoney(transaction.amount, transaction.currency)}</td>
                           <td>{formatMoney(transaction.netAmount, transaction.currency)}</td>
@@ -189,9 +199,14 @@ export default async function PaymentsPage({ searchParams }) {
                       <div className="generic-mobile-grid">
                         <div><b>תאריך:</b> {formatDateTime(transaction.createdAt)}</div>
                         <div><b>ספק:</b> {transaction.providerLabel}</div>
+                        <div><b>שם:</b> {transaction.customerName || "-"}</div>
+                        <div><b>מייל:</b> {transaction.email || "-"}</div>
+                        <div><b>טלפון:</b> {transaction.phone || "-"}</div>
                         <div><b>סוג:</b> {transaction.type || "-"}</div>
                         <div><b>סטטוס:</b> {transaction.status || "-"}</div>
                         <div><b>אסמכתא:</b> {transaction.reference || "-"}</div>
+                        <div><b>קבלה:</b> {transaction.receiptNumber || "-"}</div>
+                        <div><b>עסקה:</b> {transaction.transactionNumber || "-"}</div>
                         <div><b>תיאור:</b> {transaction.description || transaction.customerName || "-"}</div>
                         <div><b>ברוטו:</b> {formatMoney(transaction.amount, transaction.currency)}</div>
                         <div><b>נטו:</b> {formatMoney(transaction.netAmount, transaction.currency)}</div>
