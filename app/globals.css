@@ -75,6 +75,64 @@ a {
   gap: 12px;
 }
 
+.payments-report-list {
+  display: grid;
+  gap: 12px;
+}
+
+.payments-report-item {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fbfdff;
+  overflow: hidden;
+}
+
+.payments-report-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.payments-report-summary::-webkit-details-marker {
+  display: none;
+}
+
+.payments-report-summary-main {
+  display: grid;
+  gap: 4px;
+}
+
+.payments-report-summary-main span {
+  color: var(--muted);
+}
+
+.payments-report-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.payments-report-body {
+  border-top: 1px solid var(--line);
+  padding: 14px 16px 16px;
+  background: #fff;
+}
+
+.payments-report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 14px;
+}
+
+.payments-report-grid-wide {
+  grid-column: 1 / -1;
+}
+
 .chip-link {
   display: inline-flex;
   align-items: center;

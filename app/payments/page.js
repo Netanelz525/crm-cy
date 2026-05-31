@@ -32,6 +32,30 @@ function formatDateTime(value) {
   return date.toLocaleString("he-IL");
 }
 
+function sortTransactions(items, sortBy, sortDir) {
+  const direction = sortDir === "asc" ? 1 : -1;
+  return [...items].sort((left, right) => {
+    let leftValue = "";
+    let rightValue = "";
+
+    if (sortBy === "amount") {
+      leftValue = Number(left?.amount) || 0;
+      rightValue = Number(right?.amount) || 0;
+      return (leftValue - rightValue) * direction;
+    }
+
+    if (sortBy === "source") {
+      leftValue = `${clean(left?.providerLabel)} ${clean(left?.connectionLabel)}`.toLowerCase();
+      rightValue = `${clean(right?.providerLabel)} ${clean(right?.connectionLabel)}`.toLowerCase();
+      return leftValue.localeCompare(rightValue, "he") * direction;
+    }
+
+    leftValue = Number(left?.createdAtUnix) || 0;
+    rightValue = Number(right?.createdAtUnix) || 0;
+    return (leftValue - rightValue) * direction;
+  });
+}
+
 export default async function PaymentsPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
@@ -43,17 +67,29 @@ export default async function PaymentsPage({ searchParams }) {
   const defaults = getDefaultPaymentDateRange();
   const dateFrom = clean(resolvedSearchParams?.dateFrom) || defaults.dateFrom;
   const dateTo = clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
+  const providerFilters = []
+    .concat(resolvedSearchParams?.provider || [])
+    .map(clean)
+    .filter(Boolean);
   const requestedIds = []
     .concat(resolvedSearchParams?.connectionId || [])
     .map(clean)
     .filter(Boolean);
+  const sortBy = clean(resolvedSearchParams?.sortBy) || "date";
+  const sortDir = clean(resolvedSearchParams?.sortDir) || "desc";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
+  const activeProviders = [...new Set(activeConnections.map((connection) => connection.provider))];
+  const selectedProviders = providerFilters.length ? providerFilters : activeProviders;
+  const visibleConnections = activeConnections.filter((connection) => selectedProviders.includes(connection.provider));
   const dashboard = await getPaymentDashboard({
-    connectionIds: requestedIds,
+    connectionIds: requestedIds.length
+      ? requestedIds
+      : visibleConnections.map((connection) => connection.id),
     dateFrom,
     dateTo
   });
-  const selectedIds = requestedIds.length ? requestedIds : activeConnections.map((connection) => connection.id);
+  const selectedIds = requestedIds.length ? requestedIds : visibleConnections.map((connection) => connection.id);
+  const transactions = sortTransactions(dashboard.transactions, sortBy, sortDir);
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -82,19 +118,48 @@ export default async function PaymentsPage({ searchParams }) {
           <form method="get" className="grid">
             <input type="date" name="dateFrom" defaultValue={dateFrom} required />
             <input type="date" name="dateTo" defaultValue={dateTo} required />
-            <div className="email-filter-chip-list">
-              {activeConnections.map((connection) => (
-                <label key={connection.id} className="email-filter-chip">
-                  <input
-                    className="email-filter-chip-input"
-                    type="checkbox"
-                    name="connectionId"
-                    value={connection.id}
-                    defaultChecked={selectedIds.includes(connection.id)}
-                  />
-                  <span>{connection.label} | {getPaymentProviderLabel(connection.provider)}</span>
-                </label>
-              ))}
+            <select name="sortBy" defaultValue={sortBy}>
+              <option value="date">מיון לפי תאריך</option>
+              <option value="amount">מיון לפי סכום</option>
+              <option value="source">מיון לפי מקור תשלום</option>
+            </select>
+            <select name="sortDir" defaultValue={sortDir}>
+              <option value="desc">מהחדש לישן / מהגבוה לנמוך</option>
+              <option value="asc">מהישן לחדש / מהנמוך לגבוה</option>
+            </select>
+            <div>
+              <div className="muted" style={{ marginBottom: 8 }}>ספקי תשלום</div>
+              <div className="email-filter-chip-list">
+                {activeProviders.map((provider) => (
+                  <label key={provider} className="email-filter-chip">
+                    <input
+                      className="email-filter-chip-input"
+                      type="checkbox"
+                      name="provider"
+                      value={provider}
+                      defaultChecked={selectedProviders.includes(provider)}
+                    />
+                    <span>{getPaymentProviderLabel(provider)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div className="muted" style={{ marginBottom: 8 }}>מקורות תשלום</div>
+              <div className="email-filter-chip-list">
+                {visibleConnections.map((connection) => (
+                  <label key={connection.id} className="email-filter-chip">
+                    <input
+                      className="email-filter-chip-input"
+                      type="checkbox"
+                      name="connectionId"
+                      value={connection.id}
+                      defaultChecked={selectedIds.includes(connection.id)}
+                    />
+                    <span>{connection.label} | {getPaymentProviderLabel(connection.provider)}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             <button type="submit">רענן דוח עסקאות</button>
           </form>
@@ -107,11 +172,11 @@ export default async function PaymentsPage({ searchParams }) {
             <div className="summary-row">
               <div>
                 <div className="muted">מקורות פעילים</div>
-                <strong>{dashboard.summary.sourcesCount}</strong>
+                <strong>{dashboard.connections.length}</strong>
               </div>
               <div>
                 <div className="muted">עסקאות</div>
-                <strong>{dashboard.summary.transactionsCount}</strong>
+                <strong>{transactions.length}</strong>
               </div>
               <div>
                 <div className="muted">סכום כולל</div>
@@ -143,62 +208,25 @@ export default async function PaymentsPage({ searchParams }) {
 
           <section className="card">
             <h2 style={{ marginTop: 0 }}>דוח עסקאות</h2>
-            {!dashboard.transactions.length ? (
+            {!transactions.length ? (
               <div className="muted">לא נמצאו עסקאות בטווח התאריכים שנבחר.</div>
             ) : (
-              <>
-                <div className="desktop-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>תאריך</th>
-                        <th>מקור</th>
-                        <th>ספק</th>
-                        <th>שם</th>
-                        <th>מייל</th>
-                        <th>טלפון</th>
-                        <th>סוג</th>
-                        <th>סטטוס</th>
-                        <th>אסמכתא</th>
-                        <th>קבלה</th>
-                        <th>עסקה</th>
-                        <th>תיאור</th>
-                        <th>ברוטו</th>
-                        <th>נטו</th>
-                        <th>עמלה</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboard.transactions.map((transaction) => (
-                        <tr key={`${transaction.provider}-${transaction.id}-${transaction.reference}`}>
-                          <td>{formatDateTime(transaction.createdAt)}</td>
-                          <td>{transaction.connectionLabel}</td>
-                          <td>{transaction.providerLabel}</td>
-                          <td>{transaction.customerName || "-"}</td>
-                          <td>{transaction.email || "-"}</td>
-                          <td>{transaction.phone || "-"}</td>
-                          <td>{transaction.type || "-"}</td>
-                          <td>{transaction.status || "-"}</td>
-                          <td>{transaction.reference || "-"}</td>
-                          <td>{transaction.receiptNumber || "-"}</td>
-                          <td>{transaction.transactionNumber || "-"}</td>
-                          <td>{transaction.description || transaction.customerName || "-"}</td>
-                          <td>{formatMoney(transaction.amount, transaction.currency)}</td>
-                          <td>{formatMoney(transaction.netAmount, transaction.currency)}</td>
-                          <td>{formatMoney(transaction.feeAmount, transaction.currency)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="mobile-generic-list">
-                  {dashboard.transactions.map((transaction) => (
-                    <div key={`${transaction.provider}-${transaction.id}-${transaction.reference}-mobile`} className="generic-mobile-card">
-                      <div className="generic-mobile-head">{transaction.connectionLabel}</div>
-                      <div className="generic-mobile-grid">
-                        <div><b>תאריך:</b> {formatDateTime(transaction.createdAt)}</div>
-                        <div><b>ספק:</b> {transaction.providerLabel}</div>
+              <div className="payments-report-list">
+                {transactions.map((transaction) => (
+                  <details key={`${transaction.provider}-${transaction.id}-${transaction.reference}`} className="payments-report-item">
+                    <summary className="payments-report-summary">
+                      <div className="payments-report-summary-main">
+                        <strong>{formatDateTime(transaction.createdAt)}</strong>
+                        <span>{transaction.customerName || "ללא שם"}</span>
+                      </div>
+                      <div className="payments-report-summary-meta">
+                        <span className="meta-chip">{transaction.connectionLabel}</span>
+                        <span className="meta-chip">{transaction.providerLabel}</span>
+                        <strong>{formatMoney(transaction.amount, transaction.currency)}</strong>
+                      </div>
+                    </summary>
+                    <div className="payments-report-body">
+                      <div className="payments-report-grid">
                         <div><b>שם:</b> {transaction.customerName || "-"}</div>
                         <div><b>מייל:</b> {transaction.email || "-"}</div>
                         <div><b>טלפון:</b> {transaction.phone || "-"}</div>
@@ -207,15 +235,19 @@ export default async function PaymentsPage({ searchParams }) {
                         <div><b>אסמכתא:</b> {transaction.reference || "-"}</div>
                         <div><b>קבלה:</b> {transaction.receiptNumber || "-"}</div>
                         <div><b>עסקה:</b> {transaction.transactionNumber || "-"}</div>
-                        <div><b>תיאור:</b> {transaction.description || transaction.customerName || "-"}</div>
+                        <div><b>הו&quot;ק:</b> {transaction.directDebitNumber || "-"}</div>
+                        <div><b>ספק סולק:</b> {transaction.clearingCompany || "-"}</div>
+                        <div><b>מותג:</b> {transaction.brand || "-"}</div>
+                        <div><b>מקור:</b> {transaction.connectionLabel}</div>
+                        <div className="payments-report-grid-wide"><b>תיאור:</b> {transaction.description || "-"}</div>
                         <div><b>ברוטו:</b> {formatMoney(transaction.amount, transaction.currency)}</div>
                         <div><b>נטו:</b> {formatMoney(transaction.netAmount, transaction.currency)}</div>
                         <div><b>עמלה:</b> {formatMoney(transaction.feeAmount, transaction.currency)}</div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </>
+                  </details>
+                ))}
+              </div>
             )}
           </section>
         </>
