@@ -46,12 +46,15 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
 
   useEffect(() => {
     setRows(students);
+    rowsRef.current = students;
+  }, [students]);
+
+  useEffect(() => {
     setSelectedFilters(activeStatusFilters);
     setQuery("");
-    rowsRef.current = students;
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
-  }, [students, sessionId, activeStatusFilters]);
+  }, [sessionId, activeStatusFilters]);
 
   useEffect(() => {
     rowsRef.current = rows;

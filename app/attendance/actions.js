@@ -15,13 +15,14 @@ function cleanList(values) {
 
 export async function createAttendanceSessionAction(formData) {
   const user = await requireAttendanceUser();
+  const canUseSessionAudienceFilters = user.is_manager || user.is_super_admin;
   const institution = clean(formData.get("institution"));
   const sessionType = clean(formData.get("sessionType"));
   const sessionDate = clean(formData.get("sessionDate"));
   const sourceNote = clean(formData.get("sourceNote"));
-  const classFilter = user.is_super_admin ? cleanList(formData.getAll("classFilter")) : [];
-  const registrationFilter = user.is_super_admin ? cleanList(formData.getAll("registrationFilter")) : [];
-  const familyStatusFilter = user.is_super_admin ? cleanList(formData.getAll("familyStatusFilter")) : [];
+  const classFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("classFilter")) : [];
+  const registrationFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("registrationFilter")) : [];
+  const familyStatusFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("familyStatusFilter")) : [];
 
   const session = await createAttendanceSession({
     id: crypto.randomUUID(),

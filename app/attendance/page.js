@@ -155,6 +155,7 @@ export default async function AttendancePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
   if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
+  const canUseSessionAudienceFilters = currentUser.is_manager || currentUser.is_super_admin;
 
   const resolvedSearchParams = await searchParams;
   const created = clean(resolvedSearchParams?.created) === "1";
@@ -320,11 +321,11 @@ export default async function AttendancePage({ searchParams }) {
             </select>
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
-            {currentUser.is_super_admin ? (
+            {canUseSessionAudienceFilters ? (
               <>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <div className="muted" style={{ marginBottom: 10 }}>
-                    לסופר אדמין אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד.
+                    אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד.
                   </div>
                   <div className="email-form-grid">
                     <FilterCheckboxFieldset legend="שיעורים" name="classFilter" options={classOptions} />
