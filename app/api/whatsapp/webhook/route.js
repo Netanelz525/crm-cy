@@ -521,6 +521,9 @@ export async function POST(request) {
       textPreview: text,
       payload: body
     });
+    if (inboundEvent?.duplicate) {
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
     inboundEventId = inboundEvent.id;
     if (!waId) {
       return NextResponse.json({ ok: true });
