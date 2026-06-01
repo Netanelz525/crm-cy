@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb, sql } from "../../../../../../lib/db";
+import { buildPaymentReportUrls } from "../../../../../../lib/payment-report";
 
 function clean(value) {
   return String(value || "").trim();
@@ -23,11 +24,14 @@ export async function GET(request, { params }) {
     LIMIT 1
   `;
   const metadata = rows[0]?.metadata || {};
+  const paymentUrls = metadata?.paymentReportConfig
+    ? buildPaymentReportUrls(metadata.paymentReportConfig)
+    : null;
   const target = kind === "view"
-    ? clean(metadata.viewUrl)
+    ? clean(paymentUrls?.viewUrl || metadata.viewUrl)
     : kind === "xlsx"
-      ? clean(metadata.exportUrl)
-      : clean(metadata.pdfUrl);
+      ? clean(paymentUrls?.exportUrl || metadata.exportUrl)
+      : clean(paymentUrls?.pdfUrl || metadata.pdfUrl);
 
   if (!target) {
     return NextResponse.redirect(new URL("/", origin));

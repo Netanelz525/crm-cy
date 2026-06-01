@@ -5,6 +5,7 @@ import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessag
 import { createAiChatMessage, getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
+import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { INSTITUTION_COLUMN_MAP, INSTITUTION_COLUMNS_FULL } from "../../../../lib/student-view";
@@ -321,7 +322,8 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
     ]);
   }
 
-  const absoluteViewUrl = toAbsoluteUrl(viewUrl);
+  const paymentViewUrl = isPaymentReport && messageId ? buildAiLinkPath(messageId, "view") : viewUrl;
+  const absoluteViewUrl = toAbsoluteUrl(paymentViewUrl);
   if (absoluteViewUrl) {
     inlineKeyboard.push([{ text: "פתח תצוגה מלאה", url: absoluteViewUrl }]);
   }
@@ -433,15 +435,21 @@ function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevel
 
 async function sendInstitutionAttachment(chatId, type, messageRecord) {
   if (isPaymentReportMessage(messageRecord)) {
-    if (type === "xlsx" && messageRecord?.exportUrl) {
-      const excelFile = await buildPaymentReportExcelExport(messageRecord.exportUrl);
+    const paymentUrls = messageRecord?.paymentReportConfig
+      ? buildPaymentReportUrls(messageRecord.paymentReportConfig)
+      : {
+          exportUrl: messageRecord?.exportUrl || "",
+          pdfUrl: messageRecord?.pdfUrl || ""
+        };
+    if (type === "xlsx" && paymentUrls.exportUrl) {
+      const excelFile = await buildPaymentReportExcelExport(paymentUrls.exportUrl);
       await sendTelegramDocumentFile(chatId, excelFile, {
         caption: "קובץ אקסל של דוח התרומות מוכן."
       });
       return;
     }
-    if (type === "pdf" && messageRecord?.pdfUrl) {
-      const pdfFile = await buildPaymentReportPdfExport(messageRecord.pdfUrl);
+    if (type === "pdf" && paymentUrls.pdfUrl) {
+      const pdfFile = await buildPaymentReportPdfExport(paymentUrls.pdfUrl);
       await sendTelegramDocumentFile(chatId, pdfFile, {
         caption: "קובץ PDF של דוח התרומות מוכן."
       });

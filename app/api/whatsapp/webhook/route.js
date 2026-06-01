@@ -5,6 +5,7 @@ import { getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportC
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
+import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
@@ -251,14 +252,20 @@ function isPaymentReportMessage(messageRecord) {
 
 async function sendInstitutionAttachments(waId, messageRecord) {
   if (isPaymentReportMessage(messageRecord)) {
-    if (messageRecord?.exportUrl) {
-      const excelFile = await buildPaymentReportExcelExport(messageRecord.exportUrl);
+    const paymentUrls = messageRecord?.paymentReportConfig
+      ? buildPaymentReportUrls(messageRecord.paymentReportConfig)
+      : {
+          exportUrl: messageRecord?.exportUrl || "",
+          pdfUrl: messageRecord?.pdfUrl || ""
+        };
+    if (paymentUrls.exportUrl) {
+      const excelFile = await buildPaymentReportExcelExport(paymentUrls.exportUrl);
       await sendWhatsAppDocumentFile(waId, excelFile, {
         caption: "אקסל של דוח התרומות מוכן."
       });
     }
-    if (messageRecord?.pdfUrl) {
-      const pdfFile = await buildPaymentReportPdfExport(messageRecord.pdfUrl);
+    if (paymentUrls.pdfUrl) {
+      const pdfFile = await buildPaymentReportPdfExport(paymentUrls.pdfUrl);
       await sendWhatsAppDocumentFile(waId, pdfFile, {
         caption: "PDF של דוח התרומות מוכן."
       });
