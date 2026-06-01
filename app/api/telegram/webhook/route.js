@@ -190,8 +190,22 @@ async function refreshTelegramPaymentReport({ chatId, callback, user, messageRec
       paymentReportConfig: result.paymentReportConfig
     }
   });
-  await sendTelegramMessage(chatId, result.reply, { replyMarkup: keyboard });
+  await sendTelegramMessage(chatId, result.reply, { replyMarkup: keyboard })
+    .catch(async () => {
+      await sendTelegramMessage(chatId, result.reply);
+    });
   await answerTelegramCallbackQuery(callback.id, "הדוח עודכן.");
+}
+
+async function sendTelegramMessageWithFallback(chatId, text, options = {}) {
+  try {
+    return await sendTelegramMessage(chatId, text, options);
+  } catch (error) {
+    if (options?.replyMarkup) {
+      return sendTelegramMessage(chatId, text);
+    }
+    throw error;
+  }
 }
 
 function buildTelegramStudentCardsText(studentCards = []) {
@@ -946,7 +960,7 @@ export async function POST(request) {
               exportColumns: messageRecord.exportColumns || [],
               includeFeedback: false
             });
-          await sendTelegramMessage(chatId, fullChunks[index], {
+          await sendTelegramMessageWithFallback(chatId, fullChunks[index], {
             replyMarkup: index === fullChunks.length - 1 ? finalReplyMarkup : undefined
           });
         }
@@ -988,7 +1002,7 @@ export async function POST(request) {
           sortLevels: result.sortLevels || [],
           includeFeedback: false
         });
-      await sendTelegramMessage(chatId, result.reply, {
+      await sendTelegramMessageWithFallback(chatId, result.reply, {
         replyMarkup: approvalReplyMarkup
       });
       return NextResponse.json({ ok: true });
@@ -1069,7 +1083,7 @@ export async function POST(request) {
         sortLevels: result.sortLevels || [],
         hasMore: collapsedReply.hasMore
       });
-    await sendTelegramMessage(chatId, replyText, { replyMarkup });
+    await sendTelegramMessageWithFallback(chatId, replyText, { replyMarkup });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
