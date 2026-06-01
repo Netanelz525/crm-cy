@@ -349,7 +349,12 @@ async function refreshAndSendPaymentReport(waId, user, messageRecord, updateConf
   await setAiChatMessageReportConfig({
     messageId: messageRecord.id,
     clerkUserId: user.clerk_user_id,
-    paymentReportConfig: result.paymentReportConfig
+    paymentReportConfig: result.paymentReportConfig,
+    exportUrl: result.exportUrl,
+    pdfUrl: result.pdfUrl,
+    viewUrl: result.viewUrl,
+    searchSummary: result.searchSummary,
+    paymentSummary: result.paymentSummary
   });
   await sendWhatsAppTextMessages(waId, buildReplyText(result));
   const refreshedRecord = {

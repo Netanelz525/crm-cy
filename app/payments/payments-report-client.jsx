@@ -25,6 +25,11 @@ function formatMoney(amount, currency = "ILS") {
   }
 }
 
+function formatOptionalMoney(amount, currency = "ILS") {
+  if (amount == null || amount === "") return "-";
+  return formatMoney(amount, currency);
+}
+
 function formatDateTime(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -74,6 +79,22 @@ export default function PaymentsReportClient({
   const summary = useMemo(
     () => summarizePaymentTransactions(visibleTransactions),
     [visibleTransactions]
+  );
+
+  const sourceSummaries = useMemo(
+    () => visibleConnections
+      .map((connection) => {
+        const items = visibleTransactions.filter((transaction) => transaction.connectionId === connection.id);
+        const itemSummary = summarizePaymentTransactions(items);
+        return {
+          id: connection.id,
+          label: connection.label,
+          count: items.length,
+          totalAmount: itemSummary.totalAmount
+        };
+      })
+      .filter((item) => item.count > 0),
+    [visibleConnections, visibleTransactions]
   );
 
   const exportQuery = useMemo(
@@ -129,6 +150,18 @@ export default function PaymentsReportClient({
             <strong>{formatMoney(summary.totalFees, "ILS")}</strong>
           </div>
         </div>
+        {sourceSummaries.length ? (
+          <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+            <div className="muted">סיכום לפי מקור תשלום</div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {sourceSummaries.map((item) => (
+                <div key={item.id} className="card" style={{ padding: 12 }}>
+                  <b>{item.label}</b>: {item.count} עסקאות | {formatMoney(item.totalAmount, "ILS")}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="card">
@@ -230,8 +263,8 @@ export default function PaymentsReportClient({
                     <div><b>תאריך שער:</b> {transaction.fxRateDate || "-"}</div>
                     <div className="payments-report-grid-wide"><b>תיאור:</b> {transaction.description || "-"}</div>
                     <div><b>ברוטו מקורי:</b> {formatMoney(transaction.originalAmount ?? transaction.amount, transaction.originalCurrency || transaction.currency)}</div>
-                    <div><b>נטו מקורי:</b> {formatMoney(transaction.originalNetAmount ?? transaction.netAmount, transaction.originalCurrency || transaction.currency)}</div>
-                    <div><b>עמלה מקורית:</b> {formatMoney(transaction.originalFeeAmount ?? transaction.feeAmount, transaction.originalCurrency || transaction.currency)}</div>
+                    <div><b>נטו מקורי:</b> {formatOptionalMoney(transaction.originalNetAmount, transaction.originalCurrency || transaction.currency)}</div>
+                    <div><b>עמלה מקורית:</b> {formatOptionalMoney(transaction.originalFeeAmount, transaction.originalCurrency || transaction.currency)}</div>
                     <div><b>ברוטו בש&quot;ח:</b> {formatMoney(transaction.amountIls ?? transaction.amount, "ILS")}</div>
                     <div><b>נטו בש&quot;ח:</b> {formatMoney(transaction.netAmountIls ?? transaction.netAmount, "ILS")}</div>
                     <div><b>עמלה בש&quot;ח:</b> {formatMoney(transaction.feeAmountIls ?? transaction.feeAmount, "ILS")}</div>

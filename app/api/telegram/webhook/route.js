@@ -174,7 +174,12 @@ async function refreshTelegramPaymentReport({ chatId, callback, user, messageRec
   await setAiChatMessageReportConfig({
     messageId: messageRecord.id,
     clerkUserId: user.clerk_user_id,
-    paymentReportConfig: result.paymentReportConfig
+    paymentReportConfig: result.paymentReportConfig,
+    exportUrl: result.exportUrl,
+    pdfUrl: result.pdfUrl,
+    viewUrl: result.viewUrl,
+    searchSummary: result.searchSummary,
+    paymentSummary: result.paymentSummary
   });
   const keyboard = await buildTelegramPaymentKeyboard({
     messageId: messageRecord.id,
