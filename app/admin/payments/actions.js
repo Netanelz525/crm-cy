@@ -94,13 +94,19 @@ export async function deletePaymentConnectionAction(formData) {
   redirect("/admin/payments?deleted=1");
 }
 
-export async function testPaymentConnectionAction(formData) {
+export async function testPaymentConnectionAction(_prevState, formData) {
   await requireSuperAdmin();
-  const connectionId = clean(formData.get("connectionId"));
+  const connectionId = clean(formData?.get?.("connectionId"));
   try {
     const result = await testPaymentConnection({ id: connectionId });
-    redirect(`/admin/payments?tested=1&message=${encodeURIComponent(result.message)}`);
+    return {
+      ok: true,
+      message: result.message || "בדיקת החיבור הצליחה."
+    };
   } catch (error) {
-    redirect(`/admin/payments?error=${encodeURIComponent(error?.message || "בדיקת החיבור נכשלה")}`);
+    return {
+      ok: false,
+      message: error?.message || "בדיקת החיבור נכשלה"
+    };
   }
 }

@@ -181,7 +181,7 @@ async function buildTelegramPaymentKeyboard({ messageId, messageRecord, hasMore 
   return { inline_keyboard: keyboard };
 }
 
-async function refreshTelegramPaymentReport({ chatId, callback, user, messageRecord, updateConfig = {} }) {
+async function refreshTelegramPaymentReport({ chatId, user, messageRecord, updateConfig = {} }) {
   const nextConfig = {
     ...(messageRecord?.paymentReportConfig || {}),
     ...updateConfig
@@ -217,7 +217,6 @@ async function refreshTelegramPaymentReport({ chatId, callback, user, messageRec
     .catch(async () => {
       await sendTelegramMessage(chatId, replyText);
     });
-  await answerTelegramCallbackQuery(callback.id, "הדוח עודכן.");
 }
 
 async function sendTelegramMessageWithFallback(chatId, text, options = {}) {
@@ -726,13 +725,17 @@ export async function POST(request) {
           await answerTelegramCallbackQuery(callback.id, "לא מצאתי דוח תשלומים.");
           return NextResponse.json({ ok: true });
         }
-        await refreshTelegramPaymentReport({
-          chatId,
-          callback,
-          user,
-          messageRecord,
-          updateConfig: { sortBy, sortDir: "desc" }
-        });
+        await answerTelegramCallbackQuery(callback.id, sortBy === "amount" ? "מעדכן למיון לפי סכום" : "מעדכן למיון לפי תאריך");
+        try {
+          await refreshTelegramPaymentReport({
+            chatId,
+            user,
+            messageRecord,
+            updateConfig: { sortBy, sortDir: "desc" }
+          });
+        } catch (error) {
+          await sendTelegramMessage(chatId, error?.message || "עדכון הדוח נכשל.");
+        }
         return NextResponse.json({ ok: true });
       }
 
@@ -762,13 +765,17 @@ export async function POST(request) {
           : (currentIds.includes(resolvedTarget)
             ? currentIds.filter((id) => id !== resolvedTarget)
             : [...currentIds, resolvedTarget]);
-        await refreshTelegramPaymentReport({
-          chatId,
-          callback,
-          user,
-          messageRecord,
-          updateConfig: { connectionIds: nextIds.length ? nextIds : allIds }
-        });
+        await answerTelegramCallbackQuery(callback.id, "מעדכן את מקורות התשלום");
+        try {
+          await refreshTelegramPaymentReport({
+            chatId,
+            user,
+            messageRecord,
+            updateConfig: { connectionIds: nextIds.length ? nextIds : allIds }
+          });
+        } catch (error) {
+          await sendTelegramMessage(chatId, error?.message || "עדכון הדוח נכשל.");
+        }
         return NextResponse.json({ ok: true });
       }
 

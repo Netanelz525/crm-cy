@@ -1,13 +1,10 @@
 import Link from "next/link";
 import { listPaymentConnections, getPaymentProviderLabel } from "../../../lib/payment-systems";
 import { requireSuperAdmin } from "../../../lib/rbac";
+import PaymentConnectionActions from "./payment-connection-actions";
 import {
   createNedarimConnectionAction,
-  createStripeConnectionAction,
-  deletePaymentConnectionAction,
-  testPaymentConnectionAction,
-  updatePaymentConnectionAction,
-  togglePaymentConnectionAction
+  createStripeConnectionAction
 } from "./actions";
 
 function clean(value) {
@@ -28,10 +25,8 @@ export default async function AdminPaymentsPage({ searchParams }) {
   const created = clean(resolvedSearchParams?.created) === "1";
   const updated = clean(resolvedSearchParams?.updated) === "1";
   const deleted = clean(resolvedSearchParams?.deleted) === "1";
-  const tested = clean(resolvedSearchParams?.tested) === "1";
   const statusChanged = clean(resolvedSearchParams?.statusChanged);
   const error = clean(resolvedSearchParams?.error);
-  const message = clean(resolvedSearchParams?.message);
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -49,7 +44,6 @@ export default async function AdminPaymentsPage({ searchParams }) {
       {created ? <div className="ok">החיבור נשמר בהצלחה.</div> : null}
       {updated ? <div className="ok">פרטי החיבור עודכנו בהצלחה.</div> : null}
       {deleted ? <div className="ok">החיבור נמחק לחלוטין מהמערכת.</div> : null}
-      {tested ? <div className="ok">{message || "בדיקת החיבור הצליחה."}</div> : null}
       {statusChanged !== "" ? <div className="ok">{statusChanged === "1" ? "החיבור הופעל." : "החיבור הושבת."}</div> : null}
       {error ? <div className="card muted">{error}</div> : null}
 
@@ -102,38 +96,7 @@ export default async function AdminPaymentsPage({ searchParams }) {
                       <td>{connection.is_active ? "פעיל" : "מושבת"}</td>
                       <td>{formatDateTime(connection.updated_at)}</td>
                       <td>
-                        <div style={{ display: "grid", gap: 8 }}>
-                          <form action={updatePaymentConnectionAction} className="grid" style={{ gap: 8 }}>
-                            <input type="hidden" name="connectionId" value={connection.id} />
-                            <input name="label" defaultValue={connection.label} placeholder="שם חיבור" required />
-                            <input
-                              name="externalId"
-                              defaultValue={connection.external_id}
-                              placeholder={connection.provider === "nederim" ? "MosadNumber / מזהה מוסד" : "מזהה אופציונלי / תיאור"}
-                            />
-                            <input
-                              name="secret"
-                              type="password"
-                              placeholder={connection.provider === "nederim" ? "ApiPassword חדש אם השתנה" : "Stripe Secret Key חדש אם השתנה"}
-                            />
-                            <button type="submit">עדכן חיבור</button>
-                          </form>
-                          <div className="quick-actions" style={{ marginTop: 0 }}>
-                            <form action={testPaymentConnectionAction}>
-                              <input type="hidden" name="connectionId" value={connection.id} />
-                              <button type="submit" className="quick-action-btn quick-action-outline">בדוק חיבור</button>
-                            </form>
-                            <form action={togglePaymentConnectionAction}>
-                              <input type="hidden" name="connectionId" value={connection.id} />
-                              <input type="hidden" name="active" value={connection.is_active ? "0" : "1"} />
-                              <button type="submit" className="quick-action-btn quick-action-outline">{connection.is_active ? "השבת חיבור" : "הפעל חיבור"}</button>
-                            </form>
-                            <form action={deletePaymentConnectionAction}>
-                              <input type="hidden" name="connectionId" value={connection.id} />
-                              <button type="submit" className="quick-action-btn" style={{ background: "#991b1b" }}>מחק חיבור</button>
-                            </form>
-                          </div>
-                        </div>
+                        <PaymentConnectionActions connection={connection} />
                       </td>
                     </tr>
                   ))}
@@ -151,36 +114,7 @@ export default async function AdminPaymentsPage({ searchParams }) {
                     <div><b>סטטוס:</b> {connection.is_active ? "פעיל" : "מושבת"}</div>
                     <div><b>עודכן:</b> {formatDateTime(connection.updated_at)}</div>
                   </div>
-                  <form action={updatePaymentConnectionAction} className="grid" style={{ gap: 8 }}>
-                    <input type="hidden" name="connectionId" value={connection.id} />
-                    <input name="label" defaultValue={connection.label} placeholder="שם חיבור" required />
-                    <input
-                      name="externalId"
-                      defaultValue={connection.external_id}
-                      placeholder={connection.provider === "nederim" ? "MosadNumber / מזהה מוסד" : "מזהה אופציונלי / תיאור"}
-                    />
-                    <input
-                      name="secret"
-                      type="password"
-                      placeholder={connection.provider === "nederim" ? "ApiPassword חדש אם השתנה" : "Stripe Secret Key חדש אם השתנה"}
-                    />
-                    <button type="submit">עדכן חיבור</button>
-                  </form>
-                  <div className="quick-actions" style={{ marginTop: 12 }}>
-                    <form action={testPaymentConnectionAction}>
-                      <input type="hidden" name="connectionId" value={connection.id} />
-                      <button type="submit" className="quick-action-btn quick-action-outline">בדוק חיבור</button>
-                    </form>
-                    <form action={togglePaymentConnectionAction}>
-                      <input type="hidden" name="connectionId" value={connection.id} />
-                      <input type="hidden" name="active" value={connection.is_active ? "0" : "1"} />
-                      <button type="submit" className="quick-action-btn quick-action-outline">{connection.is_active ? "השבת חיבור" : "הפעל חיבור"}</button>
-                    </form>
-                    <form action={deletePaymentConnectionAction}>
-                      <input type="hidden" name="connectionId" value={connection.id} />
-                      <button type="submit" className="quick-action-btn" style={{ background: "#991b1b" }}>מחק חיבור</button>
-                    </form>
-                  </div>
+                  <PaymentConnectionActions connection={connection} />
                 </div>
               ))}
             </div>
