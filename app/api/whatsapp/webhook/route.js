@@ -69,6 +69,16 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function chunkArray(items, size) {
+  const chunkSize = Math.max(1, Number(size) || 1);
+  const source = Array.isArray(items) ? items : [];
+  const chunks = [];
+  for (let index = 0; index < source.length; index += chunkSize) {
+    chunks.push(source.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
 function safeEqualHex(left, right) {
   const a = Buffer.from(clean(left), "utf8");
   const b = Buffer.from(clean(right), "utf8");
@@ -322,27 +332,31 @@ async function sendWhatsAppPaymentSourcesMenu(waId, messageRecord) {
   const config = messageRecord?.paymentReportConfig || {};
   const currentIds = Array.isArray(config.connectionIds) ? config.connectionIds.map(clean).filter(Boolean) : [];
   const allConnections = Array.isArray(messageRecord?.paymentConnections) ? messageRecord.paymentConnections : [];
-  const rows = [
+  const sourceRows = allConnections.map((connection) => ({
+    id: `pay:source:${connection.id}:${messageRecord.id}`,
+    title: `${currentIds.includes(connection.id) ? "✓ " : ""}${connection.label}`.slice(0, 24),
+    description: "הוספה או הסרה של המקור"
+  }));
+  const sections = [
     {
-      id: `pay:source:all:${messageRecord.id}`,
-      title: currentIds.length === allConnections.length ? "כל המערכות ✓" : "כל המערכות",
-      description: "הפקה מכל מקורות התשלום"
+      title: "כל המערכות",
+      rows: [
+        {
+          id: `pay:source:all:${messageRecord.id}`,
+          title: currentIds.length === allConnections.length ? "כל המערכות ✓" : "כל המערכות",
+          description: "הפקה מכל מקורות התשלום"
+        }
+      ]
     },
-    ...allConnections.map((connection) => ({
-      id: `pay:source:${connection.id}:${messageRecord.id}`,
-      title: `${currentIds.includes(connection.id) ? "✓ " : ""}${connection.label}`.slice(0, 24),
-      description: "הוספה או הסרה של המקור"
+    ...chunkArray(sourceRows, 10).map((rows, index) => ({
+      title: `מקורות זמינים ${index + 1}`,
+      rows
     }))
   ];
   await sendWhatsAppListMessage(waId, {
     bodyText: "בחר מקור תשלום להוספה או להסרה מהדוח.",
     buttonText: "מקורות תשלום",
-    sections: [
-      {
-        title: "מקורות זמינים",
-        rows
-      }
-    ]
+    sections
   });
 }
 
