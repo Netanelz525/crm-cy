@@ -4,6 +4,7 @@ import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
@@ -161,6 +162,10 @@ function toAbsoluteUrl(path) {
   return `${baseUrl}${relativePath.startsWith("/") ? relativePath : `/${relativePath}`}`;
 }
 
+function buildAiLinkPath(messageId, kind) {
+  return `/api/ai/link/${clean(messageId)}/${clean(kind)}`;
+}
+
 function withRequiredColumns(columns = []) {
   const seen = new Set();
   const ordered = [];
@@ -206,7 +211,7 @@ function buildReplyText(result) {
 
   const hasStudentCards = Array.isArray(result?.studentCards) && result.studentCards.length > 0;
   const absoluteViewUrl = toAbsoluteUrl(result?.viewUrl);
-  if (absoluteViewUrl && !hasStudentCards) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
+  if (absoluteViewUrl && !hasStudentCards && !isPaymentReport) parts.push(`תצוגה מלאה במערכת:\n${absoluteViewUrl}`);
   if ((clean(result?.exportUrl) || clean(result?.pdfUrl)) && !isPaymentReport) {
     parts.push(`מיון דוח: ${sortLevels[0]?.sortBy === "class" ? "שיעור" : "שם משפחה"}`);
     parts.push(`עמודות: ${exportColumns.map((column) => INSTITUTION_COLUMN_MAP[column]?.label || column).join(", ")}`);
@@ -279,6 +284,83 @@ async function sendInstitutionAttachments(waId, messageRecord) {
   }
 }
 
+async function sendWhatsAppPaymentReportActions(waId, messageRecord) {
+  const config = messageRecord?.paymentReportConfig || {};
+  const sortBy = clean(config.sortBy) === "amount" ? "amount" : "date";
+  const actionRows = [
+    { id: `pay:view:${messageRecord.id}`, title: "צפייה במערכת", description: "פתיחת הדוח במסך מלא" },
+    { id: `xlsx:${messageRecord.id}`, title: "אקסל", description: "הורדת קובץ אקסל" },
+    { id: `pdf:${messageRecord.id}`, title: "PDF", description: "הורדת קובץ PDF" },
+    { id: `pay:sort:date:${messageRecord.id}`, title: sortBy === "date" ? "מיון: תאריך" : "מיין לפי תאריך", description: "מהחדש לישן כברירת מחדל" },
+    { id: `pay:sort:amount:${messageRecord.id}`, title: sortBy === "amount" ? "מיון: סכום" : "מיין לפי סכום", description: "מהגבוה לנמוך" },
+    { id: `pay:sources:${messageRecord.id}`, title: "בחירת מקורות", description: "כל המערכות או מקור מסוים" }
+  ];
+  await sendWhatsAppListMessage(waId, {
+    bodyText: "בחר פעולה לדוח התרומות.",
+    buttonText: "אפשרויות דוח",
+    sections: [
+      {
+        title: "דוח תרומות",
+        rows: actionRows
+      }
+    ]
+  });
+}
+
+async function sendWhatsAppPaymentSourcesMenu(waId, messageRecord) {
+  const config = messageRecord?.paymentReportConfig || {};
+  const currentIds = Array.isArray(config.connectionIds) ? config.connectionIds.map(clean).filter(Boolean) : [];
+  const allConnections = Array.isArray(messageRecord?.paymentConnections) ? messageRecord.paymentConnections : [];
+  const rows = [
+    {
+      id: `pay:source:all:${messageRecord.id}`,
+      title: currentIds.length === allConnections.length ? "כל המערכות ✓" : "כל המערכות",
+      description: "הפקה מכל מקורות התשלום"
+    },
+    ...allConnections.map((connection) => ({
+      id: `pay:source:${connection.id}:${messageRecord.id}`,
+      title: `${currentIds.includes(connection.id) ? "✓ " : ""}${connection.label}`.slice(0, 24),
+      description: "הוספה או הסרה של המקור"
+    }))
+  ];
+  await sendWhatsAppListMessage(waId, {
+    bodyText: "בחר מקור תשלום להוספה או להסרה מהדוח.",
+    buttonText: "מקורות תשלום",
+    sections: [
+      {
+        title: "מקורות זמינים",
+        rows
+      }
+    ]
+  });
+}
+
+async function refreshAndSendPaymentReport(waId, user, messageRecord, updateConfig = {}) {
+  const currentConfig = messageRecord?.paymentReportConfig || {};
+  const nextConfig = {
+    ...currentConfig,
+    ...updateConfig
+  };
+  const result = await buildPaymentReportAgentResultFromConfig({
+    user,
+    paymentReportConfig: nextConfig,
+    source: "whatsapp"
+  });
+  await setAiChatMessageReportConfig({
+    messageId: messageRecord.id,
+    clerkUserId: user.clerk_user_id,
+    paymentReportConfig: result.paymentReportConfig
+  });
+  await sendWhatsAppTextMessages(waId, buildReplyText(result));
+  const refreshedRecord = {
+    ...messageRecord,
+    ...result,
+    paymentReportConfig: result.paymentReportConfig
+  };
+  await sendWhatsAppPaymentReportActions(waId, refreshedRecord);
+  return refreshedRecord;
+}
+
 async function sendWhatsAppResult(waId, result) {
   const replyText = buildReplyText(result);
   if (replyText) {
@@ -299,13 +381,7 @@ async function sendWhatsAppResult(waId, result) {
   if (result?.id) {
     if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
       if (isPaymentReportMessage(result)) {
-        await sendWhatsAppReplyButtons(waId, {
-          bodyText: "אפשר להוריד את דוח התרומות ישירות מתוך השיחה.",
-          buttons: [
-            { id: `xlsx:${result.id}`, title: "אקסל" },
-            { id: `pdf:${result.id}`, title: "PDF" }
-          ]
-        });
+        await sendWhatsAppPaymentReportActions(waId, result);
       } else {
         await sendWhatsAppReplyButtons(waId, {
           bodyText: "אפשר להתאים את הדוח מתוך השיחה.",
@@ -525,6 +601,82 @@ export async function POST(request) {
           processingStatus: "report_columns_prompt",
           clerkUserId: link?.clerk_user_id || null,
           responseText: "נשלחה בחירת עמודות לדוח"
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("pay:view:")) {
+        const [, , messageId] = interactiveActionId.split(":");
+        await sendWhatsAppTextMessages(waId, toAbsoluteUrl(buildAiLinkPath(messageId, "view")));
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("pay:sources:")) {
+        const [, , messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isPaymentReportMessage(messageRecord)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי דוח תשלומים להתאמה.");
+          return NextResponse.json({ ok: true });
+        }
+        const { listPaymentConnections } = await import("../../../../lib/payment-systems");
+        const paymentConnections = await listPaymentConnections({ activeOnly: true });
+        await sendWhatsAppPaymentSourcesMenu(waId, {
+          ...messageRecord,
+          paymentConnections
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("pay:source:")) {
+        const parts = interactiveActionId.split(":");
+        const target = clean(parts[2]);
+        const messageId = clean(parts[3]);
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isPaymentReportMessage(messageRecord)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי דוח תשלומים להתאמה.");
+          return NextResponse.json({ ok: true });
+        }
+        const { listPaymentConnections } = await import("../../../../lib/payment-systems");
+        const paymentConnections = await listPaymentConnections({ activeOnly: true });
+        const allIds = paymentConnections.map((connection) => connection.id);
+        const currentIds = Array.isArray(messageRecord.paymentReportConfig?.connectionIds)
+          ? messageRecord.paymentReportConfig.connectionIds.map(clean).filter(Boolean)
+          : allIds;
+        const nextIds = target === "all"
+          ? allIds
+          : (currentIds.includes(target)
+            ? currentIds.filter((id) => id !== target)
+            : [...currentIds, target]);
+        const finalIds = nextIds.length ? nextIds : allIds;
+        const refreshed = await refreshAndSendPaymentReport(waId, user, messageRecord, {
+          connectionIds: finalIds
+        });
+        await sendWhatsAppPaymentSourcesMenu(waId, {
+          ...refreshed,
+          paymentConnections
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("pay:sort:")) {
+        const [, , sortBy, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isPaymentReportMessage(messageRecord)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי דוח תשלומים להתאמה.");
+          return NextResponse.json({ ok: true });
+        }
+        await refreshAndSendPaymentReport(waId, user, messageRecord, {
+          sortBy: clean(sortBy) === "amount" ? "amount" : "date",
+          sortDir: "desc"
         });
         return NextResponse.json({ ok: true });
       }

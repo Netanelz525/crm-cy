@@ -5,6 +5,7 @@ import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessag
 import { createAiChatMessage, getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
+import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { INSTITUTION_COLUMN_MAP, INSTITUTION_COLUMNS_FULL } from "../../../../lib/student-view";
 import { buildPaymentReportExcelExport, buildPaymentReportPdfExport } from "../../../../lib/payment-report-exports";
@@ -118,6 +119,73 @@ function isPaymentReportMessage(messageRecord) {
   return isPaymentReportLink(messageRecord?.exportUrl)
     || isPaymentReportLink(messageRecord?.pdfUrl)
     || isPaymentViewLink(messageRecord?.viewUrl);
+}
+
+async function buildTelegramPaymentKeyboard({ messageId, messageRecord }) {
+  const { listPaymentConnections } = await import("../../../../lib/payment-systems");
+  const activeConnections = await listPaymentConnections({ activeOnly: true });
+  const selectedIds = Array.isArray(messageRecord?.paymentReportConfig?.connectionIds)
+    ? messageRecord.paymentReportConfig.connectionIds.map(clean).filter(Boolean)
+    : activeConnections.map((connection) => connection.id);
+  const sortBy = clean(messageRecord?.paymentReportConfig?.sortBy) === "amount" ? "amount" : "date";
+  const keyboard = [
+    [
+      { text: "אקסל", callback_data: `xlsx:${messageId}` },
+      { text: "PDF", callback_data: `pdf:${messageId}` }
+    ]
+  ];
+  const absoluteViewUrl = toAbsoluteUrl(messageRecord?.viewUrl || "");
+  if (absoluteViewUrl) {
+    keyboard.push([{ text: "פתח דוח במערכת", url: absoluteViewUrl }]);
+  }
+  keyboard.push([
+    { text: sortBy === "date" ? "✅ מיון תאריך" : "מיון תאריך", callback_data: `paysort:date:${messageId}` },
+    { text: sortBy === "amount" ? "✅ מיון סכום" : "מיון סכום", callback_data: `paysort:amount:${messageId}` }
+  ]);
+  keyboard.push([
+    {
+      text: selectedIds.length === activeConnections.length ? "✅ כל המערכות" : "כל המערכות",
+      callback_data: `paysource:all:${messageId}`
+    }
+  ]);
+  activeConnections.forEach((connection) => {
+    keyboard.push([{
+      text: `${selectedIds.includes(connection.id) ? "✅ " : ""}${connection.label}`.slice(0, 48),
+      callback_data: `paysource:${connection.id}:${messageId}`
+    }]);
+  });
+  keyboard.push([
+    { text: "⚫ תשובה טובה", callback_data: `feedback:good:${messageId}` },
+    { text: "🔴 לא מדויק", callback_data: `feedback:bad:${messageId}` }
+  ]);
+  return { inline_keyboard: keyboard };
+}
+
+async function refreshTelegramPaymentReport({ chatId, callback, user, messageRecord, updateConfig = {} }) {
+  const nextConfig = {
+    ...(messageRecord?.paymentReportConfig || {}),
+    ...updateConfig
+  };
+  const result = await buildPaymentReportAgentResultFromConfig({
+    user,
+    paymentReportConfig: nextConfig,
+    source: "telegram"
+  });
+  await setAiChatMessageReportConfig({
+    messageId: messageRecord.id,
+    clerkUserId: user.clerk_user_id,
+    paymentReportConfig: result.paymentReportConfig
+  });
+  const keyboard = await buildTelegramPaymentKeyboard({
+    messageId: messageRecord.id,
+    messageRecord: {
+      ...messageRecord,
+      ...result,
+      paymentReportConfig: result.paymentReportConfig
+    }
+  });
+  await sendTelegramMessage(chatId, result.reply, { replyMarkup: keyboard });
+  await answerTelegramCallbackQuery(callback.id, "הדוח עודכן.");
 }
 
 function buildTelegramStudentCardsText(studentCards = []) {
@@ -596,6 +664,59 @@ export async function POST(request) {
         return NextResponse.json({ ok: true });
       }
 
+      if (action === "paysort") {
+        const sortBy = clean(parts[1]) === "amount" ? "amount" : "date";
+        const exportMessageId = parts[2];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (!isPaymentReportMessage(messageRecord)) {
+          await answerTelegramCallbackQuery(callback.id, "לא מצאתי דוח תשלומים.");
+          return NextResponse.json({ ok: true });
+        }
+        await refreshTelegramPaymentReport({
+          chatId,
+          callback,
+          user,
+          messageRecord,
+          updateConfig: { sortBy, sortDir: "desc" }
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "paysource") {
+        const target = clean(parts[1]);
+        const exportMessageId = parts[2];
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId: exportMessageId
+        });
+        if (!isPaymentReportMessage(messageRecord)) {
+          await answerTelegramCallbackQuery(callback.id, "לא מצאתי דוח תשלומים.");
+          return NextResponse.json({ ok: true });
+        }
+        const { listPaymentConnections } = await import("../../../../lib/payment-systems");
+        const activeConnections = await listPaymentConnections({ activeOnly: true });
+        const allIds = activeConnections.map((connection) => connection.id);
+        const currentIds = Array.isArray(messageRecord?.paymentReportConfig?.connectionIds)
+          ? messageRecord.paymentReportConfig.connectionIds.map(clean).filter(Boolean)
+          : allIds;
+        const nextIds = target === "all"
+          ? allIds
+          : (currentIds.includes(target)
+            ? currentIds.filter((id) => id !== target)
+            : [...currentIds, target]);
+        await refreshTelegramPaymentReport({
+          chatId,
+          callback,
+          user,
+          messageRecord,
+          updateConfig: { connectionIds: nextIds.length ? nextIds : allIds }
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       if (action === "cols") {
         const exportMessageId = parts[1];
         const messageRecord = await getAiChatMessageById({
@@ -801,18 +922,19 @@ export async function POST(request) {
         const fullChunks = splitFullTelegramMessage(messageRecord.content);
         await answerTelegramCallbackQuery(callback.id, "מציג עוד");
         for (let index = 0; index < fullChunks.length; index += 1) {
+          const finalReplyMarkup = isPaymentReportMessage(messageRecord)
+            ? await buildTelegramPaymentKeyboard({ messageId, messageRecord })
+            : buildTelegramKeyboard({
+              messageId,
+              studentCards: messageRecord.studentCards,
+              viewUrl: messageRecord.viewUrl || "",
+              exportUrl: messageRecord.exportUrl || "",
+              pdfUrl: messageRecord.pdfUrl || "",
+              exportColumns: messageRecord.exportColumns || [],
+              includeFeedback: false
+            });
           await sendTelegramMessage(chatId, fullChunks[index], {
-            replyMarkup: index === fullChunks.length - 1
-              ? buildTelegramKeyboard({
-                messageId,
-                studentCards: messageRecord.studentCards,
-                viewUrl: messageRecord.viewUrl || "",
-                exportUrl: messageRecord.exportUrl || "",
-                pdfUrl: messageRecord.pdfUrl || "",
-                exportColumns: messageRecord.exportColumns || [],
-                includeFeedback: false
-              })
-              : undefined
+            replyMarkup: index === fullChunks.length - 1 ? finalReplyMarkup : undefined
           });
         }
         return NextResponse.json({ ok: true });
@@ -841,8 +963,9 @@ export async function POST(request) {
         }).catch(() => null);
       }
       await answerTelegramCallbackQuery(callback.id, action === "approve" ? "הפעולה אושרה" : "הפעולה נדחתה");
-      await sendTelegramMessage(chatId, result.reply, {
-        replyMarkup: buildTelegramKeyboard({
+      const approvalReplyMarkup = isPaymentReportMessage(result)
+        ? await buildTelegramPaymentKeyboard({ messageId, messageRecord: { ...result, id: messageId } })
+        : buildTelegramKeyboard({
           messageId,
           studentCards: result.studentCards,
           viewUrl: result.viewUrl || "",
@@ -851,7 +974,9 @@ export async function POST(request) {
           exportColumns: result.exportColumns || [],
           sortLevels: result.sortLevels || [],
           includeFeedback: false
-        })
+        });
+      await sendTelegramMessage(chatId, result.reply, {
+        replyMarkup: approvalReplyMarkup
       });
       return NextResponse.json({ ok: true });
     }
@@ -918,17 +1043,19 @@ export async function POST(request) {
     const baseReply = [result.reply, cardsText].filter(Boolean).join("\n\n");
     const collapsedReply = splitMessageForTelegram(baseReply, 8);
     const replyText = [collapsedReply.text, result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""].filter(Boolean).join("\n");
-    const replyMarkup = buildTelegramKeyboard({
-      messageId: result.id,
-      pendingAction: result.pendingAction,
-      studentCards: result.studentCards,
-      viewUrl: result.viewUrl || "",
-      exportUrl: result.exportUrl || "",
-      pdfUrl: result.pdfUrl || "",
-      exportColumns: result.exportColumns || [],
-      sortLevels: result.sortLevels || [],
-      hasMore: collapsedReply.hasMore
-    });
+    const replyMarkup = isPaymentReportMessage(result)
+      ? await buildTelegramPaymentKeyboard({ messageId: result.id, messageRecord: result })
+      : buildTelegramKeyboard({
+        messageId: result.id,
+        pendingAction: result.pendingAction,
+        studentCards: result.studentCards,
+        viewUrl: result.viewUrl || "",
+        exportUrl: result.exportUrl || "",
+        pdfUrl: result.pdfUrl || "",
+        exportColumns: result.exportColumns || [],
+        sortLevels: result.sortLevels || [],
+        hasMore: collapsedReply.hasMore
+      });
     await sendTelegramMessage(chatId, replyText, { replyMarkup });
 
     return NextResponse.json({ ok: true });
