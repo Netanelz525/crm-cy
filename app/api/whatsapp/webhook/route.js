@@ -252,19 +252,23 @@ function isPaymentReportMessage(messageRecord) {
 
 async function sendInstitutionAttachments(waId, messageRecord) {
   if (isPaymentReportMessage(messageRecord)) {
+    const hasExplicitExportUrl = Object.prototype.hasOwnProperty.call(messageRecord || {}, "exportUrl");
+    const hasExplicitPdfUrl = Object.prototype.hasOwnProperty.call(messageRecord || {}, "pdfUrl");
     const paymentUrls = messageRecord?.paymentReportConfig
       ? buildPaymentReportUrls(messageRecord.paymentReportConfig)
       : {
           exportUrl: messageRecord?.exportUrl || "",
           pdfUrl: messageRecord?.pdfUrl || ""
         };
-    if (paymentUrls.exportUrl) {
+    const shouldSendExcel = hasExplicitExportUrl ? Boolean(messageRecord?.exportUrl) : Boolean(paymentUrls.exportUrl);
+    const shouldSendPdf = hasExplicitPdfUrl ? Boolean(messageRecord?.pdfUrl) : Boolean(paymentUrls.pdfUrl);
+    if (shouldSendExcel && paymentUrls.exportUrl) {
       const excelFile = await buildPaymentReportExcelExport(paymentUrls.exportUrl);
       await sendWhatsAppDocumentFile(waId, excelFile, {
         caption: "אקסל של דוח התרומות מוכן."
       });
     }
-    if (paymentUrls.pdfUrl) {
+    if (shouldSendPdf && paymentUrls.pdfUrl) {
       const pdfFile = await buildPaymentReportPdfExport(paymentUrls.pdfUrl);
       await sendWhatsAppDocumentFile(waId, pdfFile, {
         caption: "PDF של דוח התרומות מוכן."
