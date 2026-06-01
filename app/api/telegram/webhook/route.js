@@ -122,8 +122,11 @@ function isPaymentReportMessage(messageRecord) {
     || isPaymentViewLink(messageRecord?.viewUrl);
 }
 
-function toTelegramToken(value, length = 12) {
-  return clean(value).replace(/[^a-zA-Z0-9]/g, "").slice(0, length);
+function toTelegramToken(value, length = 8) {
+  const raw = clean(value);
+  if (!raw) return "";
+  const preferred = raw.split("-")[0];
+  return clean(preferred || raw).slice(0, length);
 }
 
 async function resolveTelegramMessageRecord(clerkUserId, messageIdOrToken) {
@@ -198,9 +201,8 @@ async function refreshTelegramPaymentReport({ chatId, callback, user, messageRec
     searchSummary: result.searchSummary,
     paymentSummary: result.paymentSummary
   });
-  const collapsedReply = splitMessageForTelegram(result.reply, 8);
   const replyText = [
-    collapsedReply.text,
+    result.reply,
     result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""
   ].filter(Boolean).join("\n");
   const keyboard = await buildTelegramPaymentKeyboard({
@@ -209,8 +211,7 @@ async function refreshTelegramPaymentReport({ chatId, callback, user, messageRec
       ...messageRecord,
       ...result,
       paymentReportConfig: result.paymentReportConfig
-    },
-    hasMore: collapsedReply.hasMore
+    }
   });
   await sendTelegramMessage(chatId, replyText, { replyMarkup: keyboard })
     .catch(async () => {
@@ -1092,7 +1093,9 @@ export async function POST(request) {
 
     const cardsText = buildTelegramStudentCardsText(result.studentCards);
     const baseReply = [result.reply, cardsText].filter(Boolean).join("\n\n");
-    const collapsedReply = splitMessageForTelegram(baseReply, 8);
+    const collapsedReply = isPaymentReportMessage(result)
+      ? { text: baseReply, hasMore: false }
+      : splitMessageForTelegram(baseReply, 8);
     const replyText = [collapsedReply.text, result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""].filter(Boolean).join("\n");
     const replyMarkup = isPaymentReportMessage(result)
       ? await buildTelegramPaymentKeyboard({ messageId: result.id, messageRecord: result, hasMore: collapsedReply.hasMore })
