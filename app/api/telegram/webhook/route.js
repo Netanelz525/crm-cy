@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
-import { createAiChatMessage, getAiChatMessageById, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
+import { createAiChatMessage, getAiChatMessageById, getAiChatMessageByIdPrefix, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 import { buildPaymentReportUrls } from "../../../../lib/payment-report";
@@ -122,42 +122,58 @@ function isPaymentReportMessage(messageRecord) {
     || isPaymentViewLink(messageRecord?.viewUrl);
 }
 
-async function buildTelegramPaymentKeyboard({ messageId, messageRecord }) {
+function toTelegramToken(value, length = 12) {
+  return clean(value).replace(/[^a-zA-Z0-9]/g, "").slice(0, length);
+}
+
+async function resolveTelegramMessageRecord(clerkUserId, messageIdOrToken) {
+  const exactId = clean(messageIdOrToken);
+  if (!exactId) return null;
+  return await getAiChatMessageById({ clerkUserId, messageId: exactId })
+    || await getAiChatMessageByIdPrefix({ clerkUserId, messageIdPrefix: exactId });
+}
+
+async function buildTelegramPaymentKeyboard({ messageId, messageRecord, hasMore = false }) {
   const { listPaymentConnections } = await import("../../../../lib/payment-systems");
   const activeConnections = await listPaymentConnections({ activeOnly: true });
   const selectedIds = Array.isArray(messageRecord?.paymentReportConfig?.connectionIds)
     ? messageRecord.paymentReportConfig.connectionIds.map(clean).filter(Boolean)
     : activeConnections.map((connection) => connection.id);
   const sortBy = clean(messageRecord?.paymentReportConfig?.sortBy) === "amount" ? "amount" : "date";
+  const messageToken = toTelegramToken(messageId);
   const keyboard = [
     [
-      { text: "אקסל", callback_data: `xlsx:${messageId}` },
-      { text: "PDF", callback_data: `pdf:${messageId}` }
+      { text: "אקסל", callback_data: `xlsx:${messageToken}` },
+      { text: "PDF", callback_data: `pdf:${messageToken}` }
     ]
   ];
   const absoluteViewUrl = toAbsoluteUrl(messageRecord?.viewUrl || "");
   if (absoluteViewUrl) {
     keyboard.push([{ text: "פתח דוח במערכת", url: absoluteViewUrl }]);
   }
+  if (hasMore) {
+    keyboard.push([{ text: "הצג עוד", callback_data: `more:${messageToken}` }]);
+  }
   keyboard.push([
-    { text: sortBy === "date" ? "✅ מיון תאריך" : "מיון תאריך", callback_data: `paysort:date:${messageId}` },
-    { text: sortBy === "amount" ? "✅ מיון סכום" : "מיון סכום", callback_data: `paysort:amount:${messageId}` }
+    { text: sortBy === "date" ? "✅ מיון תאריך" : "מיון תאריך", callback_data: `paysort:date:${messageToken}` },
+    { text: sortBy === "amount" ? "✅ מיון סכום" : "מיון סכום", callback_data: `paysort:amount:${messageToken}` }
   ]);
   keyboard.push([
     {
       text: selectedIds.length === activeConnections.length ? "✅ כל המערכות" : "כל המערכות",
-      callback_data: `paysource:all:${messageId}`
+      callback_data: `paysource:all:${messageToken}`
     }
   ]);
   activeConnections.forEach((connection) => {
+    const connectionToken = toTelegramToken(connection.id, 10);
     keyboard.push([{
       text: `${selectedIds.includes(connection.id) ? "✅ " : ""}${connection.label}`.slice(0, 48),
-      callback_data: `paysource:${connection.id}:${messageId}`
+      callback_data: `paysource:${connectionToken}:${messageToken}`
     }]);
   });
   keyboard.push([
-    { text: "⚫ תשובה טובה", callback_data: `feedback:good:${messageId}` },
-    { text: "🔴 לא מדויק", callback_data: `feedback:bad:${messageId}` }
+    { text: "⚫ תשובה טובה", callback_data: `feedback:good:${messageToken}` },
+    { text: "🔴 לא מדויק", callback_data: `feedback:bad:${messageToken}` }
   ]);
   return { inline_keyboard: keyboard };
 }
@@ -182,17 +198,23 @@ async function refreshTelegramPaymentReport({ chatId, callback, user, messageRec
     searchSummary: result.searchSummary,
     paymentSummary: result.paymentSummary
   });
+  const collapsedReply = splitMessageForTelegram(result.reply, 8);
+  const replyText = [
+    collapsedReply.text,
+    result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""
+  ].filter(Boolean).join("\n");
   const keyboard = await buildTelegramPaymentKeyboard({
     messageId: messageRecord.id,
     messageRecord: {
       ...messageRecord,
       ...result,
       paymentReportConfig: result.paymentReportConfig
-    }
+    },
+    hasMore: collapsedReply.hasMore
   });
-  await sendTelegramMessage(chatId, result.reply, { replyMarkup: keyboard })
+  await sendTelegramMessage(chatId, replyText, { replyMarkup: keyboard })
     .catch(async () => {
-      await sendTelegramMessage(chatId, result.reply);
+      await sendTelegramMessage(chatId, replyText);
     });
   await answerTelegramCallbackQuery(callback.id, "הדוח עודכן.");
 }
@@ -528,26 +550,33 @@ export async function POST(request) {
       if (action === "feedback") {
         const feedback = parts[1];
         const feedbackMessageId = parts[2];
+        const feedbackMessageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, feedbackMessageId);
+        if (!feedbackMessageRecord?.id) {
+          await answerTelegramCallbackQuery(callback.id, "לא מצאתי את ההודעה לעדכון.");
+          return NextResponse.json({ ok: true });
+        }
         await setAiChatMessageFeedback({
-          messageId: feedbackMessageId,
+          messageId: feedbackMessageRecord.id,
           clerkUserId: user.clerk_user_id,
           feedback
         });
-        const messageRecord = await getAiChatMessageById({
-          clerkUserId: user.clerk_user_id,
-          messageId: feedbackMessageId
-        });
-        const currentReplyMarkup = buildTelegramKeyboard({
-          messageId: feedbackMessageId,
-          pendingAction: messageRecord?.pendingAction || null,
-          studentCards: messageRecord?.studentCards || [],
-          viewUrl: messageRecord?.viewUrl || "",
-          exportUrl: messageRecord?.exportUrl || "",
-          pdfUrl: messageRecord?.pdfUrl || "",
-          exportColumns: messageRecord?.exportColumns || [],
-          sortLevels: messageRecord?.sortLevels || [],
-          includeFeedback: false
-        });
+        const currentReplyMarkup = isPaymentReportMessage(feedbackMessageRecord)
+          ? await buildTelegramPaymentKeyboard({
+            messageId: feedbackMessageRecord.id,
+            messageRecord: feedbackMessageRecord,
+            hasMore: false
+          })
+          : buildTelegramKeyboard({
+            messageId: feedbackMessageRecord.id,
+            pendingAction: feedbackMessageRecord?.pendingAction || null,
+            studentCards: feedbackMessageRecord?.studentCards || [],
+            viewUrl: feedbackMessageRecord?.viewUrl || "",
+            exportUrl: feedbackMessageRecord?.exportUrl || "",
+            pdfUrl: feedbackMessageRecord?.pdfUrl || "",
+            exportColumns: feedbackMessageRecord?.exportColumns || [],
+            sortLevels: feedbackMessageRecord?.sortLevels || [],
+            includeFeedback: false
+          });
         if (callback?.message?.message_id) {
           await editTelegramMessageReplyMarkup({
             chatId,
@@ -677,10 +706,7 @@ export async function POST(request) {
 
       if (action === "xlsx" || action === "pdf") {
         const exportMessageId = parts[1];
-        const messageRecord = await getAiChatMessageById({
-          clerkUserId: user.clerk_user_id,
-          messageId: exportMessageId
-        });
+        const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, exportMessageId);
         if (!messageRecord || (action === "xlsx" && !messageRecord.exportUrl) || (action === "pdf" && !messageRecord.pdfUrl)) {
           await answerTelegramCallbackQuery(callback.id, "אין קובץ זמין לתשובה הזו.");
           return NextResponse.json({ ok: true });
@@ -694,10 +720,7 @@ export async function POST(request) {
       if (action === "paysort") {
         const sortBy = clean(parts[1]) === "amount" ? "amount" : "date";
         const exportMessageId = parts[2];
-        const messageRecord = await getAiChatMessageById({
-          clerkUserId: user.clerk_user_id,
-          messageId: exportMessageId
-        });
+        const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, exportMessageId);
         if (!isPaymentReportMessage(messageRecord)) {
           await answerTelegramCallbackQuery(callback.id, "לא מצאתי דוח תשלומים.");
           return NextResponse.json({ ok: true });
@@ -715,10 +738,7 @@ export async function POST(request) {
       if (action === "paysource") {
         const target = clean(parts[1]);
         const exportMessageId = parts[2];
-        const messageRecord = await getAiChatMessageById({
-          clerkUserId: user.clerk_user_id,
-          messageId: exportMessageId
-        });
+        const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, exportMessageId);
         if (!isPaymentReportMessage(messageRecord)) {
           await answerTelegramCallbackQuery(callback.id, "לא מצאתי דוח תשלומים.");
           return NextResponse.json({ ok: true });
@@ -726,14 +746,21 @@ export async function POST(request) {
         const { listPaymentConnections } = await import("../../../../lib/payment-systems");
         const activeConnections = await listPaymentConnections({ activeOnly: true });
         const allIds = activeConnections.map((connection) => connection.id);
+        const resolvedTarget = target === "all"
+          ? "all"
+          : activeConnections.find((connection) => toTelegramToken(connection.id, 10) === target)?.id;
+        if (!resolvedTarget) {
+          await answerTelegramCallbackQuery(callback.id, "מקור התשלום לא נמצא.");
+          return NextResponse.json({ ok: true });
+        }
         const currentIds = Array.isArray(messageRecord?.paymentReportConfig?.connectionIds)
           ? messageRecord.paymentReportConfig.connectionIds.map(clean).filter(Boolean)
           : allIds;
-        const nextIds = target === "all"
+        const nextIds = resolvedTarget === "all"
           ? allIds
-          : (currentIds.includes(target)
-            ? currentIds.filter((id) => id !== target)
-            : [...currentIds, target]);
+          : (currentIds.includes(resolvedTarget)
+            ? currentIds.filter((id) => id !== resolvedTarget)
+            : [...currentIds, resolvedTarget]);
         await refreshTelegramPaymentReport({
           chatId,
           callback,
@@ -937,10 +964,7 @@ export async function POST(request) {
       }
 
       if (action === "more") {
-        const messageRecord = await getAiChatMessageById({
-          clerkUserId: user.clerk_user_id,
-          messageId
-        });
+        const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, messageId);
         if (!messageRecord?.content) {
           await answerTelegramCallbackQuery(callback.id, "לא הצלחתי לטעון את ההמשך.");
           return NextResponse.json({ ok: true });
@@ -950,7 +974,7 @@ export async function POST(request) {
         await answerTelegramCallbackQuery(callback.id, "מציג עוד");
         for (let index = 0; index < fullChunks.length; index += 1) {
           const finalReplyMarkup = isPaymentReportMessage(messageRecord)
-            ? await buildTelegramPaymentKeyboard({ messageId, messageRecord })
+            ? await buildTelegramPaymentKeyboard({ messageId: messageRecord.id, messageRecord })
             : buildTelegramKeyboard({
               messageId,
               studentCards: messageRecord.studentCards,
@@ -1071,7 +1095,7 @@ export async function POST(request) {
     const collapsedReply = splitMessageForTelegram(baseReply, 8);
     const replyText = [collapsedReply.text, result.searchSummary ? `\nאיך חיפשתי: ${result.searchSummary}` : ""].filter(Boolean).join("\n");
     const replyMarkup = isPaymentReportMessage(result)
-      ? await buildTelegramPaymentKeyboard({ messageId: result.id, messageRecord: result })
+      ? await buildTelegramPaymentKeyboard({ messageId: result.id, messageRecord: result, hasMore: collapsedReply.hasMore })
       : buildTelegramKeyboard({
         messageId: result.id,
         pendingAction: result.pendingAction,
