@@ -97,6 +97,11 @@ export default function PaymentsReportClient({
     [visibleConnections, visibleTransactions]
   );
 
+  const emailableTransactionsCount = useMemo(
+    () => visibleTransactions.filter((transaction) => clean(transaction.email)).length,
+    [visibleTransactions]
+  );
+
   const exportQuery = useMemo(
     () => buildPaymentExportSearchParams({
       reportType: "transactions",
@@ -183,6 +188,11 @@ export default function PaymentsReportClient({
           <Link className="quick-action-btn quick-action-outline" href={`/api/payments/export/pdf?${exportQuery}`} target="_blank">
             יצוא PDF
           </Link>
+          {emailableTransactionsCount ? (
+            <Link className="quick-action-btn quick-action-outline" href={`/email/payments?${exportQuery}`}>
+              שלח מייל לנמעני הדוח
+            </Link>
+          ) : null}
         </div>
         <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
           <div>

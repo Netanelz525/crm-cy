@@ -16,6 +16,7 @@ import {
 
 function institutionLabel(value) {
   const key = clean(value).toUpperCase();
+  if (key === "PAYMENTS") return "דוח תשלומים";
   return INSTITUTIONS[key] || clean(value) || "-";
 }
 

@@ -9,11 +9,13 @@ const RECIPIENT_MODE_LABELS = {
   father: "אב בלבד",
   mother: "אם בלבד",
   student: "תלמיד בלבד",
-  all: "הורים ותלמידים"
+  all: "הורים ותלמידים",
+  custom: "נמעני דוח תשלומים"
 };
 
 function institutionLabel(value) {
   const key = clean(value).toUpperCase();
+  if (key === "PAYMENTS") return "דוח תשלומים";
   return INSTITUTIONS[key] || clean(value) || "-";
 }
 

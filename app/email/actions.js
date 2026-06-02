@@ -16,11 +16,21 @@ import {
   removeFavoriteEmailCampaign,
   removeEmailUnsubscribe,
   saveEmailCampaignDraft,
+  sendCustomEmailCampaign,
   sendEmailCampaign
 } from "../../lib/email-campaigns";
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function parseJsonArray(value) {
+  try {
+    const parsed = JSON.parse(clean(value) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function buildConfirmRedirect(formData, errorMessage) {
@@ -99,6 +109,45 @@ export async function createEmailCampaignConfirmAction(formData) {
   redirect(`/email/confirm?draft=${encodeURIComponent(draftId)}`);
 }
 
+export async function createPaymentEmailCampaignConfirmAction(formData) {
+  const user = await requireEmailSender();
+  const existingDraft = await getEmailCampaignDraft(clean(formData.get("draftId")));
+  const nextAttachments = await buildAttachmentsFromForm(formData);
+  const preservedAttachments = nextAttachments.length
+    ? nextAttachments
+    : Array.isArray(existingDraft?.draft_json?.attachments)
+      ? existingDraft.draft_json.attachments
+      : [];
+  const payload = {
+    source: "payments",
+    reportConfig: {
+      dateFrom: clean(formData.get("dateFrom")),
+      dateTo: clean(formData.get("dateTo")),
+      providers: formData.getAll("provider").map(clean).filter(Boolean),
+      connectionIds: formData.getAll("connectionId").map(clean).filter(Boolean),
+      sortBy: clean(formData.get("sortBy")) || "date",
+      sortDir: clean(formData.get("sortDir")) || "desc"
+    },
+    subject: clean(formData.get("subject")),
+    senderName: clean(formData.get("senderName")),
+    bodyHtml: clean(formData.get("bodyHtml")),
+    bodyText: clean(formData.get("bodyText")),
+    includeGreeting: clean(formData.get("includeGreeting")) !== "0",
+    sendScope: clean(formData.get("sendScope")) || "selected",
+    selectedRecipientIds: formData.getAll("selectedRecipientIds").map(clean).filter(Boolean),
+    customRecipients: parseJsonArray(formData.get("customRecipientsJson")),
+    attachments: preservedAttachments
+  };
+
+  const draftId = await saveEmailCampaignDraft({
+    id: clean(formData.get("draftId")),
+    createdByUserId: user.clerk_user_id,
+    payload
+  });
+
+  redirect(`/email/payments/confirm?draft=${encodeURIComponent(draftId)}`);
+}
+
 export async function sendEmailCampaignAction(formData) {
   const user = await requireEmailSender();
   const draftId = clean(formData.get("draftId"));
@@ -152,6 +201,64 @@ export async function sendEmailCampaignAction(formData) {
   redirect(`/email?${params.toString()}`);
 }
 
+export async function sendPaymentEmailCampaignAction(formData) {
+  const user = await requireEmailSender();
+  const draftId = clean(formData.get("draftId"));
+  if (clean(formData.get("confirmFinalSend")) !== "1") {
+    redirect(`/email/payments/confirm?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("יש לאשר שליחה סופית לפני הביצוע.")}`);
+  }
+
+  const draftRecord = await getEmailCampaignDraft(draftId);
+  const draft = draftRecord?.draft_json || null;
+  if (!draft) {
+    redirect("/email/payments?error=" + encodeURIComponent("טיוטת המייל לא נמצאה. יש ליצור אישור חדש."));
+  }
+
+  const claim = await claimEmailCampaignDraftForSend(draftId);
+  if (!claim.ok) {
+    if (claim.status === "already-sent") {
+      const params = new URLSearchParams({
+        campaignId: claim.campaignId || "",
+        notice: "המייל כבר נשלח קודם. נמנעה שליחה כפולה."
+      });
+      redirect(`/email/payments?${params.toString()}`);
+    }
+    if (claim.status === "sending") {
+      redirect(`/email/payments?notice=${encodeURIComponent("המייל כבר נמצא בתהליך שליחה. אין צורך ללחוץ שוב.")}`);
+    }
+    redirect(`/email/payments?error=${encodeURIComponent("טיוטת השליחה אינה זמינה יותר. יש ליצור אישור חדש.")}`);
+  }
+
+  let result = null;
+  try {
+    result = await sendCustomEmailCampaign({
+      draft: { ...draft, draftId },
+      createdByUserId: user.clerk_user_id,
+      permissions: {
+        canEditEmailSender: user.can_edit_email_sender
+      }
+    });
+  } catch (error) {
+    await releaseEmailCampaignDraftSendClaim(draftId);
+    redirect(`/email/payments/confirm?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent(clean(error?.message) || "שליחת המייל נכשלה")}`);
+  }
+
+  after(async () => {
+    try {
+      await dispatchEmailCampaign(result);
+      await finalizeEmailCampaignDraftSend(draftId, result.campaignId);
+    } catch (_error) {
+      await releaseEmailCampaignDraftSendClaim(draftId);
+    }
+  });
+
+  const params = new URLSearchParams({
+    campaignId: result.campaignId,
+    notice: "השליחה התחילה ותושלם ברקע. אפשר לסגור את הדף."
+  });
+  redirect(`/email/payments?${params.toString()}`);
+}
+
 export async function addEmailUnsubscribeAction(formData) {
   await requireEmailSender();
   const email = clean(formData.get("recipientEmail"));
@@ -189,6 +296,28 @@ export async function reopenEmailCampaignAction(formData) {
   }
 
   const filters = campaign.filter_json && typeof campaign.filter_json === "object" ? campaign.filter_json : {};
+  if (clean(filters.source) === "payments") {
+    const payload = {
+      source: "payments",
+      reportConfig: filters.reportConfig && typeof filters.reportConfig === "object" ? filters.reportConfig : {},
+      customRecipients: Array.isArray(filters.customRecipients) ? filters.customRecipients : [],
+      selectedRecipientIds: Array.isArray(filters.selectedRecipientIds) ? filters.selectedRecipientIds.map(clean).filter(Boolean) : [],
+      sendScope: clean(filters.sendScope || campaign.send_scope) || "selected",
+      subject: clean(campaign.subject),
+      senderName: clean(campaign.sender_name),
+      bodyHtml: clean(campaign.body_html),
+      bodyText: clean(campaign.body_text),
+      includeGreeting: campaign.include_greeting !== false
+    };
+
+    const draftId = await saveEmailCampaignDraft({
+      createdByUserId: user.clerk_user_id,
+      payload
+    });
+
+    redirect(`/email/payments?draft=${encodeURIComponent(draftId)}&reopened=1`);
+  }
+
   const payload = {
     institution: Array.isArray(filters.institution) ? filters.institution.map(clean).filter(Boolean) : clean(filters.institution || campaign.institution) ? [clean(filters.institution || campaign.institution)] : [],
     class: Array.isArray(filters.class) ? filters.class.map(clean).filter(Boolean) : clean(filters.class || campaign.class_filter) ? [clean(filters.class || campaign.class_filter)] : [],
