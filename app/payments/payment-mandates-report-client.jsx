@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   buildPaymentExportSearchParams,
@@ -38,7 +37,7 @@ function formatHistoryMoney(entry, fallbackCurrency = "ILS") {
   return formatMoney(entry?.amount, fallbackCurrency);
 }
 
-function MandateRemoteDetails({ item, detailsState, deleteState, onStartDelete, onCancelDelete, onConfirmDelete }) {
+function MandateRemoteDetails({ item, detailsState }) {
   if (detailsState?.loading) {
     return <div className="muted">טוען פרטי הוראת קבע והיסטוריית חיובים...</div>;
   }
@@ -54,6 +53,7 @@ function MandateRemoteDetails({ item, detailsState, deleteState, onStartDelete, 
     <div style={{ display: "grid", gap: 14 }}>
       <div className="payments-report-grid">
         <div><b>סטטוס מורחב:</b> {details.statusLabel || details.status || "-"}</div>
+        <div><b>סיבת תקלה:</b> {details.errorText || item.errorText || "-"}</div>
         <div><b>סך היסטוריה:</b> {formatMoney(details.totalHistoryAmount || 0, details.totalHistoryCurrency || details.originalCurrency || details.currency || "ILS")}</div>
         <div><b>כמות חיובים:</b> {details.historyCount || 0}</div>
         <div><b>חיובים מוצלחים:</b> {details.successCount || 0}</div>
@@ -79,36 +79,19 @@ function MandateRemoteDetails({ item, detailsState, deleteState, onStartDelete, 
         )}
       </div>
 
-      {item.provider === "stripe" && details.status !== "completed" ? (
+      {item.provider === "stripe" ? (
         <div className="card" style={{ padding: 12, borderColor: "#f3c6c6", background: "#fff7f7" }}>
-          <div style={{ fontWeight: 800, marginBottom: 8, color: "#991b1b" }}>מחיקת הוראת קבע</div>
-          {!deleteState?.confirming ? (
-            <>
-              <div className="muted" style={{ marginBottom: 10 }}>
-                הפעולה זמינה כרגע רק עבור Stripe, ומבטלת מיד את המנוי החוזר במערכת הסליקה.
-              </div>
-              <button type="button" className="quick-action-btn quick-action-outline" onClick={onStartDelete}>
-                סמן למחיקה
-              </button>
-            </>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ color: "#991b1b", fontWeight: 700 }}>
-                האם למחוק סופית את הוראת הקבע הזו ב-Stripe?
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button type="button" onClick={onConfirmDelete} disabled={deleteState?.loading}>
-                  {deleteState?.loading ? "מוחק..." : "אישור סופי למחיקה"}
-                </button>
-                <button type="button" className="quick-action-btn quick-action-outline" onClick={onCancelDelete} disabled={deleteState?.loading}>
-                  ביטול
-                </button>
-              </div>
-              {deleteState?.error ? (
-                <div className="muted" style={{ color: "#991b1b" }}>{deleteState.error}</div>
-              ) : null}
-            </div>
-          )}
+          <div style={{ fontWeight: 800, marginBottom: 8, color: "#991b1b" }}>ניהול המנוי ב-Stripe</div>
+          <div className="muted" style={{ marginBottom: 10 }}>
+            מחיקה או ביטול של הוראת הקבע מתבצעים ישירות ב-Stripe. הקישור פותח את עמוד המנוי עצמו.
+          </div>
+          <Link
+            className="quick-action-btn quick-action-outline"
+            href={`https://dashboard.stripe.com/subscriptions/${encodeURIComponent(item.mandateId || item.id)}`}
+            target="_blank"
+          >
+            פתח את המנוי ב-Stripe
+          </Link>
         </div>
       ) : null}
     </div>
@@ -131,8 +114,6 @@ export default function PaymentMandatesReportClient({
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [detailsByMandate, setDetailsByMandate] = useState({});
-  const [deleteStateByMandate, setDeleteStateByMandate] = useState({});
-  const router = useRouter();
 
   const visibleConnections = useMemo(
     () => connections.filter((connection) => selectedProviders.includes(connection.provider)),
@@ -232,51 +213,6 @@ export default function PaymentMandatesReportClient({
       setDetailsByMandate((prev) => ({
         ...prev,
         [cacheKey]: { loading: false, error: clean(error?.message) || "טעינת פרטי הוראת הקבע נכשלה.", details: null }
-      }));
-    }
-  }
-
-  function startDelete(item) {
-    const cacheKey = `${item.connectionId}:${item.mandateId || item.id}`;
-    setDeleteStateByMandate((prev) => ({
-      ...prev,
-      [cacheKey]: { confirming: true, loading: false, error: "" }
-    }));
-  }
-
-  function cancelDelete(item) {
-    const cacheKey = `${item.connectionId}:${item.mandateId || item.id}`;
-    setDeleteStateByMandate((prev) => ({
-      ...prev,
-      [cacheKey]: { confirming: false, loading: false, error: "" }
-    }));
-  }
-
-  async function confirmDelete(item) {
-    const cacheKey = `${item.connectionId}:${item.mandateId || item.id}`;
-    setDeleteStateByMandate((prev) => ({
-      ...prev,
-      [cacheKey]: { confirming: true, loading: true, error: "" }
-    }));
-
-    try {
-      const response = await fetch("/api/payments/mandates/cancel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          connectionId: item.connectionId,
-          mandateId: item.mandateId || item.id
-        })
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(clean(payload?.error) || "מחיקת הוראת הקבע נכשלה.");
-      }
-      router.refresh();
-    } catch (error) {
-      setDeleteStateByMandate((prev) => ({
-        ...prev,
-        [cacheKey]: { confirming: true, loading: false, error: clean(error?.message) || "מחיקת הוראת הקבע נכשלה." }
       }));
     }
   }
@@ -443,10 +379,6 @@ export default function PaymentMandatesReportClient({
                     <MandateRemoteDetails
                       item={item}
                       detailsState={detailsByMandate[`${item.connectionId}:${item.mandateId || item.id}`]}
-                      deleteState={deleteStateByMandate[`${item.connectionId}:${item.mandateId || item.id}`]}
-                      onStartDelete={() => startDelete(item)}
-                      onCancelDelete={() => cancelDelete(item)}
-                      onConfirmDelete={() => confirmDelete(item)}
                     />
                   </div>
                 </div>
