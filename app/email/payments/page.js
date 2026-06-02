@@ -47,6 +47,7 @@ export default async function PaymentEmailPage({ searchParams }) {
   const dateTo = clean(resolvedSearchParams?.dateTo);
   const providers = parseList(resolvedSearchParams?.provider);
   const requestedConnectionIds = parseList(resolvedSearchParams?.connectionId);
+  const searchTerm = clean(resolvedSearchParams?.searchTerm);
   const sortBy = clean(resolvedSearchParams?.sortBy) || "date";
   const sortDir = clean(resolvedSearchParams?.sortDir) || "desc";
   const notice = clean(resolvedSearchParams?.notice);
@@ -58,6 +59,7 @@ export default async function PaymentEmailPage({ searchParams }) {
   const effectiveProviders = Array.isArray(draftReportConfig?.providers) && draftReportConfig.providers.length
     ? draftReportConfig.providers.map(clean).filter(Boolean)
     : providers;
+  const effectiveSearchTerm = clean(draftReportConfig?.searchTerm) || searchTerm;
   const effectiveSortBy = clean(draftReportConfig?.sortBy) || sortBy;
   const effectiveSortDir = clean(draftReportConfig?.sortDir) || sortDir;
 
@@ -83,6 +85,7 @@ export default async function PaymentEmailPage({ searchParams }) {
     const visibleTransactions = filterAndSortPaymentTransactions(dashboard.transactions, {
       providers: effectiveProviders,
       connectionIds,
+      searchTerm: effectiveSearchTerm,
       sortBy: effectiveSortBy,
       sortDir: effectiveSortDir
     });
@@ -95,6 +98,7 @@ export default async function PaymentEmailPage({ searchParams }) {
     dateTo: effectiveDateTo,
     providers: effectiveProviders,
     connectionIds,
+    searchTerm: effectiveSearchTerm,
     sortBy: effectiveSortBy,
     sortDir: effectiveSortDir
   });
@@ -129,6 +133,7 @@ export default async function PaymentEmailPage({ searchParams }) {
         <input type="hidden" name="draftId" value={draftId} />
         <input type="hidden" name="dateFrom" value={effectiveDateFrom} />
         <input type="hidden" name="dateTo" value={effectiveDateTo} />
+        <input type="hidden" name="searchTerm" value={effectiveSearchTerm} />
         <input type="hidden" name="sortBy" value={effectiveSortBy} />
         <input type="hidden" name="sortDir" value={effectiveSortDir} />
         {effectiveProviders.map((provider) => <input key={`provider-${provider}`} type="hidden" name="provider" value={provider} />)}

@@ -125,6 +125,7 @@ export async function createPaymentEmailCampaignConfirmAction(formData) {
       dateTo: clean(formData.get("dateTo")),
       providers: formData.getAll("provider").map(clean).filter(Boolean),
       connectionIds: formData.getAll("connectionId").map(clean).filter(Boolean),
+      searchTerm: clean(formData.get("searchTerm")),
       sortBy: clean(formData.get("sortBy")) || "date",
       sortDir: clean(formData.get("sortDir")) || "desc"
     },

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   buildPaymentExportSearchParams,
@@ -37,7 +38,7 @@ function formatHistoryMoney(entry, fallbackCurrency = "ILS") {
   return formatMoney(entry?.amount, fallbackCurrency);
 }
 
-function MandateRemoteDetails({ item, detailsState }) {
+function MandateRemoteDetails({ item, detailsState, deleteState, onStartDelete, onCancelDelete, onConfirmDelete }) {
   if (detailsState?.loading) {
     return <div className="muted">טוען פרטי הוראת קבע והיסטוריית חיובים...</div>;
   }
@@ -77,6 +78,39 @@ function MandateRemoteDetails({ item, detailsState }) {
           </div>
         )}
       </div>
+
+      {item.provider === "stripe" && details.status !== "completed" ? (
+        <div className="card" style={{ padding: 12, borderColor: "#f3c6c6", background: "#fff7f7" }}>
+          <div style={{ fontWeight: 800, marginBottom: 8, color: "#991b1b" }}>מחיקת הוראת קבע</div>
+          {!deleteState?.confirming ? (
+            <>
+              <div className="muted" style={{ marginBottom: 10 }}>
+                הפעולה זמינה כרגע רק עבור Stripe, ומבטלת מיד את המנוי החוזר במערכת הסליקה.
+              </div>
+              <button type="button" className="quick-action-btn quick-action-outline" onClick={onStartDelete}>
+                סמן למחיקה
+              </button>
+            </>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ color: "#991b1b", fontWeight: 700 }}>
+                האם למחוק סופית את הוראת הקבע הזו ב-Stripe?
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button type="button" onClick={onConfirmDelete} disabled={deleteState?.loading}>
+                  {deleteState?.loading ? "מוחק..." : "אישור סופי למחיקה"}
+                </button>
+                <button type="button" className="quick-action-btn quick-action-outline" onClick={onCancelDelete} disabled={deleteState?.loading}>
+                  ביטול
+                </button>
+              </div>
+              {deleteState?.error ? (
+                <div className="muted" style={{ color: "#991b1b" }}>{deleteState.error}</div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -93,9 +127,12 @@ export default function PaymentMandatesReportClient({
     initialSelectedConnectionIds.length ? initialSelectedConnectionIds : connections.map((connection) => connection.id)
   );
   const [mandateStatus, setMandateStatus] = useState(initialMandateStatus || "active");
+  const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [detailsByMandate, setDetailsByMandate] = useState({});
+  const [deleteStateByMandate, setDeleteStateByMandate] = useState({});
+  const router = useRouter();
 
   const visibleConnections = useMemo(
     () => connections.filter((connection) => selectedProviders.includes(connection.provider)),
@@ -112,10 +149,11 @@ export default function PaymentMandatesReportClient({
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
       mandateStatus,
+      searchTerm,
       sortBy,
       sortDir
     }),
-    [mandates, selectedProviders, effectiveConnectionIds, mandateStatus, sortBy, sortDir]
+    [mandates, selectedProviders, effectiveConnectionIds, mandateStatus, searchTerm, sortBy, sortDir]
   );
 
   const summary = useMemo(
@@ -145,10 +183,11 @@ export default function PaymentMandatesReportClient({
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
       mandateStatus,
+      searchTerm,
       sortBy,
       sortDir
     }),
-    [selectedProviders, effectiveConnectionIds, mandateStatus, sortBy, sortDir]
+    [selectedProviders, effectiveConnectionIds, mandateStatus, searchTerm, sortBy, sortDir]
   );
 
   function toggleProvider(provider) {
@@ -197,6 +236,51 @@ export default function PaymentMandatesReportClient({
     }
   }
 
+  function startDelete(item) {
+    const cacheKey = `${item.connectionId}:${item.mandateId || item.id}`;
+    setDeleteStateByMandate((prev) => ({
+      ...prev,
+      [cacheKey]: { confirming: true, loading: false, error: "" }
+    }));
+  }
+
+  function cancelDelete(item) {
+    const cacheKey = `${item.connectionId}:${item.mandateId || item.id}`;
+    setDeleteStateByMandate((prev) => ({
+      ...prev,
+      [cacheKey]: { confirming: false, loading: false, error: "" }
+    }));
+  }
+
+  async function confirmDelete(item) {
+    const cacheKey = `${item.connectionId}:${item.mandateId || item.id}`;
+    setDeleteStateByMandate((prev) => ({
+      ...prev,
+      [cacheKey]: { confirming: true, loading: true, error: "" }
+    }));
+
+    try {
+      const response = await fetch("/api/payments/mandates/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connectionId: item.connectionId,
+          mandateId: item.mandateId || item.id
+        })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(clean(payload?.error) || "מחיקת הוראת הקבע נכשלה.");
+      }
+      router.refresh();
+    } catch (error) {
+      setDeleteStateByMandate((prev) => ({
+        ...prev,
+        [cacheKey]: { confirming: true, loading: false, error: clean(error?.message) || "מחיקת הוראת הקבע נכשלה." }
+      }));
+    }
+  }
+
   return (
     <>
       <section className="card">
@@ -231,6 +315,12 @@ export default function PaymentMandatesReportClient({
       <section className="card">
         <h2 style={{ marginTop: 0 }}>תצוגה חיה של הדוח</h2>
         <div className="grid">
+          <input
+            type="search"
+            placeholder="חיפוש חופשי בכל שדות הוראת הקבע"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(clean(event.target.value))}
+          />
           <select value={mandateStatus} onChange={(event) => setMandateStatus(clean(event.target.value) || "active")}>
             <option value="active">הצג הוראות קבע פעילות</option>
             <option value="issues">הצג הוראות קבע עם תקלות</option>
@@ -298,7 +388,7 @@ export default function PaymentMandatesReportClient({
             {visibleMandates.map((item) => (
               <details
                 key={`${item.provider}-${item.id}`}
-                className={`payments-report-item${item.status === "issues" ? " payments-report-item-issue" : ""}`}
+                className={`payments-report-item${item.status === "issues" ? " payments-report-item-issue" : ""}${item.status === "completed" ? " payments-report-item-completed" : ""}`}
                 onToggle={(event) => {
                   if (event.currentTarget.open) {
                     loadMandateDetails(item);
@@ -313,9 +403,14 @@ export default function PaymentMandatesReportClient({
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{item.connectionLabel}</span>
                     <span className="meta-chip">{item.providerLabel}</span>
-                    <span className={`meta-chip${item.status === "issues" ? " meta-chip-issue" : ""}`}>
+                    <span className={`meta-chip${item.status === "issues" ? " meta-chip-issue" : ""}${item.status === "completed" ? " meta-chip-completed" : ""}`}>
                       {item.statusLabel || item.status || "-"}
                     </span>
+                    {searchTerm && Number(item.searchScore) >= 0.9 ? (
+                      <span className="meta-chip">
+                        התאמה {Math.round(Number(item.searchScore) * 100)}%
+                      </span>
+                    ) : null}
                     <div style={{ display: "grid", justifyItems: "end" }}>
                       <strong>{formatMoney(item.originalAmount ?? item.amount, item.originalCurrency || item.currency)}</strong>
                       <span className="muted">שווי בש&quot;ח: {formatMoney(item.amountIls ?? item.amount, "ILS")}</span>
@@ -348,6 +443,10 @@ export default function PaymentMandatesReportClient({
                     <MandateRemoteDetails
                       item={item}
                       detailsState={detailsByMandate[`${item.connectionId}:${item.mandateId || item.id}`]}
+                      deleteState={deleteStateByMandate[`${item.connectionId}:${item.mandateId || item.id}`]}
+                      onStartDelete={() => startDelete(item)}
+                      onCancelDelete={() => cancelDelete(item)}
+                      onConfirmDelete={() => confirmDelete(item)}
                     />
                   </div>
                 </div>

@@ -53,6 +53,7 @@ export default function PaymentsReportClient({
   const [selectedConnectionIds, setSelectedConnectionIds] = useState(
     initialSelectedConnectionIds.length ? initialSelectedConnectionIds : connections.map((connection) => connection.id)
   );
+  const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
 
@@ -70,10 +71,11 @@ export default function PaymentsReportClient({
     () => filterAndSortPaymentTransactions(transactions, {
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
+      searchTerm,
       sortBy,
       sortDir
     }),
-    [transactions, selectedProviders, effectiveConnectionIds, sortBy, sortDir]
+    [transactions, selectedProviders, effectiveConnectionIds, searchTerm, sortBy, sortDir]
   );
 
   const summary = useMemo(
@@ -109,10 +111,11 @@ export default function PaymentsReportClient({
       dateTo,
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
+      searchTerm,
       sortBy,
       sortDir
     }),
-    [dateFrom, dateTo, selectedProviders, effectiveConnectionIds, sortBy, sortDir]
+    [dateFrom, dateTo, selectedProviders, effectiveConnectionIds, searchTerm, sortBy, sortDir]
   );
 
   function toggleProvider(provider) {
@@ -173,6 +176,12 @@ export default function PaymentsReportClient({
       <section className="card">
         <h2 style={{ marginTop: 0 }}>תצוגה חיה של הדוח</h2>
         <div className="grid">
+          <input
+            type="search"
+            placeholder="חיפוש חופשי בכל שדות העסקה"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(clean(event.target.value))}
+          />
           <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
             <option value="date">מיון לפי תאריך</option>
             <option value="amount">מיון לפי סכום</option>
@@ -247,6 +256,11 @@ export default function PaymentsReportClient({
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{transaction.connectionLabel}</span>
                     <span className="meta-chip">{transaction.providerLabel}</span>
+                    {searchTerm && Number(transaction.searchScore) >= 0.9 ? (
+                      <span className="meta-chip">
+                        התאמה {Math.round(Number(transaction.searchScore) * 100)}%
+                      </span>
+                    ) : null}
                     <div style={{ display: "grid", justifyItems: "end" }}>
                       <strong>{formatMoney(transaction.originalAmount ?? transaction.amount, transaction.originalCurrency || transaction.currency)}</strong>
                       {hasFxConversion(transaction) ? (

@@ -48,6 +48,7 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
     dateTo: clean(draft?.reportConfig?.dateTo),
     providers: Array.isArray(draft?.reportConfig?.providers) ? draft.reportConfig.providers : [],
     connectionIds: Array.isArray(draft?.reportConfig?.connectionIds) ? draft.reportConfig.connectionIds : [],
+    searchTerm: clean(draft?.reportConfig?.searchTerm),
     sortBy: clean(draft?.reportConfig?.sortBy) || "date",
     sortDir: clean(draft?.reportConfig?.sortDir) || "desc"
   });
