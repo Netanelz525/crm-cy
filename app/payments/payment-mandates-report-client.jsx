@@ -25,11 +25,6 @@ function formatMoney(amount, currency = "ILS") {
   }
 }
 
-function formatOptionalMoney(amount, currency = "ILS") {
-  if (amount == null || amount === "") return "-";
-  return formatMoney(amount, currency);
-}
-
 function formatDateTime(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -37,14 +32,10 @@ function formatDateTime(value) {
   return date.toLocaleString("he-IL");
 }
 
-function hasFxConversion(transaction) {
-  return clean(transaction?.originalCurrency || transaction?.currency || "ILS").toUpperCase() !== "ILS";
-}
-
-export default function PaymentsReportClient({
+export default function PaymentMandatesReportClient({
   dateFrom,
   dateTo,
-  transactions,
+  mandates,
   connections,
   providerOptions,
   initialSelectedConnectionIds = []
@@ -66,25 +57,25 @@ export default function PaymentsReportClient({
     [selectedConnectionIds, visibleConnections]
   );
 
-  const visibleTransactions = useMemo(
-    () => filterAndSortPaymentTransactions(transactions, {
+  const visibleMandates = useMemo(
+    () => filterAndSortPaymentTransactions(mandates, {
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
       sortBy,
       sortDir
     }),
-    [transactions, selectedProviders, effectiveConnectionIds, sortBy, sortDir]
+    [mandates, selectedProviders, effectiveConnectionIds, sortBy, sortDir]
   );
 
   const summary = useMemo(
-    () => summarizePaymentTransactions(visibleTransactions),
-    [visibleTransactions]
+    () => summarizePaymentTransactions(visibleMandates),
+    [visibleMandates]
   );
 
   const sourceSummaries = useMemo(
     () => visibleConnections
       .map((connection) => {
-        const items = visibleTransactions.filter((transaction) => transaction.connectionId === connection.id);
+        const items = visibleMandates.filter((item) => item.connectionId === connection.id);
         const itemSummary = summarizePaymentTransactions(items);
         return {
           id: connection.id,
@@ -94,12 +85,12 @@ export default function PaymentsReportClient({
         };
       })
       .filter((item) => item.count > 0),
-    [visibleConnections, visibleTransactions]
+    [visibleConnections, visibleMandates]
   );
 
   const exportQuery = useMemo(
     () => buildPaymentExportSearchParams({
-      reportType: "transactions",
+      reportType: "mandates",
       dateFrom,
       dateTo,
       providers: selectedProviders,
@@ -135,20 +126,12 @@ export default function PaymentsReportClient({
             <strong>{effectiveConnectionIds.length}</strong>
           </div>
           <div>
-            <div className="muted">עסקאות</div>
+            <div className="muted">הוראות קבע</div>
             <strong>{summary.transactionsCount}</strong>
           </div>
           <div>
-            <div className="muted">סכום כולל</div>
+            <div className="muted">סכום חודשי כולל</div>
             <strong>{formatMoney(summary.totalAmount, "ILS")}</strong>
-          </div>
-          <div>
-            <div className="muted">נטו</div>
-            <strong>{formatMoney(summary.totalNetAmount, "ILS")}</strong>
-          </div>
-          <div>
-            <div className="muted">עמלות</div>
-            <strong>{formatMoney(summary.totalFees, "ILS")}</strong>
           </div>
         </div>
         {sourceSummaries.length ? (
@@ -157,7 +140,7 @@ export default function PaymentsReportClient({
             <div style={{ display: "grid", gap: 8 }}>
               {sourceSummaries.map((item) => (
                 <div key={item.id} className="card" style={{ padding: 12 }}>
-                  <b>{item.label}</b>: {item.count} עסקאות | {formatMoney(item.totalAmount, "ILS")}
+                  <b>{item.label}</b>: {item.count} הוראות קבע | {formatMoney(item.totalAmount, "ILS")}
                 </div>
               ))}
             </div>
@@ -169,7 +152,7 @@ export default function PaymentsReportClient({
         <h2 style={{ marginTop: 0 }}>תצוגה חיה של הדוח</h2>
         <div className="grid">
           <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-            <option value="date">מיון לפי תאריך</option>
+            <option value="date">מיון לפי תאריך יצירה</option>
             <option value="amount">מיון לפי סכום</option>
             <option value="source">מיון לפי מקור תשלום</option>
           </select>
@@ -222,53 +205,49 @@ export default function PaymentsReportClient({
       </section>
 
       <section className="card">
-        <h2 style={{ marginTop: 0 }}>דוח עסקאות</h2>
-        {!visibleTransactions.length ? (
-          <div className="muted">לא נמצאו עסקאות בתצוגה שנבחרה.</div>
+        <h2 style={{ marginTop: 0 }}>דוח הוראות קבע פעילות</h2>
+        {!visibleMandates.length ? (
+          <div className="muted">לא נמצאו הוראות קבע בתצוגה שנבחרה.</div>
         ) : (
           <div className="payments-report-list">
-            {visibleTransactions.map((transaction) => (
-              <details key={`${transaction.provider}-${transaction.id}-${transaction.reference}`} className="payments-report-item">
+            {visibleMandates.map((item) => (
+              <details key={`${item.provider}-${item.id}`} className="payments-report-item">
                 <summary className="payments-report-summary">
                   <div className="payments-report-summary-main">
-                    <strong>{formatDateTime(transaction.createdAt)}</strong>
-                    <span>{transaction.customerName || "ללא שם"}</span>
+                    <strong>{formatDateTime(item.nextChargeDate || item.createdAt)}</strong>
+                    <span>{item.customerName || "ללא שם"}</span>
                   </div>
                   <div className="payments-report-summary-meta">
-                    <span className="meta-chip">{transaction.connectionLabel}</span>
-                    <span className="meta-chip">{transaction.providerLabel}</span>
+                    <span className="meta-chip">{item.connectionLabel}</span>
+                    <span className="meta-chip">{item.providerLabel}</span>
+                    <span className="meta-chip">{item.statusLabel || item.status || "-"}</span>
                     <div style={{ display: "grid", justifyItems: "end" }}>
-                      <strong>{formatMoney(transaction.originalAmount ?? transaction.amount, transaction.originalCurrency || transaction.currency)}</strong>
-                      {hasFxConversion(transaction) ? (
-                        <span className="muted">שווי בש&quot;ח: {formatMoney(transaction.amountIls, "ILS")}</span>
-                      ) : null}
+                      <strong>{formatMoney(item.originalAmount ?? item.amount, item.originalCurrency || item.currency)}</strong>
+                      <span className="muted">שווי בש&quot;ח: {formatMoney(item.amountIls ?? item.amount, "ILS")}</span>
                     </div>
                   </div>
                 </summary>
                 <div className="payments-report-body">
                   <div className="payments-report-grid">
-                    <div><b>שם:</b> {transaction.customerName || "-"}</div>
-                    <div><b>מייל:</b> {transaction.email || "-"}</div>
-                    <div><b>טלפון:</b> {transaction.phone || "-"}</div>
-                    <div><b>סוג:</b> {transaction.type || "-"}</div>
-                    <div><b>סטטוס:</b> {transaction.status || "-"}</div>
-                    <div><b>אסמכתא:</b> {transaction.reference || "-"}</div>
-                    <div><b>קבלה:</b> {transaction.receiptNumber || "-"}</div>
-                    <div><b>עסקה:</b> {transaction.transactionNumber || "-"}</div>
-                    <div><b>הו&quot;ק:</b> {transaction.directDebitNumber || "-"}</div>
-                    <div><b>ספק סולק:</b> {transaction.clearingCompany || "-"}</div>
-                    <div><b>מותג:</b> {transaction.brand || "-"}</div>
-                    <div><b>מקור:</b> {transaction.connectionLabel}</div>
-                    <div><b>מטבע מקורי:</b> {transaction.originalCurrency || transaction.currency || "-"}</div>
-                    <div><b>שער לש&quot;ח:</b> {transaction.fxRateToIls ? transaction.fxRateToIls : "-"}</div>
-                    <div><b>תאריך שער:</b> {transaction.fxRateDate || "-"}</div>
-                    <div className="payments-report-grid-wide"><b>תיאור:</b> {transaction.description || "-"}</div>
-                    <div><b>ברוטו מקורי:</b> {formatMoney(transaction.originalAmount ?? transaction.amount, transaction.originalCurrency || transaction.currency)}</div>
-                    <div><b>נטו מקורי:</b> {formatOptionalMoney(transaction.originalNetAmount, transaction.originalCurrency || transaction.currency)}</div>
-                    <div><b>עמלה מקורית:</b> {formatOptionalMoney(transaction.originalFeeAmount, transaction.originalCurrency || transaction.currency)}</div>
-                    <div><b>ברוטו בש&quot;ח:</b> {formatMoney(transaction.amountIls ?? transaction.amount, "ILS")}</div>
-                    <div><b>נטו בש&quot;ח:</b> {formatMoney(transaction.netAmountIls ?? transaction.netAmount, "ILS")}</div>
-                    <div><b>עמלה בש&quot;ח:</b> {formatMoney(transaction.feeAmountIls ?? transaction.feeAmount, "ILS")}</div>
+                    <div><b>שם:</b> {item.customerName || "-"}</div>
+                    <div><b>מייל:</b> {item.email || "-"}</div>
+                    <div><b>טלפון:</b> {item.phone || "-"}</div>
+                    <div><b>תעודת זהות:</b> {item.donorId || "-"}</div>
+                    <div><b>סטטוס:</b> {item.statusLabel || item.status || "-"}</div>
+                    <div><b>מקור:</b> {item.connectionLabel || "-"}</div>
+                    <div><b>מספר הו&quot;ק / מנוי:</b> {item.mandateId || "-"}</div>
+                    <div><b>נוצר בתאריך:</b> {formatDateTime(item.createdAt)}</div>
+                    <div><b>חיוב הבא:</b> {formatDateTime(item.nextChargeDate)}</div>
+                    <div><b>תדירות:</b> {item.recurringCode || "-"}</div>
+                    <div><b>4 ספרות:</b> {item.paymentMethodLast4 || "-"}</div>
+                    <div><b>תוקף:</b> {item.paymentMethodExpiry || "-"}</div>
+                    <div><b>עיר:</b> {item.city || "-"}</div>
+                    <div><b>כתובת:</b> {item.address || "-"}</div>
+                    <div><b>קבוצה:</b> {item.group || "-"}</div>
+                    <div className="payments-report-grid-wide"><b>הערות:</b> {item.comments || "-"}</div>
+                    <div className="payments-report-grid-wide"><b>שגיאה אחרונה:</b> {item.errorText || "-"}</div>
+                    <div><b>סכום מקורי:</b> {formatMoney(item.originalAmount ?? item.amount, item.originalCurrency || item.currency)}</div>
+                    <div><b>שווי בש&quot;ח:</b> {formatMoney(item.amountIls ?? item.amount, "ILS")}</div>
                   </div>
                 </div>
               </details>

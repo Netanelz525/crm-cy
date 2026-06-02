@@ -7,6 +7,7 @@ function clean(value) {
 }
 
 export default function PaymentFilterFormClient({
+  reportType = "transactions",
   dateFrom,
   dateTo,
   connections = [],
@@ -20,10 +21,15 @@ export default function PaymentFilterFormClient({
   const [selectedIds, setSelectedIds] = useState(
     selectedConnectionIds.length ? selectedConnectionIds : allConnectionIds
   );
+  const [selectedReportType, setSelectedReportType] = useState(reportType);
 
   useEffect(() => {
     setSelectedIds(selectedConnectionIds.length ? selectedConnectionIds : allConnectionIds);
   }, [selectedConnectionIds, allConnectionIds]);
+
+  useEffect(() => {
+    setSelectedReportType(reportType);
+  }, [reportType]);
 
   const allSelected = allConnectionIds.length > 0 && selectedIds.length === allConnectionIds.length;
 
@@ -42,6 +48,16 @@ export default function PaymentFilterFormClient({
   return (
     <form method="get" style={{ display: "grid", gap: 16 }}>
       <input type="hidden" name="run" value="1" />
+      <div className="grid">
+        <select
+          name="reportType"
+          value={selectedReportType}
+          onChange={(event) => setSelectedReportType(clean(event.target.value) === "mandates" ? "mandates" : "transactions")}
+        >
+          <option value="transactions">דוח עסקאות</option>
+          <option value="mandates">דוח הוראות קבע פעילות</option>
+        </select>
+      </div>
       <div className="grid">
         <input type="date" name="dateFrom" defaultValue={dateFrom} required />
         <input type="date" name="dateTo" defaultValue={dateTo} required />
@@ -75,7 +91,9 @@ export default function PaymentFilterFormClient({
         </div>
       </div>
 
-      <button type="submit" disabled={!selectedIds.length}>הפק דוח עסקאות</button>
+      <button type="submit" disabled={!selectedIds.length}>
+        {selectedReportType === "mandates" ? "הפק דוח הוראות קבע פעילות" : "הפק דוח עסקאות"}
+      </button>
     </form>
   );
 }

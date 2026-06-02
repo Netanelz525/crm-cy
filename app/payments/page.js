@@ -7,6 +7,7 @@ import {
 } from "../../lib/payment-systems";
 import { getCurrentAppUser } from "../../lib/rbac";
 import PaymentsReportClient from "./payments-report-client";
+import PaymentMandatesReportClient from "./payment-mandates-report-client";
 import PaymentFilterFormClient from "./payment-filter-form-client";
 
 function clean(value) {
@@ -22,6 +23,7 @@ export default async function PaymentsPage({ searchParams }) {
 
   const resolvedSearchParams = await searchParams;
   const defaults = getDefaultPaymentDateRange();
+  const reportType = clean(resolvedSearchParams?.reportType) === "mandates" ? "mandates" : "transactions";
   const dateFrom = clean(resolvedSearchParams?.dateFrom) || defaults.dateFrom;
   const dateTo = clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
   const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
@@ -39,19 +41,21 @@ export default async function PaymentsPage({ searchParams }) {
     label: getPaymentProviderLabel(provider)
   }));
   const dashboard = shouldRunReport && activeConnections.length
-    ? await (await import("../../lib/payment-systems")).getPaymentDashboard({
+    ? await (await import("../../lib/payment-systems"))[reportType === "mandates" ? "getPaymentMandatesDashboard" : "getPaymentDashboard"]({
         connectionIds: selectedConnectionIds,
         dateFrom,
         dateTo
       })
-    : { transactions: [], errors: [], connections: [], summary: { totalAmount: 0, totalNetAmount: 0, totalFees: 0 } };
+    : reportType === "mandates"
+      ? { mandates: [], errors: [], connections: [], summary: { totalAmount: 0 } }
+      : { transactions: [], errors: [], connections: [], summary: { totalAmount: 0, totalNetAmount: 0, totalFees: 0 } };
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <section className="card glass">
         <h1 style={{ marginTop: 0 }}>מערכות תשלום</h1>
         <p className="muted" style={{ marginBottom: 0 }}>
-          דוח עסקאות מאוחד מכל המוסדות והחשבונות שחוברו למערכת, כולל נדרים פלוס ו־Stripe.
+          דוחות מאוחדים מכל המוסדות והחשבונות שחוברו למערכת, כולל עסקאות והוראות קבע פעילות מנדרים פלוס ו־Stripe.
         </p>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה לתלמידים</Link>
@@ -71,6 +75,7 @@ export default async function PaymentsPage({ searchParams }) {
           </div>
         ) : (
           <PaymentFilterFormClient
+            reportType={reportType}
             dateFrom={dateFrom}
             dateTo={dateTo}
             connections={activeConnections}
@@ -93,18 +98,31 @@ export default async function PaymentsPage({ searchParams }) {
               </div>
             </section>
           ) : null}
-          <PaymentsReportClient
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            transactions={dashboard.transactions}
-            connections={dashboard.connections}
-            providerOptions={activeProviders}
-            initialSelectedConnectionIds={selectedConnectionIds}
-          />
+          {reportType === "mandates" ? (
+            <PaymentMandatesReportClient
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              mandates={dashboard.mandates}
+              connections={dashboard.connections}
+              providerOptions={activeProviders}
+              initialSelectedConnectionIds={selectedConnectionIds}
+            />
+          ) : (
+            <PaymentsReportClient
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              transactions={dashboard.transactions}
+              connections={dashboard.connections}
+              providerOptions={activeProviders}
+              initialSelectedConnectionIds={selectedConnectionIds}
+            />
+          )}
         </>
       ) : activeConnections.length ? (
         <section className="card muted">
-          הדוח לא נוצר עדיין. בחר טווח תאריכים ולחץ על `הפק דוח עסקאות` כדי לבצע את השליפה.
+          {reportType === "mandates"
+            ? "הדוח לא נוצר עדיין. בחר טווח תאריכים, סוג דוח ומקורות תשלום כדי להפיק דוח הוראות קבע פעילות."
+            : "הדוח לא נוצר עדיין. בחר טווח תאריכים ולחץ על `הפק דוח עסקאות` כדי לבצע את השליפה."}
         </section>
       ) : null}
     </div>
