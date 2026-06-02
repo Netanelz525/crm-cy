@@ -38,7 +38,7 @@ export default function PaymentFilterFormClient({
   }, [mandateStatus]);
 
   const allSelected = allConnectionIds.length > 0 && selectedIds.length === allConnectionIds.length;
-  const datesOptional = selectedReportType === "mandates";
+  const hideDates = selectedReportType === "mandates";
 
   function toggleAll() {
     setSelectedIds((current) => (current.length === allConnectionIds.length ? [] : allConnectionIds));
@@ -65,11 +65,13 @@ export default function PaymentFilterFormClient({
           <option value="mandates">דוח הוראות קבע פעילות</option>
         </select>
       </div>
-      <div className="grid">
-        <input type="date" name="dateFrom" defaultValue={dateFrom} required={!datesOptional} />
-        <input type="date" name="dateTo" defaultValue={dateTo} required={!datesOptional} />
-      </div>
-      {datesOptional ? (
+      {!hideDates ? (
+        <div className="grid">
+          <input type="date" name="dateFrom" defaultValue={dateFrom} required />
+          <input type="date" name="dateTo" defaultValue={dateTo} required />
+        </div>
+      ) : null}
+      {hideDates ? (
         <>
           <div className="grid">
             <select
@@ -81,9 +83,6 @@ export default function PaymentFilterFormClient({
               <option value="issues">הצג הוראות קבע עם תקלות</option>
               <option value="all">הצג את כל הוראות הקבע</option>
             </select>
-          </div>
-          <div className="muted">
-            התאריכים כאן אופציונליים, ומשמשים רק לסינון לפי מועד יצירת הוראת הקבע.
           </div>
         </>
       ) : null}

@@ -30,10 +30,10 @@ export default async function PaymentsPage({ searchParams }) {
       : "active")
     : "";
   const dateFrom = reportType === "mandates"
-    ? clean(resolvedSearchParams?.dateFrom)
+    ? ""
     : clean(resolvedSearchParams?.dateFrom) || defaults.dateFrom;
   const dateTo = reportType === "mandates"
-    ? clean(resolvedSearchParams?.dateTo)
+    ? ""
     : clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
   const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
@@ -132,7 +132,7 @@ export default async function PaymentsPage({ searchParams }) {
       ) : activeConnections.length ? (
         <section className="card muted">
           {reportType === "mandates"
-            ? "הדוח לא נוצר עדיין. בחר מקורות תשלום, ואם צריך גם טווח תאריכים לסינון לפי מועד יצירת הוראת הקבע."
+            ? "הדוח לא נוצר עדיין. בחר מקורות תשלום ולחץ על הפקה כדי לראות את הוראות הקבע."
             : "הדוח לא נוצר עדיין. בחר טווח תאריכים ולחץ על `הפק דוח עסקאות` כדי לבצע את השליפה."}
         </section>
       ) : null}

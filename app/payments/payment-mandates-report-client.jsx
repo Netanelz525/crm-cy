@@ -33,8 +33,6 @@ function formatDateTime(value) {
 }
 
 export default function PaymentMandatesReportClient({
-  dateFrom,
-  dateTo,
   mandates,
   connections,
   providerOptions,
@@ -94,15 +92,13 @@ export default function PaymentMandatesReportClient({
   const exportQuery = useMemo(
     () => buildPaymentExportSearchParams({
       reportType: "mandates",
-      dateFrom,
-      dateTo,
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
       mandateStatus,
       sortBy,
       sortDir
     }),
-    [dateFrom, dateTo, selectedProviders, effectiveConnectionIds, mandateStatus, sortBy, sortDir]
+    [selectedProviders, effectiveConnectionIds, mandateStatus, sortBy, sortDir]
   );
 
   function toggleProvider(provider) {
