@@ -216,7 +216,10 @@ export default function PaymentMandatesReportClient({
         ) : (
           <div className="payments-report-list">
             {visibleMandates.map((item) => (
-              <details key={`${item.provider}-${item.id}`} className="payments-report-item">
+              <details
+                key={`${item.provider}-${item.id}`}
+                className={`payments-report-item${item.status === "issues" ? " payments-report-item-issue" : ""}`}
+              >
                 <summary className="payments-report-summary">
                   <div className="payments-report-summary-main">
                     <strong>{formatDateTime(item.nextChargeDate || item.createdAt)}</strong>
@@ -225,7 +228,9 @@ export default function PaymentMandatesReportClient({
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{item.connectionLabel}</span>
                     <span className="meta-chip">{item.providerLabel}</span>
-                    <span className="meta-chip">{item.statusLabel || item.status || "-"}</span>
+                    <span className={`meta-chip${item.status === "issues" ? " meta-chip-issue" : ""}`}>
+                      {item.statusLabel || item.status || "-"}
+                    </span>
                     <div style={{ display: "grid", justifyItems: "end" }}>
                       <strong>{formatMoney(item.originalAmount ?? item.amount, item.originalCurrency || item.currency)}</strong>
                       <span className="muted">שווי בש&quot;ח: {formatMoney(item.amountIls ?? item.amount, "ILS")}</span>

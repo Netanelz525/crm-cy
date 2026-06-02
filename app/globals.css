@@ -87,6 +87,12 @@ a {
   overflow: hidden;
 }
 
+.payments-report-item-issue {
+  border-color: rgba(220, 38, 38, 0.38);
+  background: linear-gradient(180deg, #fff6f6, #fff0f0);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.06);
+}
+
 .payments-report-summary {
   list-style: none;
   display: flex;
@@ -358,6 +364,13 @@ button {
   background: linear-gradient(180deg, #0f5fa4, #0b4f8c);
   color: #fff;
   border-color: transparent;
+  font-weight: 800;
+}
+
+.meta-chip-issue {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.28);
+  color: #991b1b;
   font-weight: 800;
 }
 
