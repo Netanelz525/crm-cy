@@ -38,12 +38,14 @@ export default function PaymentMandatesReportClient({
   mandates,
   connections,
   providerOptions,
-  initialSelectedConnectionIds = []
+  initialSelectedConnectionIds = [],
+  initialMandateStatus = "active"
 }) {
   const [selectedProviders, setSelectedProviders] = useState(providerOptions.map((option) => option.value));
   const [selectedConnectionIds, setSelectedConnectionIds] = useState(
     initialSelectedConnectionIds.length ? initialSelectedConnectionIds : connections.map((connection) => connection.id)
   );
+  const [mandateStatus, setMandateStatus] = useState(initialMandateStatus || "active");
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
 
@@ -61,10 +63,11 @@ export default function PaymentMandatesReportClient({
     () => filterAndSortPaymentTransactions(mandates, {
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
+      mandateStatus,
       sortBy,
       sortDir
     }),
-    [mandates, selectedProviders, effectiveConnectionIds, sortBy, sortDir]
+    [mandates, selectedProviders, effectiveConnectionIds, mandateStatus, sortBy, sortDir]
   );
 
   const summary = useMemo(
@@ -95,10 +98,11 @@ export default function PaymentMandatesReportClient({
       dateTo,
       providers: selectedProviders,
       connectionIds: effectiveConnectionIds,
+      mandateStatus,
       sortBy,
       sortDir
     }),
-    [dateFrom, dateTo, selectedProviders, effectiveConnectionIds, sortBy, sortDir]
+    [dateFrom, dateTo, selectedProviders, effectiveConnectionIds, mandateStatus, sortBy, sortDir]
   );
 
   function toggleProvider(provider) {
@@ -151,6 +155,11 @@ export default function PaymentMandatesReportClient({
       <section className="card">
         <h2 style={{ marginTop: 0 }}>תצוגה חיה של הדוח</h2>
         <div className="grid">
+          <select value={mandateStatus} onChange={(event) => setMandateStatus(clean(event.target.value) || "active")}>
+            <option value="active">הצג הוראות קבע פעילות</option>
+            <option value="issues">הצג הוראות קבע עם תקלות</option>
+            <option value="all">הצג את כל הוראות הקבע</option>
+          </select>
           <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
             <option value="date">מיון לפי תאריך יצירה</option>
             <option value="amount">מיון לפי סכום</option>

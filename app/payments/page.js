@@ -24,8 +24,17 @@ export default async function PaymentsPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const defaults = getDefaultPaymentDateRange();
   const reportType = clean(resolvedSearchParams?.reportType) === "mandates" ? "mandates" : "transactions";
-  const dateFrom = clean(resolvedSearchParams?.dateFrom) || defaults.dateFrom;
-  const dateTo = clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
+  const mandateStatus = reportType === "mandates"
+    ? (["active", "issues", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
+      ? clean(resolvedSearchParams?.mandateStatus)
+      : "active")
+    : "";
+  const dateFrom = reportType === "mandates"
+    ? clean(resolvedSearchParams?.dateFrom)
+    : clean(resolvedSearchParams?.dateFrom) || defaults.dateFrom;
+  const dateTo = reportType === "mandates"
+    ? clean(resolvedSearchParams?.dateTo)
+    : clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
   const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
   const requestedConnectionIds = Array.isArray(resolvedSearchParams?.connectionId)
@@ -78,6 +87,7 @@ export default async function PaymentsPage({ searchParams }) {
             reportType={reportType}
             dateFrom={dateFrom}
             dateTo={dateTo}
+            mandateStatus={mandateStatus}
             connections={activeConnections}
             selectedConnectionIds={selectedConnectionIds}
           />
@@ -102,6 +112,7 @@ export default async function PaymentsPage({ searchParams }) {
             <PaymentMandatesReportClient
               dateFrom={dateFrom}
               dateTo={dateTo}
+              initialMandateStatus={mandateStatus}
               mandates={dashboard.mandates}
               connections={dashboard.connections}
               providerOptions={activeProviders}
@@ -121,7 +132,7 @@ export default async function PaymentsPage({ searchParams }) {
       ) : activeConnections.length ? (
         <section className="card muted">
           {reportType === "mandates"
-            ? "הדוח לא נוצר עדיין. בחר טווח תאריכים, סוג דוח ומקורות תשלום כדי להפיק דוח הוראות קבע פעילות."
+            ? "הדוח לא נוצר עדיין. בחר מקורות תשלום, ואם צריך גם טווח תאריכים לסינון לפי מועד יצירת הוראת הקבע."
             : "הדוח לא נוצר עדיין. בחר טווח תאריכים ולחץ על `הפק דוח עסקאות` כדי לבצע את השליפה."}
         </section>
       ) : null}

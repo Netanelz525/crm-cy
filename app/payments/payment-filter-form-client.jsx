@@ -10,6 +10,7 @@ export default function PaymentFilterFormClient({
   reportType = "transactions",
   dateFrom,
   dateTo,
+  mandateStatus = "active",
   connections = [],
   selectedConnectionIds = []
 }) {
@@ -22,6 +23,7 @@ export default function PaymentFilterFormClient({
     selectedConnectionIds.length ? selectedConnectionIds : allConnectionIds
   );
   const [selectedReportType, setSelectedReportType] = useState(reportType);
+  const [selectedMandateStatus, setSelectedMandateStatus] = useState(mandateStatus);
 
   useEffect(() => {
     setSelectedIds(selectedConnectionIds.length ? selectedConnectionIds : allConnectionIds);
@@ -31,7 +33,12 @@ export default function PaymentFilterFormClient({
     setSelectedReportType(reportType);
   }, [reportType]);
 
+  useEffect(() => {
+    setSelectedMandateStatus(mandateStatus || "active");
+  }, [mandateStatus]);
+
   const allSelected = allConnectionIds.length > 0 && selectedIds.length === allConnectionIds.length;
+  const datesOptional = selectedReportType === "mandates";
 
   function toggleAll() {
     setSelectedIds((current) => (current.length === allConnectionIds.length ? [] : allConnectionIds));
@@ -59,9 +66,27 @@ export default function PaymentFilterFormClient({
         </select>
       </div>
       <div className="grid">
-        <input type="date" name="dateFrom" defaultValue={dateFrom} required />
-        <input type="date" name="dateTo" defaultValue={dateTo} required />
+        <input type="date" name="dateFrom" defaultValue={dateFrom} required={!datesOptional} />
+        <input type="date" name="dateTo" defaultValue={dateTo} required={!datesOptional} />
       </div>
+      {datesOptional ? (
+        <>
+          <div className="grid">
+            <select
+              name="mandateStatus"
+              value={selectedMandateStatus}
+              onChange={(event) => setSelectedMandateStatus(clean(event.target.value) || "active")}
+            >
+              <option value="active">הצג הוראות קבע פעילות</option>
+              <option value="issues">הצג הוראות קבע עם תקלות</option>
+              <option value="all">הצג את כל הוראות הקבע</option>
+            </select>
+          </div>
+          <div className="muted">
+            התאריכים כאן אופציונליים, ומשמשים רק לסינון לפי מועד יצירת הוראת הקבע.
+          </div>
+        </>
+      ) : null}
 
       <div>
         <div className="muted" style={{ marginBottom: 8 }}>מערכות להפקת הדוח</div>
