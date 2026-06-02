@@ -32,6 +32,55 @@ function formatDateTime(value) {
   return date.toLocaleString("he-IL");
 }
 
+function formatHistoryMoney(entry, fallbackCurrency = "ILS") {
+  if (clean(entry?.amountText)) return clean(entry.amountText);
+  return formatMoney(entry?.amount, fallbackCurrency);
+}
+
+function MandateRemoteDetails({ item, detailsState }) {
+  if (detailsState?.loading) {
+    return <div className="muted">טוען פרטי הוראת קבע והיסטוריית חיובים...</div>;
+  }
+  if (detailsState?.error) {
+    return <div className="muted" style={{ color: "#991b1b" }}>{detailsState.error}</div>;
+  }
+  const details = detailsState?.details;
+  if (!details) {
+    return <div className="muted">פתח את הכרטיס כדי לטעון פרטים נוספים והיסטוריית חיובים.</div>;
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      <div className="payments-report-grid">
+        <div><b>סטטוס מורחב:</b> {details.statusLabel || details.status || "-"}</div>
+        <div><b>סך היסטוריה:</b> {formatMoney(details.totalHistoryAmount || 0, details.totalHistoryCurrency || details.originalCurrency || details.currency || "ILS")}</div>
+        <div><b>כמות חיובים:</b> {details.historyCount || 0}</div>
+        <div><b>חיובים מוצלחים:</b> {details.successCount || 0}</div>
+        <div><b>עבור:</b> {details.avour || "-"}</div>
+        <div><b>כרטיס תורם:</b> {details.asToremCard || "-"}</div>
+      </div>
+
+      <div className="card" style={{ padding: 12 }}>
+        <div style={{ fontWeight: 800, marginBottom: 10 }}>היסטוריית חיובים</div>
+        {!details.history?.length ? (
+          <div className="muted">לא נמצאה היסטוריית חיובים זמינה להוראת הקבע הזו.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {details.history.map((entry) => (
+              <div key={entry.id} className="payments-report-history-row">
+                <div><b>תאריך:</b> {formatDateTime(entry.date)}</div>
+                <div><b>סכום:</b> {formatHistoryMoney(entry, details.totalHistoryCurrency || item.originalCurrency || item.currency || "ILS")}</div>
+                <div><b>אסמכתא:</b> {entry.transactionId || entry.invoiceNumber || "-"}</div>
+                <div><b>סטטוס:</b> {entry.status || "שולם"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PaymentMandatesReportClient({
   mandates,
   connections,
@@ -46,6 +95,7 @@ export default function PaymentMandatesReportClient({
   const [mandateStatus, setMandateStatus] = useState(initialMandateStatus || "active");
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
+  const [detailsByMandate, setDetailsByMandate] = useState({});
 
   const visibleConnections = useMemo(
     () => connections.filter((connection) => selectedProviders.includes(connection.provider)),
@@ -115,6 +165,36 @@ export default function PaymentMandatesReportClient({
         ? prev.filter((value) => value !== connectionId)
         : [...prev, connectionId]
     ));
+  }
+
+  async function loadMandateDetails(item) {
+    const cacheKey = `${item.connectionId}:${item.mandateId || item.id}`;
+    const current = detailsByMandate[cacheKey];
+    if (current?.loading || current?.details) return;
+
+    setDetailsByMandate((prev) => ({
+      ...prev,
+      [cacheKey]: { loading: true, error: "", details: null }
+    }));
+
+    try {
+      const response = await fetch(`/api/payments/mandates/details?connectionId=${encodeURIComponent(item.connectionId)}&mandateId=${encodeURIComponent(item.mandateId || item.id)}`, {
+        cache: "no-store"
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(clean(payload?.error) || "טעינת פרטי הוראת הקבע נכשלה.");
+      }
+      setDetailsByMandate((prev) => ({
+        ...prev,
+        [cacheKey]: { loading: false, error: "", details: payload?.details || null }
+      }));
+    } catch (error) {
+      setDetailsByMandate((prev) => ({
+        ...prev,
+        [cacheKey]: { loading: false, error: clean(error?.message) || "טעינת פרטי הוראת הקבע נכשלה.", details: null }
+      }));
+    }
   }
 
   return (
@@ -219,6 +299,11 @@ export default function PaymentMandatesReportClient({
               <details
                 key={`${item.provider}-${item.id}`}
                 className={`payments-report-item${item.status === "issues" ? " payments-report-item-issue" : ""}`}
+                onToggle={(event) => {
+                  if (event.currentTarget.open) {
+                    loadMandateDetails(item);
+                  }
+                }}
               >
                 <summary className="payments-report-summary">
                   <div className="payments-report-summary-main">
@@ -258,6 +343,12 @@ export default function PaymentMandatesReportClient({
                     <div className="payments-report-grid-wide"><b>שגיאה אחרונה:</b> {item.errorText || "-"}</div>
                     <div><b>סכום מקורי:</b> {formatMoney(item.originalAmount ?? item.amount, item.originalCurrency || item.currency)}</div>
                     <div><b>שווי בש&quot;ח:</b> {formatMoney(item.amountIls ?? item.amount, "ILS")}</div>
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <MandateRemoteDetails
+                      item={item}
+                      detailsState={detailsByMandate[`${item.connectionId}:${item.mandateId || item.id}`]}
+                    />
                   </div>
                 </div>
               </details>

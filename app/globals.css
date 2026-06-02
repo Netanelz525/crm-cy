@@ -139,6 +139,16 @@ a {
   grid-column: 1 / -1;
 }
 
+.payments-report-history-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
 .chip-link {
   display: inline-flex;
   align-items: center;
@@ -4041,7 +4051,8 @@ td {
 }
 
 .email-send-scope input,
-.email-student-row input {
+.email-student-row input,
+.email-target-row input {
   width: auto;
 }
 
@@ -4078,6 +4089,7 @@ td {
 }
 
 .email-student-row small,
+.email-target-row small,
 .email-log-row small {
   display: block;
   color: var(--muted);
@@ -4087,6 +4099,33 @@ td {
 .email-student-row-blacklisted small,
 .email-student-row-blacklisted b {
   color: #ffffff !important;
+}
+
+.email-target-picker {
+  display: grid;
+  gap: 8px;
+  max-height: 480px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 10px;
+  background: #f8fbff;
+}
+
+.email-target-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fff;
+}
+
+.email-target-row span {
+  display: grid;
+  gap: 2px;
 }
 
 .email-recipient-pill {
