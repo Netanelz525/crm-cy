@@ -83,7 +83,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: "Provide records array or a single student record" }, { status: 400 });
     }
 
-    const markedByUserId = clean(body.markedByUserId) || `api:${clean(tokenCheck.auth?.id) || "unknown"}`;
+    const markedByUserId = clean(body.markedByUserId) || null;
     for (const entry of rawRecords) {
       const record = normalizeRecordInput(entry);
       if (!record.studentId) continue;
