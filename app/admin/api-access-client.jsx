@@ -481,13 +481,13 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div className="api-param-list"><div>`GET /api/crm/export`</div></div>
           </FoldItem>
           <FoldItem title="attendance:read">
-            <div className="api-param-list"><div>`GET /api/attendance/sessions` + `GET /api/attendance/sessions/{sessionId}`</div></div>
+            <div className="api-param-list"><div>{`GET /api/attendance/sessions + GET /api/attendance/sessions/${sessionIdPlaceholder}`}</div></div>
           </FoldItem>
           <FoldItem title="attendance:write">
-            <div className="api-param-list"><div>`POST /api/attendance/sessions` + `PATCH /api/attendance/sessions/{sessionId}`</div></div>
+            <div className="api-param-list"><div>{`POST /api/attendance/sessions + PATCH /api/attendance/sessions/${sessionIdPlaceholder}`}</div></div>
           </FoldItem>
           <FoldItem title="attendance:delete">
-            <div className="api-param-list"><div>`DELETE /api/attendance/sessions/{sessionId}`</div></div>
+            <div className="api-param-list"><div>{`DELETE /api/attendance/sessions/${sessionIdPlaceholder}`}</div></div>
           </FoldItem>
         </DocBlock>
 
