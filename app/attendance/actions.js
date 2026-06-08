@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAttendanceSession, deleteAttendanceSession, saveAttendanceRecord } from "../../lib/attendance";
+import {
+  createAttendanceSession,
+  deleteAttendanceSession,
+  saveAttendanceRecord,
+  syncAttendanceSessionStudents
+} from "../../lib/attendance";
 import { requireAttendanceUser } from "../../lib/rbac";
 
 function clean(value) {
@@ -88,4 +93,15 @@ export async function deleteAttendanceSessionAction(formData) {
   revalidatePath("/attendance");
   if (currentSessionId && currentSessionId !== sessionId) redirect(`/attendance/${currentSessionId}`);
   redirect("/attendance?deleted=1");
+}
+
+export async function syncAttendanceSessionStudentsAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await syncAttendanceSessionStudents(sessionId);
+
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?synced=1`);
 }

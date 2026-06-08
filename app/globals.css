@@ -470,6 +470,7 @@ button {
 
 .attendance-table-wrap {
   overflow-x: auto;
+  margin-top: 4px;
 }
 
 .attendance-table {
@@ -604,11 +605,16 @@ button {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 10px 0 12px;
+  margin: 6px 0 8px;
 }
 
 .attendance-toolbar-row {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.attendance-roster-card {
+  display: grid;
+  gap: 6px;
 }
 
 .attendance-filter-chip {

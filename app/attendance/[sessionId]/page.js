@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
+import { syncAttendanceSessionStudentsAction } from "../actions";
 import {
   ATTENDANCE_STATUS_LABELS,
   getAttendanceRoster
@@ -38,6 +39,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const sessionId = clean(resolvedParams?.sessionId);
   const created = clean(resolvedSearchParams?.created) === "1";
+  const synced = clean(resolvedSearchParams?.synced) === "1";
   const activeStatusFilters = clean(resolvedSearchParams?.statusFilter)
     .split(",")
     .map((value) => clean(value).toLowerCase())
@@ -63,11 +65,12 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     <>
       <div className="card glass">
         <h1>מפגש נוכחות</h1>
-        <p className="muted">
-          זהו עמוד המפגש עצמו. כאן רואים רק את פרטי המפגש ואת הזנת הנוכחות שלו.
-        </p>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
+          <form action={syncAttendanceSessionStudentsAction} className="quick-actions" style={{ marginTop: 0 }}>
+            <input type="hidden" name="sessionId" value={roster.session.id} />
+            <button type="submit" className="quick-action-btn quick-action-outline">סנכרן תלמידים</button>
+          </form>
           <form method="get" className="quick-actions" style={{ marginTop: 0 }}>
             {activeStatusFilters.length ? <input type="hidden" name="statusFilter" value={activeStatusFilters.join(",")} /> : null}
             <select name="exportSort" defaultValue={PDF_SORT_LABELS[exportSort] ? exportSort : "class_name"} style={{ minWidth: 220 }}>
@@ -89,6 +92,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       </div>
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
+      {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
 
       <div className="card summary-row">
         <div>
@@ -105,14 +109,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         <div className="attendance-stats">
           <span className="meta-chip">תלמידים: {roster.stats.totalStudents}</span>
           <span className="meta-chip">נמצאו: {roster.stats.found}</span>
-          <span className="meta-chip">איחרו: {roster.stats.late}</span>
+          <span className="meta-chip">זמינים: {roster.stats.available}</span>
           <span className="meta-chip">לא נמצאו: {roster.stats.missing}</span>
-          <span className="meta-chip">נשלחו לבית: {roster.stats.sent_home}</span>
+          <span className="meta-chip">בדרך: {roster.stats.on_the_way}</span>
         </div>
-      </div>
-
-      <div className="card summary-row">
-        <div className="muted">אפשר לסנן תלמידים לפי סטטוס, ולבחור את סדר ה-PDF לפני ההורדה.</div>
       </div>
 
       <AttendanceRosterClient

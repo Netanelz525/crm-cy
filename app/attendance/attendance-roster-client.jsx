@@ -75,7 +75,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
       setSelectedFilters(activeStatusFilters);
       setQuery("");
     }
-  }, [sessionId, activeStatusFilters]);
+  }, [sessionId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -186,11 +186,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
 
   return (
     <>
-      <div className="card">
+      <div className="card attendance-roster-card">
         <h3>הזנת נוכחות</h3>
-        <p className="muted">
-          ברירת המחדל היא לא נמצא. אפשר לעבור מהר שורה-שורה, לסמן סטטוס, והכל נשמר אוטומטית.
-        </p>
         <div className="summary-row attendance-toolbar-row" style={{ alignItems: "flex-end", gap: 12 }}>
           <div style={{ minWidth: 260, flex: "1 1 320px" }}>
             <input
@@ -221,9 +218,6 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               {label}
             </button>
           ))}
-          <span className="muted attendance-filter-hint">
-            במצב סינון, תלמיד שעודכן לסטטוס אחר יוסר אוטומטית מהרשימה אם כבר לא מתאים למסנן.
-          </span>
         </div>
         <div className="attendance-table-wrap">
           <table className="attendance-table">

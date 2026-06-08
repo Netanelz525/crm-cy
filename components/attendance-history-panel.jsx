@@ -48,15 +48,15 @@ export default function AttendanceHistoryPanel({ summary, history, embedded = fa
           <span>לא נמצא</span>
         </div>
         <div className="attendance-summary-card">
-          <strong>{summary?.sentHome || 0}</strong>
-          <span>נשלח לבית</span>
+          <strong>{summary?.available || 0}</strong>
+          <span>זמין</span>
         </div>
       </div>
 
       <div className="student-meta-line" style={{ marginTop: 12 }}>
         <span className="meta-chip">נמצא: {summary?.found || 0}</span>
-        <span className="meta-chip">איחר: {summary?.late || 0}</span>
-        <span className="meta-chip">נשלח לבית: {summary?.sentHome || 0}</span>
+        <span className="meta-chip">זמין: {summary?.available || 0}</span>
+        <span className="meta-chip">בדרך: {summary?.onTheWay || 0}</span>
       </div>
 
       {!history?.length ? (
