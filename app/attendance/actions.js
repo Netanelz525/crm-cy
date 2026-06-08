@@ -75,7 +75,6 @@ export async function saveAttendanceRecordAction(input) {
     markedByUserId: user.clerk_user_id
   });
 
-  revalidatePath("/attendance");
   return { ok: true };
 }
 

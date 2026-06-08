@@ -36,6 +36,10 @@ function hasPhone(phoneObj) {
   return Boolean(normalizeDigits(phoneObj?.primaryPhoneNumber));
 }
 
+function storageKey(sessionId) {
+  return `attendance-roster-state:${clean(sessionId)}`;
+}
+
 export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
   const [rows, setRows] = useState(students);
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
@@ -50,11 +54,36 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }, [students]);
 
   useEffect(() => {
-    setSelectedFilters(activeStatusFilters);
-    setQuery("");
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem(storageKey(sessionId));
+      if (!raw) {
+        setSelectedFilters(activeStatusFilters);
+        setQuery("");
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      const nextFilters = Array.isArray(parsed?.selectedFilters)
+        ? parsed.selectedFilters.map((value) => clean(value).toLowerCase()).filter(Boolean)
+        : activeStatusFilters;
+      const nextQuery = clean(parsed?.query);
+      setSelectedFilters(nextFilters);
+      setQuery(nextQuery);
+    } catch {
+      setSelectedFilters(activeStatusFilters);
+      setQuery("");
+    }
   }, [sessionId, activeStatusFilters]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(storageKey(sessionId), JSON.stringify({
+      selectedFilters,
+      query
+    }));
+  }, [sessionId, selectedFilters, query]);
 
   useEffect(() => {
     rowsRef.current = rows;
@@ -162,7 +191,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         <p className="muted">
           ברירת המחדל היא לא נמצא. אפשר לעבור מהר שורה-שורה, לסמן סטטוס, והכל נשמר אוטומטית.
         </p>
-        <div className="summary-row" style={{ alignItems: "flex-end", gap: 12 }}>
+        <div className="summary-row attendance-toolbar-row" style={{ alignItems: "flex-end", gap: 12 }}>
           <div style={{ minWidth: 260, flex: "1 1 320px" }}>
             <input
               value={query}
@@ -192,7 +221,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               {label}
             </button>
           ))}
-          <span className="muted">
+          <span className="muted attendance-filter-hint">
             במצב סינון, תלמיד שעודכן לסטטוס אחר יוסר אוטומטית מהרשימה אם כבר לא מתאים למסנן.
           </span>
         </div>

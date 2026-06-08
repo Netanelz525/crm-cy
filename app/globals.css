@@ -604,7 +604,11 @@ button {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 14px 0;
+  margin: 10px 0 12px;
+}
+
+.attendance-toolbar-row {
+  margin-bottom: 8px;
 }
 
 .attendance-filter-chip {
@@ -620,6 +624,11 @@ button {
 .attendance-filter-chip.active {
   background: #0f5fa4;
   color: #fff;
+}
+
+.attendance-filter-hint {
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .attendance-status-option {
