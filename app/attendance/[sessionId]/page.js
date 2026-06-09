@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
-import { syncAttendanceSessionStudentsAction } from "../actions";
 import {
+  saveAttendanceSessionMessagingAction,
+  sendAttendanceSessionEmailsAction,
+  syncAttendanceSessionStudentsAction
+} from "../actions";
+import {
+  ATTENDANCE_EMAIL_RECIPIENT_LABELS,
   ATTENDANCE_STATUS_LABELS,
   getAttendanceRoster
 } from "../../../lib/attendance";
@@ -40,6 +45,9 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const sessionId = clean(resolvedParams?.sessionId);
   const created = clean(resolvedSearchParams?.created) === "1";
   const synced = clean(resolvedSearchParams?.synced) === "1";
+  const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
+  const mailSent = clean(resolvedSearchParams?.mailSent) === "1";
+  const sentEmails = clean(resolvedSearchParams?.sentEmails);
   const activeStatusFilters = clean(resolvedSearchParams?.statusFilter)
     .split(",")
     .map((value) => clean(value).toLowerCase())
@@ -93,6 +101,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
+      {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
+      {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש.</div> : null}
 
       <div className="card summary-row">
         <div>
@@ -113,6 +123,73 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <span className="meta-chip">לא נמצאו: {roster.stats.missing}</span>
           <span className="meta-chip">בדרך: {roster.stats.on_the_way}</span>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>הודעה אישית למפגש</h3>
+        <p className="muted">אפשר לשמור טקסט אישי למפגש ולשלוח מיילים רק לסטטוסים שתבחר, עם כפתורי עדכון חזרה למערכת.</p>
+        <form className="grid">
+          <input type="hidden" name="sessionId" value={roster.session.id} />
+          <label style={{ gridColumn: "1 / -1" }}>
+            <span className="muted">טקסט ההודעה</span>
+            <textarea name="personalMessage" rows={5} defaultValue={roster.session.personalMessage} placeholder="לדוגמה: שלום, המערכת לא זיהתה את התלמיד במפגש. נשמח שתעדכנו את מצבו דרך הכפתורים במייל." />
+          </label>
+          <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+            <b>סטטוסים שאפשר לעדכן מתוך המייל</b>
+            <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
+              {attendanceStatusOptions().map(([value, label]) => (
+                <label key={`response-${value}`} className={`attendance-filter-chip${roster.session.emailResponseStatuses.includes(value) ? " active" : ""}`}>
+                  <input
+                    type="checkbox"
+                    name="emailResponseStatuses"
+                    value={value}
+                    defaultChecked={roster.session.emailResponseStatuses.includes(value)}
+                    style={{ marginInlineEnd: 6 }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+            <b>למי שולחים את המייל</b>
+            <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
+              {Object.entries(ATTENDANCE_EMAIL_RECIPIENT_LABELS).map(([value, label]) => (
+                <label key={`recipient-${value}`} className={`attendance-filter-chip${roster.session.emailRecipientRoles.includes(value) ? " active" : ""}`}>
+                  <input
+                    type="checkbox"
+                    name="emailRecipientRoles"
+                    value={value}
+                    defaultChecked={roster.session.emailRecipientRoles.includes(value)}
+                    style={{ marginInlineEnd: 6 }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+            <b>שלח מיילים לסטטוסים</b>
+            <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
+              {attendanceStatusOptions().map(([value, label]) => (
+                <label key={`target-${value}`} className="attendance-filter-chip">
+                  <input
+                    type="checkbox"
+                    name="targetStatuses"
+                    value={value}
+                    defaultChecked={value === "missing"}
+                    style={{ marginInlineEnd: 6 }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="quick-actions">
+            <button formAction={saveAttendanceSessionMessagingAction} className="quick-action-btn quick-action-outline">שמור הודעה</button>
+            <button formAction={sendAttendanceSessionEmailsAction} className="quick-action-btn quick-action-primary">שלח מיילים למפגש</button>
+          </div>
+        </form>
       </div>
 
       <AttendanceRosterClient

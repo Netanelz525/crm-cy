@@ -6,9 +6,11 @@ import {
   createAttendanceSession,
   deleteAttendanceSession,
   saveAttendanceRecord,
-  syncAttendanceSessionStudents
+  syncAttendanceSessionStudents,
+  updateAttendanceSessionMessaging
 } from "../../lib/attendance";
-import { requireAttendanceUser } from "../../lib/rbac";
+import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
+import { requireAttendanceUser, requireEmailSender } from "../../lib/rbac";
 
 function clean(value) {
   return String(value || "").trim();
@@ -104,4 +106,44 @@ export async function syncAttendanceSessionStudentsAction(formData) {
 
   revalidatePath(`/attendance/${sessionId}`);
   redirect(`/attendance/${sessionId}?synced=1`);
+}
+
+export async function saveAttendanceSessionMessagingAction(formData) {
+  const user = await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  const personalMessage = clean(formData.get("personalMessage"));
+  const emailResponseStatuses = cleanList(formData.getAll("emailResponseStatuses"));
+  const emailRecipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await updateAttendanceSessionMessaging(sessionId, {
+    personalMessage,
+    emailResponseStatuses,
+    emailRecipientRoles
+  });
+
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?messageSaved=1`);
+}
+
+export async function sendAttendanceSessionEmailsAction(formData) {
+  const user = await requireEmailSender();
+  const sessionId = clean(formData.get("sessionId"));
+  const personalMessage = clean(formData.get("personalMessage"));
+  const emailResponseStatuses = cleanList(formData.getAll("emailResponseStatuses"));
+  const emailRecipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
+  const targetStatuses = cleanList(formData.getAll("targetStatuses"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  const result = await sendAttendanceSessionEmails({
+    sessionId,
+    personalMessage,
+    emailResponseStatuses,
+    recipientRoles: emailRecipientRoles,
+    targetStatuses,
+    createdByUserId: user.clerk_user_id
+  });
+
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?mailSent=1&sentEmails=${encodeURIComponent(String(result.sentEmails || 0))}`);
 }
