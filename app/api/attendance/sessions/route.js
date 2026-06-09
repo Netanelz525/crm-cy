@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../lib/api-tokens";
 import {
   createAttendanceSession,
-  listAttendanceSessions
+  listAttendanceSessions,
+  parseAttendanceCustomStatusesText
 } from "../../../../lib/attendance";
 
 function clean(value) {
@@ -85,7 +86,11 @@ export async function POST(request) {
       title: clean(body.title),
       sessionDate: clean(body.sessionDate),
       sourceNote: clean(body.sourceNote),
+      emailSubject: clean(body.emailSubject || body.subject),
       personalMessage: clean(body.personalMessage),
+      customStatuses: Array.isArray(body.customStatuses)
+        ? body.customStatuses
+        : parseAttendanceCustomStatusesText(body.customStatusesText),
       emailResponseStatuses: cleanList(body.emailResponseStatuses),
       emailRecipientRoles: cleanList(body.emailRecipientRoles || body.recipientRoles),
       classFilter: cleanList(body.classFilter),

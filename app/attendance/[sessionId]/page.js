@@ -8,7 +8,6 @@ import {
 } from "../actions";
 import {
   ATTENDANCE_EMAIL_RECIPIENT_LABELS,
-  ATTENDANCE_STATUS_LABELS,
   getAttendanceRoster
 } from "../../../lib/attendance";
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
@@ -18,8 +17,10 @@ function clean(value) {
   return String(value || "").trim();
 }
 
-function attendanceStatusOptions() {
-  return Object.entries(ATTENDANCE_STATUS_LABELS);
+function serializeCustomStatuses(customStatuses = []) {
+  return (customStatuses || [])
+    .map((item) => `${item.value}|${item.label}`)
+    .join("\n");
 }
 
 function formatSessionAudience(session) {
@@ -54,6 +55,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     .filter(Boolean);
   const exportSort = clean(resolvedSearchParams?.exportSort).toLowerCase() || "class_name";
   const roster = sessionId ? await getAttendanceRoster(sessionId) : null;
+  const statusOptions = Array.isArray(roster?.session?.statusOptions) ? roster.session.statusOptions : [];
 
   if (!roster) {
     return (
@@ -122,6 +124,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <span className="meta-chip">זמינים: {roster.stats.available}</span>
           <span className="meta-chip">לא נמצאו: {roster.stats.missing}</span>
           <span className="meta-chip">בדרך: {roster.stats.on_the_way}</span>
+          <span className="meta-chip">לא זמינים: {roster.stats.unavailable}</span>
+          {roster.stats.customStatuses.map((item) => (
+            <span key={item.value} className="meta-chip">{item.label}: {item.count}</span>
+          ))}
         </div>
       </div>
 
@@ -131,13 +137,17 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         <form className="grid">
           <input type="hidden" name="sessionId" value={roster.session.id} />
           <label style={{ gridColumn: "1 / -1" }}>
+            <span className="muted">נושא המייל</span>
+            <input name="emailSubject" defaultValue={roster.session.emailSubject} placeholder="לדוגמה: עדכון נוכחות למפגש מנהל" />
+          </label>
+          <label style={{ gridColumn: "1 / -1" }}>
             <span className="muted">טקסט ההודעה</span>
             <textarea name="personalMessage" rows={5} defaultValue={roster.session.personalMessage} placeholder="לדוגמה: שלום, המערכת לא זיהתה את התלמיד במפגש. נשמח שתעדכנו את מצבו דרך הכפתורים במייל." />
           </label>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
             <b>סטטוסים שאפשר לעדכן מתוך המייל</b>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
-              {attendanceStatusOptions().map(([value, label]) => (
+              {statusOptions.map(([value, label]) => (
                 <label key={`response-${value}`} className={`attendance-filter-chip${roster.session.emailResponseStatuses.includes(value) ? " active" : ""}`}>
                   <input
                     type="checkbox"
@@ -171,7 +181,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
             <b>שלח מיילים לסטטוסים</b>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
-              {attendanceStatusOptions().map(([value, label]) => (
+              {statusOptions.map(([value, label]) => (
                 <label key={`target-${value}`} className="attendance-filter-chip">
                   <input
                     type="checkbox"
@@ -185,6 +195,15 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
               ))}
             </div>
           </div>
+          <label style={{ gridColumn: "1 / -1" }}>
+            <span className="muted">סטטוסים ייחודיים למפגש</span>
+            <textarea
+              name="customStatusesText"
+              rows={4}
+              defaultValue={serializeCustomStatuses(roster.session.customStatuses)}
+              placeholder={"דוגמה:\nneeds_call|צריך שיחה\nchecked_by_office|נבדק במשרד"}
+            />
+          </label>
           <div className="quick-actions">
             <button formAction={saveAttendanceSessionMessagingAction} className="quick-action-btn quick-action-outline">שמור הודעה</button>
             <button formAction={sendAttendanceSessionEmailsAction} className="quick-action-btn quick-action-primary">שלח מיילים למפגש</button>
@@ -195,7 +214,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       <AttendanceRosterClient
         sessionId={roster.session.id}
         students={roster.students}
-        statusOptions={attendanceStatusOptions()}
+        statusOptions={statusOptions}
         activeStatusFilters={activeStatusFilters}
       />
     </>

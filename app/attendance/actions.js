@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   createAttendanceSession,
   deleteAttendanceSession,
+  parseAttendanceCustomStatusesText,
   saveAttendanceRecord,
   syncAttendanceSessionStudents,
   updateAttendanceSessionMessaging
@@ -111,15 +112,19 @@ export async function syncAttendanceSessionStudentsAction(formData) {
 export async function saveAttendanceSessionMessagingAction(formData) {
   const user = await requireAttendanceUser();
   const sessionId = clean(formData.get("sessionId"));
+  const emailSubject = clean(formData.get("emailSubject"));
   const personalMessage = clean(formData.get("personalMessage"));
   const emailResponseStatuses = cleanList(formData.getAll("emailResponseStatuses"));
   const emailRecipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
+  const customStatuses = parseAttendanceCustomStatusesText(formData.get("customStatusesText"));
   if (!sessionId) throw new Error("Missing attendance session id.");
 
   await updateAttendanceSessionMessaging(sessionId, {
+    emailSubject,
     personalMessage,
     emailResponseStatuses,
-    emailRecipientRoles
+    emailRecipientRoles,
+    customStatuses
   });
 
   revalidatePath(`/attendance/${sessionId}`);
@@ -129,14 +134,25 @@ export async function saveAttendanceSessionMessagingAction(formData) {
 export async function sendAttendanceSessionEmailsAction(formData) {
   const user = await requireEmailSender();
   const sessionId = clean(formData.get("sessionId"));
+  const emailSubject = clean(formData.get("emailSubject"));
   const personalMessage = clean(formData.get("personalMessage"));
   const emailResponseStatuses = cleanList(formData.getAll("emailResponseStatuses"));
   const emailRecipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
   const targetStatuses = cleanList(formData.getAll("targetStatuses"));
+  const customStatuses = parseAttendanceCustomStatusesText(formData.get("customStatusesText"));
   if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await updateAttendanceSessionMessaging(sessionId, {
+    emailSubject,
+    personalMessage,
+    emailResponseStatuses,
+    emailRecipientRoles,
+    customStatuses
+  });
 
   const result = await sendAttendanceSessionEmails({
     sessionId,
+    emailSubject,
     personalMessage,
     emailResponseStatuses,
     recipientRoles: emailRecipientRoles,

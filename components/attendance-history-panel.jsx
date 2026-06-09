@@ -57,6 +57,7 @@ export default function AttendanceHistoryPanel({ summary, history, embedded = fa
         <span className="meta-chip">נמצא: {summary?.found || 0}</span>
         <span className="meta-chip">זמין: {summary?.available || 0}</span>
         <span className="meta-chip">בדרך: {summary?.onTheWay || 0}</span>
+        <span className="meta-chip">לא זמין: {summary?.unavailable || 0}</span>
       </div>
 
       {!history?.length ? (
