@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../../../lib/api-tokens";
 import {
   getAttendanceSessionById,
-  parseAttendanceCustomStatusesText,
   updateAttendanceSessionMessaging
 } from "../../../../../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../../../../../lib/attendance-email";
@@ -49,7 +48,6 @@ export async function GET(request, { params }) {
       sessionId: session.id,
       emailSubject: session.emailSubject || "",
       personalMessage: session.personalMessage || "",
-      customStatuses: session.customStatuses || [],
       emailResponseStatuses: session.emailResponseStatuses || [],
       emailRecipientRoles: session.emailRecipientRoles || []
     }
@@ -70,9 +68,6 @@ export async function PATCH(request, { params }) {
     const session = await updateAttendanceSessionMessaging(clean(resolvedParams?.sessionId), {
       emailSubject: clean(body.emailSubject || body.subject),
       personalMessage: clean(body.personalMessage),
-      customStatuses: Array.isArray(body.customStatuses)
-        ? body.customStatuses
-        : parseAttendanceCustomStatusesText(body.customStatusesText),
       emailResponseStatuses: cleanList(body.emailResponseStatuses),
       emailRecipientRoles: cleanList(body.emailRecipientRoles || body.recipientRoles)
     });
@@ -82,7 +77,6 @@ export async function PATCH(request, { params }) {
         sessionId: session.id,
         emailSubject: session.emailSubject || "",
         personalMessage: session.personalMessage || "",
-        customStatuses: session.customStatuses || [],
         emailResponseStatuses: session.emailResponseStatuses || [],
         emailRecipientRoles: session.emailRecipientRoles || []
       }
@@ -103,13 +97,9 @@ export async function POST(request, { params }) {
   }
 
   try {
-    const customStatuses = Array.isArray(body.customStatuses)
-      ? body.customStatuses
-      : parseAttendanceCustomStatusesText(body.customStatusesText);
     await updateAttendanceSessionMessaging(clean(resolvedParams?.sessionId), {
       emailSubject: clean(body.emailSubject || body.subject),
       personalMessage: clean(body.personalMessage),
-      customStatuses,
       emailResponseStatuses: cleanList(body.emailResponseStatuses),
       emailRecipientRoles: cleanList(body.emailRecipientRoles || body.recipientRoles)
     });

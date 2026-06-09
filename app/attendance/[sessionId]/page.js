@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
 import {
+  saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
   sendAttendanceSessionEmailsAction,
   syncAttendanceSessionStudentsAction
@@ -46,6 +47,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const sessionId = clean(resolvedParams?.sessionId);
   const created = clean(resolvedSearchParams?.created) === "1";
   const synced = clean(resolvedSearchParams?.synced) === "1";
+  const statusesSaved = clean(resolvedSearchParams?.statusesSaved) === "1";
   const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
   const mailSent = clean(resolvedSearchParams?.mailSent) === "1";
   const sentEmails = clean(resolvedSearchParams?.sentEmails);
@@ -103,6 +105,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
+      {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
       {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
       {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש.</div> : null}
 
@@ -132,8 +135,28 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       </div>
 
       <div className="card">
+        <h3>סטטוסים למפגש</h3>
+        <p className="muted">הסטטוסים הייחודיים שייכים למפגש עצמו, ומופיעים מיד בכפתורי הנוכחות, בסינון, בדוחות וגם בשליחת המיילים.</p>
+        <form className="grid" action={saveAttendanceSessionStatusesAction}>
+          <input type="hidden" name="sessionId" value={roster.session.id} />
+          <label style={{ gridColumn: "1 / -1" }}>
+            <span className="muted">סטטוסים ייחודיים למפגש</span>
+            <textarea
+              name="customStatusesText"
+              rows={4}
+              defaultValue={serializeCustomStatuses(roster.session.customStatuses)}
+              placeholder={"דוגמה:\nneeds_call|צריך שיחה\nchecked_by_office|נבדק במשרד"}
+            />
+          </label>
+          <div className="quick-actions">
+            <button type="submit" className="quick-action-btn quick-action-outline">שמור סטטוסים</button>
+          </div>
+        </form>
+      </div>
+
+      <div className="card">
         <h3>הודעה אישית למפגש</h3>
-        <p className="muted">אפשר לשמור טקסט אישי למפגש ולשלוח מיילים רק לסטטוסים שתבחר, עם כפתורי עדכון חזרה למערכת.</p>
+        <p className="muted">אפשר לשמור טקסט אישי למפגש ולשלוח מיילים לכל אחד מהסטטוסים הקיימים במפגש, כולל סטטוסים ייחודיים.</p>
         <form className="grid">
           <input type="hidden" name="sessionId" value={roster.session.id} />
           <label style={{ gridColumn: "1 / -1" }}>
@@ -195,15 +218,6 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
               ))}
             </div>
           </div>
-          <label style={{ gridColumn: "1 / -1" }}>
-            <span className="muted">סטטוסים ייחודיים למפגש</span>
-            <textarea
-              name="customStatusesText"
-              rows={4}
-              defaultValue={serializeCustomStatuses(roster.session.customStatuses)}
-              placeholder={"דוגמה:\nneeds_call|צריך שיחה\nchecked_by_office|נבדק במשרד"}
-            />
-          </label>
           <div className="quick-actions">
             <button formAction={saveAttendanceSessionMessagingAction} className="quick-action-btn quick-action-outline">שמור הודעה</button>
             <button formAction={sendAttendanceSessionEmailsAction} className="quick-action-btn quick-action-primary">שלח מיילים למפגש</button>

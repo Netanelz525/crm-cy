@@ -8,6 +8,7 @@ import {
   parseAttendanceCustomStatusesText,
   saveAttendanceRecord,
   syncAttendanceSessionStudents,
+  updateAttendanceSessionCustomStatuses,
   updateAttendanceSessionMessaging
 } from "../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
@@ -109,22 +110,34 @@ export async function syncAttendanceSessionStudentsAction(formData) {
   redirect(`/attendance/${sessionId}?synced=1`);
 }
 
+export async function saveAttendanceSessionStatusesAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  const customStatuses = parseAttendanceCustomStatusesText(formData.get("customStatusesText"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await updateAttendanceSessionCustomStatuses(sessionId, {
+    customStatuses
+  });
+
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?statusesSaved=1`);
+}
+
 export async function saveAttendanceSessionMessagingAction(formData) {
-  const user = await requireAttendanceUser();
+  await requireAttendanceUser();
   const sessionId = clean(formData.get("sessionId"));
   const emailSubject = clean(formData.get("emailSubject"));
   const personalMessage = clean(formData.get("personalMessage"));
   const emailResponseStatuses = cleanList(formData.getAll("emailResponseStatuses"));
   const emailRecipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
-  const customStatuses = parseAttendanceCustomStatusesText(formData.get("customStatusesText"));
   if (!sessionId) throw new Error("Missing attendance session id.");
 
   await updateAttendanceSessionMessaging(sessionId, {
     emailSubject,
     personalMessage,
     emailResponseStatuses,
-    emailRecipientRoles,
-    customStatuses
+    emailRecipientRoles
   });
 
   revalidatePath(`/attendance/${sessionId}`);
@@ -139,15 +152,13 @@ export async function sendAttendanceSessionEmailsAction(formData) {
   const emailResponseStatuses = cleanList(formData.getAll("emailResponseStatuses"));
   const emailRecipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
   const targetStatuses = cleanList(formData.getAll("targetStatuses"));
-  const customStatuses = parseAttendanceCustomStatusesText(formData.get("customStatusesText"));
   if (!sessionId) throw new Error("Missing attendance session id.");
 
   await updateAttendanceSessionMessaging(sessionId, {
     emailSubject,
     personalMessage,
     emailResponseStatuses,
-    emailRecipientRoles,
-    customStatuses
+    emailRecipientRoles
   });
 
   const result = await sendAttendanceSessionEmails({
