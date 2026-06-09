@@ -161,16 +161,22 @@ export async function sendAttendanceSessionEmailsAction(formData) {
     emailRecipientRoles
   });
 
-  const result = await sendAttendanceSessionEmails({
-    sessionId,
-    emailSubject,
-    personalMessage,
-    emailResponseStatuses,
-    recipientRoles: emailRecipientRoles,
-    targetStatuses,
-    createdByUserId: user.clerk_user_id
-  });
+  let result;
+  try {
+    result = await sendAttendanceSessionEmails({
+      sessionId,
+      emailSubject,
+      personalMessage,
+      emailResponseStatuses,
+      recipientRoles: emailRecipientRoles,
+      targetStatuses,
+      createdByUserId: user.clerk_user_id
+    });
+  } catch (error) {
+    revalidatePath(`/attendance/${sessionId}`);
+    redirect(`/attendance/${sessionId}?mailError=${encodeURIComponent(clean(error?.message) || "שליחת המיילים נכשלה")}`);
+  }
 
   revalidatePath(`/attendance/${sessionId}`);
-  redirect(`/attendance/${sessionId}?mailSent=1&sentEmails=${encodeURIComponent(String(result.sentEmails || 0))}`);
+  redirect(`/attendance/${sessionId}?mailSent=1&sentEmails=${encodeURIComponent(String(result.sentEmails || 0))}&failedEmails=${encodeURIComponent(String(result.failedEmails || 0))}`);
 }

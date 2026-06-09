@@ -51,6 +51,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
   const mailSent = clean(resolvedSearchParams?.mailSent) === "1";
   const sentEmails = clean(resolvedSearchParams?.sentEmails);
+  const failedEmails = clean(resolvedSearchParams?.failedEmails);
+  const mailError = clean(resolvedSearchParams?.mailError);
   const activeStatusFilters = clean(resolvedSearchParams?.statusFilter)
     .split(",")
     .map((value) => clean(value).toLowerCase())
@@ -107,7 +109,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
       {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
       {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
-      {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש.</div> : null}
+      {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש{Number(failedEmails || 0) > 0 ? `, ו-${failedEmails} נכשלו` : ""}.</div> : null}
+      {mailError ? <div className="error">{mailError}</div> : null}
 
       <div className="card summary-row">
         <div>
