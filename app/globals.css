@@ -608,13 +608,25 @@ button {
   margin: 6px 0 8px;
 }
 
-.attendance-toolbar-row {
-  margin-bottom: 4px;
-}
-
 .attendance-roster-card {
   display: grid;
-  gap: 6px;
+  gap: 10px;
+}
+
+.attendance-roster-head {
+  display: grid;
+  gap: 8px;
+}
+
+.attendance-toolbar-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.attendance-toolbar-count {
+  white-space: nowrap;
 }
 
 .attendance-filter-chip {
@@ -657,6 +669,46 @@ button {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+.attendance-message-panel {
+  display: grid;
+  gap: 0;
+}
+
+.attendance-message-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.attendance-message-summary::-webkit-details-marker {
+  display: none;
+}
+
+.attendance-message-summary h3 {
+  margin: 0 0 4px;
+}
+
+.attendance-message-summary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  color: #0f4c9b;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.attendance-message-grid {
+  margin-top: 14px;
 }
 
 .attendance-status-option:has(input:checked) {
@@ -2413,6 +2465,14 @@ td {
   .summary-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .attendance-toolbar-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-toolbar-count {
+    white-space: normal;
   }
 
   .quick-action-btn {

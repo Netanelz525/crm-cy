@@ -40,6 +40,18 @@ function storageKey(sessionId) {
   return `attendance-roster-state:${clean(sessionId)}`;
 }
 
+function buildLiveStats(rows, statusOptions) {
+  const counts = Object.fromEntries((statusOptions || []).map(([value]) => [value, 0]));
+  for (const row of rows || []) {
+    const status = clean(row?.status).toLowerCase();
+    if (counts[status] !== undefined) counts[status] += 1;
+  }
+  return {
+    totalStudents: Array.isArray(rows) ? rows.length : 0,
+    counts
+  };
+}
+
 export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
   const [rows, setRows] = useState(students);
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
@@ -114,6 +126,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     });
   }, [rows, selectedFilters, query]);
 
+  const liveStats = useMemo(() => buildLiveStats(rows, statusOptions), [rows, statusOptions]);
+
   function persistRow(row) {
     if (!row?.id) return;
     startTransition(async () => {
@@ -187,16 +201,22 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   return (
     <>
       <div className="card attendance-roster-card">
-        <h3>הזנת נוכחות</h3>
-        <div className="summary-row attendance-toolbar-row" style={{ alignItems: "flex-end", gap: 12 }}>
-          <div style={{ minWidth: 260, flex: "1 1 320px" }}>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="חיפוש לפי שם תלמיד, שיעור או מספר טלפון"
-            />
+        <div className="attendance-roster-head">
+          <h3>הזנת נוכחות</h3>
+          <div className="attendance-stats">
+            <span className="meta-chip">תלמידים: {liveStats.totalStudents}</span>
+            {statusOptions.map(([value, label]) => (
+              <span key={`stat-${value}`} className="meta-chip">{label}: {liveStats.counts[value] || 0}</span>
+            ))}
           </div>
-          <div className="muted">
+        </div>
+        <div className="attendance-toolbar-grid">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="חיפוש לפי שם תלמיד, שיעור או מספר טלפון"
+          />
+          <div className="muted attendance-toolbar-count">
             מוצגים כרגע {filteredRows.length} מתוך {rows.length}
           </div>
         </div>

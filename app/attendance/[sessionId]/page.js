@@ -124,17 +124,6 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           {roster.session.createdByDisplayName ? ` | נוצר על ידי: ${roster.session.createdByDisplayName}` : ""}
           {formatSessionAudience(roster.session) ? ` | ${formatSessionAudience(roster.session)}` : ""}
         </div>
-        <div className="attendance-stats">
-          <span className="meta-chip">תלמידים: {roster.stats.totalStudents}</span>
-          <span className="meta-chip">נמצאו: {roster.stats.found}</span>
-          <span className="meta-chip">זמינים: {roster.stats.available}</span>
-          <span className="meta-chip">לא נמצאו: {roster.stats.missing}</span>
-          <span className="meta-chip">בדרך: {roster.stats.on_the_way}</span>
-          <span className="meta-chip">לא זמינים: {roster.stats.unavailable}</span>
-          {roster.stats.customStatuses.map((item) => (
-            <span key={item.value} className="meta-chip">{item.label}: {item.count}</span>
-          ))}
-        </div>
       </div>
 
       <div className="card">
@@ -157,10 +146,15 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </form>
       </div>
 
-      <div className="card">
-        <h3>הודעה אישית למפגש</h3>
-        <p className="muted">אפשר לשמור טקסט אישי למפגש ולשלוח מיילים לכל אחד מהסטטוסים הקיימים במפגש, כולל סטטוסים ייחודיים.</p>
-        <form className="grid">
+      <details className="card attendance-message-panel" open={messageSaved || mailSent || Boolean(mailError)}>
+        <summary className="attendance-message-summary">
+          <div>
+            <h3>שליחת הודעות למפגש</h3>
+            <span className="muted">פותחים רק כשצריך לשלוח מייל.</span>
+          </div>
+          <span className="attendance-message-summary-action">פתח אפשרויות</span>
+        </summary>
+        <form className="grid attendance-message-grid">
           <input type="hidden" name="sessionId" value={roster.session.id} />
           <label style={{ gridColumn: "1 / -1" }}>
             <span className="muted">נושא המייל</span>
@@ -168,10 +162,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </label>
           <label style={{ gridColumn: "1 / -1" }}>
             <span className="muted">טקסט ההודעה</span>
-            <textarea name="personalMessage" rows={5} defaultValue={roster.session.personalMessage} placeholder="לדוגמה: שלום, המערכת לא זיהתה את התלמיד במפגש. נשמח שתעדכנו את מצבו דרך הכפתורים במייל." />
+            <textarea name="personalMessage" rows={4} defaultValue={roster.session.personalMessage} placeholder="לדוגמה: שלום, המערכת לא זיהתה את התלמיד במפגש. נשמח שתעדכנו את מצבו דרך הכפתורים בהודעה." />
           </label>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
-            <b>סטטוסים שאפשר לעדכן מתוך המייל</b>
+            <b>סטטוסים שאפשר לעדכן מתוך ההודעה</b>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
               {statusOptions.map(([value, label]) => (
                 <label key={`response-${value}`} className={`attendance-filter-chip${roster.session.emailResponseStatuses.includes(value) ? " active" : ""}`}>
@@ -188,7 +182,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             </div>
           </div>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
-            <b>למי שולחים את המייל</b>
+            <b>למי שולחים</b>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
               {Object.entries(ATTENDANCE_EMAIL_RECIPIENT_LABELS).map(([value, label]) => (
                 <label key={`recipient-${value}`} className={`attendance-filter-chip${roster.session.emailRecipientRoles.includes(value) ? " active" : ""}`}>
@@ -205,7 +199,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             </div>
           </div>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
-            <b>שלח מיילים לסטטוסים</b>
+            <b>שלח לסטטוסים</b>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
               {statusOptions.map(([value, label]) => (
                 <label key={`target-${value}`} className="attendance-filter-chip">
@@ -226,13 +220,14 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <button formAction={sendAttendanceSessionEmailsAction} className="quick-action-btn quick-action-primary">שלח מיילים למפגש</button>
           </div>
         </form>
-      </div>
+      </details>
 
       <AttendanceRosterClient
         sessionId={roster.session.id}
         students={roster.students}
         statusOptions={statusOptions}
         activeStatusFilters={activeStatusFilters}
+        initialStats={roster.stats}
       />
     </>
   );
