@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../../../lib/api-tokens";
 import {
   getAttendanceSessionById,
@@ -46,6 +47,8 @@ export async function GET(request, { params }) {
     resource: "attendanceSessionMessage",
     item: {
       sessionId: session.id,
+      title: session.title || "",
+      displayTitle: session.displayTitle || session.title || session.sessionTypeLabel || "",
       emailSubject: session.emailSubject || "",
       personalMessage: session.personalMessage || "",
       emailResponseStatuses: session.emailResponseStatuses || [],
@@ -75,6 +78,8 @@ export async function PATCH(request, { params }) {
       resource: "attendanceSessionMessage",
       item: {
         sessionId: session.id,
+        title: session.title || "",
+        displayTitle: session.displayTitle || session.title || session.sessionTypeLabel || "",
         emailSubject: session.emailSubject || "",
         personalMessage: session.personalMessage || "",
         emailResponseStatuses: session.emailResponseStatuses || [],
@@ -97,26 +102,51 @@ export async function POST(request, { params }) {
   }
 
   try {
-    await updateAttendanceSessionMessaging(clean(resolvedParams?.sessionId), {
-      emailSubject: clean(body.emailSubject || body.subject),
-      personalMessage: clean(body.personalMessage),
-      emailResponseStatuses: cleanList(body.emailResponseStatuses),
-      emailRecipientRoles: cleanList(body.emailRecipientRoles || body.recipientRoles)
+    const sessionId = clean(resolvedParams?.sessionId);
+    const emailSubject = clean(body.emailSubject || body.subject);
+    const personalMessage = clean(body.personalMessage);
+    const emailResponseStatuses = cleanList(body.emailResponseStatuses);
+    const targetStatuses = cleanList(body.targetStatuses);
+    const recipientRoles = cleanList(body.recipientRoles || body.emailRecipientRoles);
+    const createdByUserId = clean(body.createdByUserId) || `api:${clean(tokenCheck.auth?.id) || "unknown"}`;
+
+    await updateAttendanceSessionMessaging(sessionId, {
+      emailSubject,
+      personalMessage,
+      emailResponseStatuses,
+      emailRecipientRoles: recipientRoles
     });
-    const result = await sendAttendanceSessionEmails({
-      sessionId: clean(resolvedParams?.sessionId),
-      emailSubject: clean(body.emailSubject || body.subject),
-      personalMessage: clean(body.personalMessage),
-      emailResponseStatuses: cleanList(body.emailResponseStatuses),
-      targetStatuses: cleanList(body.targetStatuses),
-      recipientRoles: cleanList(body.recipientRoles || body.emailRecipientRoles),
-      createdByUserId: clean(body.createdByUserId) || `api:${clean(tokenCheck.auth?.id) || "unknown"}`
+
+    after(async () => {
+      try {
+        await sendAttendanceSessionEmails({
+          sessionId,
+          emailSubject,
+          personalMessage,
+          emailResponseStatuses,
+          targetStatuses,
+          recipientRoles,
+          createdByUserId
+        });
+      } catch (error) {
+        console.error("Attendance session API email send failed", {
+          sessionId,
+          error: error instanceof Error ? error.message : String(error || "Unknown error")
+        });
+      }
     });
 
     return NextResponse.json({
       resource: "attendanceSessionMessageSend",
-      item: result
-    });
+      item: {
+        sessionId,
+        accepted: true,
+        queued: true,
+        targetStatuses,
+        responseStatuses: emailResponseStatuses,
+        recipientRoles
+      }
+    }, { status: 202 });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Attendance session email send failed" }, { status: 400 });
   }

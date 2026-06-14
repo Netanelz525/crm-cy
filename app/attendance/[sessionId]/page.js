@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
 import AttendanceEmailSendSubmit from "../attendance-email-send-submit";
 import {
+  saveAttendanceSessionDetailsAction,
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
   sendAttendanceSessionEmailsAction,
@@ -10,6 +11,8 @@ import {
 } from "../actions";
 import {
   ATTENDANCE_EMAIL_RECIPIENT_LABELS,
+  ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER,
+  ATTENDANCE_SESSION_TYPE_LABELS,
   getAttendanceRoster
 } from "../../../lib/attendance";
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
@@ -48,6 +51,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const sessionId = clean(resolvedParams?.sessionId);
   const created = clean(resolvedSearchParams?.created) === "1";
   const synced = clean(resolvedSearchParams?.synced) === "1";
+  const detailsSaved = clean(resolvedSearchParams?.detailsSaved) === "1";
   const statusesSaved = clean(resolvedSearchParams?.statusesSaved) === "1";
   const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
   const mailQueued = clean(resolvedSearchParams?.mailQueued) === "1";
@@ -109,6 +113,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
+      {detailsSaved ? <div className="ok">פרטי המפגש נשמרו.</div> : null}
       {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
       {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
       {mailQueued ? <div className="ok">שליחת המיילים התחילה ברקע. אפשר לסגור את החלון והמערכת תמשיך.</div> : null}
@@ -119,7 +124,11 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         <div>
           <b>{roster.session.institutionLabel}</b>
           {" | "}
-          {roster.session.sessionTypeLabel || roster.session.title || "ללא סוג"}
+          {roster.session.displayTitle || roster.session.title || roster.session.sessionTypeLabel || "ללא סוג"}
+          {roster.session.sessionTypeLabel
+          && clean(roster.session.displayTitle || roster.session.title) !== clean(roster.session.sessionTypeLabel)
+            ? ` | סוג: ${roster.session.sessionTypeLabel}`
+            : ""}
           {" | "}
           {roster.session.sessionDate}
           {roster.session.sessionWeekdayLabel ? ` | ${roster.session.sessionWeekdayLabel}` : ""}
@@ -130,24 +139,62 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       </div>
 
       <div className="card">
-        <h3>סטטוסים למפגש</h3>
-        <p className="muted">הסטטוסים הייחודיים שייכים למפגש עצמו, ומופיעים מיד בכפתורי הנוכחות, בסינון, בדוחות וגם בשליחת המיילים.</p>
-        <form className="grid" action={saveAttendanceSessionStatusesAction}>
+        <h3>פרטי המפגש</h3>
+        <form className="grid" action={saveAttendanceSessionDetailsAction}>
           <input type="hidden" name="sessionId" value={roster.session.id} />
+          <label>
+            <span className="muted">סוג מפגש</span>
+            <select name="sessionType" defaultValue={roster.session.sessionType || ""} required>
+              {ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER.map((value) => (
+                <option key={value} value={value}>{ATTENDANCE_SESSION_TYPE_LABELS[value]}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="muted">שם מפגש חופשי</span>
+            <input name="title" defaultValue={roster.session.title} placeholder="למשל: ביקורת ערב" />
+          </label>
+          <label>
+            <span className="muted">תאריך</span>
+            <input name="sessionDate" type="date" defaultValue={roster.session.sessionDate} required />
+          </label>
           <label style={{ gridColumn: "1 / -1" }}>
-            <span className="muted">סטטוסים ייחודיים למפגש</span>
-            <textarea
-              name="customStatusesText"
-              rows={4}
-              defaultValue={serializeCustomStatuses(roster.session.customStatuses)}
-              placeholder={"דוגמה:\nneeds_call|צריך שיחה\nchecked_by_office|נבדק במשרד"}
-            />
+            <span className="muted">הערת מקור</span>
+            <textarea name="sourceNote" rows={3} defaultValue={roster.session.sourceNote} />
           </label>
           <div className="quick-actions">
-            <button type="submit" className="quick-action-btn quick-action-outline">שמור סטטוסים</button>
+            <button type="submit" className="quick-action-btn quick-action-outline">שמור פרטי מפגש</button>
           </div>
         </form>
       </div>
+
+      <details className="card attendance-message-panel" open={statusesSaved}>
+        <summary className="attendance-message-summary">
+          <div>
+            <h3>סטטוסים למפגש</h3>
+            <span className="muted">פותחים רק אם צריך להוסיף סטטוסים ייחודיים.</span>
+          </div>
+          <span className="attendance-message-summary-action">פתח אפשרויות</span>
+        </summary>
+        <div>
+          <p className="muted">הסטטוסים הייחודיים שייכים למפגש עצמו, ומופיעים מיד בכפתורי הנוכחות, בסינון, בדוחות וגם בשליחת המיילים.</p>
+          <form className="grid" action={saveAttendanceSessionStatusesAction}>
+            <input type="hidden" name="sessionId" value={roster.session.id} />
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span className="muted">סטטוסים ייחודיים למפגש</span>
+              <textarea
+                name="customStatusesText"
+                rows={4}
+                defaultValue={serializeCustomStatuses(roster.session.customStatuses)}
+                placeholder={"דוגמה:\nneeds_call|צריך שיחה\nchecked_by_office|נבדק במשרד"}
+              />
+            </label>
+            <div className="quick-actions">
+              <button type="submit" className="quick-action-btn quick-action-outline">שמור סטטוסים</button>
+            </div>
+          </form>
+        </div>
+      </details>
 
       <details className="card attendance-message-panel" open={messageSaved || mailQueued || mailSent || Boolean(mailError)}>
         <summary className="attendance-message-summary">

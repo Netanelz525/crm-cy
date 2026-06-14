@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authenticateApiToken, readBearerToken } from "../../../../../lib/api-tokens";
 import { buildAttendancePdfExport } from "../../../../../lib/attendance-exports";
 import { getCurrentAppUser } from "../../../../../lib/rbac";
 
@@ -11,9 +12,17 @@ function asciiFallbackFilename(filename, fallback = "attendance-report.pdf") {
 }
 
 export async function GET(request, { params }) {
-  const user = await getCurrentAppUser();
-  if (!user || (!user.is_team_member && !user.is_manager)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  const bearerToken = readBearerToken(request);
+  if (bearerToken) {
+    const auth = await authenticateApiToken(bearerToken, "attendance:read");
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
+    const user = await getCurrentAppUser();
+    if (!user || (!user.is_team_member && !user.is_manager && !user.is_super_admin)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
   }
 
   try {

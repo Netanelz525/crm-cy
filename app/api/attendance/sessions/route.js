@@ -93,6 +93,7 @@ export async function POST(request) {
         : parseAttendanceCustomStatusesText(body.customStatusesText),
       emailResponseStatuses: cleanList(body.emailResponseStatuses),
       emailRecipientRoles: cleanList(body.emailRecipientRoles || body.recipientRoles),
+      institutionFilter: cleanList(body.institutionFilter),
       classFilter: cleanList(body.classFilter),
       registrationFilter: cleanList(body.registrationFilter),
       familyStatusFilter: cleanList(body.familyStatusFilter || body.famliystatusFilter),

@@ -3,7 +3,8 @@ import { authenticateApiToken, readBearerToken } from "../../../../../lib/api-to
 import {
   deleteAttendanceSession,
   getAttendanceRoster,
-  saveAttendanceRecord
+  saveAttendanceRecord,
+  updateAttendanceSessionDetails
 } from "../../../../../lib/attendance";
 
 function clean(value) {
@@ -80,7 +81,20 @@ export async function PATCH(request, { params }) {
         : [];
 
     if (!rawRecords.length) {
-      return NextResponse.json({ error: "Provide records array or a single student record" }, { status: 400 });
+      await updateAttendanceSessionDetails(sessionId, {
+        title: body.title ?? body.sessionName,
+        sourceNote: body.sourceNote,
+        sessionType: body.sessionType,
+        sessionDate: body.sessionDate
+      });
+      const roster = await getAttendanceRoster(sessionId);
+      if (!roster) {
+        return NextResponse.json({ error: "Attendance session not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        resource: "attendanceSession",
+        item: roster
+      });
     }
 
     const markedByUserId = clean(body.markedByUserId) || null;

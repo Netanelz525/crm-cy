@@ -18,7 +18,7 @@ function clean(value) {
 }
 
 function formatSessionLabel(session) {
-  const title = clean(session?.sessionTypeLabel || session?.title);
+  const title = clean(session?.displayTitle || session?.title || session?.sessionTypeLabel);
   const institutionLabel = clean(session?.institutionLabel);
   const sessionDate = clean(session?.sessionDate);
   return [institutionLabel, title, sessionDate].filter(Boolean).join(" | ");
@@ -328,6 +328,7 @@ export default async function AttendancePage({ searchParams }) {
                 <option key={value} value={value}>{ATTENDANCE_SESSION_TYPE_LABELS[value]}</option>
               ))}
             </select>
+            <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
             {canUseSessionAudienceFilters ? (

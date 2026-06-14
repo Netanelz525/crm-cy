@@ -10,6 +10,7 @@ import {
   saveAttendanceRecord,
   syncAttendanceSessionStudents,
   updateAttendanceSessionCustomStatuses,
+  updateAttendanceSessionDetails,
   updateAttendanceSessionMessaging
 } from "../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
@@ -28,6 +29,7 @@ export async function createAttendanceSessionAction(formData) {
   const canUseSessionAudienceFilters = user.is_manager || user.is_super_admin;
   const institution = clean(formData.get("institution"));
   const sessionType = clean(formData.get("sessionType"));
+  const title = clean(formData.get("title"));
   const sessionDate = clean(formData.get("sessionDate"));
   const sourceNote = clean(formData.get("sourceNote"));
   const institutionFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("institutionFilter")) : [];
@@ -39,6 +41,7 @@ export async function createAttendanceSessionAction(formData) {
     id: crypto.randomUUID(),
     institution,
     sessionType,
+    title,
     sessionDate,
     sourceNote,
     institutionFilter,
@@ -51,6 +54,23 @@ export async function createAttendanceSessionAction(formData) {
   revalidatePath("/attendance");
   revalidatePath(`/attendance/${session.id}`);
   redirect(`/attendance/${session.id}?created=1`);
+}
+
+export async function saveAttendanceSessionDetailsAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await updateAttendanceSessionDetails(sessionId, {
+    title: clean(formData.get("title")),
+    sessionType: clean(formData.get("sessionType")),
+    sessionDate: clean(formData.get("sessionDate")),
+    sourceNote: clean(formData.get("sourceNote"))
+  });
+
+  revalidatePath("/attendance");
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?detailsSaved=1`);
 }
 
 export async function saveAttendanceRecordAction(input) {
