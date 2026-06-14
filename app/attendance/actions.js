@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import {
   createAttendanceSession,
   deleteAttendanceSession,
@@ -154,29 +155,43 @@ export async function sendAttendanceSessionEmailsAction(formData) {
   const targetStatuses = cleanList(formData.getAll("targetStatuses"));
   if (!sessionId) throw new Error("Missing attendance session id.");
 
-  await updateAttendanceSessionMessaging(sessionId, {
-    emailSubject,
-    personalMessage,
-    emailResponseStatuses,
-    emailRecipientRoles
-  });
-
-  let result;
   try {
-    result = await sendAttendanceSessionEmails({
-      sessionId,
+    if (!emailSubject) throw new Error("יש להזין נושא מייל לפני שליחת מיילים.");
+    if (!personalMessage) throw new Error("יש להזין הודעה אישית לפני שליחת מיילים.");
+    if (!emailResponseStatuses.length) throw new Error("יש לבחור לפחות סטטוס אחד לעדכון דרך המייל.");
+    if (!emailRecipientRoles.length) throw new Error("יש לבחור לפחות סוג נמען אחד לשליחת מיילים.");
+
+    await updateAttendanceSessionMessaging(sessionId, {
       emailSubject,
       personalMessage,
       emailResponseStatuses,
-      recipientRoles: emailRecipientRoles,
-      targetStatuses,
-      createdByUserId: user.clerk_user_id
+      emailRecipientRoles
     });
   } catch (error) {
     revalidatePath(`/attendance/${sessionId}`);
     redirect(`/attendance/${sessionId}?mailError=${encodeURIComponent(clean(error?.message) || "שליחת המיילים נכשלה")}`);
   }
 
-  revalidatePath(`/attendance/${sessionId}`);
-  redirect(`/attendance/${sessionId}?mailSent=1&sentEmails=${encodeURIComponent(String(result.sentEmails || 0))}&failedEmails=${encodeURIComponent(String(result.failedEmails || 0))}`);
+  after(async () => {
+    try {
+      await sendAttendanceSessionEmails({
+        sessionId,
+        emailSubject,
+        personalMessage,
+        emailResponseStatuses,
+        recipientRoles: emailRecipientRoles,
+        targetStatuses,
+        createdByUserId: user.clerk_user_id
+      });
+    } catch (error) {
+      console.error("Attendance session email send failed", {
+        sessionId,
+        error: error instanceof Error ? error.message : String(error || "Unknown error")
+      });
+    } finally {
+      revalidatePath(`/attendance/${sessionId}`);
+    }
+  });
+
+  redirect(`/attendance/${sessionId}?mailQueued=1`);
 }

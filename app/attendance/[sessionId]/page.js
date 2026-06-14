@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
+import AttendanceEmailSendSubmit from "../attendance-email-send-submit";
 import {
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
@@ -49,6 +50,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const synced = clean(resolvedSearchParams?.synced) === "1";
   const statusesSaved = clean(resolvedSearchParams?.statusesSaved) === "1";
   const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
+  const mailQueued = clean(resolvedSearchParams?.mailQueued) === "1";
   const mailSent = clean(resolvedSearchParams?.mailSent) === "1";
   const sentEmails = clean(resolvedSearchParams?.sentEmails);
   const failedEmails = clean(resolvedSearchParams?.failedEmails);
@@ -109,6 +111,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
       {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
       {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
+      {mailQueued ? <div className="ok">שליחת המיילים התחילה ברקע. אפשר לסגור את החלון והמערכת תמשיך.</div> : null}
       {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש{Number(failedEmails || 0) > 0 ? `, ו-${failedEmails} נכשלו` : ""}.</div> : null}
       {mailError ? <div className="error">{mailError}</div> : null}
 
@@ -146,7 +149,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </form>
       </div>
 
-      <details className="card attendance-message-panel" open={messageSaved || mailSent || Boolean(mailError)}>
+      <details className="card attendance-message-panel" open={messageSaved || mailQueued || mailSent || Boolean(mailError)}>
         <summary className="attendance-message-summary">
           <div>
             <h3>שליחת הודעות למפגש</h3>
@@ -217,7 +220,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </div>
           <div className="quick-actions">
             <button formAction={saveAttendanceSessionMessagingAction} className="quick-action-btn quick-action-outline">שמור הודעה</button>
-            <button formAction={sendAttendanceSessionEmailsAction} className="quick-action-btn quick-action-primary">שלח מיילים למפגש</button>
+            <AttendanceEmailSendSubmit formAction={sendAttendanceSessionEmailsAction} />
           </div>
         </form>
       </details>
