@@ -6,6 +6,7 @@ import {
   saveAttendanceRecord,
   updateAttendanceSessionDetails
 } from "../../../../../lib/attendance";
+import { getCurrentAppUser } from "../../../../../lib/rbac";
 
 function clean(value) {
   return String(value || "").trim();
@@ -31,6 +32,20 @@ async function requireApiToken(request, scope) {
   return { ok: true, auth };
 }
 
+async function requireAttendanceReadAccess(request) {
+  const token = readBearerToken(request);
+  if (token) {
+    return requireApiToken(request, "attendance:read");
+  }
+
+  const user = await getCurrentAppUser();
+  if (!user || (!user.is_team_member && !user.is_manager && !user.is_super_admin)) {
+    return { ok: false, response: unauthorized() };
+  }
+
+  return { ok: true, auth: user };
+}
+
 function normalizeRecordInput(record) {
   return {
     studentId: clean(record?.studentId),
@@ -42,8 +57,8 @@ function normalizeRecordInput(record) {
 }
 
 export async function GET(request, { params }) {
-  const tokenCheck = await requireApiToken(request, "attendance:read");
-  if (!tokenCheck.ok) return tokenCheck.response;
+  const accessCheck = await requireAttendanceReadAccess(request);
+  if (!accessCheck.ok) return accessCheck.response;
 
   try {
     const resolvedParams = await params;

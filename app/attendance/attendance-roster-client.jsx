@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
 
+const POLL_INTERVAL_MS = 10000;
+const EXIT_HIGHLIGHT_MS = 1800;
+const FLASH_HIGHLIGHT_MS = 2200;
+const LOCAL_DIRTY_GRACE_MS = 4000;
+
 function clean(value) {
   return String(value || "").trim();
 }
@@ -52,12 +57,34 @@ function buildLiveStats(rows, statusOptions) {
   };
 }
 
+function rowMatchesFilters(row, selectedFilters, query) {
+  const normalizedQuery = clean(query).toLowerCase();
+  const matchesStatus = !selectedFilters.length
+    || selectedFilters.includes(String(row?.status || "").trim().toLowerCase());
+  if (!matchesStatus) return false;
+  if (!normalizedQuery) return true;
+
+  return [
+    row?.label,
+    row?.classLabel,
+    row?.class,
+    phoneText(row?.phone),
+    phoneText(row?.dadPhone),
+    phoneText(row?.momPhone)
+  ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
+}
+
 export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
   const [rows, setRows] = useState(students);
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
   const [query, setQuery] = useState("");
+  const [flashRowIds, setFlashRowIds] = useState([]);
+  const [exitingRows, setExitingRows] = useState([]);
   const [, startTransition] = useTransition();
   const noteTimersRef = useRef(new Map());
+  const localDirtyRowsRef = useRef(new Map());
+  const flashTimersRef = useRef(new Map());
+  const pollAbortRef = useRef(null);
   const rowsRef = useRef(rows);
 
   useEffect(() => {
@@ -104,32 +131,20 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   useEffect(() => () => {
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
+    for (const timer of flashTimersRef.current.values()) clearTimeout(timer);
+    flashTimersRef.current.clear();
+    if (pollAbortRef.current) pollAbortRef.current.abort();
   }, []);
 
   const filteredRows = useMemo(() => {
-    const normalizedQuery = clean(query).toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesStatus = !selectedFilters.length
-        || selectedFilters.includes(String(row?.status || "").trim().toLowerCase());
-      if (!matchesStatus) return false;
-      if (!normalizedQuery) return true;
-
-      return [
-        row?.label,
-        row?.classLabel,
-        row?.class,
-        phoneText(row?.phone),
-        phoneText(row?.dadPhone),
-        phoneText(row?.momPhone)
-      ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
-    });
+    return rows.filter((row) => rowMatchesFilters(row, selectedFilters, query));
   }, [rows, selectedFilters, query]);
 
   const liveStats = useMemo(() => buildLiveStats(rows, statusOptions), [rows, statusOptions]);
 
   function persistRow(row) {
     if (!row?.id) return;
+    localDirtyRowsRef.current.set(row.id, Date.now() + LOCAL_DIRTY_GRACE_MS);
     startTransition(async () => {
       try {
         await saveAttendanceRecordAction({
@@ -142,6 +157,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         });
       } catch (error) {
         console.error("Attendance autosave failed", error);
+      } finally {
+        localDirtyRowsRef.current.set(row.id, Date.now() + 1200);
       }
     });
   }
@@ -198,6 +215,100 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     ));
   }
 
+  function flashRow(studentId) {
+    setFlashRowIds((current) => (current.includes(studentId) ? current : [...current, studentId]));
+    const existing = flashTimersRef.current.get(studentId);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      flashTimersRef.current.delete(studentId);
+      setFlashRowIds((current) => current.filter((value) => value !== studentId));
+    }, FLASH_HIGHLIGHT_MS);
+    flashTimersRef.current.set(studentId, timer);
+  }
+
+  function queueExitingRow(row) {
+    const key = `${row.id}:${Date.now()}`;
+    setExitingRows((current) => [...current, { ...row, _transientKey: key }]);
+    const timer = setTimeout(() => {
+      setExitingRows((current) => current.filter((item) => item._transientKey !== key));
+      flashTimersRef.current.delete(key);
+    }, EXIT_HIGHLIGHT_MS);
+    flashTimersRef.current.set(key, timer);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollRoster() {
+      if (pollAbortRef.current) pollAbortRef.current.abort();
+      const controller = new AbortController();
+      pollAbortRef.current = controller;
+
+      try {
+        const response = await fetch(`/api/attendance/sessions/${encodeURIComponent(sessionId)}`, {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal
+        });
+        if (!response.ok) return;
+        const payload = await response.json();
+        const nextRowsRaw = Array.isArray(payload?.item?.students) ? payload.item.students : [];
+        if (cancelled || !nextRowsRaw.length) return;
+
+        const now = Date.now();
+        const currentRows = rowsRef.current;
+        const currentMap = new Map(currentRows.map((row) => [row.id, row]));
+        const nextRows = nextRowsRaw.map((incoming) => {
+          const current = currentMap.get(incoming.id);
+          const dirtyUntil = localDirtyRowsRef.current.get(incoming.id) || 0;
+          if (!current) return incoming;
+          if (dirtyUntil > now) return current;
+          return { ...current, ...incoming };
+        });
+
+        const changedRows = [];
+        for (const incoming of nextRows) {
+          const current = currentMap.get(incoming.id);
+          if (!current) continue;
+          if (
+            clean(current.status) !== clean(incoming.status)
+            || clean(current.noteText) !== clean(incoming.noteText)
+          ) {
+            changedRows.push({ previous: current, next: incoming });
+          }
+        }
+
+        if (!changedRows.length) return;
+
+        const nextVisible = [];
+        for (const change of changedRows) {
+          const wasVisible = rowMatchesFilters(change.previous, selectedFilters, query);
+          const isVisible = rowMatchesFilters(change.next, selectedFilters, query);
+          if (wasVisible && !isVisible) queueExitingRow(change.next);
+          if (isVisible) nextVisible.push(change.next.id);
+        }
+
+        rowsRef.current = nextRows;
+        setRows(nextRows);
+        nextVisible.forEach(flashRow);
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          console.error("Attendance roster polling failed", error);
+        }
+      }
+    }
+
+    pollRoster();
+    const intervalId = setInterval(pollRoster, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+      if (pollAbortRef.current) pollAbortRef.current.abort();
+    };
+  }, [sessionId, selectedFilters, query]);
+
   return (
     <>
       <div className="card attendance-roster-card">
@@ -250,8 +361,20 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               </tr>
             </thead>
             <tbody>
+              {exitingRows.map((student) => (
+                <tr key={student._transientKey} className="attendance-row-exit-highlight">
+                  <td>
+                    <div className="attendance-student-name">{student.label}</div>
+                  </td>
+                  <td>{student.classLabel}</td>
+                  <td>
+                    <div className="attendance-row-exit-text">עודכן מבחוץ ולכן ירד מהסינון הנוכחי</div>
+                  </td>
+                  <td>{student.noteText || ""}</td>
+                </tr>
+              ))}
               {filteredRows.map((student) => (
-                <tr key={student.id}>
+                <tr key={student.id} className={flashRowIds.includes(student.id) ? "attendance-row-live-highlight" : ""}>
                   <td>
                     <div className="attendance-student-name">{student.label}</div>
                     <div className="attendance-contact-actions">

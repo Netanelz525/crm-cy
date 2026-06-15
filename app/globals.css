@@ -486,6 +486,43 @@ button {
   vertical-align: middle;
 }
 
+.attendance-table tbody tr {
+  transition: background 0.28s ease, opacity 0.28s ease, transform 0.28s ease;
+}
+
+.attendance-row-live-highlight td {
+  background: #ecfdf3;
+}
+
+.attendance-row-exit-highlight {
+  opacity: 0.92;
+  animation: attendanceRowExitFade 1.8s ease forwards;
+}
+
+.attendance-row-exit-highlight td {
+  background: #dcfce7;
+}
+
+.attendance-row-exit-text {
+  color: #166534;
+  font-weight: 700;
+}
+
+@keyframes attendanceRowExitFade {
+  0% {
+    opacity: 0.98;
+    transform: translateY(0);
+  }
+  75% {
+    opacity: 0.96;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
 .attendance-summary-table th,
 .attendance-summary-table td {
   white-space: nowrap;
