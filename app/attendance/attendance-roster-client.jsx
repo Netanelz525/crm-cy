@@ -80,6 +80,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const [query, setQuery] = useState("");
   const [flashRowIds, setFlashRowIds] = useState([]);
   const [exitingRows, setExitingRows] = useState([]);
+  const [externalNotices, setExternalNotices] = useState([]);
   const [, startTransition] = useTransition();
   const noteTimersRef = useRef(new Map());
   const localDirtyRowsRef = useRef(new Map());
@@ -236,6 +237,16 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     flashTimersRef.current.set(key, timer);
   }
 
+  function pushExternalNotice(text) {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setExternalNotices((current) => [...current, { id, text }]);
+    const timer = setTimeout(() => {
+      setExternalNotices((current) => current.filter((item) => item.id !== id));
+      flashTimersRef.current.delete(id);
+    }, 3200);
+    flashTimersRef.current.set(id, timer);
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -285,7 +296,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         for (const change of changedRows) {
           const wasVisible = rowMatchesFilters(change.previous, selectedFilters, query);
           const isVisible = rowMatchesFilters(change.next, selectedFilters, query);
-          if (wasVisible && !isVisible) queueExitingRow(change.next);
+          if (wasVisible && !isVisible) {
+            queueExitingRow(change.next);
+            pushExternalNotice(`${change.next.label} עודכן על ידי API וירד מהסינון הנוכחי`);
+          }
           if (isVisible) nextVisible.push(change.next.id);
         }
 
@@ -311,6 +325,13 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
 
   return (
     <>
+      {externalNotices.length ? (
+        <div className="attendance-live-notices" aria-live="polite">
+          {externalNotices.map((notice) => (
+            <div key={notice.id} className="attendance-live-notice">{notice.text}</div>
+          ))}
+        </div>
+      ) : null}
       <div className="card attendance-roster-card">
         <div className="attendance-roster-head">
           <h3>הזנת נוכחות</h3>

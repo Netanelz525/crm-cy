@@ -162,6 +162,15 @@ function MessageCard({ message, onDecision, onFeedback, deciding }) {
           ) : null}
         </div>
       ) : null}
+      {Array.isArray(message.actionLinks) && message.actionLinks.length ? (
+        <div className="ai-chat-export-actions">
+          {message.actionLinks.map((link) => (
+            <a key={`${link.label}-${link.url}`} className="ai-chat-export-link" href={link.url}>
+              {link.label}
+            </a>
+          ))}
+        </div>
+      ) : null}
       {message.viewUrl ? (
         <div className="ai-chat-large-view">
           <a className="ai-chat-large-view-link" href={message.viewUrl}>
@@ -306,6 +315,7 @@ export default function AiChatWidget() {
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
           exportUrl: data?.exportUrl || "",
           pdfUrl: data?.pdfUrl || "",
+          actionLinks: Array.isArray(data?.actionLinks) ? data.actionLinks : [],
           viewUrl: data?.viewUrl || "",
           searchSummary: data?.searchSummary || "",
           documentInfo: data?.documentInfo || null,
@@ -350,6 +360,7 @@ export default function AiChatWidget() {
           studentCards: Array.isArray(data?.studentCards) ? data.studentCards : [],
           exportUrl: data?.exportUrl || "",
           pdfUrl: data?.pdfUrl || "",
+          actionLinks: Array.isArray(data?.actionLinks) ? data.actionLinks : [],
           viewUrl: data?.viewUrl || "",
           searchSummary: data?.searchSummary || "",
           feedback: ""

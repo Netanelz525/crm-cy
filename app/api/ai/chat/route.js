@@ -943,6 +943,7 @@ export async function POST(request) {
       studentCards: Array.isArray(result?.studentCards) ? result.studentCards : [],
       exportUrl: result?.exportUrl || "",
       pdfUrl: result?.pdfUrl || "",
+      actionLinks: Array.isArray(result?.actionLinks) ? result.actionLinks : [],
       viewUrl: result?.viewUrl || "",
       searchSummary: result?.searchSummary || "",
       pendingAction: result?.pendingAction || null
