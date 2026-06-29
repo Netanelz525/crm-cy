@@ -32,6 +32,15 @@ function formatSessionMeta(session) {
   return parts.join(" | ");
 }
 
+function formatLockSummary(session) {
+  if (!session?.updatesLockedUntil) return "";
+  const formatted = new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date(session.updatesLockedUntil));
+  return session.isUpdatesLocked ? `נעול לעדכונים מאז ${formatted}` : `פתוח לעדכונים עד ${formatted}`;
+}
+
 function formatSessionAudience(session) {
   const institutionLabels = (session?.institutionFilterOptions || []).map((item) => item.label);
   const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
@@ -330,6 +339,11 @@ export default async function AttendancePage({ searchParams }) {
             </select>
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
+            <label>
+              <span className="muted">אפשר לעדכן עד</span>
+              <input name="updatesLockedUntil" type="datetime-local" />
+              <small className="muted">אופציונלי. אחרי מועד זה המפגש יינעל לעדכונים מתלמידים, משתמשים וה-API.</small>
+            </label>
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
             {canUseSessionAudienceFilters ? (
               <>
@@ -368,6 +382,7 @@ export default async function AttendancePage({ searchParams }) {
                     <strong>{formatSessionLabel(session)}</strong>
                     {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
                     <span>נוצר על ידי: {session.createdByDisplayName}</span>
+                    {formatLockSummary(session) ? <span>{formatLockSummary(session)}</span> : null}
                     {formatSessionAudience(session) ? <span>{formatSessionAudience(session)}</span> : null}
                     {session.sourceNote ? <span>{session.sourceNote}</span> : <span>{session.id}</span>}
                   </Link>

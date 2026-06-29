@@ -44,6 +44,7 @@ export async function createAttendanceSessionAction(formData) {
     title,
     sessionDate,
     sourceNote,
+    updatesLockedUntil: clean(formData.get("updatesLockedUntil")),
     institutionFilter,
     classFilter,
     registrationFilter,
@@ -65,7 +66,8 @@ export async function saveAttendanceSessionDetailsAction(formData) {
     title: clean(formData.get("title")),
     sessionType: clean(formData.get("sessionType")),
     sessionDate: clean(formData.get("sessionDate")),
-    sourceNote: clean(formData.get("sourceNote"))
+    sourceNote: clean(formData.get("sourceNote")),
+    updatesLockedUntil: clean(formData.get("updatesLockedUntil"))
   });
 
   revalidatePath("/attendance");

@@ -28,6 +28,24 @@ function serializeCustomStatuses(customStatuses = []) {
     .join("\n");
 }
 
+function formatDateTimeLocal(value) {
+  const raw = clean(value);
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
+function formatLockSummary(session) {
+  if (!session?.updatesLockedUntil) return "פתוח לעדכונים ללא תאריך נעילה";
+  const formatted = new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date(session.updatesLockedUntil));
+  return session.isUpdatesLocked ? `נעול לעדכונים מאז ${formatted}` : `פתוח לעדכונים עד ${formatted}`;
+}
+
 function formatSessionAudience(session) {
   const institutionLabels = (session?.institutionFilterOptions || []).map((item) => item.label);
   const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
@@ -134,6 +152,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           {roster.session.sessionWeekdayLabel ? ` | ${roster.session.sessionWeekdayLabel}` : ""}
           {roster.session.sessionHebrewDateLabel ? ` | ${roster.session.sessionHebrewDateLabel}` : ""}
           {roster.session.createdByDisplayName ? ` | נוצר על ידי: ${roster.session.createdByDisplayName}` : ""}
+          {` | ${formatLockSummary(roster.session)}`}
           {formatSessionAudience(roster.session) ? ` | ${formatSessionAudience(roster.session)}` : ""}
         </div>
       </div>
@@ -157,6 +176,11 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <label>
             <span className="muted">תאריך</span>
             <input name="sessionDate" type="date" defaultValue={roster.session.sessionDate} required />
+          </label>
+          <label>
+            <span className="muted">אפשר לעדכן עד</span>
+            <input name="updatesLockedUntil" type="datetime-local" defaultValue={formatDateTimeLocal(roster.session.updatesLockedUntil)} />
+            <small className="muted">השאירו ריק כדי לאפשר עדכונים ללא הגבלת זמן. אחרי מועד זה תלמידים, משתמשים וה-API לא יוכלו לעדכן נוכחות.</small>
           </label>
           <label style={{ gridColumn: "1 / -1" }}>
             <span className="muted">הערת מקור</span>
@@ -277,6 +301,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         students={roster.students}
         statusOptions={statusOptions}
         activeStatusFilters={activeStatusFilters}
+        isLocked={roster.session.isUpdatesLocked}
+        lockSummary={formatLockSummary(roster.session)}
         initialStats={roster.stats}
       />
     </>
