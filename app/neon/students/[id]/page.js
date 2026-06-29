@@ -233,7 +233,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
     listStudentContactLogs(studentId, 8),
     listStudentEvents(studentId, 12)
   ]);
-  const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
     <>
@@ -283,9 +282,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
                   <div className="muted">התלמיד יוסתר מיד מכל הרשימות ויעבור לאזור מחיקה זמני ל-30 יום.</div>
                   <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
                     <input type="checkbox" name="confirmDelete" value="1" />
-                    <span>{deleteLabel}</span>
+                    <span>{`אני מאשר להעביר את ${studentName} לאזור המחיקה הזמני ל-30 יום`}</span>
                   </label>
-                  <input name="confirmationText" placeholder='הקלד "אני מאשר"' style={{ marginTop: 8 }} />
+                  <label style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                    <span className="muted">להשלמת הפעולה הקלד בדיוק: <b>אני מאשר</b></span>
+                    <input name="confirmationText" required autoComplete="off" placeholder="אני מאשר" aria-label="אישור מחיקה זמנית" />
+                  </label>
                   <div className="quick-actions" style={{ marginTop: 8 }}>
                     <button className="btn btn-danger" type="submit">אשר מחיקה</button>
                     <Link className="btn btn-ghost" href="/admin/deleted-students">פתח אזור מחיקה זמני</Link>
