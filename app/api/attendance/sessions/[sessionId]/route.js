@@ -100,6 +100,7 @@ export async function PATCH(request, { params }) {
         title: body.title ?? body.sessionName,
         sourceNote: body.sourceNote,
         sessionType: body.sessionType,
+        updatesLockedUntil: body.updatesLockedUntil ?? body.lockedUntil ?? body.updatesLockedUntilAt,
         sessionDate: body.sessionDate
       });
       const roster = await getAttendanceRoster(sessionId);

@@ -74,7 +74,7 @@ function rowMatchesFilters(row, selectedFilters, query) {
   ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
 }
 
-export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
+export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [], isLocked = false, lockSummary = "" }) {
   const [rows, setRows] = useState(students);
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
   const [query, setQuery] = useState("");
@@ -144,6 +144,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const liveStats = useMemo(() => buildLiveStats(rows, statusOptions), [rows, statusOptions]);
 
   function persistRow(row) {
+    if (isLocked) return;
     if (!row?.id) return;
     localDirtyRowsRef.current.set(row.id, Date.now() + LOCAL_DIRTY_GRACE_MS);
     startTransition(async () => {
@@ -178,6 +179,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }
 
   function handleStatusChange(studentId, nextStatus) {
+    if (isLocked) return;
     const nextRow = updateRow(studentId, { status: nextStatus });
     if (nextRow) persistRow(nextRow);
   }
@@ -194,6 +196,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }
 
   function handleNoteChange(studentId, nextNote) {
+    if (isLocked) return;
     updateRow(studentId, { noteText: nextNote });
     scheduleNoteSave(studentId);
   }
@@ -335,6 +338,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
       <div className="card attendance-roster-card">
         <div className="attendance-roster-head">
           <h3>הזנת נוכחות</h3>
+          {isLocked ? <span className="meta-chip">🔒 {lockSummary || "המפגש נעול לעדכונים"}</span> : null}
           <div className="attendance-stats">
             <span className="meta-chip">תלמידים: {liveStats.totalStudents}</span>
             {statusOptions.map(([value, label]) => (
@@ -425,6 +429,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                             value={value}
                             checked={student.status === value}
                             onChange={() => handleStatusChange(student.id, value)}
+                            disabled={isLocked}
                           />
                           <span>{label}</span>
                         </label>
@@ -436,6 +441,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                       value={student.noteText || ""}
                       onChange={(event) => handleNoteChange(student.id, event.target.value)}
                       onBlur={() => handleNoteBlur(student.id)}
+                      disabled={isLocked}
                       placeholder="הערה קצרה"
                     />
                   </td>

@@ -86,6 +86,7 @@ export async function POST(request) {
       title: clean(body.title),
       sessionDate: clean(body.sessionDate),
       sourceNote: clean(body.sourceNote),
+      updatesLockedUntil: clean(body.updatesLockedUntil || body.lockedUntil || body.updatesLockedUntilAt),
       emailSubject: clean(body.emailSubject || body.subject),
       personalMessage: clean(body.personalMessage),
       customStatuses: Array.isArray(body.customStatuses)
