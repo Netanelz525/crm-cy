@@ -7,7 +7,9 @@ import {
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
   sendAttendanceSessionEmailsAction,
-  syncAttendanceSessionStudentsAction
+  syncAttendanceSessionStudentsAction,
+  lockAttendanceSessionUpdatesAction,
+  unlockAttendanceSessionUpdatesAction
 } from "../actions";
 import {
   ATTENDANCE_EMAIL_RECIPIENT_LABELS,
@@ -70,6 +72,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const created = clean(resolvedSearchParams?.created) === "1";
   const synced = clean(resolvedSearchParams?.synced) === "1";
   const detailsSaved = clean(resolvedSearchParams?.detailsSaved) === "1";
+  const locked = clean(resolvedSearchParams?.locked) === "1";
+  const unlocked = clean(resolvedSearchParams?.unlocked) === "1";
   const statusesSaved = clean(resolvedSearchParams?.statusesSaved) === "1";
   const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
   const mailQueued = clean(resolvedSearchParams?.mailQueued) === "1";
@@ -132,6 +136,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
       {detailsSaved ? <div className="ok">פרטי המפגש נשמרו.</div> : null}
+      {locked ? <div className="ok">המפגש ננעל לעדכונים.</div> : null}
+      {unlocked ? <div className="ok">המפגש נפתח מחדש לעדכונים.</div> : null}
       {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
       {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
       {mailQueued ? <div className="ok">שליחת המיילים התחילה ברקע. אפשר לסגור את החלון והמערכת תמשיך.</div> : null}
@@ -188,9 +194,35 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </label>
           <div className="quick-actions">
             <button type="submit" className="quick-action-btn quick-action-outline">שמור פרטי מפגש</button>
+            <button formAction={lockAttendanceSessionUpdatesAction} className="quick-action-btn quick-action-primary">נעל עדכונים עכשיו</button>
+            <button formAction={unlockAttendanceSessionUpdatesAction} className="quick-action-btn quick-action-outline">פתח עדכונים מחדש</button>
           </div>
         </form>
       </div>
+
+
+      <details className="card attendance-message-panel">
+        <summary className="attendance-message-summary">
+          <div>
+            <h3>שליטה בנעילת עדכונים דרך API</h3>
+            <span className="muted">אפשר לשלוח PATCH עם טוקן API בעל הרשאת attendance:write.</span>
+          </div>
+          <span className="attendance-message-summary-action">פתח דוגמה</span>
+        </summary>
+        <div className="grid">
+          <p className="muted" style={{ gridColumn: "1 / -1" }}>
+            לנעילה מיידית של המפגש שלחו את השדה updatesLockedUntil עם זמן ISO בעבר או בזמן הנוכחי. לפתיחה מחדש שלחו ערך ריק.
+          </p>
+          <pre dir="ltr" style={{ gridColumn: "1 / -1", whiteSpace: "pre-wrap" }}>{`curl -X PATCH "${process.env.NEXT_PUBLIC_APP_URL || "https://your-domain.example"}/api/attendance/sessions/${roster.session.id}" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"updatesLockedUntil":"${new Date().toISOString()}"}'`}</pre>
+          <pre dir="ltr" style={{ gridColumn: "1 / -1", whiteSpace: "pre-wrap" }}>{`curl -X PATCH "${process.env.NEXT_PUBLIC_APP_URL || "https://your-domain.example"}/api/attendance/sessions/${roster.session.id}" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"updatesLockedUntil":""}'`}</pre>
+        </div>
+      </details>
 
       <details className="card attendance-message-panel" open={statusesSaved}>
         <summary className="attendance-message-summary">

@@ -75,6 +75,34 @@ export async function saveAttendanceSessionDetailsAction(formData) {
   redirect(`/attendance/${sessionId}?detailsSaved=1`);
 }
 
+export async function lockAttendanceSessionUpdatesAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await updateAttendanceSessionDetails(sessionId, {
+    updatesLockedUntil: new Date().toISOString()
+  });
+
+  revalidatePath("/attendance");
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?locked=1`);
+}
+
+export async function unlockAttendanceSessionUpdatesAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await updateAttendanceSessionDetails(sessionId, {
+    updatesLockedUntil: ""
+  });
+
+  revalidatePath("/attendance");
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?unlocked=1`);
+}
+
 export async function saveAttendanceRecordAction(input) {
   const user = await requireAttendanceUser();
   const payload = input instanceof FormData
