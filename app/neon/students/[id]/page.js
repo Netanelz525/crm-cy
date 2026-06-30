@@ -45,6 +45,58 @@ function phoneHref(phoneObj) {
   return `tel:${prefix}${number}`.replace(/\s+/g, "");
 }
 
+function whatsappHref(phoneObj) {
+  const number = clean(phoneObj?.primaryPhoneNumber).replace(/[^\d]/g, "");
+  if (!number) return "";
+  const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d]/g, "");
+  let whatsappNumber = "";
+  if (calling) {
+    whatsappNumber = `${calling}${number.replace(/^0+/, "")}`;
+  } else if (number.startsWith("0")) {
+    whatsappNumber = `972${number.replace(/^0+/, "")}`;
+  } else {
+    whatsappNumber = number;
+  }
+  return whatsappNumber ? `https://wa.me/${whatsappNumber}` : "";
+}
+
+function renderPhoneValue(phoneObj) {
+  const text = phoneText(phoneObj);
+  const href = phoneHref(phoneObj);
+  const waHref = whatsappHref(phoneObj);
+  const phoneDisplay = (
+    <span dir="ltr" style={{ unicodeBidi: "isolate", display: "inline-block" }}>
+      <span aria-hidden="true" style={{ marginInlineEnd: 6 }}>☎</span>
+      {text}
+    </span>
+  );
+  if (text === "-") return phoneDisplay;
+  return (
+    <span className="phone-action-links">
+      {href ? <a href={href}>{phoneDisplay}</a> : phoneDisplay}
+      {waHref ? (
+        <a className="phone-whatsapp-link" href={waHref} target="_blank" rel="noopener noreferrer" aria-label={`פתח WhatsApp למספר ${text}`}>
+          WhatsApp
+        </a>
+      ) : null}
+    </span>
+  );
+}
+
+function renderPhoneListValue(values) {
+  const phones = Array.isArray(values) ? values.map(clean).filter(Boolean) : [];
+  if (!phones.length) return "-";
+  return (
+    <span className="phone-list-values">
+      {phones.map((phone, index) => (
+        <span key={`${phone}-${index}`}>
+          {renderPhoneValue({ primaryPhoneNumber: phone })}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function emailHref(value) {
   const email = clean(value);
   return email && email.includes("@") ? `mailto:${email}` : "";
@@ -71,16 +123,10 @@ function renderEmailValue(value) {
 function formatDisplayValue(field, value) {
   if (!hasDisplayValue(value)) return "-";
   if (field.type === "phone") {
-    const text = phoneText(value);
-    const href = phoneHref(value);
-    const phoneDisplay = (
-      <span dir="ltr" style={{ unicodeBidi: "isolate", display: "inline-block" }}>
-        <span aria-hidden="true" style={{ marginInlineEnd: 6 }}>☎</span>
-        {text}
-      </span>
-    );
-    if (!href || text === "-") return phoneDisplay;
-    return <a href={href}>{phoneDisplay}</a>;
+    return renderPhoneValue(value);
+  }
+  if (field.isList && String(field?.key || "").endsWith(".additionalPhones")) {
+    return renderPhoneListValue(value);
   }
   if (String(field?.key || "").toLowerCase().includes("email")) {
     return renderEmailValue(value);
