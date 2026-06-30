@@ -4458,3 +4458,32 @@ td {
     display: grid;
   }
 }
+
+.phone-action-links {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.phone-whatsapp-link {
+  background: #1fa855;
+  border: 1px solid #168245;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 10px;
+  text-decoration: none;
+}
+
+.phone-whatsapp-link:hover {
+  filter: brightness(1.05);
+}
+
+.phone-list-values {
+  display: inline-grid;
+  gap: 6px;
+}

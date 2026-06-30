@@ -42,8 +42,8 @@ export async function updateNeonStudentAction(formData) {
 export async function deleteNeonStudentAction(formData) {
   const user = await requireAuthenticatedUser();
   const studentId = clean(formData.get("studentId"));
-  const confirmationText = clean(formData.get("confirmationText"));
   const confirmDelete = clean(formData.get("confirmDelete"));
+  const confirmationText = clean(formData.get("confirmationText"));
 
   if (!user.is_team_member && !user.is_manager) {
     redirect("/unauthorized");
@@ -54,7 +54,7 @@ export async function deleteNeonStudentAction(formData) {
   }
 
   if (confirmDelete !== "1" || confirmationText !== DELETE_CONFIRMATION_TEXT) {
-    redirect(`/neon/students/${studentId}?error=${encodeURIComponent("כדי למחוק תלמיד צריך לסמן אישור ולהקליד בדיוק: אני מאשר")}`);
+    redirect(`/neon/students/${studentId}?error=${encodeURIComponent("כדי להעביר תלמיד לאזור המחיקה הזמני צריך לסמן את תיבת האישור ולהקליד בדיוק: אני מאשר")}`);
   }
 
   try {
