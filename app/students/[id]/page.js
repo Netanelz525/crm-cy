@@ -39,6 +39,42 @@ function phoneHref(phoneObj) {
   return `tel:${prefix}${number}`.replace(/\s+/g, "");
 }
 
+function whatsappHref(phoneObj) {
+  const number = clean(phoneObj?.primaryPhoneNumber).replace(/[^\d]/g, "");
+  if (!number) return "";
+  const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d]/g, "");
+  const whatsappNumber = calling
+    ? `${calling}${number.replace(/^0+/, "")}`
+    : number.replace(/^0/, "972");
+  return whatsappNumber ? `https://wa.me/${whatsappNumber}` : "";
+}
+
+function renderPhoneValue(phoneObj) {
+  const text = phoneText(phoneObj);
+  const callHref = phoneHref(phoneObj);
+  const waHref = whatsappHref(phoneObj);
+  const phoneDisplay = (
+    <span dir="ltr" style={{ unicodeBidi: "isolate", display: "inline-block" }}>
+      <span aria-hidden="true" style={{ marginInlineEnd: 6 }}>☎</span>
+      {text}
+    </span>
+  );
+
+  if (!callHref || text === "-") return phoneDisplay;
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span>{phoneDisplay}</span>
+      <a href={callHref} aria-label={`חייג אל ${text}`}>חיוג</a>
+      {waHref ? (
+        <a href={waHref} target="_blank" rel="noopener noreferrer" aria-label={`פתח WhatsApp אל ${text}`}>
+          WhatsApp
+        </a>
+      ) : null}
+    </span>
+  );
+}
+
 function emailHref(value) {
   const email = clean(value);
   return email && email.includes("@") ? `mailto:${email}` : "";
@@ -65,16 +101,7 @@ function renderEmailValue(value) {
 function formatDisplayValue(field, value) {
   if (!hasDisplayValue(value)) return "-";
   if (field.type === "phone") {
-    const text = phoneText(value);
-    const href = phoneHref(value);
-    const phoneDisplay = (
-      <span dir="ltr" style={{ unicodeBidi: "isolate", display: "inline-block" }}>
-        <span aria-hidden="true" style={{ marginInlineEnd: 6 }}>☎</span>
-        {text}
-      </span>
-    );
-    if (!href || text === "-") return phoneDisplay;
-    return <a href={href}>{phoneDisplay}</a>;
+    return renderPhoneValue(value);
   }
   if (String(field?.key || "").toLowerCase().includes("email")) {
     return renderEmailValue(value);
