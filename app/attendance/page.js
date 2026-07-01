@@ -11,7 +11,7 @@ import {
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
-import { createAttendanceSessionAction, deleteAttendanceSessionAction } from "./actions";
+import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -158,6 +158,7 @@ export default async function AttendancePage({ searchParams }) {
   if (!currentUser) redirect("/sign-in");
   if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
   const canUseSessionAudienceFilters = currentUser.is_manager || currentUser.is_super_admin;
+  const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
 
   const resolvedSearchParams = await searchParams;
   const created = clean(resolvedSearchParams?.created) === "1";
@@ -368,9 +369,19 @@ export default async function AttendancePage({ searchParams }) {
                     <strong>{formatSessionLabel(session)}</strong>
                     {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
                     <span>נוצר על ידי: {session.createdByDisplayName}</span>
+                    <span>{session.isLocked ? "נעול לעדכונים" : "פתוח לעדכונים"}</span>
                     {formatSessionAudience(session) ? <span>{formatSessionAudience(session)}</span> : null}
                     {session.sourceNote ? <span>{session.sourceNote}</span> : <span>{session.id}</span>}
                   </Link>
+                  {canManageSessionLock ? (
+                    <form action={setAttendanceSessionLockAction}>
+                      <input type="hidden" name="sessionId" value={session.id} />
+                      <input type="hidden" name="locked" value={session.isLocked ? "0" : "1"} />
+                      <button type="submit" className={session.isLocked ? "quick-action-btn quick-action-primary" : "quick-action-btn quick-action-outline"}>
+                        {session.isLocked ? "פתח נעילה" : "נעל"}
+                      </button>
+                    </form>
+                  ) : null}
                   <form action={deleteAttendanceSessionAction}>
                     <input type="hidden" name="sessionId" value={session.id} />
                     <button type="submit" className="quick-action-btn quick-action-outline">מחק</button>
