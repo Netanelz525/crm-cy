@@ -676,6 +676,20 @@ button {
   gap: 8px;
 }
 
+.attendance-lock-banner,
+.attendance-roster-lock-note {
+  border: 1px solid #f2c94c;
+  background: #fff8dc;
+  color: #6f4e00;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: 700;
+}
+
+.attendance-roster-lock-note {
+  font-size: 0.92rem;
+}
+
 .attendance-toolbar-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -774,6 +788,12 @@ button {
   color: #fff;
   border-color: #0f5fa4;
   box-shadow: 0 6px 18px rgba(15, 95, 164, 0.18);
+}
+
+.attendance-status-option.disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  box-shadow: none;
 }
 
 .attendance-status-option:has(input:focus-visible) {

@@ -7,6 +7,7 @@ import {
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
   sendAttendanceSessionEmailsAction,
+  setAttendanceSessionLockAction,
   syncAttendanceSessionStudentsAction
 } from "../actions";
 import {
@@ -54,6 +55,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const detailsSaved = clean(resolvedSearchParams?.detailsSaved) === "1";
   const statusesSaved = clean(resolvedSearchParams?.statusesSaved) === "1";
   const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
+  const lockSaved = clean(resolvedSearchParams?.lockSaved);
   const mailQueued = clean(resolvedSearchParams?.mailQueued) === "1";
   const mailSent = clean(resolvedSearchParams?.mailSent) === "1";
   const sentEmails = clean(resolvedSearchParams?.sentEmails);
@@ -66,6 +68,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const exportSort = clean(resolvedSearchParams?.exportSort).toLowerCase() || "class_name";
   const roster = sessionId ? await getAttendanceRoster(sessionId) : null;
   const statusOptions = Array.isArray(roster?.session?.statusOptions) ? roster.session.statusOptions : [];
+  const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
 
   if (!roster) {
     return (
@@ -91,6 +94,15 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <input type="hidden" name="sessionId" value={roster.session.id} />
             <button type="submit" className="quick-action-btn quick-action-outline">סנכרן תלמידים</button>
           </form>
+          {canManageSessionLock ? (
+            <form action={setAttendanceSessionLockAction} className="quick-actions" style={{ marginTop: 0 }}>
+              <input type="hidden" name="sessionId" value={roster.session.id} />
+              <input type="hidden" name="locked" value={roster.session.isLocked ? "0" : "1"} />
+              <button type="submit" className={roster.session.isLocked ? "quick-action-btn quick-action-primary" : "quick-action-btn quick-action-outline"}>
+                {roster.session.isLocked ? "פתח נעילה" : "נעל מפגש"}
+              </button>
+            </form>
+          ) : null}
           <form method="get" className="quick-actions" style={{ marginTop: 0 }}>
             {activeStatusFilters.length ? <input type="hidden" name="statusFilter" value={activeStatusFilters.join(",")} /> : null}
             <select name="exportSort" defaultValue={PDF_SORT_LABELS[exportSort] ? exportSort : "class_name"} style={{ minWidth: 220 }}>
@@ -116,6 +128,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {detailsSaved ? <div className="ok">פרטי המפגש נשמרו.</div> : null}
       {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
       {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
+      {lockSaved === "locked" ? <div className="ok">המפגש ננעל. לא ניתן לעדכן סטטוסים עד פתיחת הנעילה.</div> : null}
+      {lockSaved === "unlocked" ? <div className="ok">נעילת המפגש נפתחה ואפשר לעדכן סטטוסים.</div> : null}
       {mailQueued ? <div className="ok">שליחת המיילים התחילה ברקע. אפשר לסגור את החלון והמערכת תמשיך.</div> : null}
       {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש{Number(failedEmails || 0) > 0 ? `, ו-${failedEmails} נכשלו` : ""}.</div> : null}
       {mailError ? <div className="error">{mailError}</div> : null}
@@ -134,9 +148,16 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           {roster.session.sessionWeekdayLabel ? ` | ${roster.session.sessionWeekdayLabel}` : ""}
           {roster.session.sessionHebrewDateLabel ? ` | ${roster.session.sessionHebrewDateLabel}` : ""}
           {roster.session.createdByDisplayName ? ` | נוצר על ידי: ${roster.session.createdByDisplayName}` : ""}
+          {roster.session.isLocked ? ` | נעול${roster.session.lockedByDisplayName ? ` על ידי: ${roster.session.lockedByDisplayName}` : ""}` : " | פתוח לעדכונים"}
           {formatSessionAudience(roster.session) ? ` | ${formatSessionAudience(roster.session)}` : ""}
         </div>
       </div>
+
+      {roster.session.isLocked ? (
+        <div className="attendance-lock-banner">
+          המפגש נעול לעדכוני סטטוסים. מנהל יכול לפתוח את הנעילה מהכפתור בראש הדף.
+        </div>
+      ) : null}
 
       <div className="card">
         <h3>פרטי המפגש</h3>
@@ -278,6 +299,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         statusOptions={statusOptions}
         activeStatusFilters={activeStatusFilters}
         initialStats={roster.stats}
+        isLocked={roster.session.isLocked}
       />
     </>
   );

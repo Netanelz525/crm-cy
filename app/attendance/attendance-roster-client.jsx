@@ -74,8 +74,9 @@ function rowMatchesFilters(row, selectedFilters, query) {
   ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
 }
 
-export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [] }) {
+export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [], isLocked = false }) {
   const [rows, setRows] = useState(students);
+  const [locked, setLocked] = useState(Boolean(isLocked));
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
   const [query, setQuery] = useState("");
   const [flashRowIds, setFlashRowIds] = useState([]);
@@ -92,6 +93,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     setRows(students);
     rowsRef.current = students;
   }, [students]);
+
+  useEffect(() => {
+    setLocked(Boolean(isLocked));
+  }, [isLocked]);
 
   useEffect(() => {
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
@@ -144,7 +149,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const liveStats = useMemo(() => buildLiveStats(rows, statusOptions), [rows, statusOptions]);
 
   function persistRow(row) {
-    if (!row?.id) return;
+    if (!row?.id || locked) return;
     localDirtyRowsRef.current.set(row.id, Date.now() + LOCAL_DIRTY_GRACE_MS);
     startTransition(async () => {
       try {
@@ -178,11 +183,13 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }
 
   function handleStatusChange(studentId, nextStatus) {
+    if (locked) return;
     const nextRow = updateRow(studentId, { status: nextStatus });
     if (nextRow) persistRow(nextRow);
   }
 
   function scheduleNoteSave(studentId) {
+    if (locked) return;
     const existing = noteTimersRef.current.get(studentId);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
@@ -194,11 +201,13 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }
 
   function handleNoteChange(studentId, nextNote) {
+    if (locked) return;
     updateRow(studentId, { noteText: nextNote });
     scheduleNoteSave(studentId);
   }
 
   function handleNoteBlur(studentId) {
+    if (locked) return;
     const existing = noteTimersRef.current.get(studentId);
     if (existing) {
       clearTimeout(existing);
@@ -264,8 +273,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         });
         if (!response.ok) return;
         const payload = await response.json();
+        if (cancelled) return;
         const nextRowsRaw = Array.isArray(payload?.item?.students) ? payload.item.students : [];
-        if (cancelled || !nextRowsRaw.length) return;
+        setLocked(Boolean(payload?.item?.session?.isLocked));
+        if (!nextRowsRaw.length) return;
 
         const now = Date.now();
         const currentRows = rowsRef.current;
@@ -335,6 +346,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
       <div className="card attendance-roster-card">
         <div className="attendance-roster-head">
           <h3>הזנת נוכחות</h3>
+          {locked ? <div className="attendance-roster-lock-note">המפגש נעול. אפשר לצפות בנתונים, אך אי אפשר לשנות סטטוסים או הערות.</div> : null}
           <div className="attendance-stats">
             <span className="meta-chip">תלמידים: {liveStats.totalStudents}</span>
             {statusOptions.map(([value, label]) => (
@@ -413,17 +425,18 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                   </td>
                   <td>{student.classLabel}</td>
                   <td>
-                    <div className="attendance-status-group" role="radiogroup" aria-label={`סטטוס נוכחות עבור ${student.label}`}>
+                    <div className="attendance-status-group" role="radiogroup" aria-label={`סטטוס נוכחות עבור ${student.label}`} aria-disabled={locked}>
                       {statusOptions.map(([value, label]) => (
                         <label
                           key={value}
-                          className={`attendance-status-option${student.status === value ? " active" : ""}`}
+                          className={`attendance-status-option${student.status === value ? " active" : ""}${locked ? " disabled" : ""}`}
                         >
                           <input
                             type="radio"
                             name={`status:${student.id}`}
                             value={value}
                             checked={student.status === value}
+                            disabled={locked}
                             onChange={() => handleStatusChange(student.id, value)}
                           />
                           <span>{label}</span>
@@ -437,6 +450,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                       onChange={(event) => handleNoteChange(student.id, event.target.value)}
                       onBlur={() => handleNoteBlur(student.id)}
                       placeholder="הערה קצרה"
+                      disabled={locked}
                     />
                   </td>
                 </tr>

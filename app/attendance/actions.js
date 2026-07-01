@@ -8,6 +8,7 @@ import {
   deleteAttendanceSession,
   parseAttendanceCustomStatusesText,
   saveAttendanceRecord,
+  setAttendanceSessionLocked,
   syncAttendanceSessionStudents,
   updateAttendanceSessionCustomStatuses,
   updateAttendanceSessionDetails,
@@ -106,6 +107,23 @@ export async function saveAttendanceRecordAction(input) {
   });
 
   return { ok: true };
+}
+
+export async function setAttendanceSessionLockAction(formData) {
+  const user = await requireAttendanceUser();
+  if (!user.is_manager && !user.is_super_admin) redirect("/unauthorized");
+  const sessionId = clean(formData.get("sessionId"));
+  const locked = clean(formData.get("locked")) === "1";
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await setAttendanceSessionLocked(sessionId, {
+    locked,
+    lockedByUserId: user.clerk_user_id
+  });
+
+  revalidatePath("/attendance");
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?lockSaved=${locked ? "locked" : "unlocked"}`);
 }
 
 export async function deleteAttendanceSessionAction(formData) {
