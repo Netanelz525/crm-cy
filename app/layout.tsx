@@ -12,25 +12,28 @@ export const metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const currentUser = await getCurrentAppUser();
   const canUseAiChat = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
+  const canShowTopbar = Boolean(currentUser?.is_manager || currentUser?.is_super_admin);
 
   return (
     <html lang="he" dir="rtl">
       <body suppressHydrationWarning>
         <ClerkProvider>
-          <header className="topbar">
-            <nav className="nav">
-              <Link href="/neon">תלמידים</Link>
-              <Link href="/email">מיילים</Link>
-              <Link href="/announcements">הודעות</Link>
-              <Link href="/attendance">נוכחות</Link>
-              <Link href="/payments">מערכות תשלום</Link>
-              <Link href="/admin">ניהול</Link>
-              {currentUser ? <Link href="/account">אזור אישי</Link> : null}
-            </nav>
-            <div style={{ display: "flex", gap: 8 }}>
-              {currentUser ? <UserButton /> : null}
-            </div>
-          </header>
+          {canShowTopbar ? (
+            <header className="topbar">
+              <nav className="nav">
+                <Link href="/neon">תלמידים</Link>
+                <Link href="/email">מיילים</Link>
+                <Link href="/announcements">הודעות</Link>
+                <Link href="/attendance">נוכחות</Link>
+                <Link href="/payments">מערכות תשלום</Link>
+                <Link href="/admin">ניהול</Link>
+                {currentUser ? <Link href="/account">אזור אישי</Link> : null}
+              </nav>
+              <div style={{ display: "flex", gap: 8 }}>
+                {currentUser ? <UserButton /> : null}
+              </div>
+            </header>
+          ) : null}
           <main className="container">{children}</main>
           {canUseAiChat ? <AiChatWidget /> : null}
         </ClerkProvider>

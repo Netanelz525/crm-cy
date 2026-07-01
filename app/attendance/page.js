@@ -11,7 +11,7 @@ import {
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
-import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction } from "./actions";
+import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction, setAttendanceSessionsBulkLockAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -114,6 +114,22 @@ function buildSummaryExportQuery(filters) {
   return params.toString();
 }
 
+function buildAttendanceReturnPath(searchParams) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams || {})) {
+    if (key === "lockSaved" || key === "bulkLockSaved" || key === "bulkLockCount") continue;
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item !== undefined && item !== null) params.append(key, String(item));
+      });
+      continue;
+    }
+    if (value !== undefined && value !== null) params.set(key, String(value));
+  }
+  const query = params.toString();
+  return query ? `/attendance?${query}` : "/attendance";
+}
+
 function resolveReportFilters(searchParams) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -163,6 +179,10 @@ export default async function AttendancePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const created = clean(resolvedSearchParams?.created) === "1";
   const deleted = clean(resolvedSearchParams?.deleted) === "1";
+  const lockSaved = clean(resolvedSearchParams?.lockSaved);
+  const bulkLockSaved = clean(resolvedSearchParams?.bulkLockSaved);
+  const bulkLockCount = Number(clean(resolvedSearchParams?.bulkLockCount) || 0) || 0;
+  const attendanceReturnPath = buildAttendanceReturnPath(resolvedSearchParams);
   const reportFilters = resolveReportFilters(resolvedSearchParams);
   const summaryExportQuery = buildSummaryExportQuery(reportFilters);
   const sessions = await listAttendanceSessions(
@@ -313,6 +333,10 @@ export default async function AttendancePage({ searchParams }) {
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
       {deleted ? <div className="ok">המפגש נמחק.</div> : null}
+      {lockSaved === "locked" ? <div className="ok">המפגש ננעל לעדכונים.</div> : null}
+      {lockSaved === "unlocked" ? <div className="ok">נעילת המפגש נפתחה.</div> : null}
+      {bulkLockSaved === "locked" ? <div className="ok">ננעלו {bulkLockCount} מפגשים מהרשימה.</div> : null}
+      {bulkLockSaved === "unlocked" ? <div className="ok">נפתחה הנעילה עבור {bulkLockCount} מפגשים מהרשימה.</div> : null}
       <div className="attendance-layout">
         <section className="card glass">
           <h3>יצירת מפגש חדש</h3>
@@ -355,6 +379,26 @@ export default async function AttendancePage({ searchParams }) {
 
         <aside className="card glass">
           <h3>{reportFilters.institution ? "מפגשים לפי הסינון" : "מפגשים אחרונים"}</h3>
+          {canManageSessionLock && sessions.length ? (
+            <div className="quick-actions" style={{ marginTop: 10 }}>
+              <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>
+                <input type="hidden" name="locked" value="1" />
+                <input type="hidden" name="returnPath" value={attendanceReturnPath} />
+                {sessions.map((session) => (
+                  <input key={`bulk-lock-${session.id}`} type="hidden" name="sessionIds" value={session.id} />
+                ))}
+                <button type="submit" className="quick-action-btn quick-action-outline">נעל את כל הרשימה</button>
+              </form>
+              <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>
+                <input type="hidden" name="locked" value="0" />
+                <input type="hidden" name="returnPath" value={attendanceReturnPath} />
+                {sessions.map((session) => (
+                  <input key={`bulk-unlock-${session.id}`} type="hidden" name="sessionIds" value={session.id} />
+                ))}
+                <button type="submit" className="quick-action-btn quick-action-primary">פתח את כל הרשימה</button>
+              </form>
+            </div>
+          ) : null}
           {!sessions.length ? (
             <p className="muted">
               {reportFilters.institution
@@ -377,6 +421,7 @@ export default async function AttendancePage({ searchParams }) {
                     <form action={setAttendanceSessionLockAction}>
                       <input type="hidden" name="sessionId" value={session.id} />
                       <input type="hidden" name="locked" value={session.isLocked ? "0" : "1"} />
+                      <input type="hidden" name="returnPath" value={attendanceReturnPath} />
                       <button type="submit" className={session.isLocked ? "quick-action-btn quick-action-primary" : "quick-action-btn quick-action-outline"}>
                         {session.isLocked ? "פתח נעילה" : "נעל"}
                       </button>

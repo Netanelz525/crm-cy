@@ -114,6 +114,8 @@ export async function setAttendanceSessionLockAction(formData) {
   if (!user.is_manager && !user.is_super_admin) redirect("/unauthorized");
   const sessionId = clean(formData.get("sessionId"));
   const locked = clean(formData.get("locked")) === "1";
+  const requestedReturnPath = clean(formData.get("returnPath"));
+  const returnPath = requestedReturnPath.startsWith("/attendance") ? requestedReturnPath : "";
   if (!sessionId) throw new Error("Missing attendance session id.");
 
   await setAttendanceSessionLocked(sessionId, {
@@ -123,7 +125,32 @@ export async function setAttendanceSessionLockAction(formData) {
 
   revalidatePath("/attendance");
   revalidatePath(`/attendance/${sessionId}`);
+  if (returnPath) {
+    const separator = returnPath.includes("?") ? "&" : "?";
+    redirect(`${returnPath}${separator}lockSaved=${locked ? "locked" : "unlocked"}`);
+  }
   redirect(`/attendance/${sessionId}?lockSaved=${locked ? "locked" : "unlocked"}`);
+}
+
+export async function setAttendanceSessionsBulkLockAction(formData) {
+  const user = await requireAttendanceUser();
+  if (!user.is_manager && !user.is_super_admin) redirect("/unauthorized");
+  const sessionIds = cleanList(formData.getAll("sessionIds"));
+  const locked = clean(formData.get("locked")) === "1";
+  const requestedReturnPath = clean(formData.get("returnPath"));
+  const returnPath = requestedReturnPath.startsWith("/attendance") ? requestedReturnPath : "/attendance";
+
+  for (const sessionId of sessionIds) {
+    await setAttendanceSessionLocked(sessionId, {
+      locked,
+      lockedByUserId: user.clerk_user_id
+    });
+    revalidatePath(`/attendance/${sessionId}`);
+  }
+
+  revalidatePath("/attendance");
+  const separator = returnPath.includes("?") ? "&" : "?";
+  redirect(`${returnPath}${separator}bulkLockSaved=${locked ? "locked" : "unlocked"}&bulkLockCount=${sessionIds.length}`);
 }
 
 export async function deleteAttendanceSessionAction(formData) {
