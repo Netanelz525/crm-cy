@@ -352,7 +352,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {attendanceUpdated ? <div className="ok">הנוכחות עודכנה במפגש הפתוח.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
-      <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
+      <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel neon-student-linked-records">
         <summary className="linked-records-toggle">
           <div>
             <h3>רשומות מקושרות</h3>
@@ -363,6 +363,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span>
             <span className="linked-record-pill">יצירת קשר: {contactLogs.length}</span>
             <span className="linked-record-pill">אירועים: {studentEvents.length}</span>
+            <span className="linked-record-pill">מפגשים: {attendanceSummary?.totalSessions || 0}</span>
           </div>
         </summary>
         <div className="linked-record-groups">
