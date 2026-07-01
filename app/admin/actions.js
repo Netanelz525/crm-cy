@@ -182,12 +182,16 @@ export async function runSystemAutomationAction(formData) {
   await requireSuperAdmin();
   const jobName = clean(formData.get("jobName"));
 
-  if (jobName === "weekly_backup_delivery") {
-    await runWeeklyBackupJob({ force: true });
-  } else if (jobName === "student-event-reminders") {
-    await runStudentEventReminderJob({ force: true });
-  } else {
-    throw new Error("התהליך המבוקש לא נמצא.");
+  try {
+    if (jobName === "weekly_backup_delivery") {
+      await runWeeklyBackupJob({ force: true });
+    } else if (jobName === "student-event-reminders") {
+      await runStudentEventReminderJob({ force: true });
+    } else {
+      throw new Error("התהליך המבוקש לא נמצא.");
+    }
+  } catch (error) {
+    console.error("Manual automation run failed:", error?.message || error);
   }
 
   revalidatePath("/admin/automations");
