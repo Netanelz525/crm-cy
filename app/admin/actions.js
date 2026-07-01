@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createApiToken, revokeApiToken } from "../../lib/api-tokens";
+import { runStudentEventReminderJob } from "../../lib/event-reminders";
 import {
   approveUnknownUser,
   deleteAppUser,
@@ -18,6 +19,7 @@ import {
   createTelegramLinkCode,
   unlinkTelegramByClerkUserId
 } from "../../lib/telegram";
+import { runWeeklyBackupJob } from "../../lib/weekly-backup";
 import {
   buildWhatsAppDeepLink,
   createWhatsAppLinkCode,
@@ -174,4 +176,19 @@ export async function unlinkUserWhatsAppAction(targetUserId) {
   await requireSuperAdmin();
   await unlinkWhatsAppByClerkUserId(targetUserId);
   revalidatePath("/admin");
+}
+
+export async function runSystemAutomationAction(formData) {
+  await requireSuperAdmin();
+  const jobName = clean(formData.get("jobName"));
+
+  if (jobName === "weekly_backup_delivery") {
+    await runWeeklyBackupJob({ force: true });
+  } else if (jobName === "student-event-reminders") {
+    await runStudentEventReminderJob({ force: true });
+  } else {
+    throw new Error("התהליך המבוקש לא נמצא.");
+  }
+
+  revalidatePath("/admin/automations");
 }

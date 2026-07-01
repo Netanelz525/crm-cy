@@ -1,4 +1,5 @@
 import { formatAutomationRunSummary, listSystemAutomationsOverview } from "../../lib/system-automations";
+import { runSystemAutomationAction } from "./actions";
 
 function formatDateTime(value) {
   if (!value) return "-";
@@ -66,6 +67,12 @@ export default async function SystemAutomationsCard() {
                 <span className={statusClass(automation?.latestRun?.status)}>
                   {automation.latestRun ? statusLabel(automation.latestRun.status) : "עדיין לא רץ"}
                 </span>
+                <form action={runSystemAutomationAction}>
+                  <input type="hidden" name="jobName" value={automation.jobName} />
+                  <button type="submit" className="quick-action-btn quick-action-outline" style={{ width: "auto" }}>
+                    הפעל עכשיו
+                  </button>
+                </form>
               </div>
             </div>
 
