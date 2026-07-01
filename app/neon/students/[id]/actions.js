@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { saveOpenAttendanceRecordForStudent } from "../../../../lib/attendance";
 import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../../../lib/deleted-students";
 import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { createStudentContactLog } from "../../../../lib/student-contact-logs";
@@ -219,4 +220,32 @@ export async function addStudentContactAction(formData) {
   }
 
   redirect(`/neon/students/${studentId}?contactSaved=1`);
+}
+
+export async function updateStudentOpenAttendanceAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+  const sessionId = clean(formData.get("sessionId"));
+
+  if (!assertStudentAccess(user, studentId)) {
+    redirect("/unauthorized");
+  }
+
+  try {
+    await saveOpenAttendanceRecordForStudent({
+      sessionId,
+      studentId,
+      status: formData.get("status"),
+      noteText: formData.get("noteText"),
+      markedByUserId: user.clerk_user_id
+    });
+    revalidatePath("/attendance");
+    revalidatePath(`/attendance/${sessionId}`);
+    revalidatePath(`/neon/students/${studentId}`);
+  } catch (error) {
+    const message = encodeURIComponent(error?.message || "עדכון הנוכחות נכשל");
+    redirect(`/neon/students/${studentId}?error=${message}`);
+  }
+
+  redirect(`/neon/students/${studentId}?attendanceUpdated=1`);
 }

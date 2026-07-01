@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import AttendanceHistoryPanel from "../../../../components/attendance-history-panel";
-import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent } from "../../../../lib/attendance";
+import OpenAttendanceSessionsPanel from "../../../../components/open-attendance-sessions-panel";
+import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent, listOpenAttendanceSessionsForStudent } from "../../../../lib/attendance";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentEmailDeliveries } from "../../../../lib/email-campaigns";
@@ -11,7 +12,7 @@ import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/stu
 import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { deleteNeonStudentAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction } from "./actions";
+import { deleteNeonStudentAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction, updateStudentOpenAttendanceAction } from "./actions";
 import StudentContactLiveClient from "./student-contact-live-client";
 import StudentEventsLiveClient from "./student-events-live-client";
 import StudentTagsLiveClient from "./student-tags-live-client";
@@ -252,6 +253,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const updated = clean(resolvedSearchParams?.updated) === "1";
   const documentUploaded = clean(resolvedSearchParams?.documentUploaded) === "1";
   const documentRenamed = clean(resolvedSearchParams?.documentRenamed) === "1";
+  const attendanceUpdated = clean(resolvedSearchParams?.attendanceUpdated) === "1";
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
@@ -263,9 +265,10 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const studentTagsMap = await getStudentTagsByStudentIds([studentId]);
   const assignedTags = studentTagsMap[studentId] || [];
   const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
-  const [attendanceSummary, attendanceHistory, contactLogs, studentEvents] = await Promise.all([
+  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents] = await Promise.all([
     getAttendanceSummaryForStudent(studentId),
     listAttendanceHistoryForStudent(studentId, { limit: 8 }),
+    listOpenAttendanceSessionsForStudent(studentId, { limit: 8 }),
     listStudentContactLogs(studentId, 8),
     listStudentEvents(studentId, 12)
   ]);
@@ -346,6 +349,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {updated ? <div className="ok">השינויים נשמרו בהצלחה.</div> : null}
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
+      {attendanceUpdated ? <div className="ok">הנוכחות עודכנה במפגש הפתוח.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel">
@@ -478,9 +482,15 @@ export default async function NeonStudentPage({ params, searchParams }) {
               </div>
               <div className="linked-records-summary">
                 <span className="linked-record-pill">מפגשים: {attendanceSummary?.totalSessions || 0}</span>
+                <span className="linked-record-pill">פתוחים: {openAttendanceSessions.length}</span>
               </div>
             </summary>
             <div className="linked-record-group-body">
+              <OpenAttendanceSessionsPanel
+                studentId={studentId}
+                sessions={openAttendanceSessions}
+                action={updateStudentOpenAttendanceAction}
+              />
               <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
             </div>
           </details>
