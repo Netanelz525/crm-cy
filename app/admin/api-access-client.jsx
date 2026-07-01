@@ -136,6 +136,9 @@ export default function ApiAccessClient({ apiBaseUrl }) {
     const exportUrl = `${activeBaseUrl}/api/crm/export?resource=all`;
     const attendanceSessionsUrl = `${activeBaseUrl}/api/attendance/sessions?institution=CY&limit=10`;
     const attendanceSessionUrl = `${activeBaseUrl}/api/attendance/sessions/session_123`;
+    const printNextUrl = `${activeBaseUrl}/api/print-jobs/next`;
+    const printFileUrl = `${activeBaseUrl}/api/print-jobs/print_job_123/file?offset=0&length=1000000`;
+    const printDeleteUrl = `${activeBaseUrl}/api/print-jobs/print_job_123`;
     const attendancePatchBody = JSON.stringify(
       {
         records: [
@@ -188,6 +191,18 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         url: attendanceSessionUrl,
         body: attendancePatchBody,
         curl: `curl -X PATCH \\\n  -H "${authHeader}" \\\n  -H "Content-Type: application/json" \\\n  -d '${attendancePatchBody.replace(/\n/g, "\n  ")}' \\\n  "${attendanceSessionUrl}"`
+      },
+      printNext: {
+        url: printNextUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${printNextUrl}"`
+      },
+      printFile: {
+        url: printFileUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${printFileUrl}"`
+      },
+      printDelete: {
+        url: printDeleteUrl,
+        curl: `curl -X DELETE \\\n  -H "${authHeader}" \\\n  "${printDeleteUrl}"`
       },
       createStudent: {
         url: createUrl,
@@ -256,6 +271,7 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         <select name="resource" defaultValue="students">
           <option value="students">students</option>
           <option value="attendance">attendance</option>
+          <option value="print">print</option>
           <option value="backup">backup</option>
         </select>
         <select name="access" defaultValue="read">
@@ -489,6 +505,12 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           <FoldItem title="attendance:delete">
             <div className="api-param-list"><div>{`DELETE /api/attendance/sessions/${sessionIdPlaceholder}`}</div></div>
           </FoldItem>
+          <FoldItem title="print:read">
+            <div className="api-param-list"><div>GET /api/print-jobs/next + GET /api/print-jobs/{"{jobId}"}/file</div></div>
+          </FoldItem>
+          <FoldItem title="print:delete">
+            <div className="api-param-list"><div>DELETE /api/print-jobs/{"{jobId}"}</div></div>
+          </FoldItem>
         </DocBlock>
 
         <DocBlock title="Examples">
@@ -535,6 +557,24 @@ export default function ApiAccessClient({ apiBaseUrl }) {
               url={examples.attendanceUpdate.url}
               curl={examples.attendanceUpdate.curl}
               body={examples.attendanceUpdate.body}
+            />
+            <ExampleCard
+              title="משיכת מסמך להדפסה"
+              subtitle="GET /api/print-jobs/next"
+              url={examples.printNext.url}
+              curl={examples.printNext.curl}
+            />
+            <ExampleCard
+              title="הורדת קובץ בחלקים"
+              subtitle="GET /api/print-jobs/{jobId}/file?offset=0&length=1000000"
+              url={examples.printFile.url}
+              curl={examples.printFile.curl}
+            />
+            <ExampleCard
+              title="מחיקת מסמך אחרי הדפסה"
+              subtitle="DELETE /api/print-jobs/{jobId}"
+              url={examples.printDelete.url}
+              curl={examples.printDelete.curl}
             />
             <ExampleCard
               title="יצירת תלמיד"

@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { canUsePrintQueue } from "../../lib/print-jobs";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { getTelegramLinkByClerkUserId, getTelegramBotUsername, isTelegramConfigured } from "../../lib/telegram";
 import { getWhatsAppBusinessNumber, getWhatsAppLinkByClerkUserId, isWhatsAppConfigured } from "../../lib/whatsapp";
@@ -19,6 +21,7 @@ export default async function AccountPage() {
   if (!user) redirect("/sign-in");
 
   const canUseAiChat = Boolean(user.is_team_member || user.is_manager);
+  const canSendPrintJobs = canUsePrintQueue(user);
   const telegramLink = canUseAiChat ? await getTelegramLinkByClerkUserId(user.clerk_user_id) : null;
   const whatsappLink = canUseAiChat ? await getWhatsAppLinkByClerkUserId(user.clerk_user_id) : null;
   const botUsername = getTelegramBotUsername();
@@ -34,6 +37,11 @@ export default async function AccountPage() {
           כאן מנהלים את החיבור האישי לסוכן, מעתיקים קישורי כניסה ישירים ל־Telegram ול־WhatsApp,
           ומנתקים ערוצים אם צריך.
         </p>
+        {canSendPrintJobs ? (
+          <div className="quick-actions" style={{ marginTop: 14 }}>
+            <Link className="quick-action-btn quick-action-primary" href="/print">שליחה להדפסה</Link>
+          </div>
+        ) : null}
       </section>
 
       {!canUseAiChat ? (
