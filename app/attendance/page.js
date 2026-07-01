@@ -191,9 +191,9 @@ export default async function AttendancePage({ searchParams }) {
           institution: reportFilters.institution,
           dateFrom: reportFilters.start,
           dateTo: reportFilters.end,
-          limit: 18
+          limit: 1000
         }
-      : { limit: 18 }
+      : { limit: 1000 }
   );
   const summaryReport = reportFilters.institution
     ? await getAttendanceSummaryReport({
@@ -378,7 +378,7 @@ export default async function AttendancePage({ searchParams }) {
         </section>
 
         <aside className="card glass">
-          <h3>{reportFilters.institution ? "מפגשים לפי הסינון" : "מפגשים אחרונים"}</h3>
+          <h3>{reportFilters.institution ? "כל המפגשים לפי הסינון" : "כל המפגשים"}</h3>
           {canManageSessionLock && sessions.length ? (
             <div className="quick-actions" style={{ marginTop: 10 }}>
               <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>
