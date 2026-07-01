@@ -367,7 +367,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
         </summary>
         <div className="linked-record-groups">
           <StudentEventsLiveClient studentId={studentId} initialEvents={studentEvents} />
-          <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} />
+          <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} canManageContact={canManageStudent} />
           <details className="linked-record-group">
             <summary className="linked-record-group-summary">
               <div>

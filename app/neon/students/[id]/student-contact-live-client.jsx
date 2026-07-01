@@ -24,7 +24,7 @@ function todayInputValue() {
   }).format(new Date());
 }
 
-export default function StudentContactLiveClient({ studentId, initialContactLogs = [] }) {
+export default function StudentContactLiveClient({ studentId, initialContactLogs = [], canManageContact = false }) {
   const [contactLogs, setContactLogs] = useState(Array.isArray(initialContactLogs) ? initialContactLogs : []);
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -82,12 +82,16 @@ export default function StudentContactLiveClient({ studentId, initialContactLogs
             <div className="linked-record-meta">תועד על ידי: {latestContact.createdByDisplayName || latestContact.createdByEmail}</div>
           ) : null}
         </div>
-        <form ref={formRef} onSubmit={handleSubmit} className="grid">
-          <input type="date" name="contactDate" defaultValue={defaultContactDate} disabled={isPending} />
-          <input name="noteText" placeholder="תיעוד קצר של השיחה או יצירת הקשר" disabled={isPending} />
-          <button type="submit" disabled={isPending}>{isPending ? "שומר..." : "הוסף יצירת קשר"}</button>
-        </form>
-        {message ? <div className={message.includes("נכש") ? "student-inline-feedback error" : "student-inline-feedback ok"}>{message}</div> : null}
+        {canManageContact ? (
+          <>
+            <form ref={formRef} onSubmit={handleSubmit} className="grid">
+              <input type="date" name="contactDate" defaultValue={defaultContactDate} disabled={isPending} />
+              <input name="noteText" placeholder="תיעוד קצר של השיחה או יצירת הקשר" disabled={isPending} />
+              <button type="submit" disabled={isPending}>{isPending ? "שומר..." : "הוסף יצירת קשר"}</button>
+            </form>
+            {message ? <div className={message.includes("נכש") ? "student-inline-feedback error" : "student-inline-feedback ok"}>{message}</div> : null}
+          </>
+        ) : null}
         {!sortedLogs.length ? (
           <div className="linked-record-card placeholder">
             <b>יצירת קשר</b>

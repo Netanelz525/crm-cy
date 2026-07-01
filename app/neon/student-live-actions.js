@@ -61,7 +61,7 @@ export async function removeStudentTagLiveAction({ studentId, tagId }) {
 export async function addStudentContactLiveAction({ studentId, contactDate, noteText }) {
   const user = await requireAuthenticatedUser();
 
-  if (!user.is_team_member && !user.is_manager && clean(user.linked_student_id) !== clean(studentId)) {
+  if (!user.is_team_member && !user.is_manager) {
     return fail("אין הרשאה לעדכן יצירת קשר.");
   }
 

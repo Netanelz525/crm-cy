@@ -201,7 +201,7 @@ export async function addStudentContactAction(formData) {
   const user = await requireAuthenticatedUser();
   const studentId = clean(formData.get("studentId"));
 
-  if (!assertStudentAccess(user, studentId)) {
+  if (!user.is_team_member && !user.is_manager) {
     redirect("/unauthorized");
   }
 
