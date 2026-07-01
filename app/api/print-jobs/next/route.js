@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../lib/api-tokens";
-import { claimNextPrintJob } from "../../../../lib/print-jobs";
+import { claimNextPrintJob, sendPrintJobReceiptEmail } from "../../../../lib/print-jobs";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,6 +21,8 @@ export async function GET(request) {
     }
 
     const origin = new URL(request.url).origin;
+    await sendPrintJobReceiptEmail(job.id);
+
     return NextResponse.json({
       resource: "printJob",
       item: {

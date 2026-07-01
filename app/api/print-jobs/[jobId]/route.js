@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../lib/api-tokens";
-import { deletePrintJob } from "../../../../lib/print-jobs";
+import { completePrintJob } from "../../../../lib/print-jobs";
 
 function clean(value) {
   return String(value || "").trim();
@@ -18,11 +18,14 @@ export async function DELETE(request, { params }) {
   try {
     const resolvedParams = await params;
     const jobId = clean(resolvedParams?.jobId);
-    await deletePrintJob(jobId);
+    const body = await request.json().catch(() => null);
+    await completePrintJob(jobId, {
+      printedPageCount: body?.printedPageCount || body?.pageCount
+    });
 
     return NextResponse.json({
       resource: "printJob",
-      deleted: true,
+      completed: true,
       id: jobId
     });
   } catch (error) {

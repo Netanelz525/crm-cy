@@ -138,7 +138,7 @@ export default function ApiAccessClient({ apiBaseUrl }) {
     const attendanceSessionUrl = `${activeBaseUrl}/api/attendance/sessions/session_123`;
     const printNextUrl = `${activeBaseUrl}/api/print-jobs/next`;
     const printFileUrl = `${activeBaseUrl}/api/print-jobs/print_job_123/file?offset=0&length=1000000`;
-    const printDeleteUrl = `${activeBaseUrl}/api/print-jobs/print_job_123`;
+    const printCompleteUrl = `${activeBaseUrl}/api/print-jobs/print_job_123`;
     const attendancePatchBody = JSON.stringify(
       {
         records: [
@@ -200,9 +200,10 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         url: printFileUrl,
         curl: `curl -H "${authHeader}" \\\n  "${printFileUrl}"`
       },
-      printDelete: {
-        url: printDeleteUrl,
-        curl: `curl -X DELETE \\\n  -H "${authHeader}" \\\n  "${printDeleteUrl}"`
+      printComplete: {
+        url: printCompleteUrl,
+        body: JSON.stringify({ printedPageCount: 12 }, null, 2),
+        curl: `curl -X DELETE \\\n  -H "${authHeader}" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify({ printedPageCount: 12 }, null, 2).replace(/\n/g, "\n  ")}' \\\n  "${printCompleteUrl}"`
       },
       createStudent: {
         url: createUrl,
@@ -509,7 +510,7 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div className="api-param-list"><div>GET /api/print-jobs/next + GET /api/print-jobs/{"{jobId}"}/file</div></div>
           </FoldItem>
           <FoldItem title="print:delete">
-            <div className="api-param-list"><div>DELETE /api/print-jobs/{"{jobId}"}</div></div>
+            <div className="api-param-list"><div>DELETE /api/print-jobs/{"{jobId}"} מסמן השלמה, מוחק את תוכן הקובץ, ומשאיר רשומת הדפסה</div></div>
           </FoldItem>
         </DocBlock>
 
@@ -571,10 +572,11 @@ export default function ApiAccessClient({ apiBaseUrl }) {
               curl={examples.printFile.curl}
             />
             <ExampleCard
-              title="מחיקת מסמך אחרי הדפסה"
+              title="סיום עבודה אחרי הדפסה"
               subtitle="DELETE /api/print-jobs/{jobId}"
-              url={examples.printDelete.url}
-              curl={examples.printDelete.curl}
+              url={examples.printComplete.url}
+              curl={examples.printComplete.curl}
+              body={examples.printComplete.body}
             />
             <ExampleCard
               title="יצירת תלמיד"

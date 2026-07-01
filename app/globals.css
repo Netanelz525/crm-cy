@@ -834,6 +834,80 @@ button {
   min-width: 96px;
 }
 
+.print-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.print-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+  gap: 16px;
+}
+
+.print-upload-card,
+.print-stats-card {
+  display: grid;
+  gap: 12px;
+}
+
+.print-upload-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 180px) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.print-file-drop {
+  display: grid;
+  gap: 6px;
+  min-height: 92px;
+  padding: 14px;
+  border: 1px dashed #9cc4e8;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.print-file-drop span {
+  font-weight: 800;
+}
+
+.print-file-drop small {
+  color: var(--muted);
+}
+
+.print-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.print-stat-grid div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.print-stat-grid b {
+  display: block;
+  font-size: 1.65rem;
+  color: var(--primary);
+}
+
+.print-stat-grid span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.print-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
 .attendance-history-panel {
   overflow: hidden;
 }
@@ -4509,5 +4583,15 @@ td {
 
   .email-hero {
     display: grid;
+  }
+
+  .print-hero,
+  .print-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .print-upload-form {
+    grid-template-columns: 1fr;
   }
 }

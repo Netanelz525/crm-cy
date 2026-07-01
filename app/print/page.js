@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { canUsePrintQueue, listPrintJobs, MAX_PRINT_FILE_BYTES } from "../../lib/print-jobs";
+import { canUsePrintQueue, listPrintJobs, listPrintUsageByUser, MAX_PRINT_FILE_BYTES } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { createPrintJobAction } from "./actions";
 
@@ -24,6 +24,8 @@ function formatSize(bytes) {
 
 function statusLabel(status) {
   switch (clean(status)) {
+    case "completed":
+      return "הושלם ונשמר לרישום";
     case "claimed":
       return "נאסף על ידי שרת מקומי";
     case "pending":
@@ -38,15 +40,24 @@ export default async function PrintPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const uploaded = clean(resolvedSearchParams?.uploaded) === "1";
   const error = clean(resolvedSearchParams?.error);
-  const jobs = await listPrintJobs({ limit: 50 });
+  const [jobs, usageByUser] = await Promise.all([
+    listPrintJobs({ limit: 50 }),
+    listPrintUsageByUser({ limit: 30 })
+  ]);
+  const pendingJobs = jobs.filter((job) => job.status === "pending").length;
+  const claimedJobs = jobs.filter((job) => job.status === "claimed").length;
+  const completedJobs = jobs.filter((job) => job.status === "completed").length;
+  const totalTrackedPages = usageByUser.reduce((sum, row) => sum + row.totalPrintPages, 0);
 
   return (
     <>
-      <div className="card glass">
-        <h1>שליחה להדפסה</h1>
-        <p className="muted">
-          מעלים מסמך עד {formatSize(MAX_PRINT_FILE_BYTES)}. המסמך נשמר זמנית ב-Neon עד שהשרת המקומי אוסף אותו ומוחק אותו מהתור.
-        </p>
+      <div className="card glass print-hero">
+        <div>
+          <h1>שליחה להדפסה</h1>
+          <p className="muted">
+            מעלים מסמך עד {formatSize(MAX_PRINT_FILE_BYTES)}. המסמך נשמר זמנית ב-Neon עד שהשרת המקומי אוסף אותו, שולח אישור במייל ושומר את נתוני ההדפסה לכרטיסיות עתידיות.
+          </p>
+        </div>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה לתלמידים</Link>
           <Link className="quick-action-btn quick-action-outline" href="/admin/api-access">טוקנים לשרת מקומי</Link>
@@ -56,21 +67,37 @@ export default async function PrintPage({ searchParams }) {
       {uploaded ? <div className="ok">המסמך נשלח לתור ההדפסה.</div> : null}
       {error ? <div className="error">{error}</div> : null}
 
-      <section className="card">
-        <h3>מסמך חדש להדפסה</h3>
-        <form action={createPrintJobAction} className="grid">
-          <input
-            type="file"
-            name="file"
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.txt"
-            required
-          />
-          <label>
-            <span className="muted">כמות עותקים</span>
-            <input type="number" name="copies" min="1" max="99" step="1" defaultValue="1" required />
-          </label>
-          <button type="submit">שלח להדפסה</button>
-        </form>
+      <section className="print-dashboard-grid">
+        <div className="card print-upload-card">
+          <h3>מסמך חדש להדפסה</h3>
+          <form action={createPrintJobAction} className="print-upload-form">
+            <label className="print-file-drop">
+              <span>בחר קובץ</span>
+              <small>PDF, Word, Excel, תמונה או TXT</small>
+              <input
+                type="file"
+                name="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.txt"
+                required
+              />
+            </label>
+            <label>
+              <span className="muted">כמות עותקים</span>
+              <input type="number" name="copies" min="1" max="99" step="1" defaultValue="1" required />
+            </label>
+            <button type="submit" className="quick-action-btn quick-action-primary">שלח להדפסה</button>
+          </form>
+        </div>
+
+        <div className="card print-stats-card">
+          <h3>מצב התור</h3>
+          <div className="print-stat-grid">
+            <div><b>{pendingJobs}</b><span>ממתינים</span></div>
+            <div><b>{claimedJobs}</b><span>נאספו</span></div>
+            <div><b>{completedJobs}</b><span>הושלמו</span></div>
+            <div><b>{totalTrackedPages}</b><span>עמודים רשומים</span></div>
+          </div>
+        </div>
       </section>
 
       <section className="card">
@@ -85,10 +112,13 @@ export default async function PrintPage({ searchParams }) {
                   <th>קובץ</th>
                   <th>גודל</th>
                   <th>עותקים</th>
+                  <th>עמודים</th>
+                  <th>סה"כ</th>
                   <th>סטטוס</th>
+                  <th>מייל אישור</th>
                   <th>נשלח על ידי</th>
                   <th>נוצר</th>
-                  <th>נאסף</th>
+                  <th>עודכן</th>
                 </tr>
               </thead>
               <tbody>
@@ -97,14 +127,37 @@ export default async function PrintPage({ searchParams }) {
                     <td>{job.fileName}</td>
                     <td>{formatSize(job.fileSizeBytes)}</td>
                     <td>{job.copies}</td>
+                    <td>{job.pageCount || "-"}</td>
+                    <td>{job.printedPageCount || (job.pageCount ? job.pageCount * job.copies : "-")}</td>
                     <td>{statusLabel(job.status)}</td>
+                    <td>{job.receiptSentAt ? "נשלח" : job.receiptError ? "נכשל" : "-"}</td>
                     <td>{job.uploadedByDisplayName}{job.uploadedByEmail ? ` | ${job.uploadedByEmail}` : ""}</td>
                     <td>{formatDateTime(job.createdAt)}</td>
-                    <td>{formatDateTime(job.claimedAt)}</td>
+                    <td>{formatDateTime(job.completedAt || job.claimedAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        <h3>ספירת עמודים לפי משתמש</h3>
+        {!usageByUser.length ? (
+          <p className="muted">עדיין אין נתוני הדפסה לפי משתמש.</p>
+        ) : (
+          <div className="print-usage-grid">
+            {usageByUser.map((row) => (
+              <div key={row.uploadedByUserId || row.uploadedByEmail || row.uploadedByDisplayName} className="linked-record-card">
+                <div className="linked-record-card-top">
+                  <b>{row.uploadedByDisplayName}</b>
+                  <span className="linked-record-pill">{row.totalPrintPages} עמודים</span>
+                </div>
+                <div className="linked-record-meta">{row.uploadedByEmail || "-"}</div>
+                <div className="linked-record-meta">עבודות: {row.jobsCount} | הושלמו: {row.completedJobsCount}</div>
+              </div>
+            ))}
           </div>
         )}
       </section>
