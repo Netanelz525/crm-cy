@@ -49,6 +49,15 @@ function whatsappHref(phoneObj) {
   return whatsappNumber ? `https://wa.me/${whatsappNumber}` : "";
 }
 
+function WhatsAppIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 32 32" width="18" height="18" style={{ display: "block" }}>
+      <path fill="#25D366" d="M16 3C8.83 3 3 8.73 3 15.77c0 2.25.61 4.46 1.76 6.39L3 29l7.03-1.79A13.14 13.14 0 0 0 16 28.54c7.17 0 13-5.73 13-12.77S23.17 3 16 3Z" />
+      <path fill="#fff" d="M23.2 19.38c-.3-.15-1.77-.86-2.05-.96-.27-.1-.47-.15-.67.15-.2.29-.77.96-.94 1.15-.17.2-.35.22-.64.07-.3-.14-1.25-.45-2.38-1.45-.88-.77-1.47-1.72-1.64-2.01-.17-.3-.02-.46.13-.6.13-.13.3-.34.45-.51.15-.17.2-.3.3-.49.1-.2.05-.37-.02-.52-.08-.15-.68-1.61-.93-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.36-.27.3-1.04 1-1.04 2.45s1.07 2.85 1.22 3.04c.15.2 2.1 3.15 5.1 4.42.71.3 1.27.48 1.7.62.72.22 1.37.19 1.89.12.58-.09 1.77-.71 2.02-1.4.25-.69.25-1.28.17-1.4-.07-.13-.27-.2-.57-.35Z" />
+    </svg>
+  );
+}
+
 function renderPhoneValue(phoneObj) {
   const text = phoneText(phoneObj);
   const callHref = phoneHref(phoneObj);
@@ -67,8 +76,8 @@ function renderPhoneValue(phoneObj) {
       <span>{phoneDisplay}</span>
       <a href={callHref} aria-label={`חייג אל ${text}`}>חיוג</a>
       {waHref ? (
-        <a href={waHref} target="_blank" rel="noopener noreferrer" aria-label={`פתח WhatsApp אל ${text}`}>
-          WhatsApp
+        <a href={waHref} target="_blank" rel="noopener noreferrer" aria-label={`פתח WhatsApp אל ${text}`} title="WhatsApp">
+          <WhatsAppIcon />
         </a>
       ) : null}
     </span>
