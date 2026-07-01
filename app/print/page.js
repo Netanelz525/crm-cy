@@ -65,6 +65,10 @@ export default async function PrintPage({ searchParams }) {
             accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.txt"
             required
           />
+          <label>
+            <span className="muted">כמות עותקים</span>
+            <input type="number" name="copies" min="1" max="99" step="1" defaultValue="1" required />
+          </label>
           <button type="submit">שלח להדפסה</button>
         </form>
       </section>
@@ -80,6 +84,7 @@ export default async function PrintPage({ searchParams }) {
                 <tr>
                   <th>קובץ</th>
                   <th>גודל</th>
+                  <th>עותקים</th>
                   <th>סטטוס</th>
                   <th>נשלח על ידי</th>
                   <th>נוצר</th>
@@ -91,6 +96,7 @@ export default async function PrintPage({ searchParams }) {
                   <tr key={job.id}>
                     <td>{job.fileName}</td>
                     <td>{formatSize(job.fileSizeBytes)}</td>
+                    <td>{job.copies}</td>
                     <td>{statusLabel(job.status)}</td>
                     <td>{job.uploadedByDisplayName}{job.uploadedByEmail ? ` | ${job.uploadedByEmail}` : ""}</td>
                     <td>{formatDateTime(job.createdAt)}</td>
