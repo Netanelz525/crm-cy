@@ -27,7 +27,8 @@ export async function GET(request) {
       resource: "printJob",
       item: {
         ...job,
-        downloadUrl: `${origin}/api/print-jobs/${encodeURIComponent(job.id)}/file`
+        downloadUrl: `${origin}/api/print-jobs/${encodeURIComponent(job.id)}/file`,
+        downloadRawUrl: `${origin}/api/print-jobs/${encodeURIComponent(job.id)}/file?raw=1`
       }
     });
   } catch (error) {

@@ -137,7 +137,8 @@ export default function ApiAccessClient({ apiBaseUrl }) {
     const attendanceSessionsUrl = `${activeBaseUrl}/api/attendance/sessions?institution=CY&limit=10`;
     const attendanceSessionUrl = `${activeBaseUrl}/api/attendance/sessions/session_123`;
     const printNextUrl = `${activeBaseUrl}/api/print-jobs/next`;
-    const printFileUrl = `${activeBaseUrl}/api/print-jobs/print_job_123/file?offset=0&length=1000000`;
+    const printFileUrl = `${activeBaseUrl}/api/print-jobs/print_job_123/file?raw=1`;
+    const printChunkFileUrl = `${activeBaseUrl}/api/print-jobs/print_job_123/file?offset=0&length=1000000`;
     const printCompleteUrl = `${activeBaseUrl}/api/print-jobs/print_job_123`;
     const attendancePatchBody = JSON.stringify(
       {
@@ -198,7 +199,11 @@ export default function ApiAccessClient({ apiBaseUrl }) {
       },
       printFile: {
         url: printFileUrl,
-        curl: `curl -H "${authHeader}" \\\n  "${printFileUrl}"`
+        curl: `curl -L -H "${authHeader}" \\\n  -o "print-job-file" \\\n  "${printFileUrl}"`
+      },
+      printFileChunk: {
+        url: printChunkFileUrl,
+        curl: `curl -H "${authHeader}" \\\n  "${printChunkFileUrl}"`
       },
       printComplete: {
         url: printCompleteUrl,
@@ -507,10 +512,17 @@ export default function ApiAccessClient({ apiBaseUrl }) {
             <div className="api-param-list"><div>{`DELETE /api/attendance/sessions/${sessionIdPlaceholder}`}</div></div>
           </FoldItem>
           <FoldItem title="print:read">
-            <div className="api-param-list"><div>GET /api/print-jobs/next + GET /api/print-jobs/{"{jobId}"}/file</div></div>
+            <div className="api-param-list">
+              <div>GET /api/print-jobs/next מושך את העבודה הבאה ומחזיר `downloadRawUrl` לקובץ מלא.</div>
+              <div>GET /api/print-jobs/{"{jobId}"}/file?raw=1 מוריד קובץ בינארי רגיל לשמירה מקומית.</div>
+              <div>GET /api/print-jobs/{"{jobId}"}/file?offset=0&length=1000000 זמין רק אם השרת יודע להרכיב base64 בחלקים.</div>
+            </div>
           </FoldItem>
           <FoldItem title="print:delete">
-            <div className="api-param-list"><div>DELETE /api/print-jobs/{"{jobId}"} מסמן השלמה, מוחק את תוכן הקובץ, ומשאיר רשומת הדפסה</div></div>
+            <div className="api-param-list">
+              <div>DELETE /api/print-jobs/{"{jobId}"} מפעילים רק אחרי הורדה והדפסה מוצלחות.</div>
+              <div>הפעולה מסמנת השלמה, מוחקת את תוכן הקובץ מ-Neon, ומשאירה רשומת הדפסה ובעלות.</div>
+            </div>
           </FoldItem>
         </DocBlock>
 
@@ -566,10 +578,16 @@ export default function ApiAccessClient({ apiBaseUrl }) {
               curl={examples.printNext.curl}
             />
             <ExampleCard
-              title="הורדת קובץ בחלקים"
-              subtitle="GET /api/print-jobs/{jobId}/file?offset=0&length=1000000"
+              title="הורדת קובץ להדפסה"
+              subtitle="GET /api/print-jobs/{jobId}/file?raw=1"
               url={examples.printFile.url}
               curl={examples.printFile.curl}
+            />
+            <ExampleCard
+              title="הורדה בחלקים"
+              subtitle="GET /api/print-jobs/{jobId}/file?offset=0&length=1000000"
+              url={examples.printFileChunk.url}
+              curl={examples.printFileChunk.curl}
             />
             <ExampleCard
               title="סיום עבודה אחרי הדפסה"

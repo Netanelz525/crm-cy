@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../../lib/api-tokens";
-import { getPrintJobFileChunk } from "../../../../../lib/print-jobs";
+import { getPrintJobFile, getPrintJobFileChunk } from "../../../../../lib/print-jobs";
 
 function clean(value) {
   return String(value || "").trim();
@@ -8,6 +8,10 @@ function clean(value) {
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+function safeFileName(value) {
+  return clean(value).replace(/[^\p{L}\p{N}._ -]+/gu, "_") || "print-job";
 }
 
 export async function GET(request, { params }) {
@@ -18,7 +22,36 @@ export async function GET(request, { params }) {
   try {
     const resolvedParams = await params;
     const url = new URL(request.url);
-    const chunk = await getPrintJobFileChunk(clean(resolvedParams?.jobId), {
+    const jobId = clean(resolvedParams?.jobId);
+    const wantsRawFile = clean(url.searchParams.get("raw")) === "1"
+      || clean(request.headers.get("accept")).includes("application/octet-stream");
+
+    if (wantsRawFile) {
+      const file = await getPrintJobFile(jobId);
+
+      if (!file) {
+        return NextResponse.json({ error: "Print job not found" }, { status: 404 });
+      }
+
+      if (!file.fileBase64) {
+        return NextResponse.json({ error: "Print job file is no longer available" }, { status: 410 });
+      }
+
+      const bytes = Buffer.from(file.fileBase64, "base64");
+      const fileName = safeFileName(file.fileName);
+
+      return new NextResponse(bytes, {
+        headers: {
+          "content-type": file.contentType,
+          "content-length": String(bytes.length),
+          "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+          "x-print-job-id": file.id,
+          "x-print-file-base64-length": String(file.totalLength)
+        }
+      });
+    }
+
+    const chunk = await getPrintJobFileChunk(jobId, {
       offset: url.searchParams.get("offset"),
       length: url.searchParams.get("length")
     });
