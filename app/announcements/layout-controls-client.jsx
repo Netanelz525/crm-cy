@@ -29,18 +29,16 @@ export default function LayoutControlsClient({ initialLayout, storageKey = "body
     setLayout(normalizeLayout(initialLayout));
   }, [initialLayout]);
 
-  useEffect(() => {
-    onChange?.(layout);
-  }, [layout, onChange]);
-
   function updateBody(key, value) {
-    setLayout((current) => ({
-      ...current,
+    const nextLayout = {
+      ...layout,
       body: {
-        ...current.body,
+        ...layout.body,
         [key]: value
       }
-    }));
+    };
+    setLayout(nextLayout);
+    onChange?.(nextLayout);
   }
 
   return (

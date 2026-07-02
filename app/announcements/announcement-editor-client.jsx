@@ -133,6 +133,12 @@ export default function AnnouncementEditorClient({
     });
   }
 
+  function stepFontSize(delta) {
+    const currentSize = Number(bodyLayout.fontSize || 24);
+    const nextSize = Math.max(12, Math.min(64, currentSize + delta));
+    updateBodyLayout("fontSize", nextSize);
+  }
+
   return (
     <div className="announcement-editor-shell">
       <div className="announcement-preview-shell">
@@ -155,9 +161,9 @@ export default function AnnouncementEditorClient({
           <div className="announcement-mini-stepper">
             <span className="announcement-mini-label">גודל טקסט</span>
             <div className="announcement-mini-box">
-              <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.max(12, Number(bodyLayout.fontSize || 24) - 1))}>−</button>
+              <button type="button" className="announcement-mini-btn" onClick={(event) => { event.preventDefault(); stepFontSize(-1); }}>−</button>
               <span className="announcement-mini-value">{Number(bodyLayout.fontSize || 24)}</span>
-              <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.min(64, Number(bodyLayout.fontSize || 24) + 1))}>+</button>
+              <button type="button" className="announcement-mini-btn" onClick={(event) => { event.preventDefault(); stepFontSize(1); }}>+</button>
             </div>
           </div>
         </div>
