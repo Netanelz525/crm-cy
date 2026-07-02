@@ -2387,6 +2387,58 @@ td {
   display: none;
 }
 
+.announcement-text-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.announcement-text-stepper,
+.announcement-text-align-control {
+  display: grid;
+  gap: 7px;
+}
+
+.announcement-text-control-label {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.announcement-text-stepper-row,
+.announcement-text-align-buttons {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  gap: 6px;
+}
+
+.announcement-text-stepper-row button,
+.announcement-text-align-buttons button {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cfe0f0;
+  background: #ffffff;
+  color: #17365d;
+  font-weight: 900;
+}
+
+.announcement-text-stepper-row input {
+  min-height: 40px;
+  text-align: center;
+  font-weight: 800;
+}
+
+.announcement-text-align-buttons {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.announcement-text-align-buttons button.active {
+  border-color: #0c5fa8;
+  background: #eef6ff;
+  color: #0c5fa8;
+}
+
 .announcement-row {
   display: flex;
   justify-content: space-between;
