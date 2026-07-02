@@ -2785,6 +2785,24 @@ td {
   backdrop-filter: blur(10px);
 }
 
+.announcement-print-direct-form {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.announcement-print-direct-form label {
+  display: grid;
+  gap: 3px;
+}
+
+.announcement-print-direct-form input {
+  width: 76px;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
 .announcement-print-canvas {
   display: flex;
   justify-content: center;

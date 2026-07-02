@@ -30,6 +30,7 @@ export default async function AnnouncementPage({ params, searchParams }) {
       initialTemplate={template}
       created={clean(resolvedSearchParams?.created) === "1"}
       updated={clean(resolvedSearchParams?.updated) === "1"}
+      printQueued={clean(resolvedSearchParams?.printQueued) === "1"}
       errorText={clean(resolvedSearchParams?.error)}
     />
   );

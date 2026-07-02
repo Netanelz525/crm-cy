@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAnnouncement, createAnnouncementTemplate, getAnnouncementTemplateById, updateAnnouncement, updateAnnouncementTemplate } from "../../lib/announcements";
+import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, updateAnnouncement, updateAnnouncementTemplate } from "../../lib/announcements";
+import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
+import { canUsePrintQueue, createPrintJobFromBuffer } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { isR2Configured, uploadBufferToR2 } from "../../lib/r2";
 
@@ -192,6 +194,37 @@ export async function createAnnouncementAction(formData) {
 
   revalidatePath("/announcements");
   redirect(`/announcements/${announcementId}?created=1`);
+}
+
+export async function printAnnouncementAction(formData) {
+  const user = await requireAnnouncementEditor();
+  if (!canUsePrintQueue(user)) redirect("/unauthorized");
+
+  const announcementId = clean(formData.get("announcementId"));
+  const copies = formData.get("copies");
+  let redirectTarget = "/announcements";
+
+  try {
+    const announcement = await getAnnouncementById(announcementId);
+    if (!announcement) throw new Error("המודעה לא נמצאה");
+    redirectTarget = `/announcements/${announcement.id}`;
+    const template = await getAnnouncementTemplateById(announcement.templateId);
+    if (!template) throw new Error("התבנית של המודעה לא נמצאה");
+
+    const pdf = await renderAnnouncementPdf({ announcement, template });
+    await createPrintJobFromBuffer({
+      buffer: pdf,
+      fileName: `${clean(announcement.title) || "מודעה"}.pdf`,
+      contentType: "application/pdf",
+      copies,
+      uploadedByUserId: user.clerk_user_id
+    });
+  } catch (error) {
+    redirect(`${redirectTarget}?error=${encodeURIComponent(clean(error?.message) || "שליחת המודעה להדפסה נכשלה")}`);
+  }
+
+  revalidatePath("/print");
+  redirect(`${redirectTarget}?printQueued=1`);
 }
 
 export async function updateAnnouncementAction(formData) {

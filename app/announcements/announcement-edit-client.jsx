@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import AnnouncementComposerClient from "./announcement-composer-client";
-import { updateAnnouncementAction } from "./actions";
+import { printAnnouncementAction, updateAnnouncementAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -16,7 +16,7 @@ function formatDate(value) {
   return date.toLocaleDateString("he-IL");
 }
 
-export default function AnnouncementEditClient({ announcement, templates, initialTemplate, created, updated, errorText }) {
+export default function AnnouncementEditClient({ announcement, templates, initialTemplate, created, updated, printQueued, errorText }) {
   return (
     <>
       <div className="card glass">
@@ -36,12 +36,21 @@ export default function AnnouncementEditClient({ announcement, templates, initia
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/announcements">חזרה להודעות</Link>
             <Link className="btn btn-primary" href={`/api/announcements/${announcement.id}/pdf`} target="_blank">פתח PDF A4</Link>
+            <form action={printAnnouncementAction} className="announcement-print-direct-form">
+              <input type="hidden" name="announcementId" value={announcement.id} />
+              <label>
+                <span className="muted">עותקים</span>
+                <input type="number" name="copies" min="1" max="99" step="1" defaultValue="1" required />
+              </label>
+              <button type="submit" className="btn btn-primary">שלח להדפסה</button>
+            </form>
           </div>
         </div>
       </div>
 
       {created ? <div className="ok">המודעה נוצרה ונשמרה.</div> : null}
       {updated ? <div className="ok">המודעה עודכנה.</div> : null}
+      {printQueued ? <div className="ok">המודעה נשלחה לתור ההדפסה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="grid announcements-layout">
