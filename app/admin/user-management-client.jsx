@@ -15,6 +15,8 @@ function roleLabel(role) {
       return "מנהל";
     case "editor":
       return "עורך";
+    case "print_only":
+      return "הדפסה בלבד";
     default:
       return "צופה";
   }
@@ -25,6 +27,7 @@ function accessSummary(user) {
     user.is_super_admin ? "סופר אדמין" : null,
     user.is_team_member ? "צוות ניהול" : null,
     user.is_manager && !user.is_super_admin ? "מנהל CRM" : null,
+    user.is_print_only ? "הדפסה בלבד" : null,
     user.can_edit_own_card ? "עריכת כרטיס עצמי" : null
   ].filter(Boolean).join(" | ") || "צפייה בלבד";
 }

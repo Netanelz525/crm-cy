@@ -12,8 +12,11 @@ export const metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const currentUser = await getCurrentAppUser();
   const canUseAiChat = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
-  const canShowTopbar = Boolean(currentUser?.is_manager || currentUser?.is_super_admin);
-  const primaryNavItems = [
+  const canUsePrintQueue = Boolean(currentUser?.can_use_print_queue);
+  const canShowTopbar = Boolean(currentUser?.is_manager || currentUser?.is_super_admin || canUsePrintQueue);
+  const primaryNavItems = currentUser?.is_print_only ? [
+    { href: "/print", label: "הדפסה" }
+  ] : [
     { href: "/neon", label: "תלמידים" },
     { href: "/email", label: "מיילים" },
     { href: "/announcements", label: "הודעות" },

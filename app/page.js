@@ -131,6 +131,7 @@ function hasInstitutionScopedFilter(filters) {
 export default async function HomePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
+  if (currentUser.is_print_only) redirect("/print");
   await purgeExpiredSoftDeletedStudents();
 
   const resolvedSearchParams = await searchParams;
