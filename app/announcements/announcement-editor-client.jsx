@@ -151,6 +151,16 @@ export default function AnnouncementEditorClient({
           <button type="button" className={`announcement-tab-btn${activePanel === "paragraph" ? " active" : ""}`} onClick={() => setActivePanel("paragraph")}>פסקה</button>
           <button type="button" className={`announcement-tab-btn${activePanel === "color" ? " active" : ""}`} onClick={() => setActivePanel("color")}>צבע</button>
         </div>
+        <div className="announcement-inline-steppers">
+          <div className="announcement-mini-stepper">
+            <span className="announcement-mini-label">גודל טקסט</span>
+            <div className="announcement-mini-box">
+              <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.max(12, Number(bodyLayout.fontSize || 24) - 1))}>−</button>
+              <span className="announcement-mini-value">{Number(bodyLayout.fontSize || 24)}</span>
+              <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.min(64, Number(bodyLayout.fontSize || 24) + 1))}>+</button>
+            </div>
+          </div>
+        </div>
         <div className={`announcement-toolbar-panel${activePanel === "text" ? " open" : ""}`}>
           <div className="announcement-toolbar quick">
             <ToolButton
@@ -220,24 +230,6 @@ export default function AnnouncementEditorClient({
               active={editor?.isActive({ textAlign: "left" })}
               onClick={() => editor?.chain().focus().setTextAlign("left").run()}
             />
-          </div>
-          <div className="announcement-inline-steppers">
-            <div className="announcement-mini-stepper">
-              <span className="announcement-mini-label">פונט</span>
-              <div className="announcement-mini-box">
-                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.max(12, Number(bodyLayout.fontSize || 24) - 1))}>−</button>
-                <span className="announcement-mini-value">{Number(bodyLayout.fontSize || 24)}</span>
-                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("fontSize", Math.min(48, Number(bodyLayout.fontSize || 24) + 1))}>+</button>
-              </div>
-            </div>
-            <div className="announcement-mini-stepper">
-              <span className="announcement-mini-label">שורות</span>
-              <div className="announcement-mini-box">
-                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("lineHeight", Math.max(1, Number((Number(bodyLayout.lineHeight || 1.55) - 0.05).toFixed(2))))}>−</button>
-                <span className="announcement-mini-value">{Number(bodyLayout.lineHeight || 1.55).toFixed(2)}</span>
-                <button type="button" className="announcement-mini-btn" onClick={() => updateBodyLayout("lineHeight", Math.min(2.4, Number((Number(bodyLayout.lineHeight || 1.55) + 0.05).toFixed(2))))}>+</button>
-              </div>
-            </div>
           </div>
         </div>
         <div className={`announcement-toolbar-panel${activePanel === "color" ? " open" : ""}`}>
