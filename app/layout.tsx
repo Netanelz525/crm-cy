@@ -13,6 +13,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const currentUser = await getCurrentAppUser();
   const canUseAiChat = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
   const canShowTopbar = Boolean(currentUser?.is_manager || currentUser?.is_super_admin);
+  const primaryNavItems = [
+    { href: "/neon", label: "תלמידים" },
+    { href: "/email", label: "מיילים" },
+    { href: "/announcements", label: "הודעות" },
+    { href: "/attendance", label: "נוכחות" }
+  ];
+  const secondaryNavItems = [
+    { href: "/print", label: "הדפסה" },
+    { href: "/payments", label: "מערכות תשלום" },
+    ...(currentUser?.is_super_admin ? [{ href: "/admin", label: "ניהול" }] : []),
+    ...(currentUser ? [{ href: "/account", label: "אזור אישי" }] : [])
+  ];
 
   return (
     <html lang="he" dir="rtl">
@@ -21,14 +33,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {canShowTopbar ? (
             <header className="topbar">
               <nav className="nav">
-                <Link href="/neon">תלמידים</Link>
-                <Link href="/email">מיילים</Link>
-                <Link href="/announcements">הודעות</Link>
-                <Link href="/attendance">נוכחות</Link>
-                <Link href="/print">הדפסה</Link>
-                <Link href="/payments">מערכות תשלום</Link>
-                <Link href="/admin">ניהול</Link>
-                {currentUser ? <Link href="/account">אזור אישי</Link> : null}
+                {primaryNavItems.map((item) => (
+                  <Link key={item.href} href={item.href}>{item.label}</Link>
+                ))}
+                {secondaryNavItems.length ? (
+                  <details className="nav-more">
+                    <summary aria-label="אפשרויות נוספות">...</summary>
+                    <div className="nav-more-menu">
+                      {secondaryNavItems.map((item) => (
+                        <Link key={item.href} href={item.href}>{item.label}</Link>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
               </nav>
               <div style={{ display: "flex", gap: 8 }}>
                 {currentUser ? <UserButton /> : null}

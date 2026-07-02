@@ -187,7 +187,7 @@ export async function createAnnouncementAction(formData) {
       createdByUserId: user.clerk_user_id
     });
   } catch (error) {
-    redirect(`/announcements?error=${encodeURIComponent(error?.message || "יצירת המודעה נכשלה")}`);
+    redirect(`/announcements/new?error=${encodeURIComponent(error?.message || "יצירת המודעה נכשלה")}`);
   }
 
   revalidatePath("/announcements");

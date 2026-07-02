@@ -45,8 +45,63 @@ a {
 
 .nav {
   display: flex;
+  align-items: center;
   gap: 14px;
   font-weight: 700;
+}
+
+.nav-more {
+  position: relative;
+}
+
+.nav-more summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.nav-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-more summary:hover,
+.nav-more[open] summary {
+  border-color: #cfe0f0;
+  background: #f4f9fe;
+}
+
+.nav-more-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-start: 0;
+  z-index: 120;
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgba(13, 37, 76, 0.14);
+}
+
+.nav-more-menu a {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.nav-more-menu a:hover {
+  background: #f4f9fe;
 }
 
 .container {
@@ -4028,6 +4083,15 @@ td {
   .neon-student-linked-records > .linked-record-groups {
     grid-template-columns: 1fr;
     padding: 8px;
+  }
+
+  .nav {
+    gap: 8px;
+  }
+
+  .nav-more-menu {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
   }
 
   .linked-record-group-body,

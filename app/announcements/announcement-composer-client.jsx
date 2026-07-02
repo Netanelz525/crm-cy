@@ -29,7 +29,7 @@ export default function AnnouncementComposerClient({
   footerActions = null,
   flowTitle = ""
 }) {
-  const [templateId, setTemplateId] = useState(initialAnnouncement?.templateId || "");
+  const [templateId, setTemplateId] = useState(initialAnnouncement?.templateId || templates[0]?.id || "");
   const [layout, setLayout] = useState(initialAnnouncement?.layoutOverride || DEFAULT_LAYOUT);
 
   const selectedTemplate = useMemo(

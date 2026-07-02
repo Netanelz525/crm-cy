@@ -5,12 +5,18 @@ import { createAnnouncementAction } from "../actions";
 import { listAnnouncementTemplates } from "../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
 
-export default async function NewAnnouncementPage() {
+function clean(value) {
+  return String(value || "").trim();
+}
+
+export default async function NewAnnouncementPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
     redirect("/unauthorized");
   }
 
+  const resolvedSearchParams = await searchParams;
+  const errorText = clean(resolvedSearchParams?.error);
   const templates = await listAnnouncementTemplates();
 
   return (
@@ -31,6 +37,8 @@ export default async function NewAnnouncementPage() {
           </div>
         </div>
       </div>
+
+      {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card glass">
         {!templates.length ? (
