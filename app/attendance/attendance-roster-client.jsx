@@ -396,19 +396,19 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
             <tbody>
               {exitingRows.map((student) => (
                 <tr key={student._transientKey} className="attendance-row-exit-highlight">
-                  <td>
+                  <td className="attendance-student-cell">
                     <div className="attendance-student-name">{student.label}</div>
                   </td>
-                  <td>{student.classLabel}</td>
-                  <td>
+                  <td className="attendance-class-cell">{student.classLabel}</td>
+                  <td className="attendance-status-cell">
                     <div className="attendance-row-exit-text">עודכן מבחוץ ולכן ירד מהסינון הנוכחי</div>
                   </td>
-                  <td>{student.noteText || ""}</td>
+                  <td className="attendance-note-cell">{student.noteText || ""}</td>
                 </tr>
               ))}
               {filteredRows.map((student) => (
                 <tr key={student.id} className={flashRowIds.includes(student.id) ? "attendance-row-live-highlight" : ""}>
-                  <td>
+                  <td className="attendance-student-cell">
                     <div className="attendance-student-name">{student.label}</div>
                     <div className="attendance-contact-actions">
                       <ContactActionButton href={phoneHref(student.phone)} label="חיוג" />
@@ -423,8 +423,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                       </details>
                     </div>
                   </td>
-                  <td>{student.classLabel}</td>
-                  <td>
+                  <td className="attendance-class-cell">{student.classLabel}</td>
+                  <td className="attendance-status-cell">
                     <div className="attendance-status-group" role="radiogroup" aria-label={`סטטוס נוכחות עבור ${student.label}`} aria-disabled={locked}>
                       {statusOptions.map(([value, label]) => (
                         <label
@@ -444,7 +444,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                       ))}
                     </div>
                   </td>
-                  <td>
+                  <td className="attendance-note-cell">
                     <input
                       value={student.noteText || ""}
                       onChange={(event) => handleNoteChange(student.id, event.target.value)}

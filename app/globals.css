@@ -1045,6 +1045,104 @@ button {
     min-height: 72px;
     border-radius: 18px;
   }
+
+  .attendance-table-wrap {
+    overflow-x: visible;
+  }
+
+  .attendance-table,
+  .attendance-table tbody,
+  .attendance-table tr,
+  .attendance-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .attendance-table thead {
+    display: none;
+  }
+
+  .attendance-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .attendance-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 10px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 8px 22px rgba(13, 37, 76, 0.06);
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .attendance-student-cell {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .attendance-class-cell {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    min-width: 64px;
+    padding: 5px 8px !important;
+    border-radius: 999px;
+    background: #f4f9fe;
+    color: var(--text);
+    text-align: center !important;
+    font-weight: 700;
+  }
+
+  .attendance-status-cell {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .attendance-note-cell {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .attendance-status-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .attendance-status-option {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+  }
+
+  .attendance-note-cell input {
+    width: 100%;
+    min-height: 42px;
+    border-radius: 12px;
+  }
+
+  .attendance-contact-actions {
+    gap: 6px;
+    margin-top: 7px;
+  }
+
+  .attendance-contact-btn,
+  .attendance-contact-details summary {
+    min-height: 30px;
+    height: 30px;
+    font-size: 0.84rem;
+  }
 }
 .student-actions {
   display: flex;
