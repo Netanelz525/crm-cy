@@ -17,10 +17,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     { href: "/neon", label: "תלמידים" },
     { href: "/email", label: "מיילים" },
     { href: "/announcements", label: "הודעות" },
-    { href: "/attendance", label: "נוכחות" }
+    { href: "/attendance", label: "נוכחות" },
+    { href: "/print", label: "הדפסה" }
   ];
   const secondaryNavItems = [
-    { href: "/print", label: "הדפסה" },
     { href: "/payments", label: "מערכות תשלום" },
     ...(currentUser?.is_super_admin ? [{ href: "/admin", label: "ניהול" }] : []),
     ...(currentUser ? [{ href: "/account", label: "אזור אישי" }] : [])
