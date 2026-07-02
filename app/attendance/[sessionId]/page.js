@@ -84,6 +84,17 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     );
   }
 
+  const sessionAudienceSummary = formatSessionAudience(roster.session);
+  const sessionSummary = [
+    roster.session.institutionLabel,
+    roster.session.displayTitle || roster.session.title || roster.session.sessionTypeLabel || "ללא סוג",
+    roster.session.sessionDate,
+    roster.session.sessionWeekdayLabel,
+    roster.session.sessionHebrewDateLabel,
+    roster.session.isLocked ? "נעול" : "פתוח לעדכונים",
+    sessionAudienceSummary
+  ].filter(Boolean).join(" | ");
+
   return (
     <>
       <div className="card glass">
@@ -103,23 +114,6 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
               </button>
             </form>
           ) : null}
-          <form method="get" className="quick-actions" style={{ marginTop: 0 }}>
-            {activeStatusFilters.length ? <input type="hidden" name="statusFilter" value={activeStatusFilters.join(",")} /> : null}
-            <select name="exportSort" defaultValue={PDF_SORT_LABELS[exportSort] ? exportSort : "class_name"} style={{ minWidth: 220 }}>
-              {Object.entries(PDF_SORT_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-            <button type="submit" className="quick-action-btn quick-action-outline">החל מיון</button>
-            <a
-              className="quick-action-btn quick-action-primary"
-              href={`/api/attendance/${roster.session.id}/pdf?sort=${encodeURIComponent(PDF_SORT_LABELS[exportSort] ? exportSort : "class_name")}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              הורד PDF
-            </a>
-          </form>
         </div>
       </div>
 
@@ -134,24 +128,37 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש{Number(failedEmails || 0) > 0 ? `, ו-${failedEmails} נכשלו` : ""}.</div> : null}
       {mailError ? <div className="error">{mailError}</div> : null}
 
-      <div className="card summary-row">
-        <div>
-          <b>{roster.session.institutionLabel}</b>
-          {" | "}
-          {roster.session.displayTitle || roster.session.title || roster.session.sessionTypeLabel || "ללא סוג"}
-          {roster.session.sessionTypeLabel
-          && clean(roster.session.displayTitle || roster.session.title) !== clean(roster.session.sessionTypeLabel)
-            ? ` | סוג: ${roster.session.sessionTypeLabel}`
-            : ""}
-          {" | "}
-          {roster.session.sessionDate}
-          {roster.session.sessionWeekdayLabel ? ` | ${roster.session.sessionWeekdayLabel}` : ""}
-          {roster.session.sessionHebrewDateLabel ? ` | ${roster.session.sessionHebrewDateLabel}` : ""}
-          {roster.session.createdByDisplayName ? ` | נוצר על ידי: ${roster.session.createdByDisplayName}` : ""}
-          {roster.session.isLocked ? ` | נעול${roster.session.lockedByDisplayName ? ` על ידי: ${roster.session.lockedByDisplayName}` : ""}` : " | פתוח לעדכונים"}
-          {formatSessionAudience(roster.session) ? ` | ${formatSessionAudience(roster.session)}` : ""}
-        </div>
-      </div>
+      <details className="card attendance-message-panel">
+        <summary className="attendance-message-summary">
+          <div>
+            <h3>יצוא</h3>
+            <span className="muted">PDF לפי המיון הנבחר. פתיחה רק כשצריך להוריד דוח.</span>
+          </div>
+          <span className="attendance-message-summary-action">פתח יצוא</span>
+        </summary>
+        <form method="get" className="grid attendance-message-grid">
+          {activeStatusFilters.length ? <input type="hidden" name="statusFilter" value={activeStatusFilters.join(",")} /> : null}
+          <label>
+            <span className="muted">מיון PDF</span>
+            <select name="exportSort" defaultValue={PDF_SORT_LABELS[exportSort] ? exportSort : "class_name"}>
+              {Object.entries(PDF_SORT_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <div className="quick-actions">
+            <button type="submit" className="quick-action-btn quick-action-outline">החל מיון</button>
+            <a
+              className="quick-action-btn quick-action-primary"
+              href={`/api/attendance/${roster.session.id}/pdf?sort=${encodeURIComponent(PDF_SORT_LABELS[exportSort] ? exportSort : "class_name")}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              הורד PDF
+            </a>
+          </div>
+        </form>
+      </details>
 
       {roster.session.isLocked ? (
         <div className="attendance-lock-banner">
@@ -159,9 +166,15 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </div>
       ) : null}
 
-      <div className="card">
-        <h3>פרטי המפגש</h3>
-        <form className="grid" action={saveAttendanceSessionDetailsAction}>
+      <details className="card attendance-message-panel">
+        <summary className="attendance-message-summary">
+          <div>
+            <h3>פרטי המפגש</h3>
+            <span className="muted">{sessionSummary}</span>
+          </div>
+          <span className="attendance-message-summary-action">ערוך פרטים</span>
+        </summary>
+        <form className="grid attendance-message-grid" action={saveAttendanceSessionDetailsAction}>
           <input type="hidden" name="sessionId" value={roster.session.id} />
           <label>
             <span className="muted">סוג מפגש</span>
@@ -187,7 +200,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <button type="submit" className="quick-action-btn quick-action-outline">שמור פרטי מפגש</button>
           </div>
         </form>
-      </div>
+      </details>
 
       <details className="card attendance-message-panel" open={statusesSaved}>
         <summary className="attendance-message-summary">
