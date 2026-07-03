@@ -482,6 +482,72 @@ button {
   align-items: start;
 }
 
+.attendance-collapsible-panel {
+  overflow: hidden;
+}
+
+.attendance-collapsible-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.attendance-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.attendance-collapsible-summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-inline-end: 2px solid #0f5fa4;
+  border-block-end: 2px solid #0f5fa4;
+  transform: rotate(45deg);
+  transition: transform 0.18s ease;
+}
+
+.attendance-collapsible-panel[open] .attendance-collapsible-summary::before {
+  transform: rotate(225deg);
+}
+
+.attendance-collapsible-summary h3 {
+  margin: 0;
+}
+
+.attendance-collapsible-body {
+  margin-top: 16px;
+}
+
+.attendance-collapsible-action {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 1px solid #c9dff1;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #0f5fa4;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.attendance-report-result {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.attendance-empty-result {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px dashed #c9dff1;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
 .attendance-session-list {
   display: grid;
   gap: 10px;
