@@ -54,7 +54,8 @@ function checkboxOptionsFromMap(options) {
   return Object.entries(options || {}).map(([value, label]) => ({ value, label }));
 }
 
-function FilterCheckboxFieldset({ legend, name, options, helperText = "" }) {
+function FilterCheckboxFieldset({ legend, name, options, helperText = "", defaultValues = [] }) {
+  const selectedValues = new Set((Array.isArray(defaultValues) ? defaultValues : [defaultValues]).map(clean).filter(Boolean));
   return (
     <div className="email-filter-fieldset" style={{ padding: 14 }}>
       <div className="email-filter-fieldset-head" style={{ padding: 0, marginBottom: 10, cursor: "default" }}>
@@ -70,7 +71,13 @@ function FilterCheckboxFieldset({ legend, name, options, helperText = "" }) {
         <div className="email-filter-chip-list">
           {options.map((option) => (
             <label key={`${name}-${option.value}`} className="email-filter-chip">
-              <input type="checkbox" className="email-filter-chip-input" name={name} value={option.value} />
+              <input
+                type="checkbox"
+                className="email-filter-chip-input"
+                name={name}
+                value={option.value}
+                defaultChecked={selectedValues.has(clean(option.value))}
+              />
               <span>{option.label}</span>
             </label>
           ))}
@@ -163,6 +170,19 @@ function getSearchParamList(value) {
   return (Array.isArray(value) ? value : [value]).map(clean).filter(Boolean);
 }
 
+function resolveSessionListFilters(searchParams) {
+  return {
+    query: clean(searchParams?.sessionQuery || searchParams?.q),
+    dateFrom: clean(searchParams?.sessionDateFrom),
+    dateTo: clean(searchParams?.sessionDateTo),
+    institutionFilters: getSearchParamList(searchParams?.sessionInstitutionFilter),
+    classFilters: getSearchParamList(searchParams?.sessionClassFilter),
+    registrationFilters: getSearchParamList(searchParams?.sessionRegistrationFilter),
+    familyStatusFilters: getSearchParamList(searchParams?.sessionFamilyStatusFilter),
+    tagFilters: getSearchParamList(searchParams?.sessionTagFilter)
+  };
+}
+
 function resolveReportFilters(searchParams) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -217,22 +237,42 @@ export default async function AttendancePage({ searchParams }) {
   const bulkLockCount = Number(clean(resolvedSearchParams?.bulkLockCount) || 0) || 0;
   const attendanceReturnPath = buildAttendanceReturnPath(resolvedSearchParams);
   const reportFilters = resolveReportFilters(resolvedSearchParams);
+  const sessionListFilters = resolveSessionListFilters(resolvedSearchParams);
   const summaryExportQuery = buildSummaryExportQuery(reportFilters);
   const responsibleParam = getSearchParamList(resolvedSearchParams?.responsible);
   const responsibleFilterMode = responsibleParam.includes("all") ? "all" : "selected";
   const selectedResponsibleIds = responsibleFilterMode === "all"
     ? []
     : (responsibleParam.length ? responsibleParam : [clean(currentUser.clerk_user_id)].filter(Boolean));
+  const sessionDateFrom = sessionListFilters.dateFrom || (reportFilters.institution ? reportFilters.start : "");
+  const sessionDateTo = sessionListFilters.dateTo || (reportFilters.institution ? reportFilters.end : "");
   const sessions = await listAttendanceSessions(
     reportFilters.institution
       ? {
           institution: reportFilters.institution,
-          dateFrom: reportFilters.start,
-          dateTo: reportFilters.end,
+          dateFrom: sessionDateFrom,
+          dateTo: sessionDateTo,
           responsibleUserIds: selectedResponsibleIds,
+          query: sessionListFilters.query,
+          institutionFilters: sessionListFilters.institutionFilters,
+          classFilters: sessionListFilters.classFilters,
+          registrationFilters: sessionListFilters.registrationFilters,
+          familyStatusFilters: sessionListFilters.familyStatusFilters,
+          tagFilters: sessionListFilters.tagFilters,
           limit: 1000
         }
-      : { responsibleUserIds: selectedResponsibleIds, limit: 1000 }
+      : {
+          dateFrom: sessionDateFrom,
+          dateTo: sessionDateTo,
+          responsibleUserIds: selectedResponsibleIds,
+          query: sessionListFilters.query,
+          institutionFilters: sessionListFilters.institutionFilters,
+          classFilters: sessionListFilters.classFilters,
+          registrationFilters: sessionListFilters.registrationFilters,
+          familyStatusFilters: sessionListFilters.familyStatusFilters,
+          tagFilters: sessionListFilters.tagFilters,
+          limit: 1000
+        }
   );
   const [responsibleUsers, availableTags] = await Promise.all([listAttendanceResponsibleUsers(), listStudentTags()]);
   const summaryReport = reportFilters.institution
@@ -440,11 +480,34 @@ export default async function AttendancePage({ searchParams }) {
 
         <aside className="card glass">
           <h3>{reportFilters.institution ? "כל המפגשים לפי הסינון" : "כל המפגשים"}</h3>
-          <form method="get" className="attendance-responsible-filter">
+          <form method="get" className="attendance-responsible-filter attendance-session-search">
             <div className="attendance-responsible-filter-head">
-              <b>סינון לפי אחראים</b>
+              <b>חיפוש וסינון מפגשים</b>
               <span className="muted">ברירת מחדל: מפגשים באחריותי</span>
             </div>
+            <div className="attendance-session-search-grid">
+              <label>
+                <span className="muted">שם או תוכן</span>
+                <input name="sessionQuery" defaultValue={sessionListFilters.query} placeholder="חפש לפי שם מפגש, הערה או מזהה" />
+              </label>
+              <label>
+                <span className="muted">מתאריך</span>
+                <input name="sessionDateFrom" type="date" defaultValue={sessionDateFrom} />
+              </label>
+              <label>
+                <span className="muted">עד תאריך</span>
+                <input name="sessionDateTo" type="date" defaultValue={sessionDateTo} />
+              </label>
+            </div>
+            {reportFilters.institution ? (
+              <>
+                <input type="hidden" name="reportInstitution" value={reportFilters.institution} />
+                <input type="hidden" name="reportRange" value={reportFilters.range} />
+                <input type="hidden" name="reportStart" value={reportFilters.start} />
+                <input type="hidden" name="reportEnd" value={reportFilters.end} />
+                <input type="hidden" name="reportSort" value={reportFilters.sort} />
+              </>
+            ) : null}
             <div className="email-filter-chip-list">
               {responsibleUsers.map((user) => (
                 <label key={`responsible-filter-${user.id}`} className="email-filter-chip">
@@ -459,8 +522,46 @@ export default async function AttendancePage({ searchParams }) {
                 </label>
               ))}
             </div>
+            <details className="attendance-audience-filter-panel">
+              <summary>מסנני קהל יעד של המפגש</summary>
+              <div className="email-form-grid" style={{ marginTop: 10 }}>
+                <FilterCheckboxFieldset
+                  legend="מוסדות"
+                  name="sessionInstitutionFilter"
+                  options={institutionOptions}
+                  defaultValues={sessionListFilters.institutionFilters}
+                  helperText="מצא מפגשים שהוגדרו למוסדות שנבחרו"
+                />
+                <FilterCheckboxFieldset
+                  legend="שיעורים"
+                  name="sessionClassFilter"
+                  options={classOptions}
+                  defaultValues={sessionListFilters.classFilters}
+                  helperText="מצא מפגשים שהוגדרו לשיעורים שנבחרו"
+                />
+                <FilterCheckboxFieldset
+                  legend="רישום"
+                  name="sessionRegistrationFilter"
+                  options={registrationOptions}
+                  defaultValues={sessionListFilters.registrationFilters}
+                />
+                <FilterCheckboxFieldset
+                  legend="סטטוס משפחתי"
+                  name="sessionFamilyStatusFilter"
+                  options={familyStatusOptions}
+                  defaultValues={sessionListFilters.familyStatusFilters}
+                />
+                <FilterCheckboxFieldset
+                  legend="תוויות"
+                  name="sessionTagFilter"
+                  options={tagOptions}
+                  defaultValues={sessionListFilters.tagFilters}
+                  helperText="מצא מפגשים שהוגדרו לתלמידים עם תוויות אלו"
+                />
+              </div>
+            </details>
             <div className="quick-actions" style={{ marginTop: 8 }}>
-              <button type="submit" className="quick-action-btn quick-action-outline">החל סינון</button>
+              <button type="submit" className="quick-action-btn quick-action-outline">חפש מפגשים</button>
               <Link className="quick-action-btn quick-action-primary" href="/attendance">באחריותי</Link>
               <Link className="quick-action-btn quick-action-outline" href="/attendance?responsible=all">כל המפגשים</Link>
             </div>
@@ -487,9 +588,7 @@ export default async function AttendancePage({ searchParams }) {
           ) : null}
           {!sessions.length ? (
             <p className="muted">
-              {reportFilters.institution
-                ? "לא נמצאו מפגשים שתואמים לפילטרים של הדוח."
-                : "עדיין לא נוצרו מפגשי נוכחות."}
+              לא נמצאו מפגשים שתואמים לחיפוש הנוכחי.
             </p>
           ) : (
             <div className="attendance-session-list">

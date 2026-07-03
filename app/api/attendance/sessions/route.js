@@ -44,7 +44,13 @@ export async function GET(request) {
     const institution = clean(url.searchParams.get("institution"));
     const dateFrom = clean(url.searchParams.get("dateFrom"));
     const dateTo = clean(url.searchParams.get("dateTo"));
+    const query = clean(url.searchParams.get("query") || url.searchParams.get("q"));
     const responsibleUserIds = url.searchParams.getAll("responsible").concat(url.searchParams.getAll("responsibleUserIds")).map(clean).filter((value) => value && value !== "all");
+    const institutionFilters = cleanList(url.searchParams.getAll("institutionFilter"));
+    const classFilters = cleanList(url.searchParams.getAll("classFilter"));
+    const registrationFilters = cleanList(url.searchParams.getAll("registrationFilter"));
+    const familyStatusFilters = cleanList(url.searchParams.getAll("familyStatusFilter"));
+    const tagFilters = cleanList(url.searchParams.getAll("tagFilter"));
     const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 25, 100));
 
     const items = await listAttendanceSessions({
@@ -52,6 +58,12 @@ export async function GET(request) {
       dateFrom,
       dateTo,
       responsibleUserIds,
+      query,
+      institutionFilters,
+      classFilters,
+      registrationFilters,
+      familyStatusFilters,
+      tagFilters,
       limit
     });
 
@@ -63,6 +75,12 @@ export async function GET(request) {
         dateFrom: dateFrom || null,
         dateTo: dateTo || null,
         responsibleUserIds,
+        query: query || null,
+        institutionFilters,
+        classFilters,
+        registrationFilters,
+        familyStatusFilters,
+        tagFilters,
         limit
       },
       items

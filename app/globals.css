@@ -902,6 +902,35 @@ button {
   background: #fff;
 }
 
+.attendance-session-search {
+  background: #f8fbff;
+  border-color: #d6e6f4;
+}
+
+.attendance-session-search-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr);
+  gap: 10px;
+}
+
+.attendance-session-search-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.attendance-audience-filter-panel {
+  border: 1px solid #d6e6f4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.attendance-audience-filter-panel summary {
+  padding: 10px 12px;
+  color: #0f355e;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .attendance-responsible-filter-head {
   display: grid;
   gap: 2px;
@@ -1300,6 +1329,10 @@ button {
 
 @media (max-width: 900px) {
   .attendance-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-session-search-grid {
     grid-template-columns: 1fr;
   }
 
