@@ -852,6 +852,24 @@ button {
   line-height: 1.35;
 }
 
+.attendance-responsible-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attendance-responsible-selected button {
+  width: auto;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid #8ab4df;
+  border-radius: 999px;
+  background: #edf6ff;
+  color: #0f2e52;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 .attendance-responsible-list {
   display: flex;
   flex-wrap: wrap;

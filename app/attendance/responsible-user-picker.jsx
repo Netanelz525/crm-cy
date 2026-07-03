@@ -20,9 +20,16 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "", d
   });
   const normalizedQuery = clean(query).toLowerCase();
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const canSearch = normalizedQuery.length >= 2;
+  const selectedUsers = useMemo(() => {
+    const list = Array.isArray(users) ? users : [];
+    return selectedIds.map((userId) => (
+      list.find((user) => clean(user?.id) === userId) || { id: userId }
+    ));
+  }, [users, selectedIds]);
   const filteredUsers = useMemo(() => {
     const list = Array.isArray(users) ? users : [];
-    if (!normalizedQuery) return list;
+    if (!canSearch) return [];
     return list.filter((user) => {
       const text = [
         user?.displayName,
@@ -32,7 +39,7 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "", d
       ].map(clean).join(" ").toLowerCase();
       return text.includes(normalizedQuery);
     });
-  }, [users, normalizedQuery]);
+  }, [users, normalizedQuery, canSearch]);
 
   function toggleUser(userId) {
     const normalizedUserId = clean(userId);
@@ -55,19 +62,32 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "", d
         autoComplete="off"
       />
       {selectedIds.map((userId) => <input key={userId} type="hidden" name={name} value={userId} />)}
-      <div className="attendance-responsible-list">
-        {filteredUsers.map((user) => (
-          <label key={user.id} className={`attendance-responsible-option${selectedSet.has(user.id) ? " active" : ""}`}>
-            <input
-              type="checkbox"
-              checked={selectedSet.has(user.id)}
-              onChange={() => toggleUser(user.id)}
-            />
-            <span>{userLabel(user)}</span>
-          </label>
-        ))}
-      </div>
-      {normalizedQuery && !filteredUsers.length ? (
+      {selectedUsers.length ? (
+        <div className="attendance-responsible-selected">
+          {selectedUsers.map((user) => (
+            <button key={`selected-${user.id}`} type="button" onClick={() => toggleUser(user.id)}>
+              {userLabel(user)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {!canSearch ? (
+        <span className="attendance-responsible-empty">הקלד לפחות שתי אותיות כדי להציג אנשי צוות לבחירה.</span>
+      ) : (
+        <div className="attendance-responsible-list">
+          {filteredUsers.map((user) => (
+            <label key={user.id} className={`attendance-responsible-option${selectedSet.has(user.id) ? " active" : ""}`}>
+              <input
+                type="checkbox"
+                checked={selectedSet.has(user.id)}
+                onChange={() => toggleUser(user.id)}
+              />
+              <span>{userLabel(user)}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {canSearch && !filteredUsers.length ? (
         <span className="attendance-responsible-empty">לא נמצאו אנשי צוות תואמים.</span>
       ) : null}
     </div>
