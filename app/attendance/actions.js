@@ -6,6 +6,7 @@ import { after } from "next/server";
 import {
   createAttendanceSession,
   deleteAttendanceSession,
+  getAttendanceSessionById,
   parseAttendanceCustomStatusesText,
   saveAttendanceRecord,
   setAttendanceSessionLocked,
@@ -30,6 +31,8 @@ export async function createAttendanceSessionAction(formData) {
   const canUseSessionAudienceFilters = true;
   const institution = clean(formData.get("institution"));
   const sessionType = clean(formData.get("sessionType"));
+  const templateSessionId = clean(formData.get("templateSessionId"));
+  const templateSession = templateSessionId ? await getAttendanceSessionById(templateSessionId) : null;
   const title = clean(formData.get("title"));
   const sessionDate = clean(formData.get("sessionDate"));
   const sourceNote = clean(formData.get("sourceNote"));
@@ -42,18 +45,23 @@ export async function createAttendanceSessionAction(formData) {
 
   const session = await createAttendanceSession({
     id: crypto.randomUUID(),
-    institution,
-    sessionType,
-    title,
+    institution: institution || templateSession?.institution || "",
+    sessionType: sessionType || templateSession?.sessionType,
+    title: title || (templateSession ? `${templateSession.displayTitle || templateSession.title || templateSession.sessionTypeLabel} - חדש` : ""),
     sessionDate,
-    sourceNote,
-    institutionFilter,
-    classFilter,
-    registrationFilter,
-    familyStatusFilter,
-    tagFilter,
-    responsibleUserIds: responsibleUserIds.length ? responsibleUserIds : [user.clerk_user_id],
-    visibleToStudents: canUseSessionAudienceFilters && clean(formData.get("visibleToStudents")) === "1",
+    sourceNote: sourceNote || templateSession?.sourceNote || "",
+    emailSubject: templateSession?.emailSubject || "",
+    personalMessage: templateSession?.personalMessage || "",
+    customStatuses: templateSession?.customStatuses || [],
+    emailResponseStatuses: templateSession?.emailResponseStatuses || [],
+    emailRecipientRoles: templateSession?.emailRecipientRoles || [],
+    institutionFilter: institutionFilter.length ? institutionFilter : (templateSession?.institutionFilter || []),
+    classFilter: classFilter.length ? classFilter : (templateSession?.classFilter || []),
+    registrationFilter: registrationFilter.length ? registrationFilter : (templateSession?.registrationFilter || []),
+    familyStatusFilter: familyStatusFilter.length ? familyStatusFilter : (templateSession?.familyStatusFilter || []),
+    tagFilter: tagFilter.length ? tagFilter : (templateSession?.tagFilter || []),
+    responsibleUserIds: responsibleUserIds.length ? responsibleUserIds : (templateSession?.responsibleUserIds?.length ? templateSession.responsibleUserIds : [user.clerk_user_id]),
+    visibleToStudents: templateSession ? Boolean(templateSession.visibleToStudents) : (canUseSessionAudienceFilters && clean(formData.get("visibleToStudents")) === "1"),
     createdByUserId: user.clerk_user_id
   });
 

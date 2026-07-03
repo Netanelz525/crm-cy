@@ -95,7 +95,6 @@ function SessionTypeFieldset({ options, defaultValue = "" }) {
               name="sessionType"
               value={value}
               defaultChecked={defaultValue === value}
-              required
             />
             <span>{ATTENDANCE_SESSION_TYPE_LABELS[value]}</span>
           </label>
@@ -380,6 +379,18 @@ export default async function AttendancePage({ searchParams }) {
           <h3>יצירת מפגש חדש</h3>
           <form action={createAttendanceSessionAction} className="grid">
             <input type="hidden" name="institution" value="" />
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span className="muted">מבנה ממפגש קודם</span>
+              <select name="templateSessionId" defaultValue="">
+                <option value="">יצירה רגילה ללא העתקת מבנה</option>
+                {sessions.map((session) => (
+                  <option key={`template-${session.id}`} value={session.id}>
+                    {formatSessionLabel(session)}
+                    {session.responsibleDisplayName ? ` | אחראים: ${session.responsibleDisplayName}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
             <SessionTypeFieldset options={selectableSessionTypes} defaultValue={defaultSessionType} />
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
