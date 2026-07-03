@@ -27,7 +27,7 @@ function cleanList(values) {
 
 export async function createAttendanceSessionAction(formData) {
   const user = await requireAttendanceUser();
-  const canUseSessionAudienceFilters = user.is_manager || user.is_super_admin;
+  const canUseSessionAudienceFilters = true;
   const institution = clean(formData.get("institution"));
   const sessionType = clean(formData.get("sessionType"));
   const title = clean(formData.get("title"));
@@ -38,6 +38,7 @@ export async function createAttendanceSessionAction(formData) {
   const registrationFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("registrationFilter")) : [];
   const familyStatusFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("familyStatusFilter")) : [];
   const tagFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("tagFilter")) : [];
+  const responsibleUserIds = cleanList(formData.getAll("responsibleUserIds"));
 
   const session = await createAttendanceSession({
     id: crypto.randomUUID(),
@@ -51,7 +52,7 @@ export async function createAttendanceSessionAction(formData) {
     registrationFilter,
     familyStatusFilter,
     tagFilter,
-    responsibleUserId: canUseSessionAudienceFilters ? formData.get("responsibleUserId") : "",
+    responsibleUserIds: responsibleUserIds.length ? responsibleUserIds : [user.clerk_user_id],
     visibleToStudents: canUseSessionAudienceFilters && clean(formData.get("visibleToStudents")) === "1",
     createdByUserId: user.clerk_user_id
   });
@@ -73,7 +74,7 @@ export async function saveAttendanceSessionDetailsAction(formData) {
     sessionDate: clean(formData.get("sessionDate")),
     sourceNote: clean(formData.get("sourceNote")),
     ...(canManageSessionSettings ? {
-      responsibleUserId: formData.get("responsibleUserId"),
+      responsibleUserIds: cleanList(formData.getAll("responsibleUserIds")),
       visibleToStudents: clean(formData.get("visibleToStudents")) === "1"
     } : {})
   });

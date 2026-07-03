@@ -206,7 +206,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </label>
           {canManageSessionSettings ? (
             <>
-              <ResponsibleUserPicker users={responsibleUsers} defaultValue={roster.session.responsibleUserId || ""} />
+              <ResponsibleUserPicker users={responsibleUsers} defaultValues={roster.session.responsibleUserIds || []} />
               <label className="attendance-visibility-toggle">
                 <input
                   type="checkbox"

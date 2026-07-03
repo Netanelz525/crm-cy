@@ -44,12 +44,14 @@ export async function GET(request) {
     const institution = clean(url.searchParams.get("institution"));
     const dateFrom = clean(url.searchParams.get("dateFrom"));
     const dateTo = clean(url.searchParams.get("dateTo"));
+    const responsibleUserIds = url.searchParams.getAll("responsible").concat(url.searchParams.getAll("responsibleUserIds")).map(clean).filter((value) => value && value !== "all");
     const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 25, 100));
 
     const items = await listAttendanceSessions({
       institution,
       dateFrom,
       dateTo,
+      responsibleUserIds,
       limit
     });
 
@@ -60,6 +62,7 @@ export async function GET(request) {
         institution: institution || null,
         dateFrom: dateFrom || null,
         dateTo: dateTo || null,
+        responsibleUserIds,
         limit
       },
       items
@@ -99,6 +102,7 @@ export async function POST(request) {
       familyStatusFilter: cleanList(body.familyStatusFilter || body.famliystatusFilter),
       tagFilter: cleanList(body.tagFilter || body.tagIds),
       responsibleUserId: clean(body.responsibleUserId),
+      responsibleUserIds: cleanList(body.responsibleUserIds || body.responsibleIds),
       visibleToStudents: body.visibleToStudents === true || clean(body.visibleToStudents) === "1",
       createdByUserId: clean(body.createdByUserId) || `api:${clean(tokenCheck.auth?.id) || "unknown"}`
     });

@@ -102,6 +102,7 @@ export async function PATCH(request, { params }) {
         sessionType: body.sessionType,
         sessionDate: body.sessionDate,
         responsibleUserId: body.responsibleUserId,
+        responsibleUserIds: Array.isArray(body.responsibleUserIds) ? body.responsibleUserIds : body.responsibleIds,
         visibleToStudents: body.visibleToStudents,
         tagFilter: Array.isArray(body.tagFilter) ? body.tagFilter : body.tagIds
       });

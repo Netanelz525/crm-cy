@@ -160,6 +160,10 @@ function buildAttendanceReturnPath(searchParams) {
   return query ? `/attendance?${query}` : "/attendance";
 }
 
+function getSearchParamList(value) {
+  return (Array.isArray(value) ? value : [value]).map(clean).filter(Boolean);
+}
+
 function resolveReportFilters(searchParams) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -203,7 +207,7 @@ export default async function AttendancePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
   if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
-  const canUseSessionAudienceFilters = currentUser.is_manager || currentUser.is_super_admin;
+  const canUseSessionAudienceFilters = true;
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
 
   const resolvedSearchParams = await searchParams;
@@ -215,19 +219,23 @@ export default async function AttendancePage({ searchParams }) {
   const attendanceReturnPath = buildAttendanceReturnPath(resolvedSearchParams);
   const reportFilters = resolveReportFilters(resolvedSearchParams);
   const summaryExportQuery = buildSummaryExportQuery(reportFilters);
+  const responsibleParam = getSearchParamList(resolvedSearchParams?.responsible);
+  const responsibleFilterMode = responsibleParam.includes("all") ? "all" : "selected";
+  const selectedResponsibleIds = responsibleFilterMode === "all"
+    ? []
+    : (responsibleParam.length ? responsibleParam : [clean(currentUser.clerk_user_id)].filter(Boolean));
   const sessions = await listAttendanceSessions(
     reportFilters.institution
       ? {
           institution: reportFilters.institution,
           dateFrom: reportFilters.start,
           dateTo: reportFilters.end,
+          responsibleUserIds: selectedResponsibleIds,
           limit: 1000
         }
-      : { limit: 1000 }
+      : { responsibleUserIds: selectedResponsibleIds, limit: 1000 }
   );
-  const [responsibleUsers, availableTags] = canUseSessionAudienceFilters
-    ? await Promise.all([listAttendanceResponsibleUsers(), listStudentTags()])
-    : [[], []];
+  const [responsibleUsers, availableTags] = await Promise.all([listAttendanceResponsibleUsers(), listStudentTags()]);
   const summaryReport = reportFilters.institution
     ? await getAttendanceSummaryReport({
         institution: reportFilters.institution,
@@ -241,12 +249,8 @@ export default async function AttendancePage({ searchParams }) {
   const registrationOptions = checkboxOptionsFromMap(ENUM_LABELS.registration || {});
   const familyStatusOptions = checkboxOptionsFromMap(ENUM_LABELS.familystatus || {});
   const tagOptions = availableTags.map((tag) => ({ value: tag.id, label: tag.name }));
-  const selectableSessionTypes = currentUser.is_manager || currentUser.is_super_admin
-    ? ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER
-    : ATTENDANCE_SESSION_TYPE_ORDER;
-  const defaultSessionType = currentUser.is_manager && !currentUser.is_super_admin
-    ? "manager_default"
-    : "";
+  const selectableSessionTypes = ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER;
+  const defaultSessionType = "";
 
   return (
     <>
@@ -375,23 +379,14 @@ export default async function AttendancePage({ searchParams }) {
         <section className="card glass">
           <h3>יצירת מפגש חדש</h3>
           <form action={createAttendanceSessionAction} className="grid">
-            {currentUser.is_super_admin ? (
-              <input type="hidden" name="institution" value="" />
-            ) : (
-              <select name="institution" defaultValue="" required>
-                <option value="">בחר מוסד</option>
-                {Object.entries(INSTITUTIONS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            )}
+            <input type="hidden" name="institution" value="" />
             <SessionTypeFieldset options={selectableSessionTypes} defaultValue={defaultSessionType} />
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
             {canUseSessionAudienceFilters ? (
               <>
-                <ResponsibleUserPicker users={responsibleUsers} />
+                <ResponsibleUserPicker users={responsibleUsers} defaultValues={[currentUser.clerk_user_id]} />
                 <label className="attendance-visibility-toggle">
                   <input type="checkbox" name="visibleToStudents" value="1" />
                   <span className="attendance-visibility-box" aria-hidden="true" />
@@ -405,9 +400,7 @@ export default async function AttendancePage({ searchParams }) {
                     אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד. לסופר אדמין בלי מוסד ובלי מסנן מוסדות, המפגש יחול על כל המוסדות.
                   </div>
                   <div className="email-form-grid">
-                    {currentUser.is_super_admin ? (
-                      <FilterCheckboxFieldset legend="מוסדות" name="institutionFilter" options={institutionOptions} helperText="לסופר אדמין אין חובה לבחור מוסד יחיד" />
-                    ) : null}
+                    <FilterCheckboxFieldset legend="מוסדות" name="institutionFilter" options={institutionOptions} helperText="אם לא נבחר מוסד, המפגש יחול על כל המוסדות." />
                     <FilterCheckboxFieldset legend="שיעורים" name="classFilter" options={classOptions} />
                     <FilterCheckboxFieldset legend="רישום" name="registrationFilter" options={registrationOptions} />
                     <FilterCheckboxFieldset legend="סטטוס משפחתי" name="familyStatusFilter" options={familyStatusOptions} />
@@ -422,6 +415,31 @@ export default async function AttendancePage({ searchParams }) {
 
         <aside className="card glass">
           <h3>{reportFilters.institution ? "כל המפגשים לפי הסינון" : "כל המפגשים"}</h3>
+          <form method="get" className="attendance-responsible-filter">
+            <div className="attendance-responsible-filter-head">
+              <b>סינון לפי אחראים</b>
+              <span className="muted">ברירת מחדל: מפגשים באחריותי</span>
+            </div>
+            <div className="email-filter-chip-list">
+              {responsibleUsers.map((user) => (
+                <label key={`responsible-filter-${user.id}`} className="email-filter-chip">
+                  <input
+                    type="checkbox"
+                    className="email-filter-chip-input"
+                    name="responsible"
+                    value={user.id}
+                    defaultChecked={responsibleFilterMode !== "all" && selectedResponsibleIds.includes(user.id)}
+                  />
+                  <span>{user.displayName}</span>
+                </label>
+              ))}
+            </div>
+            <div className="quick-actions" style={{ marginTop: 8 }}>
+              <button type="submit" className="quick-action-btn quick-action-outline">החל סינון</button>
+              <Link className="quick-action-btn quick-action-primary" href="/attendance">באחריותי</Link>
+              <Link className="quick-action-btn quick-action-outline" href="/attendance?responsible=all">כל המפגשים</Link>
+            </div>
+          </form>
           {canManageSessionLock && sessions.length ? (
             <div className="quick-actions" style={{ marginTop: 10 }}>
               <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>

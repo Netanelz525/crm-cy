@@ -12,9 +12,14 @@ function userLabel(user) {
   return [name, email].filter(Boolean).join(" | ") || clean(user?.id) || "איש צוות";
 }
 
-export default function ResponsibleUserPicker({ users = [], defaultValue = "" }) {
+export default function ResponsibleUserPicker({ users = [], defaultValue = "", defaultValues = [], name = "responsibleUserIds" }) {
   const [query, setQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState(() => {
+    const values = Array.isArray(defaultValues) && defaultValues.length ? defaultValues : [defaultValue];
+    return values.map(clean).filter(Boolean);
+  });
   const normalizedQuery = clean(query).toLowerCase();
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const filteredUsers = useMemo(() => {
     const list = Array.isArray(users) ? users : [];
     if (!normalizedQuery) return list;
@@ -29,9 +34,19 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "" })
     });
   }, [users, normalizedQuery]);
 
+  function toggleUser(userId) {
+    const normalizedUserId = clean(userId);
+    if (!normalizedUserId) return;
+    setSelectedIds((current) => (
+      current.includes(normalizedUserId)
+        ? current.filter((item) => item !== normalizedUserId)
+        : [...current, normalizedUserId]
+    ));
+  }
+
   return (
-    <label className="attendance-responsible-picker">
-      <span className="muted">איש צוות אחראי</span>
+    <div className="attendance-responsible-picker">
+      <span className="muted">אנשי צוות אחראים</span>
       <input
         type="search"
         value={query}
@@ -39,15 +54,22 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "" })
         placeholder="חפש לפי שם או מייל"
         autoComplete="off"
       />
-      <select name="responsibleUserId" defaultValue={defaultValue || ""}>
-        <option value="">ללא אחראי</option>
+      {selectedIds.map((userId) => <input key={userId} type="hidden" name={name} value={userId} />)}
+      <div className="attendance-responsible-list">
         {filteredUsers.map((user) => (
-          <option key={user.id} value={user.id}>{userLabel(user)}</option>
+          <label key={user.id} className={`attendance-responsible-option${selectedSet.has(user.id) ? " active" : ""}`}>
+            <input
+              type="checkbox"
+              checked={selectedSet.has(user.id)}
+              onChange={() => toggleUser(user.id)}
+            />
+            <span>{userLabel(user)}</span>
+          </label>
         ))}
-      </select>
+      </div>
       {normalizedQuery && !filteredUsers.length ? (
         <span className="attendance-responsible-empty">לא נמצאו אנשי צוות תואמים.</span>
       ) : null}
-    </label>
+    </div>
   );
 }
