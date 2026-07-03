@@ -19,7 +19,6 @@ import {
 } from "../../../lib/attendance";
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
 import { getCurrentAppUser } from "../../../lib/rbac";
-import { listStudentTags } from "../../../lib/student-tags";
 import ResponsibleUserPicker from "../responsible-user-picker";
 
 function clean(value) {
@@ -75,9 +74,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const statusOptions = Array.isArray(roster?.session?.statusOptions) ? roster.session.statusOptions : [];
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
   const canManageSessionSettings = currentUser.is_manager || currentUser.is_super_admin;
-  const [responsibleUsers, availableTags] = canManageSessionSettings
-    ? await Promise.all([listAttendanceResponsibleUsers(), listStudentTags()])
-    : [[], []];
+  const responsibleUsers = canManageSessionSettings ? await listAttendanceResponsibleUsers() : [];
 
   if (!roster) {
     return (
@@ -227,23 +224,6 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
                   </small>
                 </span>
               </label>
-              <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
-                <b>תוויות קהל יעד</b>
-                <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
-                  {availableTags.length ? availableTags.map((tag) => (
-                    <label key={`session-tag-${tag.id}`} className={`attendance-filter-chip${(roster.session.tagFilter || []).includes(tag.id) ? " active" : ""}`}>
-                      <input
-                        type="checkbox"
-                        name="tagFilter"
-                        value={tag.id}
-                        defaultChecked={(roster.session.tagFilter || []).includes(tag.id)}
-                        style={{ marginInlineEnd: 6 }}
-                      />
-                      {tag.name}
-                    </label>
-                  )) : <span className="muted">אין עדיין תוויות במערכת.</span>}
-                </div>
-              </div>
             </>
           ) : null}
           <div className="quick-actions">

@@ -80,6 +80,31 @@ function FilterCheckboxFieldset({ legend, name, options, helperText = "" }) {
   );
 }
 
+function SessionTypeFieldset({ options, defaultValue = "" }) {
+  return (
+    <div className="attendance-session-type-fieldset">
+      <div className="attendance-session-type-head">
+        <span>סוג מפגש</span>
+        <small>בחירת סוג המפגש עצמו</small>
+      </div>
+      <div className="attendance-session-type-list">
+        {options.map((value) => (
+          <label key={value} className="attendance-session-type-chip">
+            <input
+              type="radio"
+              name="sessionType"
+              value={value}
+              defaultChecked={defaultValue === value}
+              required
+            />
+            <span>{ATTENDANCE_SESSION_TYPE_LABELS[value]}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -350,18 +375,17 @@ export default async function AttendancePage({ searchParams }) {
         <section className="card glass">
           <h3>יצירת מפגש חדש</h3>
           <form action={createAttendanceSessionAction} className="grid">
-            <select name="institution" defaultValue="" required={!currentUser.is_super_admin}>
-              <option value="">{currentUser.is_super_admin ? "כל המוסדות או בחר מסנן מוסדות" : "בחר מוסד"}</option>
-              {Object.entries(INSTITUTIONS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-            <select name="sessionType" defaultValue={defaultSessionType} required>
-              <option value="">בחר סוג מפגש</option>
-              {selectableSessionTypes.map((value) => (
-                <option key={value} value={value}>{ATTENDANCE_SESSION_TYPE_LABELS[value]}</option>
-              ))}
-            </select>
+            {currentUser.is_super_admin ? (
+              <input type="hidden" name="institution" value="" />
+            ) : (
+              <select name="institution" defaultValue="" required>
+                <option value="">בחר מוסד</option>
+                {Object.entries(INSTITUTIONS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            )}
+            <SessionTypeFieldset options={selectableSessionTypes} defaultValue={defaultSessionType} />
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />

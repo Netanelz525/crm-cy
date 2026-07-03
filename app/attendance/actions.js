@@ -74,8 +74,7 @@ export async function saveAttendanceSessionDetailsAction(formData) {
     sourceNote: clean(formData.get("sourceNote")),
     ...(canManageSessionSettings ? {
       responsibleUserId: formData.get("responsibleUserId"),
-      visibleToStudents: clean(formData.get("visibleToStudents")) === "1",
-      tagFilter: cleanList(formData.getAll("tagFilter"))
+      visibleToStudents: clean(formData.get("visibleToStudents")) === "1"
     } : {})
   });
 

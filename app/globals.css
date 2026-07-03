@@ -854,6 +854,70 @@ button {
   margin-top: 2px;
 }
 
+.attendance-session-type-fieldset {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #d8c7ef;
+  border-radius: 8px;
+  background: #fbf8ff;
+}
+
+.attendance-session-type-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: #4c2671;
+  font-weight: 800;
+}
+
+.attendance-session-type-head small {
+  color: #7a5b96;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.attendance-session-type-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attendance-session-type-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #c8addf;
+  border-radius: 999px;
+  background: #fff;
+  color: #4c2671;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.attendance-session-type-chip input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.attendance-session-type-chip:has(input:checked) {
+  background: #6b3fa0;
+  border-color: #6b3fa0;
+  color: #fff;
+}
+
+.attendance-session-type-chip:has(input:focus-visible) {
+  outline: 2px solid rgba(107, 63, 160, 0.28);
+  outline-offset: 2px;
+}
+
 .attendance-filter-hint {
   font-size: 0.9rem;
   line-height: 1.4;
