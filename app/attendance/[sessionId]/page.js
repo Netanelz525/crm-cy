@@ -20,6 +20,7 @@ import {
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
 import { getCurrentAppUser } from "../../../lib/rbac";
 import { listStudentTags } from "../../../lib/student-tags";
+import ResponsibleUserPicker from "../responsible-user-picker";
 
 function clean(value) {
   return String(value || "").trim();
@@ -208,26 +209,23 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </label>
           {canManageSessionSettings ? (
             <>
-              <label>
-                <span className="muted">איש צוות אחראי</span>
-                <select name="responsibleUserId" defaultValue={roster.session.responsibleUserId || ""}>
-                  <option value="">ללא אחראי</option>
-                  {responsibleUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.displayName}{user.email ? ` | ${user.email}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="email-filter-chip" style={{ alignSelf: "end" }}>
+              <ResponsibleUserPicker users={responsibleUsers} defaultValue={roster.session.responsibleUserId || ""} />
+              <label className="attendance-visibility-toggle">
                 <input
                   type="checkbox"
-                  className="email-filter-chip-input"
                   name="visibleToStudents"
                   value="1"
                   defaultChecked={roster.session.visibleToStudents}
                 />
-                <span>גלוי לתלמידים בכרטיס האישי</span>
+                <span className="attendance-visibility-box" aria-hidden="true" />
+                <span>
+                  <strong>גלוי לתלמידים</strong>
+                  <small>
+                    {roster.session.visibleToStudents
+                      ? "מופעל עכשיו. תלמידים רלוונטיים יראו את המפגש כל עוד הוא פתוח."
+                      : "כבוי עכשיו. תלמידים לא יראו את המפגש עד סימון התיבה."}
+                  </small>
+                </span>
               </label>
               <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
                 <b>תוויות קהל יעד</b>

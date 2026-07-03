@@ -14,6 +14,7 @@ import { getCurrentAppUser } from "../../lib/rbac";
 import { listStudentTags } from "../../lib/student-tags";
 import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction, setAttendanceSessionsBulkLockAction } from "./actions";
+import ResponsibleUserPicker from "./responsible-user-picker";
 
 function clean(value) {
   return String(value || "").trim();
@@ -366,17 +367,14 @@ export default async function AttendancePage({ searchParams }) {
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
             {canUseSessionAudienceFilters ? (
               <>
-                <select name="responsibleUserId" defaultValue="">
-                  <option value="">ללא איש צוות אחראי</option>
-                  {responsibleUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.displayName}{user.email ? ` | ${user.email}` : ""}
-                    </option>
-                  ))}
-                </select>
-                <label className="email-filter-chip" style={{ alignSelf: "center" }}>
-                  <input type="checkbox" className="email-filter-chip-input" name="visibleToStudents" value="1" />
-                  <span>גלוי לתלמידים בכרטיס האישי</span>
+                <ResponsibleUserPicker users={responsibleUsers} />
+                <label className="attendance-visibility-toggle">
+                  <input type="checkbox" name="visibleToStudents" value="1" />
+                  <span className="attendance-visibility-box" aria-hidden="true" />
+                  <span>
+                    <strong>גלוי לתלמידים</strong>
+                    <small>כבוי כברירת מחדל. כשהתיבה מסומנת, תלמידים יראו את המפגש בכרטיס האישי.</small>
+                  </span>
                 </label>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <div className="muted" style={{ marginBottom: 10 }}>

@@ -771,6 +771,89 @@ button {
   color: #fff;
 }
 
+.attendance-responsible-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.attendance-responsible-picker input[type="search"] {
+  min-height: 38px;
+}
+
+.attendance-responsible-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.attendance-visibility-toggle {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid #cbd8e8;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.attendance-visibility-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.attendance-visibility-box {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #9fb4ca;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+
+.attendance-visibility-toggle input:checked + .attendance-visibility-box {
+  border-color: #0f5fa4;
+  background: #0f5fa4;
+}
+
+.attendance-visibility-toggle input:checked + .attendance-visibility-box::after {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 12px;
+  margin: 2px auto 0;
+  border: solid #fff;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.attendance-visibility-toggle:has(input:checked) {
+  border-color: #0f5fa4;
+  background: #edf6ff;
+}
+
+.attendance-visibility-toggle:has(input:focus-visible) {
+  outline: 2px solid rgba(11, 79, 140, 0.28);
+  outline-offset: 2px;
+}
+
+.attendance-visibility-toggle strong,
+.attendance-visibility-toggle small {
+  display: block;
+}
+
+.attendance-visibility-toggle small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
 .attendance-filter-hint {
   font-size: 0.9rem;
   line-height: 1.4;
