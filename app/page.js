@@ -10,6 +10,7 @@ import {
   clean,
   columnText,
   DEFAULT_INSTITUTION_COLUMN_KEYS,
+  enumLabel,
   FIELD_DEF_MAP,
   getByPath,
   INSTITUTIONS,
@@ -31,6 +32,15 @@ function PhoneLink({ phoneObj }) {
   const href = phoneHref(phoneObj);
   if (!href) return text;
   return <a href={href}>{text}</a>;
+}
+
+function StudentCardMeta({ student }) {
+  return (
+    <div className="student-card-meta-row">
+      <span>מוסד: {enumLabel("currentInstitution", student?.currentInstitution)}</span>
+      <span>שיעור: {classLabel(student?.class)}</span>
+    </div>
+  );
 }
 
 function fieldPhoneHref(student, fieldKey) {
@@ -382,6 +392,7 @@ export default async function HomePage({ searchParams }) {
                 <div className="student-mobile-head">
                   <Link className="student-link" href={"/students/" + student.id}>{student.label}</Link>
                 </div>
+                <StudentCardMeta student={student} />
                 <div className="student-mobile-grid">
                   {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
                 </div>
@@ -396,8 +407,8 @@ export default async function HomePage({ searchParams }) {
               <div key={student.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
                 <div className="student-mobile-head">
                   <Link className="student-link" href={"/students/" + student.id}>{student.label}</Link>
-                  <span>{classLabel(student.class)}</span>
                 </div>
+                <StudentCardMeta student={student} />
                 <div className="student-mobile-grid">
                   <div><b>ת"ז:</b> {student.tznum || "-"}</div>
                   <div><b>גיל:</b> {ageOf(student.dateofbirth) ?? "-"}</div>

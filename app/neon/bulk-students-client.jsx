@@ -5,7 +5,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getStudentTagTheme } from "../../lib/student-tag-theme";
-import { ageOf, buildMissingState, classLabel, clean, columnText, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
+import { ageOf, buildMissingState, classLabel, clean, columnText, enumLabel, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
 import { addStudentContactLiveAction, addStudentEventLiveAction, addStudentTagLiveAction, bulkUpdateStudentsLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
 import { bulkDeleteNeonStudentsAction } from "./actions";
 
@@ -180,6 +180,15 @@ function StudentTagSummary({ student, onRemoveTag, disabled = false }) {
           <span aria-hidden="true">×</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function StudentCardMeta({ student }) {
+  return (
+    <div className="student-card-meta-row">
+      <span>מוסד: {enumLabel("currentInstitution", student?.currentInstitution)}</span>
+      <span>שיעור: {classLabel(student?.class)}</span>
     </div>
   );
 }
@@ -797,6 +806,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <div className="student-mobile-head">
                   <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                 </div>
+                <StudentCardMeta student={student} />
                 <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
                 <div className="student-mobile-contact">
                   <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}
@@ -825,8 +835,8 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <div className="student-mobile-head">
                   <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
                   {showMatchScores ? <MatchScoreBadge score={student._matchScore} /> : null}
-                  <span>{classLabel(student.class)}</span>
                 </div>
+                <StudentCardMeta student={student} />
                 <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
                 <div className="student-mobile-contact">
                   <b>יצירת קשר אחרונה:</b> {student?.latestContact ? `${formatDateValue(student.latestContact.contactDate)} | ${student.latestContact.noteText || "-"}` : "אין תיעוד"}

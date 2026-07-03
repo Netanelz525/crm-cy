@@ -2356,6 +2356,26 @@ td {
   margin-bottom: 10px;
 }
 
+.student-card-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+
+.student-card-meta-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid #d5e1f0;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #23405f;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .student-tag-chip-form {
   margin: 0;
 }
