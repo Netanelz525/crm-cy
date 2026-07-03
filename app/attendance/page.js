@@ -6,10 +6,12 @@ import {
   ATTENDANCE_SESSION_TYPE_LABELS,
   ATTENDANCE_SESSION_TYPE_ORDER,
   getAttendanceSummaryReport,
+  listAttendanceResponsibleUsers,
   listAttendanceSessions
 } from "../../lib/attendance";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser } from "../../lib/rbac";
+import { listStudentTags } from "../../lib/student-tags";
 import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction, setAttendanceSessionsBulkLockAction } from "./actions";
 
@@ -37,11 +39,13 @@ function formatSessionAudience(session) {
   const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
   const registrationLabels = (session?.registrationFilterOptions || []).map((item) => item.label);
   const familyStatusLabels = (session?.familyStatusFilterOptions || []).map((item) => item.label);
+  const tagLabels = (session?.tagFilterOptions || []).map((item) => item.label);
   const parts = [];
   if (institutionLabels.length) parts.push(`מוסדות: ${institutionLabels.join(", ")}`);
   if (classLabels.length) parts.push(`שיעורים: ${classLabels.join(", ")}`);
   if (registrationLabels.length) parts.push(`רישום: ${registrationLabels.join(", ")}`);
   if (familyStatusLabels.length) parts.push(`סטטוס משפחתי: ${familyStatusLabels.join(", ")}`);
+  if (tagLabels.length) parts.push(`תוויות: ${tagLabels.join(", ")}`);
   return parts.join(" | ");
 }
 
@@ -195,6 +199,9 @@ export default async function AttendancePage({ searchParams }) {
         }
       : { limit: 1000 }
   );
+  const [responsibleUsers, availableTags] = canUseSessionAudienceFilters
+    ? await Promise.all([listAttendanceResponsibleUsers(), listStudentTags()])
+    : [[], []];
   const summaryReport = reportFilters.institution
     ? await getAttendanceSummaryReport({
         institution: reportFilters.institution,
@@ -207,6 +214,7 @@ export default async function AttendancePage({ searchParams }) {
   const classOptions = checkboxOptionsFromMap(CLASS_LABELS);
   const registrationOptions = checkboxOptionsFromMap(ENUM_LABELS.registration || {});
   const familyStatusOptions = checkboxOptionsFromMap(ENUM_LABELS.familystatus || {});
+  const tagOptions = availableTags.map((tag) => ({ value: tag.id, label: tag.name }));
   const selectableSessionTypes = currentUser.is_manager || currentUser.is_super_admin
     ? ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER
     : ATTENDANCE_SESSION_TYPE_ORDER;
@@ -358,6 +366,18 @@ export default async function AttendancePage({ searchParams }) {
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
             {canUseSessionAudienceFilters ? (
               <>
+                <select name="responsibleUserId" defaultValue="">
+                  <option value="">ללא איש צוות אחראי</option>
+                  {responsibleUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.displayName}{user.email ? ` | ${user.email}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <label className="email-filter-chip" style={{ alignSelf: "center" }}>
+                  <input type="checkbox" className="email-filter-chip-input" name="visibleToStudents" value="1" />
+                  <span>גלוי לתלמידים בכרטיס האישי</span>
+                </label>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <div className="muted" style={{ marginBottom: 10 }}>
                     אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד. לסופר אדמין בלי מוסד ובלי מסנן מוסדות, המפגש יחול על כל המוסדות.
@@ -369,6 +389,7 @@ export default async function AttendancePage({ searchParams }) {
                     <FilterCheckboxFieldset legend="שיעורים" name="classFilter" options={classOptions} />
                     <FilterCheckboxFieldset legend="רישום" name="registrationFilter" options={registrationOptions} />
                     <FilterCheckboxFieldset legend="סטטוס משפחתי" name="familyStatusFilter" options={familyStatusOptions} />
+                    <FilterCheckboxFieldset legend="תוויות" name="tagFilter" options={tagOptions} helperText="הוסף למפגש רק תלמידים עם אחת מהתוויות שנבחרו" />
                   </div>
                 </div>
               </>
@@ -413,7 +434,9 @@ export default async function AttendancePage({ searchParams }) {
                     <strong>{formatSessionLabel(session)}</strong>
                     {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
                     <span>נוצר על ידי: {session.createdByDisplayName}</span>
+                    <span>אחראי: {session.responsibleDisplayName || "לא הוגדר"}</span>
                     <span>{session.isLocked ? "נעול לעדכונים" : "פתוח לעדכונים"}</span>
+                    <span>{session.visibleToStudents ? "גלוי לתלמידים" : "מוסתר מתלמידים"}</span>
                     {formatSessionAudience(session) ? <span>{formatSessionAudience(session)}</span> : null}
                     {session.sourceNote ? <span>{session.sourceNote}</span> : <span>{session.id}</span>}
                   </Link>

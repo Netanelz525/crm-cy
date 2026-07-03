@@ -37,6 +37,7 @@ export async function createAttendanceSessionAction(formData) {
   const classFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("classFilter")) : [];
   const registrationFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("registrationFilter")) : [];
   const familyStatusFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("familyStatusFilter")) : [];
+  const tagFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("tagFilter")) : [];
 
   const session = await createAttendanceSession({
     id: crypto.randomUUID(),
@@ -49,6 +50,9 @@ export async function createAttendanceSessionAction(formData) {
     classFilter,
     registrationFilter,
     familyStatusFilter,
+    tagFilter,
+    responsibleUserId: canUseSessionAudienceFilters ? formData.get("responsibleUserId") : "",
+    visibleToStudents: canUseSessionAudienceFilters && clean(formData.get("visibleToStudents")) === "1",
     createdByUserId: user.clerk_user_id
   });
 
@@ -58,7 +62,8 @@ export async function createAttendanceSessionAction(formData) {
 }
 
 export async function saveAttendanceSessionDetailsAction(formData) {
-  await requireAttendanceUser();
+  const user = await requireAttendanceUser();
+  const canManageSessionSettings = user.is_manager || user.is_super_admin;
   const sessionId = clean(formData.get("sessionId"));
   if (!sessionId) throw new Error("Missing attendance session id.");
 
@@ -66,7 +71,12 @@ export async function saveAttendanceSessionDetailsAction(formData) {
     title: clean(formData.get("title")),
     sessionType: clean(formData.get("sessionType")),
     sessionDate: clean(formData.get("sessionDate")),
-    sourceNote: clean(formData.get("sourceNote"))
+    sourceNote: clean(formData.get("sourceNote")),
+    ...(canManageSessionSettings ? {
+      responsibleUserId: formData.get("responsibleUserId"),
+      visibleToStudents: clean(formData.get("visibleToStudents")) === "1",
+      tagFilter: cleanList(formData.getAll("tagFilter"))
+    } : {})
   });
 
   revalidatePath("/attendance");

@@ -100,7 +100,10 @@ export async function PATCH(request, { params }) {
         title: body.title ?? body.sessionName,
         sourceNote: body.sourceNote,
         sessionType: body.sessionType,
-        sessionDate: body.sessionDate
+        sessionDate: body.sessionDate,
+        responsibleUserId: body.responsibleUserId,
+        visibleToStudents: body.visibleToStudents,
+        tagFilter: Array.isArray(body.tagFilter) ? body.tagFilter : body.tagIds
       });
       const roster = await getAttendanceRoster(sessionId);
       if (!roster) {

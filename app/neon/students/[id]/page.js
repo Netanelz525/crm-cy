@@ -245,7 +245,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const student = await getNeonStudentById(studentId);
   if (!student) notFound();
 
-  const canManageStudent = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
+  const canManageStudent = Boolean(currentUser?.is_team_member || currentUser?.is_manager || currentUser?.is_super_admin);
+  const isStudentUser = !canManageStudent && clean(currentUser?.linked_student_id) === clean(studentId);
+  const canShowEmailSection = !isStudentUser;
+  const canViewEmailRecords = !isStudentUser && currentUser.can_view_email_reports;
+  const canViewContactRecords = canManageStudent;
+  const canViewAttendanceHistory = canManageStudent;
   const canEdit = canManageStudent && canEditStudentCard(currentUser, studentId);
   const canManageDocuments = assertStudentAccess(currentUser, studentId);
   const editMode = canEdit && clean(resolvedSearchParams?.edit) === "1";
@@ -264,12 +269,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const availableTags = await listStudentTags();
   const studentTagsMap = await getStudentTagsByStudentIds([studentId]);
   const assignedTags = studentTagsMap[studentId] || [];
-  const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
+  const emailDeliveries = canViewEmailRecords ? await listStudentEmailDeliveries(studentId, 8) : [];
   const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents] = await Promise.all([
-    getAttendanceSummaryForStudent(studentId),
-    listAttendanceHistoryForStudent(studentId, { limit: 8 }),
+    canViewAttendanceHistory ? getAttendanceSummaryForStudent(studentId) : Promise.resolve(null),
+    canViewAttendanceHistory ? listAttendanceHistoryForStudent(studentId, { limit: 8 }) : Promise.resolve([]),
     listOpenAttendanceSessionsForStudent(studentId, { limit: 8 }),
-    listStudentContactLogs(studentId, 8),
+    canViewContactRecords ? listStudentContactLogs(studentId, 8) : Promise.resolve([]),
     listStudentEvents(studentId, 12)
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
@@ -360,15 +365,17 @@ export default async function NeonStudentPage({ params, searchParams }) {
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
-            <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span>
-            <span className="linked-record-pill">יצירת קשר: {contactLogs.length}</span>
+            {canShowEmailSection ? <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span> : null}
+            {canViewContactRecords ? <span className="linked-record-pill">יצירת קשר: {contactLogs.length}</span> : null}
             <span className="linked-record-pill">אירועים: {studentEvents.length}</span>
-            <span className="linked-record-pill">מפגשים: {attendanceSummary?.totalSessions || 0}</span>
+            <span className="linked-record-pill">{canViewAttendanceHistory ? `מפגשים: ${attendanceSummary?.totalSessions || 0}` : `פתוחים: ${openAttendanceSessions.length}`}</span>
           </div>
         </summary>
         <div className="linked-record-groups">
           <StudentEventsLiveClient studentId={studentId} initialEvents={studentEvents} />
-          <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} canManageContact={canManageStudent} />
+          {canViewContactRecords ? (
+            <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} canManageContact={canManageStudent} />
+          ) : null}
           <details className="linked-record-group">
             <summary className="linked-record-group-summary">
               <div>
@@ -432,6 +439,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
               )}
             </div>
           </details>
+          {canShowEmailSection ? (
           <details className="linked-record-group">
             <summary className="linked-record-group-summary">
               <div>
@@ -475,14 +483,17 @@ export default async function NeonStudentPage({ params, searchParams }) {
               )}
             </div>
           </details>
+          ) : null}
           <details className="linked-record-group">
             <summary className="linked-record-group-summary">
               <div>
                 <b>נוכחות</b>
-                <div className="linked-record-meta">היסטוריית מפגשים ונתוני נוכחות.</div>
+                <div className="linked-record-meta">
+                  {canViewAttendanceHistory ? "היסטוריית מפגשים ונתוני נוכחות." : "מפגשים פתוחים שסומנו כגלויים לתלמיד."}
+                </div>
               </div>
               <div className="linked-records-summary">
-                <span className="linked-record-pill">מפגשים: {attendanceSummary?.totalSessions || 0}</span>
+                {canViewAttendanceHistory ? <span className="linked-record-pill">מפגשים: {attendanceSummary?.totalSessions || 0}</span> : null}
                 <span className="linked-record-pill">פתוחים: {openAttendanceSessions.length}</span>
               </div>
             </summary>
@@ -491,8 +502,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
                 studentId={studentId}
                 sessions={openAttendanceSessions}
                 action={updateStudentOpenAttendanceAction}
+                canOpenSessionPage={canManageStudent}
               />
-              <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
+              {canViewAttendanceHistory ? (
+                <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
+              ) : null}
             </div>
           </details>
         </div>

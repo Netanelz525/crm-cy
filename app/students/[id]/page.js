@@ -253,6 +253,11 @@ export default async function StudentPage({ params, searchParams }) {
 
   const canEdit = canEditStudentCard(currentUser, studentId);
   const canDelete = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
+  const isPrivilegedUser = Boolean(currentUser?.is_team_member || currentUser?.is_manager || currentUser?.is_super_admin);
+  const isStudentUser = !isPrivilegedUser && clean(currentUser?.linked_student_id) === clean(studentId);
+  const canShowEmailSection = !isStudentUser;
+  const canViewEmailRecords = !isStudentUser && currentUser.can_view_email_reports;
+  const canViewAttendanceHistory = !isStudentUser;
   const editMode = canEdit && clean(resolvedSearchParams?.edit) === "1";
   const advancedMode = editMode && clean(resolvedSearchParams?.advanced) === "1";
   const updated = clean(resolvedSearchParams?.updated) === "1";
@@ -262,10 +267,10 @@ export default async function StudentPage({ params, searchParams }) {
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const documents = await listStudentDocuments(studentId);
-  const emailDeliveries = currentUser.can_view_email_reports ? await listStudentEmailDeliveries(studentId, 8) : [];
+  const emailDeliveries = canViewEmailRecords ? await listStudentEmailDeliveries(studentId, 8) : [];
   const [attendanceSummary, attendanceHistory] = await Promise.all([
-    getAttendanceSummaryForStudent(studentId),
-    listAttendanceHistoryForStudent(studentId, { limit: 8 })
+    canViewAttendanceHistory ? getAttendanceSummaryForStudent(studentId) : Promise.resolve(null),
+    canViewAttendanceHistory ? listAttendanceHistoryForStudent(studentId, { limit: 8 }) : Promise.resolve([])
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
@@ -338,10 +343,10 @@ export default async function StudentPage({ params, searchParams }) {
           </div>
           <div className="linked-records-summary">
             <span className="linked-record-pill">מסמכים: {documents.length}</span>
-            <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span>
+            {canShowEmailSection ? <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span> : null}
           </div>
         </summary>
-        <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} />
+        {canViewAttendanceHistory ? <AttendanceHistoryPanel embedded summary={attendanceSummary} history={attendanceHistory} /> : null}
         <div className="linked-records-grid">
           {!documents.length ? (
             <div className="linked-record-card">
@@ -364,7 +369,7 @@ export default async function StudentPage({ params, searchParams }) {
               </div>
             ))
           )}
-          {!currentUser.can_view_email_reports ? (
+          {!canShowEmailSection ? null : !currentUser.can_view_email_reports ? (
             <div className="linked-record-card placeholder">
               <b>מיילים</b>
               <div className="linked-record-meta">היסטוריית מיילים זמינה למשתמשים עם הרשאת דוחות.</div>

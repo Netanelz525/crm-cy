@@ -97,6 +97,9 @@ export async function POST(request) {
       classFilter: cleanList(body.classFilter),
       registrationFilter: cleanList(body.registrationFilter),
       familyStatusFilter: cleanList(body.familyStatusFilter || body.famliystatusFilter),
+      tagFilter: cleanList(body.tagFilter || body.tagIds),
+      responsibleUserId: clean(body.responsibleUserId),
+      visibleToStudents: body.visibleToStudents === true || clean(body.visibleToStudents) === "1",
       createdByUserId: clean(body.createdByUserId) || `api:${clean(tokenCheck.auth?.id) || "unknown"}`
     });
 

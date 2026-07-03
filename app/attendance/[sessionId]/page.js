@@ -14,10 +14,12 @@ import {
   ATTENDANCE_EMAIL_RECIPIENT_LABELS,
   ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER,
   ATTENDANCE_SESSION_TYPE_LABELS,
-  getAttendanceRoster
+  getAttendanceRoster,
+  listAttendanceResponsibleUsers
 } from "../../../lib/attendance";
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
 import { getCurrentAppUser } from "../../../lib/rbac";
+import { listStudentTags } from "../../../lib/student-tags";
 
 function clean(value) {
   return String(value || "").trim();
@@ -34,11 +36,13 @@ function formatSessionAudience(session) {
   const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
   const registrationLabels = (session?.registrationFilterOptions || []).map((item) => item.label);
   const familyStatusLabels = (session?.familyStatusFilterOptions || []).map((item) => item.label);
+  const tagLabels = (session?.tagFilterOptions || []).map((item) => item.label);
   const parts = [];
   if (institutionLabels.length) parts.push(`מוסדות: ${institutionLabels.join(", ")}`);
   if (classLabels.length) parts.push(`שיעורים: ${classLabels.join(", ")}`);
   if (registrationLabels.length) parts.push(`רישום: ${registrationLabels.join(", ")}`);
   if (familyStatusLabels.length) parts.push(`סטטוס משפחתי: ${familyStatusLabels.join(", ")}`);
+  if (tagLabels.length) parts.push(`תוויות: ${tagLabels.join(", ")}`);
   return parts.join(" | ");
 }
 
@@ -69,6 +73,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const roster = sessionId ? await getAttendanceRoster(sessionId) : null;
   const statusOptions = Array.isArray(roster?.session?.statusOptions) ? roster.session.statusOptions : [];
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
+  const canManageSessionSettings = currentUser.is_manager || currentUser.is_super_admin;
+  const [responsibleUsers, availableTags] = canManageSessionSettings
+    ? await Promise.all([listAttendanceResponsibleUsers(), listStudentTags()])
+    : [[], []];
 
   if (!roster) {
     return (
@@ -92,6 +100,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     roster.session.sessionWeekdayLabel,
     roster.session.sessionHebrewDateLabel,
     roster.session.isLocked ? "נעול" : "פתוח לעדכונים",
+    roster.session.visibleToStudents ? "גלוי לתלמידים" : "מוסתר מתלמידים",
+    roster.session.responsibleDisplayName ? `אחראי: ${roster.session.responsibleDisplayName}` : "",
     sessionAudienceSummary
   ].filter(Boolean).join(" | ");
 
@@ -196,6 +206,48 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <span className="muted">הערת מקור</span>
             <textarea name="sourceNote" rows={3} defaultValue={roster.session.sourceNote} />
           </label>
+          {canManageSessionSettings ? (
+            <>
+              <label>
+                <span className="muted">איש צוות אחראי</span>
+                <select name="responsibleUserId" defaultValue={roster.session.responsibleUserId || ""}>
+                  <option value="">ללא אחראי</option>
+                  {responsibleUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.displayName}{user.email ? ` | ${user.email}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="email-filter-chip" style={{ alignSelf: "end" }}>
+                <input
+                  type="checkbox"
+                  className="email-filter-chip-input"
+                  name="visibleToStudents"
+                  value="1"
+                  defaultChecked={roster.session.visibleToStudents}
+                />
+                <span>גלוי לתלמידים בכרטיס האישי</span>
+              </label>
+              <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+                <b>תוויות קהל יעד</b>
+                <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
+                  {availableTags.length ? availableTags.map((tag) => (
+                    <label key={`session-tag-${tag.id}`} className={`attendance-filter-chip${(roster.session.tagFilter || []).includes(tag.id) ? " active" : ""}`}>
+                      <input
+                        type="checkbox"
+                        name="tagFilter"
+                        value={tag.id}
+                        defaultChecked={(roster.session.tagFilter || []).includes(tag.id)}
+                        style={{ marginInlineEnd: 6 }}
+                      />
+                      {tag.name}
+                    </label>
+                  )) : <span className="muted">אין עדיין תוויות במערכת.</span>}
+                </div>
+              </div>
+            </>
+          ) : null}
           <div className="quick-actions">
             <button type="submit" className="quick-action-btn quick-action-outline">שמור פרטי מפגש</button>
           </div>

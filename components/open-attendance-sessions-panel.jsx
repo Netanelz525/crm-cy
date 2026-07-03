@@ -12,7 +12,7 @@ function formatDate(value) {
   return date.toLocaleDateString("he-IL");
 }
 
-export default function OpenAttendanceSessionsPanel({ studentId, sessions = [], action }) {
+export default function OpenAttendanceSessionsPanel({ studentId, sessions = [], action, canOpenSessionPage = true }) {
   if (!sessions.length) {
     return (
       <div className="linked-record-card placeholder">
@@ -41,9 +41,11 @@ export default function OpenAttendanceSessionsPanel({ studentId, sessions = [], 
                   {session.sessionWeekdayLabel ? ` | ${session.sessionWeekdayLabel}` : ""}
                 </div>
               </div>
-              <Link className="linked-record-title" href={`/attendance/${encodeURIComponent(session.id)}`}>
-                פתח מפגש
-              </Link>
+              {canOpenSessionPage ? (
+                <Link className="linked-record-title" href={`/attendance/${encodeURIComponent(session.id)}`}>
+                  פתח מפגש
+                </Link>
+              ) : null}
             </div>
             <div className="open-attendance-fields">
               <label>
