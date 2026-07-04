@@ -674,6 +674,13 @@ button {
   font-weight: 700;
 }
 
+.attendance-student-link {
+  display: inline-flex;
+  color: #0b4f8c;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .attendance-contact-actions {
   display: flex;
   align-items: flex-start;

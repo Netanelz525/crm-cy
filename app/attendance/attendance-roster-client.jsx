@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
 
@@ -35,6 +36,16 @@ function whatsappHref(phoneObj) {
   const calling = clean(phoneObj?.primaryPhoneCallingCode).replace(/[^\d]/g, "");
   const fullNumber = `${calling}${number}`.replace(/^0+/, "").replace(/[^\d]/g, "");
   return fullNumber ? `https://wa.me/${fullNumber}` : "";
+}
+
+function StudentNameLink({ student }) {
+  const studentId = clean(student?.id);
+  if (!studentId) return <div className="attendance-student-name">{student?.label || "-"}</div>;
+  return (
+    <Link className="attendance-student-name attendance-student-link" href={`/neon/students/${studentId}`}>
+      {student?.label || "-"}
+    </Link>
+  );
 }
 
 function hasPhone(phoneObj) {
@@ -397,7 +408,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               {exitingRows.map((student) => (
                 <tr key={student._transientKey} className="attendance-row-exit-highlight">
                   <td className="attendance-student-cell">
-                    <div className="attendance-student-name">{student.label}</div>
+                    <StudentNameLink student={student} />
                   </td>
                   <td className="attendance-class-cell">{student.classLabel}</td>
                   <td className="attendance-status-cell">
@@ -409,7 +420,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               {filteredRows.map((student) => (
                 <tr key={student.id} className={flashRowIds.includes(student.id) ? "attendance-row-live-highlight" : ""}>
                   <td className="attendance-student-cell">
-                    <div className="attendance-student-name">{student.label}</div>
+                    <StudentNameLink student={student} />
                     <div className="attendance-contact-actions">
                       <ContactActionButton href={phoneHref(student.phone)} label="חיוג" />
                       <ContactActionButton href={whatsappHref(student.phone)} label="WhatsApp" external />
