@@ -306,6 +306,14 @@ a {
   box-shadow: 0 6px 16px rgba(13, 37, 76, 0.14);
 }
 
+.quick-action-btn:disabled:hover,
+.quick-action-btn[aria-disabled="true"]:hover,
+.btn:disabled:hover,
+.btn[aria-disabled="true"]:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .quick-action-outline {
   background: #fff;
   color: var(--text);
@@ -345,6 +353,14 @@ button {
   color: #fff;
   border: 0;
   font-weight: 700;
+}
+
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: wait;
+  opacity: 0.68;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn {

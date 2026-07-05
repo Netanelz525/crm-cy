@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import PendingSubmitButton from "../../components/pending-submit-button";
 import { canUsePrintQueue, listPrintJobs, listPrintUsageByUser, MAX_PRINT_FILE_BYTES } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { createPrintJobAction } from "./actions";
@@ -85,7 +86,9 @@ export default async function PrintPage({ searchParams }) {
               <span className="muted">כמות עותקים</span>
               <input type="number" name="copies" min="1" max="99" step="1" defaultValue="1" required />
             </label>
-            <button type="submit" className="quick-action-btn quick-action-primary">שלח להדפסה</button>
+            <PendingSubmitButton className="quick-action-btn quick-action-primary" pendingText="שולח להדפסה...">
+              שלח להדפסה
+            </PendingSubmitButton>
           </form>
         </div>
 

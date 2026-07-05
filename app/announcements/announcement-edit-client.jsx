@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PendingSubmitButton from "../../components/pending-submit-button";
 import AnnouncementComposerClient from "./announcement-composer-client";
 import { printAnnouncementAction, updateAnnouncementAction } from "./actions";
 
@@ -42,7 +43,9 @@ export default function AnnouncementEditClient({ announcement, templates, initia
                 <span className="muted">עותקים</span>
                 <input type="number" name="copies" min="1" max="99" step="1" defaultValue="1" required />
               </label>
-              <button type="submit" className="btn btn-primary">שלח להדפסה</button>
+              <PendingSubmitButton className="btn btn-primary" pendingText="שולח להדפסה...">
+                שלח להדפסה
+              </PendingSubmitButton>
             </form>
           </div>
         </div>
