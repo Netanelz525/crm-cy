@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 export default function PendingSubmitButton({
@@ -10,22 +10,26 @@ export default function PendingSubmitButton({
   disabled = false
 }) {
   const { pending } = useFormStatus();
-  const [submitted, setSubmitted] = useState(false);
-  const isDisabled = disabled || pending || submitted;
+  const clickLockedRef = useRef(false);
+  const isDisabled = disabled || pending;
 
   function handleClick(event) {
     if (isDisabled) {
       event.preventDefault();
       return;
     }
+    if (clickLockedRef.current) {
+      event.preventDefault();
+      return;
+    }
     const form = event.currentTarget.form;
     if (form && !form.checkValidity()) return;
-    setSubmitted(true);
+    clickLockedRef.current = true;
   }
 
   return (
     <button type="submit" className={className} disabled={isDisabled} aria-disabled={isDisabled} onClick={handleClick}>
-      {pending || submitted ? pendingText : children}
+      {pending ? pendingText : children}
     </button>
   );
 }

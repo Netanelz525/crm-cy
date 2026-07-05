@@ -43,12 +43,14 @@ export default async function PrintPage({ searchParams }) {
   const error = clean(resolvedSearchParams?.error);
   const [jobs, usageByUser] = await Promise.all([
     listPrintJobs({ limit: 50 }),
-    listPrintUsageByUser({ limit: 30 })
+    user.is_super_admin ? listPrintUsageByUser({ limit: 30 }) : Promise.resolve([])
   ]);
   const pendingJobs = jobs.filter((job) => job.status === "pending").length;
   const claimedJobs = jobs.filter((job) => job.status === "claimed").length;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
-  const totalTrackedPages = usageByUser.reduce((sum, row) => sum + row.totalPrintPages, 0);
+  const totalTrackedPages = user.is_super_admin
+    ? usageByUser.reduce((sum, row) => sum + row.totalPrintPages, 0)
+    : 0;
 
   return (
     <>
@@ -98,7 +100,7 @@ export default async function PrintPage({ searchParams }) {
             <div><b>{pendingJobs}</b><span>ממתינים</span></div>
             <div><b>{claimedJobs}</b><span>נאספו</span></div>
             <div><b>{completedJobs}</b><span>הושלמו</span></div>
-            <div><b>{totalTrackedPages}</b><span>עמודים רשומים</span></div>
+            {user.is_super_admin ? <div><b>{totalTrackedPages}</b><span>עמודים רשומים</span></div> : null}
           </div>
         </div>
       </section>
@@ -145,25 +147,27 @@ export default async function PrintPage({ searchParams }) {
         )}
       </section>
 
-      <section className="card">
-        <h3>ספירת עמודים לפי משתמש</h3>
-        {!usageByUser.length ? (
-          <p className="muted">עדיין אין נתוני הדפסה לפי משתמש.</p>
-        ) : (
-          <div className="print-usage-grid">
-            {usageByUser.map((row) => (
-              <div key={row.uploadedByUserId || row.uploadedByEmail || row.uploadedByDisplayName} className="linked-record-card">
-                <div className="linked-record-card-top">
-                  <b>{row.uploadedByDisplayName}</b>
-                  <span className="linked-record-pill">{row.totalPrintPages} עמודים</span>
+      {user.is_super_admin ? (
+        <section className="card">
+          <h3>ספירת עמודים לפי משתמש</h3>
+          {!usageByUser.length ? (
+            <p className="muted">עדיין אין נתוני הדפסה לפי משתמש.</p>
+          ) : (
+            <div className="print-usage-grid">
+              {usageByUser.map((row) => (
+                <div key={row.uploadedByUserId || row.uploadedByEmail || row.uploadedByDisplayName} className="linked-record-card">
+                  <div className="linked-record-card-top">
+                    <b>{row.uploadedByDisplayName}</b>
+                    <span className="linked-record-pill">{row.totalPrintPages} עמודים</span>
+                  </div>
+                  <div className="linked-record-meta">{row.uploadedByEmail || "-"}</div>
+                  <div className="linked-record-meta">עבודות: {row.jobsCount} | הושלמו: {row.completedJobsCount}</div>
                 </div>
-                <div className="linked-record-meta">{row.uploadedByEmail || "-"}</div>
-                <div className="linked-record-meta">עבודות: {row.jobsCount} | הושלמו: {row.completedJobsCount}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
     </>
   );
 }
