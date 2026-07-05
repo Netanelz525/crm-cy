@@ -27,7 +27,7 @@ export async function GET(request, { params }) {
       || clean(request.headers.get("accept")).includes("application/octet-stream");
 
     if (wantsRawFile) {
-      const file = await getPrintJobFile(jobId);
+      const file = await getPrintJobFile(jobId, { claimedByTokenId: auth.id });
 
       if (!file) {
         return NextResponse.json({ error: "Print job not found" }, { status: 404 });
@@ -53,7 +53,8 @@ export async function GET(request, { params }) {
 
     const chunk = await getPrintJobFileChunk(jobId, {
       offset: url.searchParams.get("offset"),
-      length: url.searchParams.get("length")
+      length: url.searchParams.get("length"),
+      claimedByTokenId: auth.id
     });
 
     if (!chunk) {
