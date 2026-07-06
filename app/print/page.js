@@ -41,9 +41,10 @@ export default async function PrintPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const uploaded = clean(resolvedSearchParams?.uploaded) === "1";
   const error = clean(resolvedSearchParams?.error);
+  const isSuperAdmin = Boolean(user.is_super_admin);
   const [jobs, usageByUser] = await Promise.all([
-    listPrintJobs({ limit: 50 }),
-    user.is_super_admin ? listPrintUsageByUser({ limit: 30 }) : Promise.resolve([])
+    isSuperAdmin ? listPrintJobs({ limit: 50 }) : Promise.resolve([]),
+    isSuperAdmin ? listPrintUsageByUser({ limit: 30 }) : Promise.resolve([])
   ]);
   const pendingJobs = jobs.filter((job) => job.status === "pending").length;
   const claimedJobs = jobs.filter((job) => job.status === "claimed").length;
@@ -63,7 +64,7 @@ export default async function PrintPage({ searchParams }) {
         </div>
         <div className="quick-actions">
           {!user.is_print_only ? <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה לתלמידים</Link> : null}
-          {user.is_super_admin ? <Link className="quick-action-btn quick-action-outline" href="/admin/api-access">טוקנים לשרת מקומי</Link> : null}
+          {isSuperAdmin ? <Link className="quick-action-btn quick-action-outline" href="/admin/api-access">טוקנים לשרת מקומי</Link> : null}
         </div>
       </div>
 
@@ -94,60 +95,64 @@ export default async function PrintPage({ searchParams }) {
           </form>
         </div>
 
-        <div className="card print-stats-card">
-          <h3>מצב התור</h3>
-          <div className="print-stat-grid">
-            <div><b>{pendingJobs}</b><span>ממתינים</span></div>
-            <div><b>{claimedJobs}</b><span>נאספו</span></div>
-            <div><b>{completedJobs}</b><span>הושלמו</span></div>
-            {user.is_super_admin ? <div><b>{totalTrackedPages}</b><span>עמודים רשומים</span></div> : null}
+        {isSuperAdmin ? (
+          <div className="card print-stats-card">
+            <h3>מצב התור</h3>
+            <div className="print-stat-grid">
+              <div><b>{pendingJobs}</b><span>ממתינים</span></div>
+              <div><b>{claimedJobs}</b><span>נאספו</span></div>
+              <div><b>{completedJobs}</b><span>הושלמו</span></div>
+              <div><b>{totalTrackedPages}</b><span>עמודים רשומים</span></div>
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
-      <section className="card">
-        <h3>תור הדפסה</h3>
-        {!jobs.length ? (
-          <p className="muted">אין כרגע מסמכים בתור ההדפסה.</p>
-        ) : (
-          <div className="desktop-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>קובץ</th>
-                  <th>גודל</th>
-                  <th>עותקים</th>
-                  <th>עמודים</th>
-                  <th>סה"כ</th>
-                  <th>סטטוס</th>
-                  <th>מייל אישור</th>
-                  <th>נשלח על ידי</th>
-                  <th>נוצר</th>
-                  <th>עודכן</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((job) => (
-                  <tr key={job.id}>
-                    <td>{job.fileName}</td>
-                    <td>{formatSize(job.fileSizeBytes)}</td>
-                    <td>{job.copies}</td>
-                    <td>{job.pageCount || "-"}</td>
-                    <td>{job.printedPageCount || (job.pageCount ? job.pageCount * job.copies : "-")}</td>
-                    <td>{statusLabel(job.status)}</td>
-                    <td>{job.receiptSentAt ? "נשלח" : job.receiptError ? "נכשל" : "-"}</td>
-                    <td>{job.uploadedByDisplayName}{job.uploadedByEmail ? ` | ${job.uploadedByEmail}` : ""}</td>
-                    <td>{formatDateTime(job.createdAt)}</td>
-                    <td>{formatDateTime(job.completedAt || job.claimedAt)}</td>
+      {isSuperAdmin ? (
+        <section className="card">
+          <h3>תור הדפסה</h3>
+          {!jobs.length ? (
+            <p className="muted">אין כרגע מסמכים בתור ההדפסה.</p>
+          ) : (
+            <div className="desktop-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>קובץ</th>
+                    <th>גודל</th>
+                    <th>עותקים</th>
+                    <th>עמודים</th>
+                    <th>סה"כ</th>
+                    <th>סטטוס</th>
+                    <th>מייל אישור</th>
+                    <th>נשלח על ידי</th>
+                    <th>נוצר</th>
+                    <th>עודכן</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {jobs.map((job) => (
+                    <tr key={job.id}>
+                      <td>{job.fileName}</td>
+                      <td>{formatSize(job.fileSizeBytes)}</td>
+                      <td>{job.copies}</td>
+                      <td>{job.pageCount || "-"}</td>
+                      <td>{job.printedPageCount || (job.pageCount ? job.pageCount * job.copies : "-")}</td>
+                      <td>{statusLabel(job.status)}</td>
+                      <td>{job.receiptSentAt ? "נשלח" : job.receiptError ? "נכשל" : "-"}</td>
+                      <td>{job.uploadedByDisplayName}{job.uploadedByEmail ? ` | ${job.uploadedByEmail}` : ""}</td>
+                      <td>{formatDateTime(job.createdAt)}</td>
+                      <td>{formatDateTime(job.completedAt || job.claimedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
 
-      {user.is_super_admin ? (
+      {isSuperAdmin ? (
         <section className="card">
           <h3>ספירת עמודים לפי משתמש</h3>
           {!usageByUser.length ? (
