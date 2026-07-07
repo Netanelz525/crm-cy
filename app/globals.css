@@ -1271,6 +1271,40 @@ button[aria-disabled="true"] {
   color: var(--muted);
 }
 
+.print-upload-form > .muted,
+.print-upload-form > .error,
+.print-upload-progress {
+  grid-column: 1 / -1;
+}
+
+.print-upload-progress {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.print-upload-progress div {
+  height: 0.45rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #eef5fb;
+}
+
+.print-upload-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 0.2s ease;
+}
+
+.print-upload-progress p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .print-stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
