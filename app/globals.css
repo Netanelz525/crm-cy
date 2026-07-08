@@ -468,6 +468,29 @@ button[aria-disabled="true"] {
   font-weight: 800;
 }
 
+.meta-chip-no-remaining,
+.payment-mandate-finished-label {
+  background: rgba(5, 150, 105, 0.12);
+  border-color: rgba(5, 150, 105, 0.3);
+  color: #047857;
+  font-weight: 800;
+}
+
+.payment-mandate-finished-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  border-radius: 10px;
+}
+
+.payment-mandate-finished-label small {
+  color: #065f46;
+  font-weight: 700;
+}
+
 .automation-chip-ok {
   background: rgba(22, 163, 74, 0.12);
   border-color: rgba(22, 163, 74, 0.28);

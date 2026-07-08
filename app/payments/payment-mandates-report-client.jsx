@@ -37,6 +37,26 @@ function formatHistoryMoney(entry, fallbackCurrency = "ILS") {
   return formatMoney(entry?.amount, fallbackCurrency);
 }
 
+function isNoRemainingPaymentsMandate(item) {
+  const issueKind = clean(item?.issueKind);
+  const issueText = clean(item?.errorText);
+  return issueKind === "no_remaining_payments"
+    || (issueText.includes("לא פעיל") && issueText.includes("אין יתרת תשלומים"));
+}
+
+function MandateIssueLabel({ item, fallbackText = "" }) {
+  const issueText = clean(item?.errorText || fallbackText);
+  if (isNoRemainingPaymentsMandate({ ...item, errorText: issueText })) {
+    return (
+      <span className="payment-mandate-finished-label">
+        הסתיימו כל התשלומים בהוראת הקבע
+        {issueText ? <small>{issueText}</small> : null}
+      </span>
+    );
+  }
+  return issueText || "-";
+}
+
 function MandateRemoteDetails({ item, detailsState }) {
   if (detailsState?.loading) {
     return <div className="muted">טוען פרטי הוראת קבע והיסטוריית חיובים...</div>;
@@ -53,7 +73,7 @@ function MandateRemoteDetails({ item, detailsState }) {
     <div style={{ display: "grid", gap: 14 }}>
       <div className="payments-report-grid">
         <div><b>סטטוס מורחב:</b> {details.statusLabel || details.status || "-"}</div>
-        <div><b>סיבת תקלה:</b> {details.errorText || item.errorText || "-"}</div>
+        <div><b>סיבת תקלה:</b> <MandateIssueLabel item={details} fallbackText={item.errorText} /></div>
         <div><b>סך היסטוריה:</b> {formatMoney(details.totalHistoryAmount || 0, details.totalHistoryCurrency || details.originalCurrency || details.currency || "ILS")}</div>
         <div><b>כמות חיובים:</b> {details.historyCount || 0}</div>
         <div><b>חיובים מוצלחים:</b> {details.successCount || 0}</div>
@@ -342,6 +362,9 @@ export default function PaymentMandatesReportClient({
                     <span className={`meta-chip${item.status === "issues" ? " meta-chip-issue" : ""}${item.status === "completed" ? " meta-chip-completed" : ""}`}>
                       {item.statusLabel || item.status || "-"}
                     </span>
+                    {isNoRemainingPaymentsMandate(item) ? (
+                      <span className="meta-chip meta-chip-no-remaining">הסתיימו תשלומים</span>
+                    ) : null}
                     {searchTerm && Number(item.searchScore) >= 0.9 ? (
                       <span className="meta-chip">
                         התאמה {Math.round(Number(item.searchScore) * 100)}%
@@ -371,7 +394,7 @@ export default function PaymentMandatesReportClient({
                     <div><b>כתובת:</b> {item.address || "-"}</div>
                     <div><b>קבוצה:</b> {item.group || "-"}</div>
                     <div className="payments-report-grid-wide"><b>הערות:</b> {item.comments || "-"}</div>
-                    <div className="payments-report-grid-wide"><b>שגיאה אחרונה:</b> {item.errorText || "-"}</div>
+                    <div className="payments-report-grid-wide"><b>שגיאה אחרונה:</b> <MandateIssueLabel item={item} /></div>
                     <div><b>סכום מקורי:</b> {formatMoney(item.originalAmount ?? item.amount, item.originalCurrency || item.currency)}</div>
                     <div><b>שווי בש&quot;ח:</b> {formatMoney(item.amountIls ?? item.amount, "ILS")}</div>
                   </div>
