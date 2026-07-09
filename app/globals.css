@@ -1297,12 +1297,13 @@ button[aria-disabled="true"] {
 
 .print-upload-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(130px, 180px) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: 12px;
 }
 
 .print-file-drop {
+  grid-column: 1 / -1;
   display: grid;
   gap: 6px;
   min-height: 92px;
@@ -1320,10 +1321,28 @@ button[aria-disabled="true"] {
   color: var(--muted);
 }
 
+.print-upload-form > label:not(.print-file-drop) {
+  min-width: 0;
+}
+
+.print-upload-form > label:not(.print-file-drop) input,
+.print-upload-form > label:not(.print-file-drop) select {
+  width: 100%;
+  min-width: 0;
+}
+
 .print-upload-form > .muted,
 .print-upload-form > .error,
 .print-upload-progress {
   grid-column: 1 / -1;
+}
+
+.print-upload-form > button {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 54px;
+  justify-content: center;
+  white-space: normal;
 }
 
 .print-upload-progress {
