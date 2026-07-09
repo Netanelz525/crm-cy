@@ -102,6 +102,7 @@ export default async function PrintPage({ searchParams }) {
                     <th>קובץ</th>
                     <th>גודל</th>
                     <th>עותקים</th>
+                    <th>סוג הדפסה</th>
                     <th>עמודים</th>
                     <th>סה"כ</th>
                     <th>סטטוס</th>
@@ -117,6 +118,7 @@ export default async function PrintPage({ searchParams }) {
                       <td>{job.fileName}</td>
                       <td>{formatSize(job.fileSizeBytes)}</td>
                       <td>{job.copies}</td>
+                      <td>{job.printPlanLabel}</td>
                       <td>{job.pageCount || "-"}</td>
                       <td>{job.printedPageCount || (job.pageCount ? job.pageCount * job.copies : "-")}</td>
                       <td>{statusLabel(job.status)}</td>

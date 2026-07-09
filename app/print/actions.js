@@ -17,6 +17,7 @@ export async function createPrintJobAction(formData) {
     await createPrintJob({
       file: formData.get("file"),
       copies: formData.get("copies"),
+      printPlan: formData.get("printPlan"),
       uploadedByUserId: user.clerk_user_id
     });
   } catch (error) {

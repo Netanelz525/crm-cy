@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb, sql } from "../../../../lib/db";
-import { canUsePrintQueue, createPrintJobFromBuffer, MAX_PRINT_COPIES, MAX_PRINT_FILE_BYTES } from "../../../../lib/print-jobs";
+import { canUsePrintQueue, createPrintJobFromBuffer, MAX_PRINT_COPIES, MAX_PRINT_FILE_BYTES, normalizePrintPlan } from "../../../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
 
 export const runtime = "nodejs";
@@ -34,6 +34,7 @@ function validateUploadMetadata(body) {
   const fileSizeBytes = Number(body?.fileSizeBytes || 0);
   const totalChunks = Number(body?.totalChunks || 0);
   const copies = normalizeCopies(body?.copies);
+  const printPlan = normalizePrintPlan(body?.printPlan);
 
   if (!uploadId || uploadId.length > 120) throw new Error("מזהה העלאה חסר.");
   if (!fileName) throw new Error("שם הקובץ חסר.");
@@ -43,7 +44,7 @@ function validateUploadMetadata(body) {
     throw new Error("מספר חלקי הקובץ לא תקין.");
   }
 
-  return { uploadId, fileName, contentType, fileSizeBytes, totalChunks, copies };
+  return { uploadId, fileName, contentType, fileSizeBytes, totalChunks, copies, printPlan };
 }
 
 async function saveChunk(body, user) {
@@ -66,6 +67,7 @@ async function saveChunk(body, user) {
       content_type,
       file_size_bytes,
       copies,
+      print_plan,
       total_chunks,
       uploaded_by_user_id,
       created_at
@@ -76,6 +78,7 @@ async function saveChunk(body, user) {
       ${metadata.contentType},
       ${metadata.fileSizeBytes},
       ${metadata.copies},
+      ${metadata.printPlan},
       ${metadata.totalChunks},
       ${clean(user.clerk_user_id)},
       NOW()
@@ -85,6 +88,7 @@ async function saveChunk(body, user) {
       content_type = EXCLUDED.content_type,
       file_size_bytes = EXCLUDED.file_size_bytes,
       copies = EXCLUDED.copies,
+      print_plan = EXCLUDED.print_plan,
       total_chunks = EXCLUDED.total_chunks
     WHERE print_job_uploads.uploaded_by_user_id = EXCLUDED.uploaded_by_user_id
   `;
@@ -116,7 +120,7 @@ async function finishUpload(body, user) {
 
   await initDb();
   const uploadRows = await sql`
-    SELECT id, file_name, content_type, file_size_bytes, copies, total_chunks, uploaded_by_user_id
+    SELECT id, file_name, content_type, file_size_bytes, copies, print_plan, total_chunks, uploaded_by_user_id
     FROM print_job_uploads
     WHERE id = ${uploadId}
       AND uploaded_by_user_id = ${clean(user.clerk_user_id)}
@@ -153,6 +157,7 @@ async function finishUpload(body, user) {
     fileName: upload.file_name,
     contentType: upload.content_type,
     copies: upload.copies,
+    printPlan: upload.print_plan,
     uploadedByUserId: user.clerk_user_id
   });
 

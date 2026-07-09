@@ -3,6 +3,23 @@
 import { useRef, useState } from "react";
 
 const CHUNK_BASE64_LENGTH = 650000;
+const PRINT_PLAN_OPTIONS = [
+  {
+    value: "booklet",
+    label: "חוברת A3",
+    description: "פריסה מימין לשמאל, קיפול/הידוק"
+  },
+  {
+    value: "duplex",
+    label: "A4 דו-צדדי",
+    description: "רגיל, דו-צדדי כשיש יותר מעמוד אחד"
+  },
+  {
+    value: "corner-staple",
+    label: "A4 עם הידוק פינה",
+    description: "מימין לשמאל, הידוק פינה ימנית עליונה"
+  }
+];
 
 function clean(value) {
   return String(value || "").trim();
@@ -44,6 +61,7 @@ async function postUploadPart(payload) {
 export default function PrintUploadClient({ maxFileBytes }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [copies, setCopies] = useState("1");
+  const [printPlan, setPrintPlan] = useState("booklet");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
@@ -90,6 +108,7 @@ export default function PrintUploadClient({ maxFileBytes }) {
           contentType: file.type || "application/octet-stream",
           fileSizeBytes: file.size,
           copies,
+          printPlan,
           totalChunks,
           chunkIndex,
           chunkBase64
@@ -139,6 +158,16 @@ export default function PrintUploadClient({ maxFileBytes }) {
           onChange={(event) => setCopies(event.target.value)}
           disabled={submitting}
         />
+      </label>
+      <label>
+        <span className="muted">סוג הדפסה</span>
+        <select value={printPlan} onChange={(event) => setPrintPlan(event.target.value)} disabled={submitting}>
+          {PRINT_PLAN_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label} - {option.description}
+            </option>
+          ))}
+        </select>
       </label>
       {status ? (
         <div className="print-upload-progress" aria-live="polite">
