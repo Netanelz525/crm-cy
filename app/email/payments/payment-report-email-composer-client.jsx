@@ -234,7 +234,7 @@ export default function PaymentReportEmailComposerClient({
                     <span>
                       <b>{recipient.name || recipient.email}</b>
                       <small>{recipient.email}</small>
-                      <small>{[recipient.sourceLabel, recipient.providerLabel].filter(Boolean).join(" | ")}</small>
+                      <small>{[recipient.sourceLabel, recipient.providerLabel, recipient.extraLabel].filter(Boolean).join(" | ")}</small>
                     </span>
                   </label>
                 ))

@@ -121,13 +121,16 @@ export async function createPaymentEmailCampaignConfirmAction(formData) {
   const payload = {
     source: "payments",
     reportConfig: {
+      reportType: clean(formData.get("reportType")) === "mandates" ? "mandates" : "transactions",
       dateFrom: clean(formData.get("dateFrom")),
       dateTo: clean(formData.get("dateTo")),
+      mandateStatus: clean(formData.get("mandateStatus")),
       providers: formData.getAll("provider").map(clean).filter(Boolean),
       connectionIds: formData.getAll("connectionId").map(clean).filter(Boolean),
       searchTerm: clean(formData.get("searchTerm")),
       sortBy: clean(formData.get("sortBy")) || "date",
-      sortDir: clean(formData.get("sortDir")) || "desc"
+      sortDir: clean(formData.get("sortDir")) || "desc",
+      singleRecipientId: clean(formData.get("singleRecipientId"))
     },
     subject: clean(formData.get("subject")),
     senderName: clean(formData.get("senderName")),

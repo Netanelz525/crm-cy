@@ -62,7 +62,7 @@ export default function PaymentFilterFormClient({
           onChange={(event) => setSelectedReportType(clean(event.target.value) === "mandates" ? "mandates" : "transactions")}
         >
           <option value="transactions">דוח עסקאות</option>
-          <option value="mandates">דוח הוראות קבע פעילות</option>
+          <option value="mandates">דוח הוראות קבע</option>
         </select>
       </div>
       {!hideDates ? (
@@ -81,6 +81,7 @@ export default function PaymentFilterFormClient({
             >
               <option value="active">הצג הוראות קבע פעילות</option>
               <option value="issues">הצג הוראות קבע עם תקלות</option>
+              <option value="completedNoRemaining">הצג הוראות שהסתיימו התשלומים שלהן</option>
               <option value="all">הצג את כל הוראות הקבע</option>
             </select>
           </div>
@@ -116,7 +117,7 @@ export default function PaymentFilterFormClient({
       </div>
 
       <button type="submit" disabled={!selectedIds.length}>
-        {selectedReportType === "mandates" ? "הפק דוח הוראות קבע פעילות" : "הפק דוח עסקאות"}
+        {selectedReportType === "mandates" ? "הפק דוח הוראות קבע" : "הפק דוח עסקאות"}
       </button>
     </form>
   );

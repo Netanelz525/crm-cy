@@ -162,6 +162,23 @@ export default function PaymentMandatesReportClient({
     [visibleMandates]
   );
 
+  const completedNoRemainingMandates = useMemo(
+    () => filterAndSortPaymentTransactions(mandates, {
+      providers: selectedProviders,
+      connectionIds: effectiveConnectionIds,
+      mandateStatus: "completedNoRemaining",
+      searchTerm,
+      sortBy,
+      sortDir
+    }),
+    [mandates, selectedProviders, effectiveConnectionIds, searchTerm, sortBy, sortDir]
+  );
+
+  const emailableMandatesCount = useMemo(
+    () => visibleMandates.filter((item) => clean(item.email)).length,
+    [visibleMandates]
+  );
+
   const sourceSummaries = useMemo(
     () => visibleConnections
       .map((connection) => {
@@ -189,6 +206,19 @@ export default function PaymentMandatesReportClient({
       sortDir
     }),
     [selectedProviders, effectiveConnectionIds, mandateStatus, searchTerm, sortBy, sortDir]
+  );
+
+  const completedNoRemainingQuery = useMemo(
+    () => buildPaymentExportSearchParams({
+      reportType: "mandates",
+      providers: selectedProviders,
+      connectionIds: effectiveConnectionIds,
+      mandateStatus: "completedNoRemaining",
+      searchTerm,
+      sortBy,
+      sortDir
+    }),
+    [selectedProviders, effectiveConnectionIds, searchTerm, sortBy, sortDir]
   );
 
   function toggleProvider(provider) {
@@ -253,6 +283,10 @@ export default function PaymentMandatesReportClient({
             <div className="muted">סכום חודשי כולל</div>
             <strong>{formatMoney(summary.totalAmount, "ILS")}</strong>
           </div>
+          <div>
+            <div className="muted">הסתיימו תשלומים</div>
+            <strong>{completedNoRemainingMandates.length}</strong>
+          </div>
         </div>
         {sourceSummaries.length ? (
           <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
@@ -280,6 +314,7 @@ export default function PaymentMandatesReportClient({
           <select value={mandateStatus} onChange={(event) => setMandateStatus(clean(event.target.value) || "active")}>
             <option value="active">הצג הוראות קבע פעילות</option>
             <option value="issues">הצג הוראות קבע עם תקלות</option>
+            <option value="completedNoRemaining">הצג הוראות שהסתיימו התשלומים שלהן</option>
             <option value="all">הצג את כל הוראות הקבע</option>
           </select>
           <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
@@ -297,6 +332,16 @@ export default function PaymentMandatesReportClient({
           <Link className="quick-action-btn quick-action-outline" href={`/api/payments/export/pdf?${exportQuery}`} target="_blank">
             יצוא PDF
           </Link>
+          {emailableMandatesCount ? (
+            <Link className="quick-action-btn quick-action-outline" href={`/email/payments?${exportQuery}`}>
+              שלח מייל לנמעני הדוח
+            </Link>
+          ) : null}
+          {completedNoRemainingMandates.length ? (
+            <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setMandateStatus("completedNoRemaining")}>
+              הצג הסתיימו תשלומים
+            </button>
+          ) : null}
         </div>
         <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
           <div>
@@ -335,8 +380,35 @@ export default function PaymentMandatesReportClient({
         </div>
       </section>
 
+      {completedNoRemainingMandates.length ? (
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>הוראות קבע שהסתיימו התשלומים שלהן</h2>
+          <div className="payments-report-list compact">
+            {completedNoRemainingMandates.slice(0, 8).map((item) => (
+              <div key={`completed-${item.provider}-${item.id}`} className="payments-report-completed-row">
+                <div>
+                  <b>{item.customerName || "ללא שם"}</b>
+                  <small>{item.email || "ללא מייל"} | {item.connectionLabel}</small>
+                </div>
+                <span className="meta-chip meta-chip-no-remaining">הסתיימו תשלומים</span>
+                {item.email ? (
+                  <Link className="chip-link" href={`/email/payments?${completedNoRemainingQuery}&singleRecipientId=${encodeURIComponent(item.email.toLowerCase())}`}>
+                    שלח מייל
+                  </Link>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {completedNoRemainingMandates.length > 8 ? (
+            <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setMandateStatus("completedNoRemaining")}>
+              הצג את כל {completedNoRemainingMandates.length} הרשומות
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="card">
-        <h2 style={{ marginTop: 0 }}>דוח הוראות קבע פעילות</h2>
+        <h2 style={{ marginTop: 0 }}>דוח הוראות קבע</h2>
         {!visibleMandates.length ? (
           <div className="muted">לא נמצאו הוראות קבע בתצוגה שנבחרה.</div>
         ) : (
@@ -364,6 +436,15 @@ export default function PaymentMandatesReportClient({
                     </span>
                     {isNoRemainingPaymentsMandate(item) ? (
                       <span className="meta-chip meta-chip-no-remaining">הסתיימו תשלומים</span>
+                    ) : null}
+                    {item.email ? (
+                      <Link
+                        className="chip-link"
+                        href={`/email/payments?${exportQuery}&singleRecipientId=${encodeURIComponent(item.email.toLowerCase())}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        שלח מייל
+                      </Link>
                     ) : null}
                     {searchTerm && Number(item.searchScore) >= 0.9 ? (
                       <span className="meta-chip">

@@ -25,7 +25,7 @@ export default async function PaymentsPage({ searchParams }) {
   const defaults = getDefaultPaymentDateRange();
   const reportType = clean(resolvedSearchParams?.reportType) === "mandates" ? "mandates" : "transactions";
   const mandateStatus = reportType === "mandates"
-    ? (["active", "issues", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
+    ? (["active", "issues", "completedNoRemaining", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
       ? clean(resolvedSearchParams?.mandateStatus)
       : "active")
     : "";
@@ -64,7 +64,7 @@ export default async function PaymentsPage({ searchParams }) {
       <section className="card glass">
         <h1 style={{ marginTop: 0 }}>מערכות תשלום</h1>
         <p className="muted" style={{ marginBottom: 0 }}>
-          דוחות מאוחדים מכל המוסדות והחשבונות שחוברו למערכת, כולל עסקאות והוראות קבע פעילות מנדרים פלוס ו־Stripe.
+          דוחות מאוחדים מכל המוסדות והחשבונות שחוברו למערכת, כולל עסקאות והוראות קבע מנדרים פלוס ו־Stripe.
         </p>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה לתלמידים</Link>

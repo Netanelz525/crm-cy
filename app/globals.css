@@ -135,6 +135,31 @@ a {
   gap: 12px;
 }
 
+.payments-report-list.compact {
+  gap: 8px;
+}
+
+.payments-report-completed-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(5, 150, 105, 0.24);
+  border-radius: 12px;
+  background: #f7fffb;
+}
+
+.payments-report-completed-row div {
+  display: grid;
+  gap: 3px;
+}
+
+.payments-report-completed-row small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .payments-report-item {
   border: 1px solid var(--line);
   border-radius: 16px;

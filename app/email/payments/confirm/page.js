@@ -42,16 +42,21 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
   const savedAttachments = Array.isArray(draft?.attachments) ? draft.attachments : [];
   const error = clean(resolvedSearchParams?.error);
   const resendStatus = getResendConfigStatus();
+  const reportType = clean(draft?.reportConfig?.reportType) === "mandates" ? "mandates" : "transactions";
   const reportQuery = buildPaymentExportSearchParams({
-    reportType: "transactions",
+    reportType,
     dateFrom: clean(draft?.reportConfig?.dateFrom),
     dateTo: clean(draft?.reportConfig?.dateTo),
     providers: Array.isArray(draft?.reportConfig?.providers) ? draft.reportConfig.providers : [],
     connectionIds: Array.isArray(draft?.reportConfig?.connectionIds) ? draft.reportConfig.connectionIds : [],
+    mandateStatus: clean(draft?.reportConfig?.mandateStatus),
     searchTerm: clean(draft?.reportConfig?.searchTerm),
     sortBy: clean(draft?.reportConfig?.sortBy) || "date",
     sortDir: clean(draft?.reportConfig?.sortDir) || "desc"
   });
+  const editQuery = clean(draft?.reportConfig?.singleRecipientId)
+    ? `${reportQuery}&singleRecipientId=${encodeURIComponent(clean(draft.reportConfig.singleRecipientId))}`
+    : reportQuery;
 
   if (!subject) redirect(`/email/payments?error=${encodeURIComponent("יש להזין נושא למייל.")}`);
   if (!bodyHtml && !bodyText) redirect(`/email/payments?error=${encodeURIComponent("יש להזין תוכן למייל.")}`);
@@ -80,10 +85,10 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
           <p className="email-kicker">אישור סופי</p>
           <h1>בדיקה אחרונה לפני שליחת המייל לנמעני הדוח</h1>
           <p className="muted">
-            כאן בודקים את רשימת הנמענים שנמשכה מתוך דוח העסקאות, מאשרים, והמערכת משלימה את השליחה ברקע.
+            כאן בודקים את רשימת הנמענים שנמשכה מתוך דוח {reportType === "mandates" ? "הוראות הקבע" : "העסקאות"}, מאשרים, והמערכת משלימה את השליחה ברקע.
           </p>
           <div className="quick-actions" style={{ marginTop: 12 }}>
-            <Link className="chip-link" href={`/email/payments?${reportQuery}`}>חזור לעריכת המייל</Link>
+            <Link className="chip-link" href={`/email/payments?${editQuery}`}>חזור לעריכת המייל</Link>
           </div>
         </div>
         <div className="email-hero-status">
@@ -159,7 +164,7 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
                 <div>
                   <b>{target.name || target.email}</b>
                   <small>{target.email}</small>
-                  <small>{[target.sourceLabel, target.providerLabel].filter(Boolean).join(" | ")}</small>
+                  <small>{[target.sourceLabel, target.providerLabel, target.extraLabel].filter(Boolean).join(" | ")}</small>
                 </div>
               </div>
             ))}
