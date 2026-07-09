@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import PendingSubmitButton from "../../components/pending-submit-button";
 import {
   buildPaymentExportSearchParams,
   filterAndSortPaymentTransactions,
   summarizePaymentTransactions
 } from "../../lib/payment-report";
+import { sendSinglePaymentMandateEmailAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -118,6 +120,54 @@ function MandateRemoteDetails({ item, detailsState }) {
   );
 }
 
+function QuickMandateEmailForm({ item, returnQuery }) {
+  const email = clean(item?.email).toLowerCase();
+  if (!email) return null;
+
+  const statusLabel = clean(item?.statusLabel || item?.status);
+  const defaultBody = [
+    "שלום {{שם}},",
+    "",
+    "רצינו לעדכן אותך בנושא הוראת הקבע שלך.",
+    "",
+    "בברכה,",
+    "מחלקת תרומות"
+  ].join("\n");
+
+  return (
+    <details className="quick-single-email-card">
+      <summary>שליחת מייל מהירה לתורם</summary>
+      <form action={sendSinglePaymentMandateEmailAction} encType="multipart/form-data" className="quick-single-email-form">
+        <input type="hidden" name="returnTo" value={`/payments?run=1&${returnQuery}`} />
+        <input type="hidden" name="recipientEmail" value={email} />
+        <input type="hidden" name="recipientName" value={clean(item?.customerName) || email} />
+        <input type="hidden" name="sourceLabel" value={clean(item?.connectionLabel)} />
+        <input type="hidden" name="providerLabel" value={clean(item?.providerLabel)} />
+        <input type="hidden" name="extraLabel" value={statusLabel} />
+        <label>
+          שם שולח
+          <input name="senderName" defaultValue="מחלקת תרומות" />
+        </label>
+        <label>
+          נושא
+          <input name="subject" defaultValue="עדכון בנושא הוראת הקבע שלך" required />
+        </label>
+        <label className="payments-report-grid-wide">
+          תוכן
+          <textarea name="bodyText" rows={5} defaultValue={defaultBody} required />
+        </label>
+        <label className="payments-report-grid-wide">
+          קובץ מצורף
+          <input type="file" name="attachments" multiple />
+        </label>
+        <PendingSubmitButton className="quick-action-btn quick-action-primary" pendingText="שולח מייל...">
+          שלח מייל עכשיו
+        </PendingSubmitButton>
+      </form>
+    </details>
+  );
+}
+
 export default function PaymentMandatesReportClient({
   mandates,
   connections,
@@ -162,18 +212,6 @@ export default function PaymentMandatesReportClient({
     [visibleMandates]
   );
 
-  const completedNoRemainingMandates = useMemo(
-    () => filterAndSortPaymentTransactions(mandates, {
-      providers: selectedProviders,
-      connectionIds: effectiveConnectionIds,
-      mandateStatus: "completedNoRemaining",
-      searchTerm,
-      sortBy,
-      sortDir
-    }),
-    [mandates, selectedProviders, effectiveConnectionIds, searchTerm, sortBy, sortDir]
-  );
-
   const emailableMandatesCount = useMemo(
     () => visibleMandates.filter((item) => clean(item.email)).length,
     [visibleMandates]
@@ -206,19 +244,6 @@ export default function PaymentMandatesReportClient({
       sortDir
     }),
     [selectedProviders, effectiveConnectionIds, mandateStatus, searchTerm, sortBy, sortDir]
-  );
-
-  const completedNoRemainingQuery = useMemo(
-    () => buildPaymentExportSearchParams({
-      reportType: "mandates",
-      providers: selectedProviders,
-      connectionIds: effectiveConnectionIds,
-      mandateStatus: "completedNoRemaining",
-      searchTerm,
-      sortBy,
-      sortDir
-    }),
-    [selectedProviders, effectiveConnectionIds, searchTerm, sortBy, sortDir]
   );
 
   function toggleProvider(provider) {
@@ -283,10 +308,6 @@ export default function PaymentMandatesReportClient({
             <div className="muted">סכום חודשי כולל</div>
             <strong>{formatMoney(summary.totalAmount, "ILS")}</strong>
           </div>
-          <div>
-            <div className="muted">הסתיימו תשלומים</div>
-            <strong>{completedNoRemainingMandates.length}</strong>
-          </div>
         </div>
         {sourceSummaries.length ? (
           <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
@@ -337,11 +358,6 @@ export default function PaymentMandatesReportClient({
               שלח מייל לנמעני הדוח
             </Link>
           ) : null}
-          {completedNoRemainingMandates.length ? (
-            <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setMandateStatus("completedNoRemaining")}>
-              הצג הסתיימו תשלומים
-            </button>
-          ) : null}
         </div>
         <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
           <div>
@@ -380,33 +396,6 @@ export default function PaymentMandatesReportClient({
         </div>
       </section>
 
-      {completedNoRemainingMandates.length ? (
-        <section className="card">
-          <h2 style={{ marginTop: 0 }}>הוראות קבע שהסתיימו התשלומים שלהן</h2>
-          <div className="payments-report-list compact">
-            {completedNoRemainingMandates.slice(0, 8).map((item) => (
-              <div key={`completed-${item.provider}-${item.id}`} className="payments-report-completed-row">
-                <div>
-                  <b>{item.customerName || "ללא שם"}</b>
-                  <small>{item.email || "ללא מייל"} | {item.connectionLabel}</small>
-                </div>
-                <span className="meta-chip meta-chip-no-remaining">הסתיימו תשלומים</span>
-                {item.email ? (
-                  <Link className="chip-link" href={`/email/payments?${completedNoRemainingQuery}&singleRecipientId=${encodeURIComponent(item.email.toLowerCase())}`}>
-                    שלח מייל
-                  </Link>
-                ) : null}
-              </div>
-            ))}
-          </div>
-          {completedNoRemainingMandates.length > 8 ? (
-            <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setMandateStatus("completedNoRemaining")}>
-              הצג את כל {completedNoRemainingMandates.length} הרשומות
-            </button>
-          ) : null}
-        </section>
-      ) : null}
-
       <section className="card">
         <h2 style={{ marginTop: 0 }}>דוח הוראות קבע</h2>
         {!visibleMandates.length ? (
@@ -436,15 +425,6 @@ export default function PaymentMandatesReportClient({
                     </span>
                     {isNoRemainingPaymentsMandate(item) ? (
                       <span className="meta-chip meta-chip-no-remaining">הסתיימו תשלומים</span>
-                    ) : null}
-                    {item.email ? (
-                      <Link
-                        className="chip-link"
-                        href={`/email/payments?${exportQuery}&singleRecipientId=${encodeURIComponent(item.email.toLowerCase())}`}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        שלח מייל
-                      </Link>
                     ) : null}
                     {searchTerm && Number(item.searchScore) >= 0.9 ? (
                       <span className="meta-chip">
@@ -480,6 +460,7 @@ export default function PaymentMandatesReportClient({
                     <div><b>שווי בש&quot;ח:</b> {formatMoney(item.amountIls ?? item.amount, "ILS")}</div>
                   </div>
                   <div style={{ marginTop: 14 }}>
+                    <QuickMandateEmailForm item={item} returnQuery={exportQuery} />
                     <MandateRemoteDetails
                       item={item}
                       detailsState={detailsByMandate[`${item.connectionId}:${item.mandateId || item.id}`]}

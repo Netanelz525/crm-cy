@@ -35,6 +35,8 @@ export default async function PaymentsPage({ searchParams }) {
   const dateTo = reportType === "mandates"
     ? ""
     : clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
+  const notice = clean(resolvedSearchParams?.notice);
+  const error = clean(resolvedSearchParams?.error);
   const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
   const requestedConnectionIds = Array.isArray(resolvedSearchParams?.connectionId)
@@ -76,6 +78,8 @@ export default async function PaymentsPage({ searchParams }) {
 
       <section className="card">
         <h2 style={{ marginTop: 0 }}>סינון הדוח</h2>
+        {notice ? <div className="ok">{notice}</div> : null}
+        {error ? <div className="error">{error}</div> : null}
         {!activeConnections.length ? (
           <div className="muted">
             אין כרגע חיבורי תשלום פעילים. רק סופר אדמין יכול להגדיר חיבורים חדשים תחת
