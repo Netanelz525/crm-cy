@@ -94,6 +94,9 @@ async function buildPreview(resolvedSearchParams) {
   const previewRows = students.slice(0, 30).map((student) => ({
     id: student.id,
     label: clean(student.label) || "ללא שם",
+    email: student.email || null,
+    fatherEmail: student.fatherEmail || null,
+    motherEmail: student.motherEmail || null,
     classLabel: classLabel(student.class),
     hasMissing: Array.isArray(student.missingItems) && student.missingItems.length > 0,
     missingText: Array.isArray(student.missingItems) && student.missingItems.length ? student.missingItems.join(", ") : "-",
@@ -136,7 +139,9 @@ export default async function ViewsPage({ searchParams }) {
         saved: clean(resolvedSearchParams?.saved),
         updated: clean(resolvedSearchParams?.updated),
         deleted: clean(resolvedSearchParams?.deleted),
-        duplicate: clean(resolvedSearchParams?.duplicate)
+        duplicate: clean(resolvedSearchParams?.duplicate),
+        quickEmailSent: clean(resolvedSearchParams?.quickEmailSent),
+        quickEmailError: clean(resolvedSearchParams?.quickEmailError)
       }}
       currentQueryString={currentQueryString}
       exportHref={exportHref}
@@ -146,6 +151,8 @@ export default async function ViewsPage({ searchParams }) {
       filterValueOptions={FILTER_VALUE_OPTIONS}
       sortOptions={SORT_OPTIONS}
       preview={preview}
+      canSendEmails={currentUser.can_send_emails}
+      canEmailParents={currentUser.can_email_parents}
       initialState={{
         sortLevels,
         cols: parseListParam(resolvedSearchParams?.cols).length ? parseListParam(resolvedSearchParams?.cols) : DEFAULT_INSTITUTION_COLUMN_KEYS,
@@ -154,7 +161,5 @@ export default async function ViewsPage({ searchParams }) {
     />
   );
 }
-
-
 
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
+import StudentQuickEmailForm from "../student-quick-email-form";
 
 const POLL_INTERVAL_MS = 10000;
 const EXIT_HIGHLIGHT_MS = 1800;
@@ -85,7 +86,7 @@ function rowMatchesFilters(row, selectedFilters, query) {
   ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
 }
 
-export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [], isLocked = false }) {
+export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [], isLocked = false, canSendEmails = false, canEmailParents = true, returnTo = "" }) {
   const [rows, setRows] = useState(students);
   const [locked, setLocked] = useState(Boolean(isLocked));
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
@@ -402,6 +403,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                 <th>שיעור</th>
                 <th>סטטוס</th>
                 <th>הערה</th>
+                {canSendEmails ? <th>מייל</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -415,6 +417,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                     <div className="attendance-row-exit-text">עודכן מבחוץ ולכן ירד מהסינון הנוכחי</div>
                   </td>
                   <td className="attendance-note-cell">{student.noteText || ""}</td>
+                  {canSendEmails ? <td /> : null}
                 </tr>
               ))}
               {filteredRows.map((student) => (
@@ -464,6 +467,11 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                       disabled={locked}
                     />
                   </td>
+                  {canSendEmails ? (
+                    <td className="attendance-email-cell">
+                      <StudentQuickEmailForm student={student} returnTo={returnTo || `/attendance/${sessionId}`} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

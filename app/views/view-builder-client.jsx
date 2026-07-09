@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteStudentViewAction, saveStudentViewAction } from "../actions";
+import StudentQuickEmailForm from "../student-quick-email-form";
 
 function clean(value) {
   return String(value || "").trim();
@@ -184,6 +185,8 @@ export default function ViewBuilderClient({
   filterValueOptions,
   sortOptions,
   preview,
+  canSendEmails = false,
+  canEmailParents = true,
   initialState,
   exportHref
 }) {
@@ -424,6 +427,8 @@ export default function ViewBuilderClient({
             {(status?.saved === "1" || status?.updated === "1" || status?.deleted === "1" || status?.duplicate === "1") ? (
               <div className={status?.duplicate === "1" ? "card muted" : "ok"}>{status?.duplicate === "1" ? "כבר קיימת תצוגה זהה או עם אותו שם בתיקיה זו." : status?.saved === "1" ? "התצוגה נשמרה." : status?.updated === "1" ? "התצוגה עודכנה." : "התצוגה נמחקה."}</div>
             ) : null}
+            {status?.quickEmailSent === "1" ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
+            {status?.quickEmailError ? <div className="card muted">{status.quickEmailError}</div> : null}
 
             <input className="views-search-input" value={viewSearch} onChange={(event) => setViewSearch(event.target.value)} placeholder="חיפוש תצוגות או תיקיות" />
 
@@ -649,12 +654,13 @@ export default function ViewBuilderClient({
                   <thead>
                     <tr>
                       {(preview.previewColumns || []).map((column) => <th key={column.key}>{column.label}</th>)}
+                      {canSendEmails ? <th>מייל</th> : null}
                     </tr>
                   </thead>
                   <tbody>
                     {!preview.previewRows?.length ? (
                       <tr>
-                        <td colSpan={Math.max(preview.previewColumns?.length || 1, 1)} className="muted">אין תוצאות לתצוגה הזו</td>
+                        <td colSpan={Math.max((preview.previewColumns?.length || 1) + (canSendEmails ? 1 : 0), 1)} className="muted">אין תוצאות לתצוגה הזו</td>
                       </tr>
                     ) : preview.previewRows.map((row) => (
                       <tr key={row.id} style={row.hasMissing ? { background: "#fff1f2" } : undefined}>
@@ -663,6 +669,11 @@ export default function ViewBuilderClient({
                             {column.key === "name" ? <Link className="student-link" href={`/neon/students/${row.id}`}>{row.values[column.key]}</Link> : row.values[column.key]}
                           </td>
                         ))}
+                        {canSendEmails ? (
+                          <td>
+                            <StudentQuickEmailForm student={row} returnTo={currentQueryString ? `/views?${currentQueryString}` : "/views"} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
+                          </td>
+                        ) : null}
                       </tr>
                     ))}
                   </tbody>
@@ -685,6 +696,7 @@ export default function ViewBuilderClient({
                         </div>
                       ))}
                     </div>
+                    <StudentQuickEmailForm student={row} returnTo={currentQueryString ? `/views?${currentQueryString}` : "/views"} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
                     {row.hasMissing ? <div className="student-mobile-missing"><b>חוסרים:</b> {row.missingText}</div> : null}
                   </div>
                 ))}
@@ -696,5 +708,3 @@ export default function ViewBuilderClient({
     </div>
   );
 }
-
-

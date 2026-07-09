@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getStudentTagTheme } from "../../lib/student-tag-theme";
 import { ageOf, buildMissingState, classLabel, clean, columnText, enumLabel, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
+import StudentQuickEmailForm from "../student-quick-email-form";
 import { addStudentContactLiveAction, addStudentEventLiveAction, addStudentTagLiveAction, bulkUpdateStudentsLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
 import { bulkDeleteNeonStudentsAction } from "./actions";
 
@@ -344,7 +345,7 @@ function EventActionButton({ student, onAddEvent, disabled = false }) {
     </details>
   );
 }
-export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [] }) {
+export default function BulkStudentsClient({ students, selectedColumns, showInstitutionView, showMatchScores = false, returnTo, availableTags = [], canSendEmails = false, canEmailParents = true }) {
   const [studentRows, setStudentRows] = useState(Array.isArray(students) ? students : []);
   const [tagOptions, setTagOptions] = useState(Array.isArray(availableTags) ? availableTags : []);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -474,13 +475,15 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
     const rawQuery = clean(returnTo).split("?")[1] || "";
     const existing = new URLSearchParams(rawQuery);
     for (const [key, value] of existing.entries()) {
-      if (key === "mode") continue;
+      if (["mode", "studentIds", "recipientMode", "recipientRoles", "compose"].includes(key)) continue;
       params.append(key, value);
     }
-    params.set("recipientMode", "parents");
-    selectedIds.forEach((id) => params.append("studentIds", id));
+    params.set("compose", "1");
+    params.append("recipientRoles", "father");
+    params.append("recipientRoles", "mother");
+    studentRows.forEach((student) => params.append("studentIds", student.id));
     return `/email?${params.toString()}`;
-  }, [returnTo, selectedIds]);
+  }, [returnTo, studentRows]);
 
   function handleBulkSubmit(event) {
     event.preventDefault();
@@ -554,8 +557,8 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
             <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(studentRows.map((student) => student.id))}>
               בחר את כל {studentRows.length} הרשומות בתצוגה
             </button>
-            <Link className="btn btn-ghost bulk-open-btn" href={emailHref} aria-disabled={!selectedIds.length} onClick={(event) => {
-              if (!selectedIds.length) event.preventDefault();
+            <Link className="btn btn-ghost bulk-open-btn" href={emailHref} aria-disabled={!studentRows.length} onClick={(event) => {
+              if (!studentRows.length) event.preventDefault();
             }}>
               עבור לשליחת מייל
             </Link>
@@ -709,6 +712,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <input type="checkbox" checked={allVisibleSelected} onChange={(event) => toggleAll(event.target.checked)} />
                 </th>
                 {selectedColumns.map((col) => <th key={col.key}>{col.label}</th>)}
+                {canSendEmails ? <th>מייל</th> : null}
               </tr>
             ) : (
               <tr>
@@ -725,6 +729,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <th>טלפון אם</th>
                 <th>יצירת קשר</th>
                 <th>אירוע</th>
+                {canSendEmails ? <th>מייל</th> : null}
                 <th>תוויות</th>
                 <th>חוסרים</th>
               </tr>
@@ -733,7 +738,16 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
           <tbody>
             {!studentRows.length ? (
               <tr>
-                <td colSpan={showInstitutionView ? Math.max(selectedColumns.length + 1, 1) : (showMatchScores ? 13 : 12)} className="muted">אין תוצאות</td>
+                <td
+                  colSpan={
+                    showInstitutionView
+                      ? Math.max(selectedColumns.length + 1 + (canSendEmails ? 1 : 0), 1)
+                      : (showMatchScores ? 13 : 12) + (canSendEmails ? 1 : 0)
+                  }
+                  className="muted"
+                >
+                  אין תוצאות
+                </td>
               </tr>
             ) : showInstitutionView ? (
               studentRows.map((student) => {
@@ -748,6 +762,11 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                         {columnNode(student, col.key)}
                       </td>
                     ))}
+                    {canSendEmails ? (
+                      <td>
+                        <StudentQuickEmailForm student={student} returnTo={returnTo} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })
@@ -779,6 +798,11 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td>
                       <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
                     </td>
+                    {canSendEmails ? (
+                      <td>
+                        <StudentQuickEmailForm student={student} returnTo={returnTo} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
+                      </td>
+                    ) : null}
                     <td>
                       <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
                     </td>
@@ -819,6 +843,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 </div>
                 <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
                 <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
+                <StudentQuickEmailForm student={student} returnTo={returnTo} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
               </div>
             );
           })
@@ -853,6 +878,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 </div>
                 <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
                 <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
+                <StudentQuickEmailForm student={student} returnTo={returnTo} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
                 <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
                 <div className="student-mobile-missing"><b>חוסרים:</b> {hasMissing ? missingState.items.join(", ") : "-"}</div>
               </div>

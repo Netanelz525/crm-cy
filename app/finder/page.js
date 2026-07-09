@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { listAllStudents } from "../../lib/twenty";
+import StudentQuickEmailForm from "../student-quick-email-form";
 
 function clean(v) {
   return String(v || "").trim();
@@ -89,6 +90,9 @@ export default async function FinderPage({ searchParams }) {
   const fieldType = clean(sp?.fieldType || "tz");
   const owner = clean(sp?.owner || "any");
   const value = clean(sp?.value);
+  const quickEmailSent = clean(sp?.quickEmailSent) === "1";
+  const quickEmailError = clean(sp?.quickEmailError);
+  const finderReturnTo = `/finder?fieldType=${encodeURIComponent(fieldType)}&owner=${encodeURIComponent(owner)}&value=${encodeURIComponent(value)}`;
 
   let students = [];
   let error = "";
@@ -137,6 +141,8 @@ export default async function FinderPage({ searchParams }) {
       </div>
 
       {error ? <div className="card muted">{error}</div> : null}
+      {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
+      {quickEmailError ? <div className="card muted">{quickEmailError}</div> : null}
 
       <div className="card desktop-table">
         <table>
@@ -150,12 +156,13 @@ export default async function FinderPage({ searchParams }) {
               <th>טלפון תלמיד</th>
               <th>טלפון אב</th>
               <th>טלפון אם</th>
+              {currentUser.can_send_emails ? <th>מייל</th> : null}
             </tr>
           </thead>
           <tbody>
             {!students.length ? (
               <tr>
-                <td colSpan={8} className="muted">{value ? "לא נמצאו תוצאות" : "הזן נתון לחיפוש"}</td>
+                <td colSpan={8 + (currentUser.can_send_emails ? 1 : 0)} className="muted">{value ? "לא נמצאו תוצאות" : "הזן נתון לחיפוש"}</td>
               </tr>
             ) : (
               students.map((s) => (
@@ -168,6 +175,11 @@ export default async function FinderPage({ searchParams }) {
                   <td><PhoneLink phoneObj={s.phone} /></td>
                   <td><PhoneLink phoneObj={s.dadPhone} /></td>
                   <td><PhoneLink phoneObj={s.momPhone} /></td>
+                  {currentUser.can_send_emails ? (
+                    <td>
+                      <StudentQuickEmailForm student={s} returnTo={finderReturnTo} canSendEmails={currentUser.can_send_emails} canEmailParents={currentUser.can_email_parents} />
+                    </td>
+                  ) : null}
                 </tr>
               ))
             )}
@@ -193,6 +205,7 @@ export default async function FinderPage({ searchParams }) {
                 <div><b>טלפון אב:</b> <PhoneLink phoneObj={s.dadPhone} /></div>
                 <div><b>טלפון אם:</b> <PhoneLink phoneObj={s.momPhone} /></div>
               </div>
+              <StudentQuickEmailForm student={s} returnTo={finderReturnTo} canSendEmails={currentUser.can_send_emails} canEmailParents={currentUser.can_email_parents} />
             </div>
           ))
         )}

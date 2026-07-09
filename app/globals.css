@@ -2629,6 +2629,61 @@ td {
   gap: 8px;
 }
 
+.student-quick-email-panel {
+  max-width: 360px;
+}
+
+.student-quick-email-form {
+  gap: 10px;
+}
+
+.student-quick-email-recipient-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.student-quick-email-recipient-grid .email-filter-chip {
+  min-height: 44px;
+  padding: 8px 10px;
+}
+
+.student-quick-email-recipient-grid .email-filter-chip small {
+  display: block;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: ltr;
+}
+
+.student-quick-email-form textarea {
+  resize: vertical;
+}
+
+.student-quick-email-greeting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.student-quick-email-greeting-toggle input {
+  width: auto;
+}
+
+.student-quick-email-form button {
+  width: 100%;
+}
+
+.attendance-email-cell {
+  min-width: 130px;
+}
+
 .selection-cell {
   width: 44px;
   text-align: center;

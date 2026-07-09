@@ -65,6 +65,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const sentEmails = clean(resolvedSearchParams?.sentEmails);
   const failedEmails = clean(resolvedSearchParams?.failedEmails);
   const mailError = clean(resolvedSearchParams?.mailError);
+  const quickEmailSent = clean(resolvedSearchParams?.quickEmailSent) === "1";
+  const quickEmailError = clean(resolvedSearchParams?.quickEmailError);
   const activeStatusFilters = clean(resolvedSearchParams?.statusFilter)
     .split(",")
     .map((value) => clean(value).toLowerCase())
@@ -135,6 +137,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {mailQueued ? <div className="ok">שליחת המיילים התחילה ברקע. אפשר לסגור את החלון והמערכת תמשיך.</div> : null}
       {mailSent ? <div className="ok">נשלחו {sentEmails || "0"} מיילים מתוך המפגש{Number(failedEmails || 0) > 0 ? `, ו-${failedEmails} נכשלו` : ""}.</div> : null}
       {mailError ? <div className="error">{mailError}</div> : null}
+      {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
+      {quickEmailError ? <div className="error">{quickEmailError}</div> : null}
 
       <details className="card attendance-message-panel">
         <summary className="attendance-message-summary">
@@ -343,6 +347,9 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         activeStatusFilters={activeStatusFilters}
         initialStats={roster.stats}
         isLocked={roster.session.isLocked}
+        canSendEmails={currentUser.can_send_emails}
+        canEmailParents={currentUser.can_email_parents}
+        returnTo={`/attendance/${roster.session.id}`}
       />
     </>
   );

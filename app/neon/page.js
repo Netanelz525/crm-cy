@@ -220,6 +220,8 @@ export default async function NeonPage({ searchParams }) {
   const tagsError = clean(resolvedSearchParams?.tagsError);
   const contactSaved = clean(resolvedSearchParams?.contactSaved) === "1";
   const contactError = clean(resolvedSearchParams?.contactError);
+  const quickEmailSent = clean(resolvedSearchParams?.quickEmailSent) === "1";
+  const quickEmailError = clean(resolvedSearchParams?.quickEmailError);
 
   const tz = clean(resolvedSearchParams?.tz).replace(/[^\d]/g, "");
   const q = clean(resolvedSearchParams?.q);
@@ -390,10 +392,12 @@ export default async function NeonPage({ searchParams }) {
       {tagCreated ? <div className="ok">התגית נוספה בהצלחה.</div> : null}
       {tagDeleted ? <div className="ok">התגית נמחקה בהצלחה.</div> : null}
       {contactSaved ? <div className="ok">יצירת הקשר נשמרה בהצלחה.</div> : null}
+      {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
       {prefsError ? <div className="card muted">{prefsError}</div> : null}
       {preferencesLoadError ? <div className="card muted">{preferencesLoadError}</div> : null}
       {tagsError ? <div className="card muted">{tagsError}</div> : null}
       {contactError ? <div className="card muted">{contactError}</div> : null}
+      {quickEmailError ? <div className="card muted">{quickEmailError}</div> : null}
       {importError ? <div className="card muted">{importError}</div> : null}
       {bulkUpdated ? (
         <div className="ok">
@@ -732,6 +736,8 @@ export default async function NeonPage({ searchParams }) {
         showInstitutionView={showInstitutionView}
         showMatchScores={mode === "search" && Boolean(q)}
         returnTo={currentQueryString ? `/neon?${currentQueryString}` : "/neon"}
+        canSendEmails={currentUser.can_send_emails}
+        canEmailParents={currentUser.can_email_parents}
       />
     </>
   );
