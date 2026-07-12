@@ -118,6 +118,35 @@ function TaskContactActions({ task, linkHref }) {
   );
 }
 
+function TaskSummaryContactMarkers({ task, linkHref }) {
+  const contacts = contactOptionsForTask(task);
+  const email = contacts.emails
+    .map((item) => clean(item.value).toLowerCase())
+    .find((value) => value && value.includes("@"));
+  const phone = contacts.phones
+    .map((item) => normalizePhoneForHref(item.value))
+    .find(Boolean);
+
+  if (!email && !phone && !(linkHref && task.linkedType === "student")) return null;
+
+  return (
+    <span className="task-summary-contact-markers" aria-label="פעולות מהירות">
+      {linkHref && task.linkedType === "student" ? (
+        <Link className="task-summary-marker" href={linkHref} title="כרטיס תלמיד">כרטיס</Link>
+      ) : null}
+      {email ? (
+        <a className="task-summary-marker" href={`mailto:${email}`} title="שליחת מייל">@</a>
+      ) : null}
+      {phone ? (
+        <a className="task-summary-marker" href={`tel:+${phone}`} title="חיוג">טל׳</a>
+      ) : null}
+      {phone ? (
+        <a className="task-summary-marker" href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer" title="WhatsApp">WA</a>
+      ) : null}
+    </span>
+  );
+}
+
 function mergeStudents(...groups) {
   const seen = new Set();
   const merged = [];
@@ -351,6 +380,7 @@ function TaskCard({ task, users, currentPath, activeTaskId = "" }) {
             <span className="meta-chip">{taskStatusLabel(task.status)}</span>
             <span className="meta-chip">{taskLinkTypeLabel(task.linkedType)}</span>
             <span className="meta-chip">{taskLinkLabel(task)}</span>
+            <TaskSummaryContactMarkers task={task} linkHref={linkHref} />
           </div>
         </div>
         <div className="task-assignees">{assigneeNames(task)}</div>

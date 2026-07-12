@@ -10,6 +10,9 @@ import {
   deleteTask,
   getTaskById,
   listAssignableTaskUsers,
+  taskLinkTypeLabel,
+  taskStatusLabel,
+  TASK_STATUS_OPTIONS,
   updateTask,
   updateTaskPaymentSnapshot,
   updateTaskStatus
@@ -42,6 +45,11 @@ function taskUrl(taskId) {
   return baseUrl ? `${baseUrl}${path}` : path;
 }
 
+function absoluteUrl(path) {
+  const baseUrl = getBaseUrl();
+  return baseUrl ? `${baseUrl}${path}` : path;
+}
+
 function escapeHtml(value) {
   return clean(value)
     .replace(/&/g, "&amp;")
@@ -50,9 +58,102 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-async function sendTaskCreatedEmail({ taskId, title, description, assigneeUserIds }) {
+function normalizeDigits(value) {
+  return clean(value).replace(/[^\d]/g, "");
+}
+
+function normalizePhoneForHref(value) {
+  const digits = normalizeDigits(value);
+  if (!digits) return "";
+  if (digits.startsWith("972")) return digits;
+  if (digits.startsWith("0")) return `972${digits.slice(1)}`;
+  return digits;
+}
+
+function formatMoneyValue(amount, currency = "ILS") {
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric)) return "";
+  try {
+    return new Intl.NumberFormat("he-IL", { style: "currency", currency: clean(currency) || "ILS" }).format(numeric);
+  } catch {
+    return `${numeric.toFixed(2)} ${clean(currency) || "ILS"}`;
+  }
+}
+
+function taskContactOptions(task) {
+  const snapshot = task.sourceSnapshot || {};
+  const mandate = snapshot.paymentMandateAtCreation || snapshot;
+  if (task.linkedType === "payment_mandate") {
+    return {
+      emails: [{ label: "מייל תורם", value: mandate.email || task.paymentCustomerEmail }],
+      phones: [{ label: "טלפון תורם", value: mandate.phone }]
+    };
+  }
+  return {
+    emails: [
+      { label: "מייל תלמיד", value: task.studentEmail },
+      { label: "מייל אב", value: task.studentFatherEmail },
+      { label: "מייל אם", value: task.studentMotherEmail }
+    ],
+    phones: [
+      { label: "טלפון תלמיד", value: task.studentPhone },
+      { label: "טלפון אב", value: task.studentFatherPhone },
+      { label: "טלפון אם", value: task.studentMotherPhone }
+    ]
+  };
+}
+
+function taskDetailRows(task) {
+  const snapshot = task.sourceSnapshot || {};
+  const mandate = snapshot.paymentMandateAtCreation || snapshot;
+  if (task.linkedType === "payment_mandate") {
+    return [
+      ["סוג קישור", taskLinkTypeLabel(task.linkedType)],
+      ["שם תורם", mandate.customerName || task.paymentCustomerName],
+      ["מייל", mandate.email || task.paymentCustomerEmail],
+      ["טלפון", mandate.phone],
+      ["מספר הוראת קבע", mandate.mandateId || task.paymentMandateId],
+      ["מקור סליקה", mandate.connectionLabel || task.paymentConnectionLabel],
+      ["סטטוס בזמן יצירה", mandate.statusLabel || mandate.status],
+      ["סיבת תקלה", mandate.errorText || mandate.issueKind],
+      ["סכום", formatMoneyValue(mandate.amountIls ?? mandate.amount ?? mandate.originalAmount, "ILS")],
+      ["חיוב הבא", mandate.nextChargeDate],
+      ["4 ספרות", mandate.paymentMethodLast4],
+      ["תוקף", mandate.paymentMethodExpiry]
+    ];
+  }
+  return [
+    ["סוג קישור", taskLinkTypeLabel(task.linkedType)],
+    ["שם תלמיד", task.studentName],
+    ["שיעור", task.studentClass],
+    ["מוסד", task.studentInstitution],
+    ["מייל תלמיד", task.studentEmail],
+    ["מייל אב", task.studentFatherEmail],
+    ["מייל אם", task.studentMotherEmail],
+    ["טלפון תלמיד", task.studentPhone],
+    ["טלפון אב", task.studentFatherPhone],
+    ["טלפון אם", task.studentMotherPhone]
+  ];
+}
+
+function emailButton(url, label, background = "#0b4f8c") {
+  return `<a href="${escapeHtml(url)}" style="display:inline-block;margin:4px 4px 4px 0;padding:10px 14px;border-radius:10px;background:${background};color:#fff;text-decoration:none;font-weight:bold">${escapeHtml(label)}</a>`;
+}
+
+function buildStatusUrl(taskId, status) {
+  const params = new URLSearchParams({
+    status,
+    returnTo: `/tasks?taskId=${clean(taskId)}`
+  });
+  return absoluteUrl(`/tasks/${encodeURIComponent(clean(taskId))}/status?${params.toString()}`);
+}
+
+async function sendTaskCreatedEmail({ taskId, assigneeUserIds }) {
   const assigneeSet = new Set((assigneeUserIds || []).map(clean).filter(Boolean));
   if (!assigneeSet.size) return "";
+
+  const task = await getTaskById(taskId);
+  if (!task) return "המשימה נוצרה אך לא נמצאה לצורך שליחת מייל.";
 
   const users = await listAssignableTaskUsers();
   const recipients = users
@@ -63,24 +164,51 @@ async function sendTaskCreatedEmail({ taskId, title, description, assigneeUserId
   if (!uniqueRecipients.length) return "לא נמצאו כתובות מייל לאחראים שנבחרו.";
 
   const url = taskUrl(taskId);
+  const contacts = taskContactOptions(task);
+  const emails = contacts.emails
+    .map((item) => ({ ...item, value: clean(item.value).toLowerCase() }))
+    .filter((item) => item.value && item.value.includes("@"));
+  const phones = contacts.phones
+    .map((item) => ({ ...item, value: normalizePhoneForHref(item.value) }))
+    .filter((item) => item.value);
+  const detailRows = taskDetailRows(task).filter(([, value]) => clean(value));
+  const statusButtons = TASK_STATUS_OPTIONS
+    .filter((option) => option.value !== task.status)
+    .map((option) => emailButton(buildStatusUrl(taskId, option.value), `סמן ${option.label}`, option.value === "done" ? "#15803d" : "#1769aa"))
+    .join("");
+  const contactButtons = [
+    ...emails.map((item) => emailButton(`mailto:${item.value}`, item.label, "#334155")),
+    ...phones.map((item) => emailButton(`tel:+${item.value}`, `חיוג ${item.label.replace("טלפון ", "")}`, "#475569")),
+    ...phones.map((item) => emailButton(`https://wa.me/${item.value}`, `WhatsApp ${item.label.replace("טלפון ", "")}`, "#128c7e"))
+  ].join("");
   try {
     await sendResendEmail({
       to: uniqueRecipients,
       from: buildResendFromAddress("מערכת CRM"),
-      subject: `משימה חדשה לטיפול: ${clean(title)}`,
+      subject: `משימה חדשה לטיפול: ${clean(task.title)}`,
       text: [
         "נוצרה משימה חדשה שהוגדרת כאחראי עליה.",
         "",
-        `כותרת: ${clean(title)}`,
-        clean(description) ? `פירוט: ${clean(description)}` : "",
+        `כותרת: ${clean(task.title)}`,
+        `סטטוס: ${taskStatusLabel(task.status)}`,
+        ...detailRows.map(([label, value]) => `${label}: ${clean(value)}`),
+        clean(task.description) ? `פירוט: ${clean(task.description)}` : "",
         "",
         `פתיחה במערכת: ${url}`
       ].filter(Boolean).join("\n"),
       html: [
         "<div dir=\"rtl\" style=\"font-family:Arial,sans-serif;line-height:1.7\">",
         "<h2>משימה חדשה לטיפול</h2>",
-        `<p><b>כותרת:</b> ${escapeHtml(title)}</p>`,
-        clean(description) ? `<p><b>פירוט:</b></p><div style=\"white-space:pre-wrap;border:1px solid #d7e1ef;border-radius:10px;padding:12px;background:#f8fbff\">${escapeHtml(description)}</div>` : "",
+        `<p><b>כותרת:</b> ${escapeHtml(task.title)}</p>`,
+        `<p><b>סטטוס:</b> ${escapeHtml(taskStatusLabel(task.status))}</p>`,
+        detailRows.length ? [
+          "<table style=\"width:100%;border-collapse:collapse;margin:12px 0;background:#f8fbff;border:1px solid #d7e1ef;border-radius:10px;overflow:hidden\">",
+          detailRows.map(([label, value]) => `<tr><td style=\"padding:8px 10px;border-bottom:1px solid #d7e1ef;font-weight:bold;width:34%\">${escapeHtml(label)}</td><td style=\"padding:8px 10px;border-bottom:1px solid #d7e1ef\">${escapeHtml(value)}</td></tr>`).join(""),
+          "</table>"
+        ].join("") : "",
+        clean(task.description) ? `<p><b>פירוט:</b></p><div style=\"white-space:pre-wrap;border:1px solid #d7e1ef;border-radius:10px;padding:12px;background:#f8fbff\">${escapeHtml(task.description)}</div>` : "",
+        contactButtons ? `<p><b>יצירת קשר:</b><br>${contactButtons}</p>` : "",
+        statusButtons ? `<p><b>עדכון סטטוס:</b><br>${statusButtons}</p>` : "",
         `<p><a href=\"${escapeHtml(url)}\" style=\"display:inline-block;padding:10px 14px;border-radius:10px;background:#0b4f8c;color:#fff;text-decoration:none;font-weight:bold\">פתח את המשימה במערכת</a></p>`,
         "</div>"
       ].join(""),
@@ -118,8 +246,6 @@ export async function createTaskAction(formData) {
     });
     mailWarning = await sendTaskCreatedEmail({
       taskId,
-      title: formData.get("title"),
-      description: formData.get("description"),
       assigneeUserIds
     });
   } catch (error) {
