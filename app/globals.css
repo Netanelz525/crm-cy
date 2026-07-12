@@ -3667,6 +3667,21 @@ td {
   background: #f8fbff;
 }
 
+.task-contact-actions {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.task-contact-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .student-request-card {
   display: grid;
   gap: 14px;

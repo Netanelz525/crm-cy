@@ -45,6 +45,79 @@ function normalizeDigits(value) {
   return clean(value).replace(/[^\d]/g, "");
 }
 
+function normalizePhoneForHref(value) {
+  const digits = normalizeDigits(value);
+  if (!digits) return "";
+  if (digits.startsWith("972")) return digits;
+  if (digits.startsWith("0")) return `972${digits.slice(1)}`;
+  return digits;
+}
+
+function contactOptionsForTask(task) {
+  const snapshot = task.sourceSnapshot || {};
+  const mandate = snapshot.paymentMandateAtCreation || snapshot;
+  if (task.linkedType === "payment_mandate") {
+    return {
+      emails: [
+        { label: "מייל תורם", value: mandate.email || task.paymentCustomerEmail }
+      ],
+      phones: [
+        { label: "טלפון תורם", value: mandate.phone }
+      ]
+    };
+  }
+  return {
+    emails: [
+      { label: "מייל תלמיד", value: task.studentEmail },
+      { label: "מייל אב", value: task.studentFatherEmail },
+      { label: "מייל אם", value: task.studentMotherEmail }
+    ],
+    phones: [
+      { label: "טלפון תלמיד", value: task.studentPhone },
+      { label: "טלפון אב", value: task.studentFatherPhone },
+      { label: "טלפון אם", value: task.studentMotherPhone }
+    ]
+  };
+}
+
+function TaskContactActions({ task, linkHref }) {
+  const contacts = contactOptionsForTask(task);
+  const emails = contacts.emails
+    .map((item) => ({ ...item, value: clean(item.value).toLowerCase() }))
+    .filter((item) => item.value && item.value.includes("@"));
+  const phones = contacts.phones
+    .map((item) => ({ ...item, value: normalizePhoneForHref(item.value) }))
+    .filter((item) => item.value);
+  const hasActions = Boolean(linkHref || emails.length || phones.length);
+  if (!hasActions) return null;
+
+  return (
+    <div className="task-contact-actions">
+      <b>פעולות קשר</b>
+      <div className="task-contact-buttons">
+        {linkHref && task.linkedType === "student" ? (
+          <Link className="quick-action-btn quick-action-outline" href={linkHref}>פתח כרטיס תלמיד</Link>
+        ) : null}
+        {emails.map((item) => (
+          <a key={`email-${item.label}-${item.value}`} className="quick-action-btn quick-action-outline" href={`mailto:${item.value}`}>
+            {item.label}
+          </a>
+        ))}
+        {phones.map((item) => (
+          <a key={`call-${item.label}-${item.value}`} className="quick-action-btn quick-action-outline" href={`tel:+${item.value}`}>
+            חיוג {item.label.replace("טלפון ", "")}
+          </a>
+        ))}
+        {phones.map((item) => (
+          <a key={`whatsapp-${item.label}-${item.value}`} className="quick-action-btn quick-action-outline" href={`https://wa.me/${item.value}`} target="_blank" rel="noreferrer">
+            WhatsApp {item.label.replace("טלפון ", "")}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function mergeStudents(...groups) {
   const seen = new Set();
   const merged = [];
@@ -290,6 +363,7 @@ function TaskCard({ task, users, currentPath, activeTaskId = "" }) {
           <div><b>אחראים:</b> {assigneeNames(task)}</div>
           <div className="tasks-wide"><b>הערות:</b> {task.description || "-"}</div>
         </div>
+        <TaskContactActions task={task} linkHref={linkHref} />
         <MandateSnapshotPanel task={task} currentPath={currentPath} />
 
         <form action={updateTaskStatusAction} className="task-status-form">
