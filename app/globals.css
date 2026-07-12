@@ -3609,6 +3609,47 @@ td {
   display: none;
 }
 
+.task-assignee-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.task-assignee-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.task-assignee-option input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.task-assignee-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.task-assignee-option small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.task-mandate-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #c9dff1;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
 .student-request-card {
   display: grid;
   gap: 14px;

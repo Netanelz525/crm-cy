@@ -170,6 +170,36 @@ function QuickMandateEmailForm({ item, returnQuery }) {
 
 function mandateTaskHref(item) {
   const params = new URLSearchParams();
+  const snapshot = {
+    paymentMandateAtCreation: {
+      provider: clean(item?.provider),
+      providerLabel: clean(item?.providerLabel),
+      connectionId: clean(item?.connectionId),
+      connectionLabel: clean(item?.connectionLabel),
+      mandateId: clean(item?.mandateId || item?.id),
+      customerName: clean(item?.customerName),
+      email: clean(item?.email),
+      phone: clean(item?.phone),
+      donorId: clean(item?.donorId),
+      status: clean(item?.status),
+      statusLabel: clean(item?.statusLabel),
+      issueKind: clean(item?.issueKind),
+      errorText: clean(item?.errorText),
+      amount: item?.amount ?? null,
+      amountIls: item?.amountIls ?? null,
+      originalAmount: item?.originalAmount ?? null,
+      originalCurrency: clean(item?.originalCurrency || item?.currency),
+      nextChargeDate: item?.nextChargeDate || null,
+      createdAt: item?.createdAt || null,
+      recurringCode: clean(item?.recurringCode),
+      paymentMethodLast4: clean(item?.paymentMethodLast4),
+      paymentMethodExpiry: clean(item?.paymentMethodExpiry),
+      city: clean(item?.city),
+      address: clean(item?.address),
+      group: clean(item?.group),
+      comments: clean(item?.comments)
+    }
+  };
   params.set("linkedType", "payment_mandate");
   params.set("paymentMandateId", clean(item?.mandateId || item?.id));
   params.set("paymentProvider", clean(item?.provider));
@@ -178,6 +208,7 @@ function mandateTaskHref(item) {
   params.set("paymentCustomerName", clean(item?.customerName));
   params.set("paymentCustomerEmail", clean(item?.email));
   params.set("title", `טיפול בהוראת קבע - ${clean(item?.customerName) || clean(item?.mandateId || item?.id) || "תורם"}`);
+  params.set("sourceSnapshot", JSON.stringify(snapshot));
   return `/tasks?${params.toString()}`;
 }
 

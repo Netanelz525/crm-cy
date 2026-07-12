@@ -37,6 +37,13 @@ function appendStudentMessage(studentId, params) {
   return `/neon/students/${encodeURIComponent(studentId)}?${searchParams.toString()}`;
 }
 
+function getBaseUrl() {
+  const configured = clean(process.env.CRM_BASE_URL);
+  if (configured) return configured.replace(/\/+$/, "");
+  const vercelUrl = clean(process.env.VERCEL_URL);
+  return vercelUrl ? `https://${vercelUrl}`.replace(/\/+$/, "") : "";
+}
+
 export async function updateNeonStudentAction(formData) {
   const user = await requireAuthenticatedUser();
   const studentId = clean(formData.get("studentId"));
@@ -338,7 +345,8 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
 
   let staffEmailWarning = "";
   if (teamEmails.length) {
-    const taskUrl = `/tasks?q=${encodeURIComponent(title)}`;
+      const taskPath = `/tasks?taskId=${encodeURIComponent(taskId)}`;
+      const taskUrl = getBaseUrl() ? `${getBaseUrl()}${taskPath}` : taskPath;
     try {
       await sendResendEmail({
         to: teamEmails,

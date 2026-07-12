@@ -10,7 +10,7 @@ import {
   TASK_LINK_TYPES,
   TASK_STATUS_OPTIONS
 } from "../../lib/tasks";
-import { createTaskAction, deleteTaskAction, updateTaskAction, updateTaskStatusAction } from "./actions";
+import { createTaskAction, deleteTaskAction, refreshTaskPaymentMandateAction, updateTaskAction, updateTaskStatusAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -59,11 +59,26 @@ function mergeStudents(...groups) {
   return merged;
 }
 
-function userOptions(users) {
+function parseSnapshotParam(value) {
+  const raw = clean(value);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function userCheckboxes(users, selectedAssignees = []) {
+  const selectedSet = new Set((selectedAssignees || []).map(clean).filter(Boolean));
   return users.map((user) => (
-    <option key={user.id} value={user.id}>
-      {user.name} {user.email ? `(${user.email})` : ""}
-    </option>
+    <label key={user.id} className="task-assignee-option">
+      <input type="checkbox" name="assigneeUserIds" value={user.id} defaultChecked={selectedSet.has(user.id)} />
+      <span>
+        <b>{user.name}</b>
+        {user.email ? <small>{user.email}</small> : null}
+      </span>
+    </label>
   ));
 }
 
@@ -87,7 +102,9 @@ function TaskForm({
   const linkedType = clean(searchParams?.linkedType || editingTask?.linkedType) || (clean(searchParams?.paymentMandateId) ? "payment_mandate" : "student");
   const selectedAssignees = editingTask?.assignees?.map((user) => user.id) || [currentUser.clerk_user_id];
   const defaultTitle = clean(searchParams?.title || editingTask?.title) || (linkedType === "payment_mandate" ? "טיפול בהוראת קבע בעייתית" : "");
+  const incomingSnapshot = parseSnapshotParam(searchParams?.sourceSnapshot);
   const sourceSnapshot = {
+    ...incomingSnapshot,
     mandateId: clean(searchParams?.paymentMandateId),
     provider: clean(searchParams?.paymentProvider),
     connectionId: clean(searchParams?.paymentConnectionId),
@@ -157,9 +174,9 @@ function TaskForm({
         <input type="hidden" name="paymentConnectionId" value={clean(searchParams?.paymentConnectionId || editingTask?.paymentConnectionId)} />
         <label className="tasks-wide">
           אנשי צוות אחראים
-          <select name="assigneeUserIds" multiple defaultValue={selectedAssignees} size={Math.min(8, Math.max(3, users.length))}>
-            {userOptions(users)}
-          </select>
+          <div className="task-assignee-grid">
+            {userCheckboxes(users, selectedAssignees)}
+          </div>
         </label>
         <label className="tasks-wide">
           הערות והסבר
@@ -176,7 +193,75 @@ function TaskForm({
   );
 }
 
-function TaskCard({ task, users, currentPath }) {
+function formatValue(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw) && !Number.isNaN(date.getTime())) {
+    return date.toLocaleDateString("he-IL");
+  }
+  return raw;
+}
+
+function formatMoneyValue(amount, currency = "ILS") {
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric)) return "-";
+  try {
+    return new Intl.NumberFormat("he-IL", { style: "currency", currency: clean(currency) || "ILS" }).format(numeric);
+  } catch {
+    return `${numeric.toFixed(2)} ${clean(currency) || "ILS"}`;
+  }
+}
+
+function MandateSnapshotPanel({ task, currentPath }) {
+  if (task.linkedType !== "payment_mandate") return null;
+  const snapshot = task.sourceSnapshot || {};
+  const created = snapshot.paymentMandateAtCreation || snapshot;
+  const latest = snapshot.latestPaymentMandateSnapshot || null;
+  const changed = snapshot.latestPaymentMandateChanged;
+  const checkedAt = snapshot.latestPaymentMandateCheckedAt;
+  const rows = [
+    ["שם תורם", created.customerName || task.paymentCustomerName],
+    ["מייל", created.email || task.paymentCustomerEmail],
+    ["מספר הו״ק", created.mandateId || task.paymentMandateId],
+    ["מקור סליקה", created.connectionLabel || task.paymentConnectionLabel],
+    ["סטטוס בזמן יצירה", created.statusLabel || created.status],
+    ["סיבת תקלה בזמן יצירה", created.errorText || created.issueKind],
+    ["סכום", formatMoneyValue(created.amountIls ?? created.amount ?? created.originalAmount, "ILS")],
+    ["חיוב הבא", created.nextChargeDate],
+    ["4 ספרות", created.paymentMethodLast4],
+    ["תוקף", created.paymentMethodExpiry]
+  ];
+
+  return (
+    <div className="task-mandate-panel">
+      <div className="summary-row">
+        <div>
+          <b>פרטי הוראת הקבע בזמן יצירת המשימה</b>
+          <div className="muted">הנתונים נשמרים על המשימה כדי שאפשר יהיה להשוות מול הסליקה בהמשך.</div>
+        </div>
+        <form action={refreshTaskPaymentMandateAction}>
+          <input type="hidden" name="taskId" value={task.id} />
+          <input type="hidden" name="returnTo" value={currentPath} />
+          <button className="quick-action-btn quick-action-outline" type="submit">בדוק מול הסליקה</button>
+        </form>
+      </div>
+      <div className="tasks-info-grid">
+        {rows.map(([label, value]) => (
+          <div key={label}><b>{label}:</b> {formatValue(value)}</div>
+        ))}
+      </div>
+      {latest ? (
+        <div className={changed ? "error" : "ok"} style={{ marginBottom: 0 }}>
+          {changed ? "נמצא שינוי מול הנתונים שנשמרו בזמן יצירת המשימה." : "לא נמצא שינוי מהותי מול הנתונים שנשמרו בזמן יצירת המשימה."}
+          {checkedAt ? ` נבדק: ${new Date(checkedAt).toLocaleString("he-IL")}` : ""}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TaskCard({ task, users, currentPath, activeTaskId = "" }) {
   const assigneeIds = task.assignees?.map((user) => user.id) || [];
   const linkHref = task.linkedType === "student" && task.studentId
     ? `/neon/students/${task.studentId}`
@@ -185,7 +270,7 @@ function TaskCard({ task, users, currentPath }) {
       : "";
 
   return (
-    <details className={`task-card task-card-${task.status}`}>
+    <details className={`task-card task-card-${task.status}`} open={clean(activeTaskId) === clean(task.id)}>
       <summary className="task-summary">
         <div>
           <div className="task-title">{task.title}</div>
@@ -205,6 +290,7 @@ function TaskCard({ task, users, currentPath }) {
           <div><b>אחראים:</b> {assigneeNames(task)}</div>
           <div className="tasks-wide"><b>הערות:</b> {task.description || "-"}</div>
         </div>
+        <MandateSnapshotPanel task={task} currentPath={currentPath} />
 
         <form action={updateTaskStatusAction} className="task-status-form">
           <input type="hidden" name="taskId" value={task.id} />
@@ -245,12 +331,16 @@ export default async function TasksPage({ searchParams }) {
   const linkedType = clean(resolvedSearchParams?.linkedType);
   const q = clean(resolvedSearchParams?.q);
   const studentQuery = clean(resolvedSearchParams?.studentQuery || resolvedSearchParams?.studentName);
+  const taskId = clean(resolvedSearchParams?.taskId);
   const taskCreated = clean(resolvedSearchParams?.taskCreated) === "1";
   const taskUpdated = clean(resolvedSearchParams?.taskUpdated) === "1";
   const taskDeleted = clean(resolvedSearchParams?.taskDeleted) === "1";
+  const taskMailWarning = clean(resolvedSearchParams?.taskMailWarning);
+  const taskRefreshed = clean(resolvedSearchParams?.taskRefreshed);
+  const taskRefreshError = clean(resolvedSearchParams?.taskRefreshError);
   const error = clean(resolvedSearchParams?.error);
 
-  const currentQuery = buildQueryString({ status, assignedTo, linkedType, q, studentQuery });
+  const currentQuery = buildQueryString({ taskId, status, assignedTo, linkedType, q, studentQuery });
   const currentPath = currentQuery ? `/tasks?${currentQuery}` : "/tasks";
   const users = await listAssignableTaskUsers();
   const studentQueryDigits = normalizeDigits(studentQuery);
@@ -262,7 +352,7 @@ export default async function TasksPage({ searchParams }) {
     : clean(resolvedSearchParams?.studentId)
       ? await searchNeonStudentsByText(clean(resolvedSearchParams?.studentName), 30, 0.25)
       : [];
-  const tasks = await listTasks({ status, assignedTo, linkedType, q, limit: 250 });
+  const tasks = await listTasks({ taskId, status, assignedTo, linkedType, q, limit: 250 });
 
   if (clean(resolvedSearchParams?.studentId) && !students.some((student) => student.id === clean(resolvedSearchParams.studentId))) {
     students.unshift({
@@ -287,8 +377,12 @@ export default async function TasksPage({ searchParams }) {
       </section>
 
       {taskCreated ? <div className="ok">המשימה נוצרה בהצלחה.</div> : null}
+      {taskMailWarning ? <div className="error">המשימה נוצרה, אבל היתה בעיה בשליחת המייל לאחראים: {taskMailWarning}</div> : null}
       {taskUpdated ? <div className="ok">המשימה עודכנה.</div> : null}
       {taskDeleted ? <div className="ok">המשימה נמחקה.</div> : null}
+      {taskRefreshed === "changed" ? <div className="error">הבדיקה מול הסליקה הסתיימה ונמצא שינוי.</div> : null}
+      {taskRefreshed === "same" ? <div className="ok">הבדיקה מול הסליקה הסתיימה ולא נמצא שינוי מהותי.</div> : null}
+      {taskRefreshError ? <div className="error">{taskRefreshError}</div> : null}
       {error ? <div className="error">{error}</div> : null}
 
       <section className="card">
@@ -297,6 +391,7 @@ export default async function TasksPage({ searchParams }) {
           <form className="task-search-form" action="/tasks">
             <input type="hidden" name="linkedType" value="student" />
             {clean(resolvedSearchParams?.title) ? <input type="hidden" name="title" value={clean(resolvedSearchParams.title)} /> : null}
+            {clean(resolvedSearchParams?.sourceSnapshot) ? <input type="hidden" name="sourceSnapshot" value={clean(resolvedSearchParams.sourceSnapshot)} /> : null}
             <input name="studentQuery" defaultValue={studentQuery} placeholder="חיפוש תלמיד לפי שם / טלפון / ת״ז" />
             <button className="quick-action-btn quick-action-outline" type="submit">חפש תלמיד</button>
           </form>
@@ -359,7 +454,7 @@ export default async function TasksPage({ searchParams }) {
         ) : (
           <div className="tasks-list">
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} users={users} currentPath={currentPath} />
+              <TaskCard key={task.id} task={task} users={users} currentPath={currentPath} activeTaskId={taskId} />
             ))}
           </div>
         )}
