@@ -1,6 +1,6 @@
 import Link from "next/link";
 import PendingSubmitButton from "../../components/pending-submit-button";
-import { searchNeonStudentsByText } from "../../lib/neon-students";
+import { searchNeonStudentsByText, searchNeonStudentsByTz } from "../../lib/neon-students";
 import { requireAttendanceUser } from "../../lib/rbac";
 import {
   listAssignableTaskUsers,
@@ -39,6 +39,24 @@ function taskLinkLabel(task) {
 function assigneeNames(task) {
   if (!task.assignees?.length) return "לא שובץ אחראי";
   return task.assignees.map((user) => user.name || user.email).filter(Boolean).join(", ");
+}
+
+function normalizeDigits(value) {
+  return clean(value).replace(/[^\d]/g, "");
+}
+
+function mergeStudents(...groups) {
+  const seen = new Set();
+  const merged = [];
+  for (const group of groups) {
+    for (const student of group || []) {
+      const id = clean(student?.id);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      merged.push(student);
+    }
+  }
+  return merged;
 }
 
 function userOptions(users) {
@@ -235,8 +253,12 @@ export default async function TasksPage({ searchParams }) {
   const currentQuery = buildQueryString({ status, assignedTo, linkedType, q, studentQuery });
   const currentPath = currentQuery ? `/tasks?${currentQuery}` : "/tasks";
   const users = await listAssignableTaskUsers();
+  const studentQueryDigits = normalizeDigits(studentQuery);
   const students = studentQuery
-    ? await searchNeonStudentsByText(studentQuery, 30, 0.25)
+    ? mergeStudents(
+      await searchNeonStudentsByText(studentQuery, 30, 0.25),
+      studentQueryDigits ? await searchNeonStudentsByTz(studentQueryDigits) : []
+    ).slice(0, 30)
     : clean(resolvedSearchParams?.studentId)
       ? await searchNeonStudentsByText(clean(resolvedSearchParams?.studentName), 30, 0.25)
       : [];
@@ -270,12 +292,21 @@ export default async function TasksPage({ searchParams }) {
       {error ? <div className="error">{error}</div> : null}
 
       <section className="card">
-        <details open={Boolean(clean(resolvedSearchParams?.studentId) || clean(resolvedSearchParams?.paymentMandateId))}>
+        <details open={Boolean(clean(resolvedSearchParams?.studentId) || clean(resolvedSearchParams?.paymentMandateId) || studentQuery)}>
           <summary className="tasks-section-summary">יצירת משימה חדשה</summary>
           <form className="task-search-form" action="/tasks">
+            <input type="hidden" name="linkedType" value="student" />
+            {clean(resolvedSearchParams?.title) ? <input type="hidden" name="title" value={clean(resolvedSearchParams.title)} /> : null}
             <input name="studentQuery" defaultValue={studentQuery} placeholder="חיפוש תלמיד לפי שם / טלפון / ת״ז" />
             <button className="quick-action-btn quick-action-outline" type="submit">חפש תלמיד</button>
           </form>
+          {studentQuery ? (
+            <div className={students.length ? "ok" : "error"}>
+              {students.length
+                ? `נמצאו ${students.length} תלמידים. בחר תלמיד מהרשימה בשדה "תלמיד".`
+                : "לא נמצאו תלמידים לחיפוש הזה."}
+            </div>
+          ) : null}
           <TaskForm
             users={users}
             students={students}
