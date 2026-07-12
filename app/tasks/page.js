@@ -2,6 +2,7 @@ import Link from "next/link";
 import PendingSubmitButton from "../../components/pending-submit-button";
 import { searchNeonStudentsByText, searchNeonStudentsByTz } from "../../lib/neon-students";
 import { requireAttendanceUser } from "../../lib/rbac";
+import { listTaskContactLogsByTaskIds } from "../../lib/task-contact-logs";
 import {
   listAssignableTaskUsers,
   listTasks,
@@ -10,7 +11,7 @@ import {
   TASK_LINK_TYPES,
   TASK_STATUS_OPTIONS
 } from "../../lib/tasks";
-import { createTaskAction, deleteTaskAction, refreshTaskPaymentMandateAction, updateTaskAction, updateTaskStatusAction } from "./actions";
+import { createTaskAction, createTaskContactLogAction, deleteTaskAction, refreshTaskPaymentMandateAction, updateTaskAction, updateTaskStatusAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -315,6 +316,69 @@ function formatMoneyValue(amount, currency = "ILS") {
   }
 }
 
+function formatDateValue(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString("he-IL");
+}
+
+function TaskContactLogPanel({ task, currentPath }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const logs = task.contactLogs || [];
+  return (
+    <div className="task-contact-log-panel">
+      <div>
+        <b>תיעוד פעולות ויצירת קשר</b>
+        <div className="muted">אפשר לרשום פעולה שבוצעה וליצור תזכורת עתידית לטיפול.</div>
+      </div>
+      <form action={createTaskContactLogAction} className="task-contact-log-form">
+        <input type="hidden" name="taskId" value={task.id} />
+        <input type="hidden" name="returnTo" value={currentPath} />
+        <label>
+          תאריך פעולה
+          <input type="date" name="contactDate" defaultValue={today} required />
+        </label>
+        <label>
+          תזכורת לטיפול
+          <input type="date" name="reminderDate" />
+        </label>
+        <label className="tasks-wide">
+          פירוט הפעולה
+          <textarea name="noteText" rows={3} placeholder="לדוגמה: נשלח מייל לתורם, יש לחזור אליו לאחר בירור." required />
+        </label>
+        <div className="quick-actions">
+          <PendingSubmitButton className="quick-action-btn quick-action-primary" pendingText="שומר...">
+            הוסף תיעוד
+          </PendingSubmitButton>
+        </div>
+      </form>
+      {!logs.length ? (
+        <div className="muted">עדיין אין תיעוד פעולות למשימה הזו.</div>
+      ) : (
+        <div className="task-contact-log-list">
+          {logs.map((log) => (
+            <div key={log.id} className="task-contact-log-item">
+              <div className="summary-row">
+                <b>{formatDateValue(log.contactDate)}</b>
+                <span className="muted">{log.createdByDisplayName || log.createdByEmail || "משתמש מערכת"}</span>
+              </div>
+              <div>{log.noteText}</div>
+              {log.reminderDate ? (
+                <div className="linked-record-meta">
+                  תזכורת: {formatDateValue(log.reminderDate)}
+                  {log.reminderSentAt ? ` | נשלח מייל: ${new Date(log.reminderSentAt).toLocaleString("he-IL")}` : ""}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MandateSnapshotPanel({ task, currentPath }) {
   if (task.linkedType !== "payment_mandate") return null;
   const snapshot = task.sourceSnapshot || {};
@@ -394,6 +458,7 @@ function TaskCard({ task, users, currentPath, activeTaskId = "" }) {
           <div className="tasks-wide"><b>הערות:</b> {task.description || "-"}</div>
         </div>
         <TaskContactActions task={task} linkHref={linkHref} />
+        <TaskContactLogPanel task={task} currentPath={currentPath} />
         <MandateSnapshotPanel task={task} currentPath={currentPath} />
 
         <form action={updateTaskStatusAction} className="task-status-form">
@@ -442,6 +507,8 @@ export default async function TasksPage({ searchParams }) {
   const taskMailWarning = clean(resolvedSearchParams?.taskMailWarning);
   const taskRefreshed = clean(resolvedSearchParams?.taskRefreshed);
   const taskRefreshError = clean(resolvedSearchParams?.taskRefreshError);
+  const taskContactCreated = clean(resolvedSearchParams?.taskContactCreated) === "1";
+  const taskContactError = clean(resolvedSearchParams?.taskContactError);
   const error = clean(resolvedSearchParams?.error);
 
   const currentQuery = buildQueryString({ taskId, status, assignedTo, linkedType, q, studentQuery });
@@ -456,7 +523,12 @@ export default async function TasksPage({ searchParams }) {
     : clean(resolvedSearchParams?.studentId)
       ? await searchNeonStudentsByText(clean(resolvedSearchParams?.studentName), 30, 0.25)
       : [];
-  const tasks = await listTasks({ taskId, status, assignedTo, linkedType, q, limit: 250 });
+  const baseTasks = await listTasks({ taskId, status, assignedTo, linkedType, q, limit: 250 });
+  const contactLogsByTaskId = await listTaskContactLogsByTaskIds(baseTasks.map((task) => task.id), 10);
+  const tasks = baseTasks.map((task) => ({
+    ...task,
+    contactLogs: contactLogsByTaskId[task.id] || []
+  }));
 
   if (clean(resolvedSearchParams?.studentId) && !students.some((student) => student.id === clean(resolvedSearchParams.studentId))) {
     students.unshift({
@@ -487,6 +559,8 @@ export default async function TasksPage({ searchParams }) {
       {taskRefreshed === "changed" ? <div className="error">הבדיקה מול הסליקה הסתיימה ונמצא שינוי.</div> : null}
       {taskRefreshed === "same" ? <div className="ok">הבדיקה מול הסליקה הסתיימה ולא נמצא שינוי מהותי.</div> : null}
       {taskRefreshError ? <div className="error">{taskRefreshError}</div> : null}
+      {taskContactCreated ? <div className="ok">תיעוד הפעולה נשמר.</div> : null}
+      {taskContactError ? <div className="error">{taskContactError}</div> : null}
       {error ? <div className="error">{error}</div> : null}
 
       <section className="card">

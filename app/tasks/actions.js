@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getPaymentMandateDetails } from "../../lib/payment-systems";
 import { requireAttendanceUser } from "../../lib/rbac";
 import { buildResendFromAddress, sendResendEmail } from "../../lib/resend";
+import { createTaskContactLog } from "../../lib/task-contact-logs";
 import {
   createTask,
   deleteTask,
@@ -290,6 +291,25 @@ export async function updateTaskStatusAction(formData) {
   await updateTaskStatus(taskId, status);
   revalidatePath("/tasks");
   redirect(returnTo);
+}
+
+export async function createTaskContactLogAction(formData) {
+  const currentUser = await requireAttendanceUser();
+  const taskId = clean(formData.get("taskId"));
+  const returnTo = safeRedirect(formData.get("returnTo"), `/tasks?taskId=${encodeURIComponent(taskId)}`);
+  try {
+    await createTaskContactLog({
+      taskId,
+      contactDate: formData.get("contactDate"),
+      noteText: formData.get("noteText"),
+      reminderDate: formData.get("reminderDate"),
+      createdByUserId: currentUser.clerk_user_id
+    });
+  } catch (error) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}taskContactError=${encodeURIComponent(clean(error?.message) || "שמירת יצירת הקשר נכשלה.")}`);
+  }
+  revalidatePath("/tasks");
+  redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}taskContactCreated=1&taskId=${encodeURIComponent(taskId)}`);
 }
 
 export async function deleteTaskAction(formData) {

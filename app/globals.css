@@ -3708,6 +3708,35 @@ td {
   gap: 8px;
 }
 
+.task-contact-log-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #d7e1ef;
+  border-radius: 14px;
+  background: #fbfdff;
+}
+
+.task-contact-log-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.task-contact-log-list {
+  display: grid;
+  gap: 8px;
+}
+
+.task-contact-log-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #e1ebf5;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
 .student-request-card {
   display: grid;
   gap: 14px;

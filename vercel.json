@@ -18,6 +18,10 @@
       "schedule": "15 19 * * 4"
     },
     {
+      "path": "/api/cron/task-reminders",
+      "schedule": "0 18 * * *"
+    },
+    {
       "path": "/api/cron/automation-recovery",
       "schedule": "20 19 * * 4"
     }

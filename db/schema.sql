@@ -100,3 +100,14 @@ CREATE TABLE IF NOT EXISTS crm_task_assignees (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (task_id, assignee_user_id)
 );
+
+CREATE TABLE IF NOT EXISTS crm_task_contact_logs (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL REFERENCES crm_tasks(id) ON DELETE CASCADE,
+  contact_date DATE NOT NULL,
+  note_text TEXT NOT NULL,
+  reminder_date DATE,
+  reminder_sent_at TIMESTAMPTZ,
+  created_by_user_id TEXT REFERENCES app_users(clerk_user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
