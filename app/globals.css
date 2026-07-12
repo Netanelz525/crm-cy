@@ -119,6 +119,23 @@ a {
   box-shadow: var(--shadow);
 }
 
+.unauthorized-card {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 28px;
+}
+
+.unauthorized-card h1 {
+  margin-top: 0;
+}
+
+.unauthorized-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
 .glass {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.86));
 }
