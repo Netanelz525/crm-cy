@@ -73,3 +73,30 @@ CREATE TABLE IF NOT EXISTS scheduled_job_runs (
   completed_at TIMESTAMPTZ,
   PRIMARY KEY (job_name, job_key)
 );
+
+CREATE TABLE IF NOT EXISTS crm_tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  linked_type TEXT NOT NULL,
+  student_id TEXT,
+  payment_mandate_id TEXT,
+  payment_provider TEXT,
+  payment_connection_id TEXT,
+  payment_connection_label TEXT,
+  payment_customer_name TEXT,
+  payment_customer_email TEXT,
+  source_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_by_user_id TEXT REFERENCES app_users(clerk_user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS crm_task_assignees (
+  task_id TEXT NOT NULL REFERENCES crm_tasks(id) ON DELETE CASCADE,
+  assignee_user_id TEXT NOT NULL REFERENCES app_users(clerk_user_id) ON DELETE CASCADE,
+  assigned_by_user_id TEXT REFERENCES app_users(clerk_user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (task_id, assignee_user_id)
+);

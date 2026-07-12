@@ -168,6 +168,19 @@ function QuickMandateEmailForm({ item, returnQuery }) {
   );
 }
 
+function mandateTaskHref(item) {
+  const params = new URLSearchParams();
+  params.set("linkedType", "payment_mandate");
+  params.set("paymentMandateId", clean(item?.mandateId || item?.id));
+  params.set("paymentProvider", clean(item?.provider));
+  params.set("paymentConnectionId", clean(item?.connectionId));
+  params.set("paymentConnectionLabel", clean(item?.connectionLabel));
+  params.set("paymentCustomerName", clean(item?.customerName));
+  params.set("paymentCustomerEmail", clean(item?.email));
+  params.set("title", `טיפול בהוראת קבע - ${clean(item?.customerName) || clean(item?.mandateId || item?.id) || "תורם"}`);
+  return `/tasks?${params.toString()}`;
+}
+
 export default function PaymentMandatesReportClient({
   mandates,
   connections,
@@ -460,6 +473,11 @@ export default function PaymentMandatesReportClient({
                     <div><b>שווי בש&quot;ח:</b> {formatMoney(item.amountIls ?? item.amount, "ILS")}</div>
                   </div>
                   <div style={{ marginTop: 14 }}>
+                    <div className="quick-actions" style={{ marginTop: 0, marginBottom: 12 }}>
+                      <Link className="quick-action-btn quick-action-outline" href={mandateTaskHref(item)}>
+                        צור משימת טיפול
+                      </Link>
+                    </div>
                     <QuickMandateEmailForm item={item} returnQuery={exportQuery} />
                     <MandateRemoteDetails
                       item={item}

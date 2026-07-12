@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import AttendanceHistoryPanel from "../../../../components/attendance-history-panel";
 import OpenAttendanceSessionsPanel from "../../../../components/open-attendance-sessions-panel";
+import PendingSubmitButton from "../../../../components/pending-submit-button";
 import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent, listOpenAttendanceSessionsForStudent } from "../../../../lib/attendance";
 import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
@@ -12,7 +13,8 @@ import { getStudentTagsByStudentIds, listStudentTags } from "../../../../lib/stu
 import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
-import { deleteNeonStudentAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction, updateStudentOpenAttendanceAction } from "./actions";
+import { listTasks, taskStatusLabel } from "../../../../lib/tasks";
+import { deleteNeonStudentAction, submitStudentApprovalReceiptRequestAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction, updateStudentOpenAttendanceAction } from "./actions";
 import StudentContactLiveClient from "./student-contact-live-client";
 import StudentEventsLiveClient from "./student-events-live-client";
 import StudentTagsLiveClient from "./student-tags-live-client";
@@ -259,23 +261,28 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const documentUploaded = clean(resolvedSearchParams?.documentUploaded) === "1";
   const documentRenamed = clean(resolvedSearchParams?.documentRenamed) === "1";
   const attendanceUpdated = clean(resolvedSearchParams?.attendanceUpdated) === "1";
+  const requestSubmitted = clean(resolvedSearchParams?.requestSubmitted) === "1";
+  const requestError = clean(resolvedSearchParams?.requestError);
+  const staffEmailWarning = clean(resolvedSearchParams?.staffEmailWarning);
   const errorText = clean(resolvedSearchParams?.error);
 
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
   const studentName = `${student?.fullName?.firstName || ""} ${student?.fullName?.lastName || ""}`.trim() || student?.label || "-";
   const showChildrenCount = isMarried(student?.famliystatus);
+  const hasIdentityNumber = Boolean(clean(student?.tznum).replace(/[^\d]/g, ""));
   const documents = await listStudentDocuments(studentId);
   const availableTags = await listStudentTags();
   const studentTagsMap = await getStudentTagsByStudentIds([studentId]);
   const assignedTags = studentTagsMap[studentId] || [];
   const emailDeliveries = canViewEmailRecords ? await listStudentEmailDeliveries(studentId, 8) : [];
-  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents] = await Promise.all([
+  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks] = await Promise.all([
     canViewAttendanceHistory ? getAttendanceSummaryForStudent(studentId) : Promise.resolve(null),
     canViewAttendanceHistory ? listAttendanceHistoryForStudent(studentId, { limit: 8 }) : Promise.resolve([]),
     listOpenAttendanceSessionsForStudent(studentId, { limit: 8 }),
     canViewContactRecords ? listStudentContactLogs(studentId, 8) : Promise.resolve([]),
-    listStudentEvents(studentId, 12)
+    listStudentEvents(studentId, 12),
+    canManageStudent ? listTasks({ studentId, limit: 20 }) : Promise.resolve([])
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
@@ -300,6 +307,14 @@ export default async function NeonStudentPage({ params, searchParams }) {
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link>
+            {canManageStudent ? (
+              <Link
+                className="btn btn-ghost"
+                href={`/tasks?linkedType=student&studentId=${encodeURIComponent(studentId)}&studentName=${encodeURIComponent(studentName)}&title=${encodeURIComponent(`טיפול בכרטיס תלמיד - ${studentName}`)}`}
+              >
+                צור משימה
+              </Link>
+            ) : null}
             {editMode ? (
               <>
                 <Link
@@ -355,7 +370,54 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {documentUploaded ? <div className="ok">המסמך הועלה ונשמר בכרטיס התלמיד.</div> : null}
       {documentRenamed ? <div className="ok">שם המסמך עודכן.</div> : null}
       {attendanceUpdated ? <div className="ok">הנוכחות עודכנה במפגש הפתוח.</div> : null}
+      {requestSubmitted ? <div className="ok">הבקשה נשלחה ונפתחה משימה לצוות.</div> : null}
+      {staffEmailWarning ? <div className="card muted">המשימה נפתחה, אבל היתה בעיה בשליחת המייל לצוות: {staffEmailWarning}</div> : null}
+      {requestError ? <div className="error">{requestError}</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
+
+      <section className="card student-request-card">
+        <div className="summary-row">
+          <div>
+            <h3 style={{ marginTop: 0 }}>בקשה לאישורים וקבלות</h3>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              ניתן לשלוח בקשה לצוות לקבלת אישורים או קבלות. לאחר השליחה תיפתח משימה לטיפול.
+            </p>
+          </div>
+          <span className={`meta-chip ${hasIdentityNumber ? "automation-chip-ok" : "automation-chip-error"}`}>
+            {hasIdentityNumber ? "ת״ז קיימת בכרטיס" : "חסרה ת״ז בכרטיס"}
+          </span>
+        </div>
+        {!hasIdentityNumber ? (
+          <div className="student-request-warning">
+            לא ניתן להגיש בקשה לפני שמספר הזהות מופיע בכרטיס התלמיד. יש לפנות לצוות לעדכון הפרטים.
+          </div>
+        ) : (
+          <form action={submitStudentApprovalReceiptRequestAction} className="student-request-form">
+            <input type="hidden" name="studentId" value={studentId} />
+            <label>
+              סוג בקשה
+              <select name="requestType" defaultValue="אישורים וקבלות">
+                <option value="אישורים וקבלות">אישורים וקבלות</option>
+                <option value="אישור לימודים">אישור לימודים</option>
+                <option value="קבלות תרומות/תשלומים">קבלות תרומות/תשלומים</option>
+                <option value="אישור אחר">אישור אחר</option>
+              </select>
+            </label>
+            <label>
+              פירוט הבקשה
+              <textarea
+                name="requestText"
+                rows={4}
+                placeholder="פרט כאן מה בדיוק נדרש, עבור איזו שנה/תקופה, ולמי מיועד האישור."
+                required
+              />
+            </label>
+            <PendingSubmitButton className="quick-action-btn quick-action-primary" pendingText="שולח בקשה...">
+              שלח בקשה לצוות
+            </PendingSubmitButton>
+          </form>
+        )}
+      </section>
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel neon-student-linked-records">
         <summary className="linked-records-toggle">
@@ -368,10 +430,59 @@ export default async function NeonStudentPage({ params, searchParams }) {
             {canShowEmailSection ? <span className="linked-record-pill">מיילים: {emailDeliveries.length}</span> : null}
             {canViewContactRecords ? <span className="linked-record-pill">יצירת קשר: {contactLogs.length}</span> : null}
             <span className="linked-record-pill">אירועים: {studentEvents.length}</span>
+            {canManageStudent ? <span className="linked-record-pill">משימות: {studentTasks.length}</span> : null}
             <span className="linked-record-pill">{canViewAttendanceHistory ? `מפגשים: ${attendanceSummary?.totalSessions || 0}` : `פתוחים: ${openAttendanceSessions.length}`}</span>
           </div>
         </summary>
         <div className="linked-record-groups">
+          {canManageStudent ? (
+            <details className="linked-record-group">
+              <summary className="linked-record-group-summary">
+                <div>
+                  <b>משימות</b>
+                  <div className="linked-record-meta">טיפול פתוח וסגור המשויך לתלמיד.</div>
+                </div>
+                <div className="linked-records-summary">
+                  <span className="linked-record-pill">רשומות: {studentTasks.length}</span>
+                </div>
+              </summary>
+              <div className="linked-record-group-body">
+                <div className="quick-actions" style={{ marginTop: 0, marginBottom: 12 }}>
+                  <Link
+                    className="quick-action-btn quick-action-primary"
+                    href={`/tasks?linkedType=student&studentId=${encodeURIComponent(studentId)}&studentName=${encodeURIComponent(studentName)}&title=${encodeURIComponent(`טיפול בכרטיס תלמיד - ${studentName}`)}`}
+                  >
+                    צור משימה לתלמיד
+                  </Link>
+                  <Link className="quick-action-btn quick-action-outline" href={`/tasks?linkedType=student&q=${encodeURIComponent(studentName)}`}>
+                    פתח את כל המשימות
+                  </Link>
+                </div>
+                {!studentTasks.length ? (
+                  <div className="linked-record-card">
+                    <b>אין משימות</b>
+                    <div className="linked-record-meta">כאשר תיפתח משימה לתלמיד היא תופיע כאן.</div>
+                  </div>
+                ) : (
+                  <div className="linked-records-grid">
+                    {studentTasks.map((task) => (
+                      <div key={task.id} className="linked-record-card">
+                        <div className="linked-record-card-top">
+                          <Link className="linked-record-title" href={`/tasks?q=${encodeURIComponent(task.title)}`}>
+                            {task.title}
+                          </Link>
+                          <span className="linked-record-pill">{taskStatusLabel(task.status)}</span>
+                        </div>
+                        <div className="linked-record-meta">אחראים: {task.assignees?.map((user) => user.name || user.email).join(", ") || "לא שובץ"}</div>
+                        <div className="linked-record-meta">עודכן: {task.updatedAt ? new Date(task.updatedAt).toLocaleDateString("he-IL") : "-"}</div>
+                        <div className="linked-record-meta">הערות: {task.description || "-"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
+          ) : null}
           <StudentEventsLiveClient studentId={studentId} initialEvents={studentEvents} />
           {canViewContactRecords ? (
             <StudentContactLiveClient studentId={studentId} initialContactLogs={contactLogs} canManageContact={canManageStudent} />

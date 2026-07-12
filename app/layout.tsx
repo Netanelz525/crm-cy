@@ -24,6 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     { href: "/print", label: "הדפסה" }
   ];
   const secondaryNavItems = [
+    { href: "/tasks", label: "משימות" },
     { href: "/payments", label: "מערכות תשלום" },
     ...(currentUser?.is_super_admin ? [{ href: "/admin", label: "ניהול" }] : []),
     ...(currentUser ? [{ href: "/account", label: "אזור אישי" }] : [])

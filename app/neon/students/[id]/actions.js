@@ -5,14 +5,36 @@ import { redirect } from "next/navigation";
 import { saveOpenAttendanceRecordForStudent } from "../../../../lib/attendance";
 import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../../../lib/deleted-students";
 import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/rbac";
+import { buildResendFromAddress, sendResendEmail } from "../../../../lib/resend";
 import { createStudentContactLog } from "../../../../lib/student-contact-logs";
 import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
 import { toFormData } from "../../../../lib/student-fields";
-import { updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
+import { getNeonStudentById, updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
 import { addStudentTagToStudent, removeStudentTagFromStudent, replaceStudentTags } from "../../../../lib/student-tags";
+import { createTask, listAssignableTaskUsers } from "../../../../lib/tasks";
 
 function clean(v) {
   return String(v || "").trim();
+}
+
+function normalizeDigits(value) {
+  return clean(value).replace(/[^\d]/g, "");
+}
+
+function studentDisplayName(student) {
+  return [
+    clean(student?.fullName?.firstName),
+    clean(student?.fullName?.lastName)
+  ].filter(Boolean).join(" ") || clean(student?.label) || clean(student?.name) || "תלמיד";
+}
+
+function appendStudentMessage(studentId, params) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const next = clean(value);
+    if (next) searchParams.set(key, next);
+  });
+  return `/neon/students/${encodeURIComponent(studentId)}?${searchParams.toString()}`;
 }
 
 export async function updateNeonStudentAction(formData) {
@@ -248,4 +270,110 @@ export async function updateStudentOpenAttendanceAction(formData) {
   }
 
   redirect(`/neon/students/${studentId}?attendanceUpdated=1`);
+}
+
+export async function submitStudentApprovalReceiptRequestAction(formData) {
+  const user = await requireAuthenticatedUser();
+  const studentId = clean(formData.get("studentId"));
+  const requestType = clean(formData.get("requestType")) || "אישורים וקבלות";
+  const requestText = clean(formData.get("requestText"));
+
+  if (!assertStudentAccess(user, studentId)) {
+    redirect("/unauthorized");
+  }
+
+  if (!requestText) {
+    redirect(appendStudentMessage(studentId, { requestError: "יש לפרט את הבקשה לפני השליחה." }));
+  }
+
+  const student = await getNeonStudentById(studentId);
+  if (!student) {
+    redirect(appendStudentMessage(studentId, { requestError: "כרטיס התלמיד לא נמצא." }));
+  }
+
+  const tznum = normalizeDigits(student?.tznum);
+  if (!tznum) {
+    redirect(appendStudentMessage(studentId, { requestError: "לא ניתן להגיש בקשה בלי מספר זהות בכרטיס התלמיד. יש לפנות לצוות לעדכון התעודה." }));
+  }
+
+  const teamUsers = await listAssignableTaskUsers();
+  const assigneeUserIds = teamUsers.map((teamUser) => teamUser.id).filter(Boolean);
+  const teamEmails = [...new Set(teamUsers.map((teamUser) => clean(teamUser.email).toLowerCase()).filter(Boolean))];
+  const studentName = studentDisplayName(student);
+  const title = `בקשת תלמיד לאישורים וקבלות - ${studentName}`;
+  const description = [
+    `סוג בקשה: ${requestType}`,
+    `שם תלמיד: ${studentName}`,
+    `ת"ז: ${tznum}`,
+    `מוסד: ${clean(student?.currentInstitution) || "-"}`,
+    `שיעור: ${clean(student?.class) || "-"}`,
+    "",
+    "פירוט הבקשה:",
+    requestText,
+    "",
+    `הוגש על ידי: ${clean(user.display_name) || clean(user.email) || user.clerk_user_id}`
+  ].join("\n");
+
+  let taskId = "";
+  try {
+    taskId = await createTask({
+      title,
+      description,
+      status: "pending",
+      linkedType: "student",
+      studentId,
+      assigneeUserIds,
+      createdByUserId: user.clerk_user_id,
+      sourceSnapshot: {
+        source: "student_approval_receipt_request",
+        requestType,
+        requestedByUserId: user.clerk_user_id,
+        studentName,
+        tznum
+      }
+    });
+  } catch (error) {
+    redirect(appendStudentMessage(studentId, { requestError: clean(error?.message) || "פתיחת המשימה נכשלה." }));
+  }
+
+  let staffEmailWarning = "";
+  if (teamEmails.length) {
+    const taskUrl = `/tasks?q=${encodeURIComponent(title)}`;
+    try {
+      await sendResendEmail({
+        to: teamEmails,
+        from: buildResendFromAddress("מערכת CRM"),
+        subject: title,
+        text: [
+          "נפתחה בקשת תלמיד חדשה לקבלת אישורים/קבלות.",
+          "",
+          description,
+          "",
+          `משימה: ${taskId}`,
+          `פתיחה במערכת: ${taskUrl}`
+        ].join("\n"),
+        html: [
+          "<div dir=\"rtl\" style=\"font-family:Arial,sans-serif;line-height:1.7\">",
+          "<h2>נפתחה בקשת תלמיד חדשה</h2>",
+          `<p><b>תלמיד:</b> ${studentName}</p>`,
+          `<p><b>ת"ז:</b> ${tznum}</p>`,
+          `<p><b>סוג בקשה:</b> ${requestType}</p>`,
+          `<p><b>פירוט:</b></p><div style=\"white-space:pre-wrap;border:1px solid #d7e1ef;border-radius:10px;padding:12px;background:#f8fbff\">${requestText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`,
+          `<p><b>משימה:</b> ${taskId}</p>`,
+          "</div>"
+        ].join(""),
+        idempotencyKey: `student-request-${taskId}`
+      });
+    } catch (error) {
+      staffEmailWarning = clean(error?.message) || "המייל לצוות לא נשלח.";
+    }
+  } else {
+    staffEmailWarning = "לא נמצאו כתובות מייל של אנשי צוות לשליחה.";
+  }
+
+  revalidatePath(`/neon/students/${studentId}`);
+  redirect(appendStudentMessage(studentId, {
+    requestSubmitted: "1",
+    staffEmailWarning
+  }));
 }
