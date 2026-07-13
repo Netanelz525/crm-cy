@@ -736,6 +736,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   let inboundEventId = "";
+  let fallbackWaId = "";
   try {
     const rawBody = await request.text();
     const signatureHeader = request.headers.get("x-hub-signature-256");
@@ -775,6 +776,7 @@ export async function POST(request) {
     }
 
     const waId = clean(message?.from || contact?.wa_id);
+    fallbackWaId = waId;
     const profileName = clean(contact?.profile?.name);
     const text = extractText(message);
     const interactiveActionId = extractInteractiveActionId(message);
@@ -1249,16 +1251,33 @@ export async function POST(request) {
     }
 
     if (attachmentMeta) {
-      const attachment = await downloadWhatsAppMediaAsAttachment(attachmentMeta.mediaId, {
-        fileName: attachmentMeta.fileName,
-        contentType: attachmentMeta.contentType
-      });
-      const result = await processDocumentAttachment({
-        user,
-        attachment,
-        messageText: text,
-        source: "whatsapp"
-      });
+      await sendWhatsAppTextMessages(
+        waId,
+        "קיבלתי את המסמך. אני מעבד אותו עכשיו ואחזיר לך אפשרויות להמשך."
+      ).catch(() => null);
+      let result;
+      try {
+        const attachment = await downloadWhatsAppMediaAsAttachment(attachmentMeta.mediaId, {
+          fileName: attachmentMeta.fileName,
+          contentType: attachmentMeta.contentType
+        });
+        result = await processDocumentAttachment({
+          user,
+          attachment,
+          messageText: text,
+          source: "whatsapp"
+        });
+      } catch (error) {
+        console.error("WhatsApp document processing failed:", error?.message || error);
+        const responseText = `המסמך התקבל, אבל העיבוד נכשל: ${clean(error?.message) || "שגיאה לא ידועה"}. נסה לשלוח שוב או לפתוח את מסך ההדפסה במערכת.`;
+        await sendWhatsAppTextMessages(waId, responseText).catch(() => null);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "document_processing_failed",
+          clerkUserId: user.clerk_user_id,
+          responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
       await sendWhatsAppResult(waId, result);
       await updateWhatsAppInboundEvent(inboundEvent.id, {
         processingStatus: "processed_document",
@@ -1302,6 +1321,12 @@ export async function POST(request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("WhatsApp webhook failed:", error?.message || error);
+    if (fallbackWaId) {
+      await sendWhatsAppTextMessages(
+        fallbackWaId,
+        `אירעה שגיאה בטיפול בהודעה: ${clean(error?.message) || "שגיאה לא ידועה"}. נסה שוב בעוד רגע.`
+      ).catch(() => null);
+    }
     if (inboundEventId) {
       await updateWhatsAppInboundEvent(inboundEventId, {
         processingStatus: "failed",
