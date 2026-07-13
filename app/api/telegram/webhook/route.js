@@ -521,6 +521,7 @@ async function sendInstitutionAttachment(chatId, type, messageRecord) {
 }
 
 export async function POST(request) {
+  let fallbackChatId = "";
   try {
     const secret = getTelegramWebhookSecret();
     if (secret) {
@@ -534,6 +535,7 @@ export async function POST(request) {
     if (!update || typeof update !== "object") {
       return NextResponse.json({ ok: true });
     }
+    fallbackChatId = clean(extractChat(update)?.id);
 
     if (update.callback_query) {
       const callback = update.callback_query;
@@ -1097,21 +1099,37 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    const result = attachmentMeta
-      ? await processDocumentAttachment({
-        user,
-        attachment: await downloadTelegramFileAsAttachment(attachmentMeta.fileId, {
-          fileName: attachmentMeta.fileName,
-          contentType: attachmentMeta.contentType
-        }),
-        messageText: text,
-        source: "telegram"
-      })
-      : await processTextAiMessage({
+    let result;
+    if (attachmentMeta) {
+      await sendTelegramMessage(
+        chatId,
+        "קיבלתי את המסמך. אני מעבד אותו עכשיו ואחזיר לך אפשרויות להמשך."
+      ).catch(() => null);
+      try {
+        result = await processDocumentAttachment({
+          user,
+          attachment: await downloadTelegramFileAsAttachment(attachmentMeta.fileId, {
+            fileName: attachmentMeta.fileName,
+            contentType: attachmentMeta.contentType
+          }),
+          messageText: text,
+          source: "telegram"
+        });
+      } catch (error) {
+        console.error("Telegram document processing failed:", error?.message || error);
+        await sendTelegramMessage(
+          chatId,
+          `המסמך התקבל, אבל העיבוד נכשל: ${clean(error?.message) || "שגיאה לא ידועה"}. נסה לשלוח שוב או לפתוח את מסך ההדפסה במערכת.`
+        ).catch(() => null);
+        return NextResponse.json({ ok: true });
+      }
+    } else {
+      result = await processTextAiMessage({
         user,
         messageText: text,
         source: "telegram"
       });
+    }
 
     const cardsText = buildTelegramStudentCardsText(result.studentCards);
     const baseReply = [result.reply, cardsText].filter(Boolean).join("\n\n");
@@ -1138,6 +1156,12 @@ export async function POST(request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Telegram webhook failed:", error?.message || error);
+    if (fallbackChatId) {
+      await sendTelegramMessage(
+        fallbackChatId,
+        `אירעה שגיאה בטיפול בהודעה: ${clean(error?.message) || "שגיאה לא ידועה"}. נסה שוב בעוד רגע.`
+      ).catch(() => null);
+    }
     return NextResponse.json({ ok: true });
   }
 }
