@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkCode, sendTelegramMessage, sendTelegramDocumentFile, answerTelegramCallbackQuery, downloadTelegramFileAsAttachment, editTelegramMessageReplyMarkup } from "../../../../lib/telegram";
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
-import { createAiChatMessage, getAiChatMessageById, getAiChatMessageByIdPrefix, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
+import { clearAiChatMessagePendingAction, createAiChatMessage, getAiChatMessageById, getAiChatMessageByIdPrefix, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { createPrintJobFromStoredDocument, processDocumentWorkflowAttachment, processStoredDocumentForStudentLink } from "../../../../lib/ai-document-agent";
 import { canUsePrintQueue } from "../../../../lib/print-jobs";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
@@ -348,6 +348,13 @@ function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) 
   return `${parsed.pathname}${query ? `?${query}` : ""}`;
 }
 
+const DOCUMENT_PRINT_PLANS = [
+  { value: "corner-staple", label: "הידוק פינה מומלץ" },
+  { value: "duplex", label: "A4 דו צדדי" },
+  { value: "booklet", label: "חוברת A3" }
+];
+const DOCUMENT_PRINT_COPIES = [1, 5, 20, 40];
+
 function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", actionLinks = [], exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true }) {
   const inlineKeyboard = [];
   const isPaymentReport = isPaymentReportLink(exportUrl) || isPaymentReportLink(pdfUrl) || isPaymentViewLink(viewUrl);
@@ -355,30 +362,9 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   if (clean(pendingAction?.type) === "document_workflow" && messageId) {
     return {
       inline_keyboard: [
-        [
-          { text: "A3 x1", callback_data: `docprint:booklet:1:${messageId}` },
-          { text: "A3 x5", callback_data: `docprint:booklet:5:${messageId}` }
-        ],
-        [
-          { text: "A3 x20", callback_data: `docprint:booklet:20:${messageId}` },
-          { text: "A3 x40", callback_data: `docprint:booklet:40:${messageId}` }
-        ],
-        [
-          { text: "דו צדדי x1", callback_data: `docprint:duplex:1:${messageId}` },
-          { text: "דו צדדי x5", callback_data: `docprint:duplex:5:${messageId}` }
-        ],
-        [
-          { text: "דו צדדי x20", callback_data: `docprint:duplex:20:${messageId}` },
-          { text: "דו צדדי x40", callback_data: `docprint:duplex:40:${messageId}` }
-        ],
-        [
-          { text: "הידוק x1", callback_data: `docprint:corner-staple:1:${messageId}` },
-          { text: "הידוק x5", callback_data: `docprint:corner-staple:5:${messageId}` }
-        ],
-        [
-          { text: "הידוק x20", callback_data: `docprint:corner-staple:20:${messageId}` },
-          { text: "הידוק x40", callback_data: `docprint:corner-staple:40:${messageId}` }
-        ],
+        ...DOCUMENT_PRINT_PLANS.map((plan) => ([
+          { text: plan.label, callback_data: `docplan:${plan.value}:${messageId}` }
+        ])),
         [
           { text: "שיוך לתלמיד", callback_data: `docstudent:${messageId}` }
         ]
@@ -466,8 +452,9 @@ function buildTelegramStudentPickerKeyboard({ messageId, studentCards = [] }) {
 function buildTelegramDocumentCopiesKeyboard({ messageId, printPlan }) {
   return {
     inline_keyboard: [
-      [1, 5].map((copies) => ({ text: `${copies} עותקים`, callback_data: `doccopies:${printPlan}:${copies}:${messageId}` })),
-      [20, 40].map((copies) => ({ text: `${copies} עותקים`, callback_data: `doccopies:${printPlan}:${copies}:${messageId}` }))
+      [{ text: "סיימתי", callback_data: `docdone:${messageId}` }],
+      [1, 5].map((copies) => ({ text: `עוד ${copies}`, callback_data: `doccopies:${printPlan}:${copies}:${messageId}` })),
+      [20, 40].map((copies) => ({ text: `עוד ${copies}`, callback_data: `doccopies:${printPlan}:${copies}:${messageId}` }))
     ]
   };
 }
@@ -641,10 +628,38 @@ export async function POST(request) {
           await answerTelegramCallbackQuery(callback.id, "לא מצאתי מסמך שממתין להדפסה.");
           return NextResponse.json({ ok: true });
         }
-        await answerTelegramCallbackQuery(callback.id, "בחר כמות עותקים.");
-        await sendTelegramMessage(chatId, "בחר כמות עותקים לשליחה להדפסה.", {
+        if (!canUsePrintQueue(user)) {
+          await answerTelegramCallbackQuery(callback.id, "אין הרשאה להדפסה.");
+          await sendTelegramMessage(chatId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        const job = await createPrintJobFromStoredDocument({
+          storedDocument: messageRecord.pendingAction.storedDocument,
+          user,
+          printPlan,
+          copies: 1
+        });
+        await answerTelegramCallbackQuery(callback.id, "נשלח עותק אחד להדפסה.");
+        await sendTelegramMessage(chatId, [
+          "נשלח עותק אחד להדפסה.",
+          `מספר עבודה: ${job.id}`,
+          `סוג הדפסה: ${job.printPlanLabel}`,
+          "",
+          "כמה עוד תרצה להדפיס?"
+        ].join("\n"), {
           replyMarkup: buildTelegramDocumentCopiesKeyboard({ messageId: messageRecord.id, printPlan })
         });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "docdone") {
+        const workflowMessageId = parts[1];
+        await clearAiChatMessagePendingAction({
+          clerkUserId: user.clerk_user_id,
+          messageId: workflowMessageId
+        }).catch(() => null);
+        await answerTelegramCallbackQuery(callback.id, "סיימתי.");
+        await sendTelegramMessage(chatId, "סיימתי. לא אשלח עוד עותקים למסמך הזה.");
         return NextResponse.json({ ok: true });
       }
 
@@ -670,11 +685,15 @@ export async function POST(request) {
         });
         await answerTelegramCallbackQuery(callback.id, "נשלח לתור ההדפסה.");
         await sendTelegramMessage(chatId, [
-          "המסמך נשלח לתור ההדפסה.",
+          `נשלחו עוד ${job.copies} עותקים לתור ההדפסה.`,
           `מספר עבודה: ${job.id}`,
           `סוג הדפסה: ${job.printPlanLabel}`,
-          `עותקים: ${job.copies}`
-        ].join("\n"));
+          `עותקים: ${job.copies}`,
+          "",
+          "כמה עוד תרצה להדפיס?"
+        ].join("\n"), {
+          replyMarkup: buildTelegramDocumentCopiesKeyboard({ messageId: messageRecord.id, printPlan })
+        });
         return NextResponse.json({ ok: true });
       }
 
