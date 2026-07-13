@@ -331,20 +331,10 @@ const DOCUMENT_PRINT_PLANS = [
   { value: "duplex", label: "A4 דו צדדי", description: "בלי חוברת ובלי הידוק" },
   { value: "corner-staple", label: "הידוק פינה", description: "A4, פינה ימנית עליונה" }
 ];
-
-function whatsappCombinedPrintSections(messageId) {
-  return DOCUMENT_PRINT_PLANS.map((plan) => ({
-    title: plan.label,
-    rows: [1, 5, 20, 40].map((copies) => ({
-      id: `docPrint:${plan.value}:${copies}:${messageId}`,
-      title: `${plan.label} - ${copies}`,
-      description: copies === 1 ? `${plan.description} | ברירת מחדל` : `${plan.description} | ${copies} עותקים`
-    }))
-  }));
-}
+const DOCUMENT_PRINT_COPIES = [1, 5, 20, 40];
 
 function whatsappCopiesRows(messageId, printPlan) {
-  return [1, 5, 20, 40].map((copies) => ({
+  return DOCUMENT_PRINT_COPIES.map((copies) => ({
     id: `docPrintCopies:${printPlan}:${copies}:${messageId}`,
     title: `${copies} עותקים`,
     description: copies === 1 ? "ברירת מחדל" : "שליחה לתור ההדפסה"
@@ -353,19 +343,27 @@ function whatsappCopiesRows(messageId, printPlan) {
 
 async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
   if (!isDocumentWorkflowAction(result?.pendingAction) || !result?.id) return false;
-  const sections = whatsappCombinedPrintSections(result.id);
+  const rows = DOCUMENT_PRINT_PLANS.map((plan) => ({
+    id: `docPrintPlan:${plan.value}:${result.id}`,
+    title: plan.label,
+    description: plan.description
+  }));
   if (!user || isFullWhatsAppAgentUser(user)) {
-    sections.push({
-      title: "אפשרות נוספת",
-      rows: [
-        { id: `docStudentLink:${result.id}`, title: "שיוך לתלמיד", description: "לנתח את המסמך ולחפש תלמיד" }
-      ]
+    rows.push({
+      id: `docStudentLink:${result.id}`,
+      title: "שיוך לתלמיד",
+      description: "לנתח את המסמך ולחפש תלמיד"
     });
   }
   await sendWhatsAppListMessage(waId, {
-    bodyText: "בחר תוכנית הדפסה וכמות עותקים בפעולה אחת. ברירת המחדל היא חוברת A3 - עותק אחד.",
-    buttonText: "הדפסה",
-    sections
+    bodyText: "בחר תוכנית הדפסה. לאחר מכן תבחר כמות עותקים בתפריט נוסף.",
+    buttonText: "תוכנית הדפסה",
+    sections: [
+      {
+        title: "המשך טיפול",
+        rows
+      }
+    ]
   });
   return true;
 }
