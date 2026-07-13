@@ -4,9 +4,13 @@ import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { canUsePrintQueue } from "../../../../lib/print-jobs";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
 import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
+import { getNeonStudentById } from "../../../../lib/neon-students";
+import { buildResendFromAddress, sendResendEmail } from "../../../../lib/resend";
+import { createTask, listAssignableTaskUsers } from "../../../../lib/tasks";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
   consumeWhatsAppLinkCode,
@@ -69,6 +73,10 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function normalizeDigits(value) {
+  return clean(value).replace(/[^\d]/g, "");
+}
+
 function chunkArray(items, size) {
   const chunkSize = Math.max(1, Number(size) || 1);
   const source = Array.isArray(items) ? items : [];
@@ -77,6 +85,34 @@ function chunkArray(items, size) {
     chunks.push(source.slice(index, index + chunkSize));
   }
   return chunks;
+}
+
+function escapeHtml(value) {
+  return clean(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function isFullWhatsAppAgentUser(user) {
+  return Boolean(user?.is_team_member || user?.is_manager || user?.is_super_admin);
+}
+
+function isLimitedWhatsAppAgentUser(user) {
+  return Boolean(user?.access_status === "approved" && (clean(user?.linked_student_id) || canUsePrintQueue(user)));
+}
+
+function canUseWhatsAppAgent(user) {
+  return isFullWhatsAppAgentUser(user) || isLimitedWhatsAppAgentUser(user);
+}
+
+function studentDisplayName(student) {
+  return [
+    clean(student?.fullName?.firstName),
+    clean(student?.fullName?.lastName)
+  ].filter(Boolean).join(" ") || clean(student?.label) || clean(student?.name) || "תלמיד";
 }
 
 function safeEqualHex(left, right) {
@@ -284,6 +320,133 @@ function buildWhatsAppDocumentActionRows(result) {
           ? "חפש תלמיד ושייך את המסמך"
           : "פתח במערכת"
     }));
+}
+
+function isApprovalReceiptRequestText(text) {
+  const value = clean(text);
+  if (!value) return false;
+  return /(אישור|אישורים|קבלה|קבלות|מסמך|מסמכים|בקשה|אישור לימודים|תרומה|תשלום)/.test(value);
+}
+
+function isPrintRequestText(text) {
+  const value = clean(text);
+  if (!value) return false;
+  return /(הדפס|להדפיס|הדפסה|מדפסת|תור הדפסה|print)/i.test(value);
+}
+
+async function sendLimitedWhatsAppMenu(waId, user) {
+  const buttons = [];
+  if (clean(user?.linked_student_id)) {
+    buttons.push({ id: "limited:request", title: "בקשת אישור" });
+  }
+  if (canUsePrintQueue(user)) {
+    buttons.push({ id: "limited:print", title: "הדפסה" });
+  }
+  if (!buttons.length) {
+    await sendWhatsAppTextMessages(waId, "החשבון מחובר, אבל אין לו פעולה זמינה דרך WhatsApp כרגע.");
+    return;
+  }
+  await sendWhatsAppReplyButtons(waId, {
+    bodyText: "בחר פעולה זמינה לחשבון שלך.",
+    buttons
+  });
+}
+
+async function createStudentApprovalReceiptTaskFromWhatsApp({ user, requestText }) {
+  const studentId = clean(user?.linked_student_id);
+  if (!studentId) {
+    return "כדי לפתוח בקשת אישורים או קבלות צריך שהמשתמש יהיה מקושר לכרטיס תלמיד.";
+  }
+
+  const student = await getNeonStudentById(studentId);
+  if (!student) {
+    return "כרטיס התלמיד המקושר לא נמצא. פנה לצוות כדי לבדוק את החיבור.";
+  }
+
+  const tznum = normalizeDigits(student?.tznum);
+  if (!tznum) {
+    return "לא ניתן להגיש בקשה בלי מספר זהות בכרטיס התלמיד. פנה לצוות לעדכון התעודה בכרטיס.";
+  }
+
+  const teamUsers = await listAssignableTaskUsers();
+  const assigneeUserIds = teamUsers.map((teamUser) => clean(teamUser.id)).filter(Boolean);
+  const teamEmails = [...new Set(teamUsers.map((teamUser) => clean(teamUser.email).toLowerCase()).filter(Boolean))];
+  const studentName = studentDisplayName(student);
+  const title = `בקשת תלמיד לאישורים וקבלות - ${studentName}`;
+  const description = [
+    "סוג בקשה: אישורים וקבלות",
+    `שם תלמיד: ${studentName}`,
+    `ת"ז: ${tznum}`,
+    `מוסד: ${clean(student?.currentInstitution) || "-"}`,
+    `שיעור: ${clean(student?.class) || "-"}`,
+    "",
+    "פירוט הבקשה:",
+    clean(requestText),
+    "",
+    `הוגש דרך WhatsApp על ידי: ${clean(user.display_name) || clean(user.email) || user.clerk_user_id}`
+  ].join("\n");
+
+  let taskId = "";
+  try {
+    taskId = await createTask({
+      title,
+      description,
+      status: "pending",
+      linkedType: "student",
+      studentId,
+      assigneeUserIds,
+      createdByUserId: user.clerk_user_id,
+      sourceSnapshot: {
+        source: "student_whatsapp_approval_receipt_request",
+        requestType: "אישורים וקבלות",
+        requestedByUserId: user.clerk_user_id,
+        studentName,
+        tznum
+      }
+    });
+  } catch (error) {
+    return clean(error?.message) || "פתיחת המשימה נכשלה. נסה שוב או פנה לצוות.";
+  }
+
+  const taskUrl = toAbsoluteUrl(`/tasks?taskId=${encodeURIComponent(taskId)}`);
+  let emailWarning = "";
+  if (teamEmails.length) {
+    try {
+      await sendResendEmail({
+        to: teamEmails,
+        from: buildResendFromAddress("מערכת CRM"),
+        subject: title,
+        text: [
+          "נפתחה בקשת תלמיד חדשה מ-WhatsApp לקבלת אישורים/קבלות.",
+          "",
+          description,
+          "",
+          `משימה: ${taskId}`,
+          `פתיחה במערכת: ${taskUrl}`
+        ].join("\n"),
+        html: [
+          "<div dir=\"rtl\" style=\"font-family:Arial,sans-serif;line-height:1.7\">",
+          "<h2>נפתחה בקשת תלמיד חדשה מ-WhatsApp</h2>",
+          `<p><b>תלמיד:</b> ${escapeHtml(studentName)}</p>`,
+          `<p><b>ת"ז:</b> ${escapeHtml(tznum)}</p>`,
+          `<p><b>פירוט:</b></p><div style=\"white-space:pre-wrap;border:1px solid #d7e1ef;border-radius:10px;padding:12px;background:#f8fbff\">${escapeHtml(requestText)}</div>`,
+          `<p><a href=\"${escapeHtml(taskUrl)}\" style=\"display:inline-block;padding:10px 14px;border-radius:10px;background:#0b4f8c;color:#fff;text-decoration:none;font-weight:bold\">פתח את המשימה</a></p>`,
+          "</div>"
+        ].join(""),
+        idempotencyKey: `student-whatsapp-request-${taskId}`
+      });
+    } catch (error) {
+      emailWarning = clean(error?.message) || "המייל לצוות לא נשלח.";
+    }
+  } else {
+    emailWarning = "לא נמצאו כתובות מייל צוות לשליחה.";
+  }
+
+  return [
+    "הבקשה נקלטה ונפתחה משימה לצוות.",
+    `מספר משימה: ${taskId}`,
+    emailWarning || "נשלח מייל לאנשי הצוות."
+  ].join("\n");
 }
 
 async function sendInstitutionAttachments(waId, messageRecord) {
@@ -496,6 +659,54 @@ async function sendWhatsAppResult(waId, result) {
   }
 }
 
+async function handleLimitedWhatsAppAgentMessage({ waId, user, text, attachmentMeta }) {
+  if (attachmentMeta) {
+    if (!canUsePrintQueue(user)) {
+      await sendWhatsAppTextMessages(
+        waId,
+        "קיבלתי את המסמך, אבל לחשבון הזה אין הרשאה לשליחה להדפסה. אפשר לשלוח כאן בקשה לאישורים/קבלות בטקסט."
+      );
+      return "limited_document_no_print_permission";
+    }
+    await sendWhatsAppTextMessages(
+      waId,
+      [
+        "קיבלתי מסמך להדפסה.",
+        "כדי לבחור סוג הדפסה וכמות עותקים יש לפתוח את מסך ההדפסה במערכת:",
+        toAbsoluteUrl("/print")
+      ].join("\n")
+    );
+    return "limited_document_print_link_sent";
+  }
+
+  if (isPrintRequestText(text)) {
+    if (!canUsePrintQueue(user)) {
+      await sendWhatsAppTextMessages(waId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
+      return "limited_print_no_permission";
+    }
+    await sendWhatsAppTextMessages(waId, `פתיחת מסך הדפסה:\n${toAbsoluteUrl("/print")}`);
+    return "limited_print_link_sent";
+  }
+
+  if (clean(user?.linked_student_id) && (isApprovalReceiptRequestText(text) || clean(text).length >= 8)) {
+    const responseText = await createStudentApprovalReceiptTaskFromWhatsApp({
+      user,
+      requestText: text
+    });
+    await sendWhatsAppTextMessages(waId, responseText);
+    return "limited_student_request_created";
+  }
+
+  await sendWhatsAppTextMessages(
+    waId,
+    clean(user?.linked_student_id)
+      ? "אפשר לשלוח כאן בקשה לאישורים/קבלות בטקסט, או לבקש הדפסה אם יש לך הרשאת הדפסה."
+      : "אפשר להשתמש כאן בשליחה להדפסה אם יש לך הרשאת הדפסה."
+  );
+  await sendLimitedWhatsAppMenu(waId, user);
+  return "limited_help_sent";
+}
+
 function shouldSuppressScopeOnlyReply(result) {
   return clean(result?.reply) === clean(CRM_SCOPE_MESSAGE)
     && !clean(result?.viewUrl)
@@ -600,12 +811,46 @@ export async function POST(request) {
       }
 
       const user = await getAppUserByClerkUserId(link.clerk_user_id);
-      if (!user || (!user.is_team_member && !user.is_manager)) {
+      if (!user || !canUseWhatsAppAgent(user)) {
         const responseText = "החשבון הזה אינו מורשה להשתמש בסוכן.";
         await sendWhatsAppTextMessages(waId, responseText);
         await updateWhatsAppInboundEvent(inboundEvent.id, {
           processingStatus: "unauthorized",
           clerkUserId: link.clerk_user_id,
+          responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!isFullWhatsAppAgentUser(user)) {
+        if (interactiveActionId === "limited:request") {
+          const responseText = "כתוב כאן את פירוט הבקשה לאישורים/קבלות, כולל שנה/תקופה ומה בדיוק נדרש.";
+          await sendWhatsAppTextMessages(waId, responseText);
+          await updateWhatsAppInboundEvent(inboundEvent.id, {
+            processingStatus: "limited_request_prompt",
+            clerkUserId: user.clerk_user_id,
+            responseText
+          });
+          return NextResponse.json({ ok: true });
+        }
+        if (interactiveActionId === "limited:print") {
+          const responseText = canUsePrintQueue(user)
+            ? `פתיחת מסך הדפסה:\n${toAbsoluteUrl("/print")}`
+            : "אין לחשבון הזה הרשאה לשליחה להדפסה.";
+          await sendWhatsAppTextMessages(waId, responseText);
+          await updateWhatsAppInboundEvent(inboundEvent.id, {
+            processingStatus: canUsePrintQueue(user) ? "limited_print_link_sent" : "limited_print_no_permission",
+            clerkUserId: user.clerk_user_id,
+            responseText
+          });
+          return NextResponse.json({ ok: true });
+        }
+        const responseText = "החשבון הזה מחובר לסוכן מוגבל. אפשר להשתמש רק בבקשות אישורים/קבלות ובהדפסה לפי הרשאה.";
+        await sendWhatsAppTextMessages(waId, responseText);
+        await sendLimitedWhatsAppMenu(waId, user);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "limited_action_blocked",
+          clerkUserId: user.clerk_user_id,
           responseText
         });
         return NextResponse.json({ ok: true });
@@ -967,7 +1212,7 @@ export async function POST(request) {
     }
 
     const user = await getAppUserByClerkUserId(link.clerk_user_id);
-    if (!user || (!user.is_team_member && !user.is_manager)) {
+    if (!user || !canUseWhatsAppAgent(user)) {
       const responseText = "החשבון הזה אינו מורשה להשתמש בסוכן.";
       await sendWhatsAppTextMessages(waId, responseText);
       await updateWhatsAppInboundEvent(inboundEvent.id, {
@@ -984,6 +1229,21 @@ export async function POST(request) {
         processingStatus: "channel_disabled",
         clerkUserId: user.clerk_user_id,
         responseText
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (!isFullWhatsAppAgentUser(user)) {
+      const processingStatus = await handleLimitedWhatsAppAgentMessage({
+        waId,
+        user,
+        text,
+        attachmentMeta
+      });
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus,
+        clerkUserId: user.clerk_user_id,
+        responseText: text || (attachmentMeta ? "מסמך התקבל במסלול מוגבל" : "")
       });
       return NextResponse.json({ ok: true });
     }

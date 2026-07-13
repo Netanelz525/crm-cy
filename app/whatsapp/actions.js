@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "../../lib/rbac";
+import { canUsePrintQueue } from "../../lib/print-jobs";
 import {
   buildWhatsAppDeepLink,
   createWhatsAppLinkCode,
@@ -9,9 +10,13 @@ import {
   unlinkWhatsAppByClerkUserId
 } from "../../lib/whatsapp";
 
+function canConnectWhatsApp(user) {
+  return Boolean(user?.is_team_member || user?.is_manager || user?.is_super_admin || user?.linked_student_id || canUsePrintQueue(user));
+}
+
 export async function generateWhatsAppLinkCodeAction() {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!canConnectWhatsApp(user)) {
     throw new Error("רק משתמשים מורשים יכולים לחבר WhatsApp.");
   }
   const link = await getWhatsAppLinkByClerkUserId(user.clerk_user_id);
@@ -35,7 +40,7 @@ export async function generateWhatsAppLinkCodeAction() {
 
 export async function unlinkWhatsAppAction() {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!canConnectWhatsApp(user)) {
     throw new Error("רק משתמשים מורשים יכולים לנתק WhatsApp.");
   }
   await unlinkWhatsAppByClerkUserId(user.clerk_user_id);
