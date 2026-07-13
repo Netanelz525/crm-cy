@@ -347,9 +347,19 @@ function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) 
   return `${parsed.pathname}${query ? `?${query}` : ""}`;
 }
 
-function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true }) {
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", actionLinks = [], exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true }) {
   const inlineKeyboard = [];
   const isPaymentReport = isPaymentReportLink(exportUrl) || isPaymentReportLink(pdfUrl) || isPaymentViewLink(viewUrl);
+
+  const actionButtons = (Array.isArray(actionLinks) ? actionLinks : [])
+    .map((link) => {
+      const url = toAbsoluteUrl(link?.url);
+      const label = clean(link?.label);
+      if (!url || !label) return null;
+      return { text: label, url };
+    })
+    .filter(Boolean);
+  actionButtons.forEach((button) => inlineKeyboard.push([button]));
 
   if (pendingAction) {
     inlineKeyboard.push([
@@ -630,6 +640,7 @@ export async function POST(request) {
               viewUrl: messageRecord?.viewUrl || "",
               exportUrl: messageRecord?.exportUrl || "",
               pdfUrl: messageRecord?.pdfUrl || "",
+              actionLinks: messageRecord?.actionLinks || [],
               exportColumns: messageRecord?.exportColumns || [],
               sortLevels: messageRecord?.sortLevels || [],
               includeFeedback: !messageRecord?.feedback
@@ -686,6 +697,7 @@ export async function POST(request) {
               viewUrl: messageRecord?.viewUrl || "",
               exportUrl: messageRecord?.exportUrl || "",
               pdfUrl: messageRecord?.pdfUrl || "",
+              actionLinks: messageRecord?.actionLinks || [],
               exportColumns: messageRecord?.exportColumns || [],
               sortLevels: messageRecord?.sortLevels || [],
               includeFeedback: !messageRecord?.feedback
@@ -934,6 +946,7 @@ export async function POST(request) {
               viewUrl: messageRecord?.viewUrl || "",
               exportUrl: messageRecord?.exportUrl || "",
               pdfUrl: messageRecord?.pdfUrl || "",
+              actionLinks: messageRecord?.actionLinks || [],
               exportColumns: messageRecord?.exportColumns || [],
               sortLevels: nextSortLevels,
               includeFeedback: !messageRecord?.feedback
@@ -961,6 +974,7 @@ export async function POST(request) {
               viewUrl: messageRecord?.viewUrl || "",
               exportUrl: messageRecord?.exportUrl || "",
               pdfUrl: messageRecord?.pdfUrl || "",
+              actionLinks: messageRecord?.actionLinks || [],
               exportColumns: messageRecord?.exportColumns || [],
               sortLevels: messageRecord?.sortLevels || [],
               includeFeedback: !messageRecord?.feedback
@@ -989,6 +1003,7 @@ export async function POST(request) {
               viewUrl: messageRecord.viewUrl || "",
               exportUrl: messageRecord.exportUrl || "",
               pdfUrl: messageRecord.pdfUrl || "",
+              actionLinks: messageRecord.actionLinks || [],
               exportColumns: messageRecord.exportColumns || [],
               includeFeedback: false
             });
@@ -1113,6 +1128,7 @@ export async function POST(request) {
         viewUrl: result.viewUrl || "",
         exportUrl: result.exportUrl || "",
         pdfUrl: result.pdfUrl || "",
+        actionLinks: result.actionLinks || [],
         exportColumns: result.exportColumns || [],
         sortLevels: result.sortLevels || [],
         hasMore: collapsedReply.hasMore

@@ -529,6 +529,10 @@ function buildCreateStudentDataFromDocument(documentInfo) {
 function buildDocumentAnalysisReply({ documentInfo, students }) {
   const matchedStudent = students.length === 1 ? students[0] : null;
   const lines = [
+    "קיבלתי מסמך. לפני שאני מתקדם, בחר מה לעשות איתו:",
+    "1. לחפש תלמיד לשיוך המסמך לכרטיס תלמיד.",
+    "2. לבחור תוכנית הדפסה ולשלוח לתור ההדפסה.",
+    "",
     `מסמך: ${documentInfo.documentName || "ללא שם"}`,
     `סוג מסמך: ${documentInfo.documentType || "לא זוהה"}`,
     `תקציר: ${documentInfo.documentSummary || "לא זוהה תקציר ברור."}`,
@@ -581,6 +585,10 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
 
   const reply = buildDocumentAnalysisReply({ documentInfo, students });
   const exportUrl = effectiveFilters.length ? buildExportUrlForFilters(effectiveFilters) : "";
+  const actionLinks = [
+    { label: "חפש תלמיד לשיוך", url: "/neon" },
+    { label: "בחר תוכנית הדפסה", url: "/print" }
+  ];
   const intentType = classifyIntent({ text: messageText, hasAttachment: true });
   const searchSummary = buildSearchSummary({
     path: "document",
@@ -604,6 +612,7 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
       metadata: {
         studentCards: finalStudentCards,
         exportUrl,
+        actionLinks,
         attachmentName: clean(attachment.name),
         documentInfo,
         extractedIdentity: documentInfo,
@@ -621,6 +630,7 @@ async function handleDocumentMatchFlow({ user, attachment, messageText }) {
     reply,
     studentCards: finalStudentCards,
     exportUrl,
+    actionLinks,
     documentInfo,
     extractedIdentity: documentInfo,
     updatableFields: documentInfo.updatableFields,
