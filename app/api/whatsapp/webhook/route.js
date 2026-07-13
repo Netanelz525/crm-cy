@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
-import { processDocumentAttachment } from "../../../../lib/ai-document-agent";
+import { createPrintJobFromStoredDocument, processDocumentWorkflowAttachment, processStoredDocumentForStudentLink } from "../../../../lib/ai-document-agent";
 import { canUsePrintQueue } from "../../../../lib/print-jobs";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
 import { buildPaymentReportUrls } from "../../../../lib/payment-report";
@@ -322,6 +322,50 @@ function buildWhatsAppDocumentActionRows(result) {
     }));
 }
 
+function isDocumentWorkflowAction(pendingAction) {
+  return clean(pendingAction?.type) === "document_workflow";
+}
+
+function whatsappPrintPlanRows(messageId) {
+  return [
+    { id: `docPrintPlan:booklet:${messageId}`, title: "חוברת A3", description: "ברירת מחדל, פריסה מימין לשמאל" },
+    { id: `docPrintPlan:duplex:${messageId}`, title: "A4 דו צדדי", description: "בלי חוברת ובלי הידוק" },
+    { id: `docPrintPlan:corner-staple:${messageId}`, title: "הידוק פינה", description: "A4 רגיל, פינה ימנית עליונה" }
+  ];
+}
+
+function whatsappCopiesRows(messageId, printPlan) {
+  return [1, 5, 20, 40].map((copies) => ({
+    id: `docPrintCopies:${printPlan}:${copies}:${messageId}`,
+    title: `${copies} עותקים`,
+    description: copies === 1 ? "ברירת מחדל" : "שליחה לתור ההדפסה"
+  }));
+}
+
+async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
+  if (!isDocumentWorkflowAction(result?.pendingAction) || !result?.id) return false;
+  const sections = [
+    {
+      title: "הדפסה",
+      rows: whatsappPrintPlanRows(result.id)
+    }
+  ];
+  if (!user || isFullWhatsAppAgentUser(user)) {
+    sections.push({
+      title: "אפשרות נוספת",
+      rows: [
+        { id: `docStudentLink:${result.id}`, title: "שיוך לתלמיד", description: "לנתח את המסמך ולחפש תלמיד" }
+      ]
+    });
+  }
+  await sendWhatsAppListMessage(waId, {
+    bodyText: "בחר תוכנית הדפסה. ברירת המחדל היא חוברת A3.",
+    buttonText: "תוכנית הדפסה",
+    sections
+  });
+  return true;
+}
+
 function isApprovalReceiptRequestText(text) {
   const value = clean(text);
   if (!value) return false;
@@ -586,6 +630,11 @@ async function sendWhatsAppResult(waId, result) {
     await sendWhatsAppTextMessages(waId, replyText);
   }
 
+  if (isDocumentWorkflowAction(result?.pendingAction)) {
+    await sendWhatsAppDocumentWorkflowActions(waId, result);
+    return;
+  }
+
   if (result?.pendingAction?.id && result?.id) {
     await sendWhatsAppReplyButtons(waId, {
       bodyText: "לא בוצע שינוי עדיין. אפשר לאשר או לדחות כאן.",
@@ -668,15 +717,19 @@ async function handleLimitedWhatsAppAgentMessage({ waId, user, text, attachmentM
       );
       return "limited_document_no_print_permission";
     }
-    await sendWhatsAppTextMessages(
-      waId,
-      [
-        "קיבלתי מסמך להדפסה.",
-        "כדי לבחור סוג הדפסה וכמות עותקים יש לפתוח את מסך ההדפסה במערכת:",
-        toAbsoluteUrl("/print")
-      ].join("\n")
-    );
-    return "limited_document_print_link_sent";
+    const attachment = await downloadWhatsAppMediaAsAttachment(attachmentMeta.mediaId, {
+      fileName: attachmentMeta.fileName,
+      contentType: attachmentMeta.contentType
+    });
+    const result = await processDocumentWorkflowAttachment({
+      user,
+      attachment,
+      messageText: "",
+      source: "whatsapp"
+    });
+    await sendWhatsAppTextMessages(waId, buildReplyText(result));
+    await sendWhatsAppDocumentWorkflowActions(waId, result, user);
+    return "limited_document_print_options_sent";
   }
 
   if (isPrintRequestText(text)) {
@@ -825,6 +878,18 @@ export async function POST(request) {
       }
 
       if (!isFullWhatsAppAgentUser(user)) {
+        if (interactiveActionId.startsWith("docPrintPlan:") || interactiveActionId.startsWith("docPrintCopies:")) {
+          // Limited users may continue only through the print workflow handlers below.
+        } else if (interactiveActionId.startsWith("docStudentLink:")) {
+          const responseText = "שיוך מסמך לתלמיד זמין רק למשתמשי צוות/מנהל.";
+          await sendWhatsAppTextMessages(waId, responseText);
+          await updateWhatsAppInboundEvent(inboundEvent.id, {
+            processingStatus: "limited_student_link_blocked",
+            clerkUserId: user.clerk_user_id,
+            responseText
+          });
+          return NextResponse.json({ ok: true });
+        } else {
         if (interactiveActionId === "limited:request") {
           const responseText = "כתוב כאן את פירוט הבקשה לאישורים/קבלות, כולל שנה/תקופה ומה בדיוק נדרש.";
           await sendWhatsAppTextMessages(waId, responseText);
@@ -856,6 +921,7 @@ export async function POST(request) {
           responseText
         });
         return NextResponse.json({ ok: true });
+        }
       }
 
       if (interactiveActionId.startsWith("feedback:")) {
@@ -918,6 +984,95 @@ export async function POST(request) {
           processingStatus: "document_action_link_sent",
           clerkUserId: user.clerk_user_id,
           responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("docPrintPlan:")) {
+        const [, printPlan, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isDocumentWorkflowAction(messageRecord?.pendingAction)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        await sendWhatsAppListMessage(waId, {
+          bodyText: "בחר כמות עותקים לשליחה להדפסה.",
+          buttonText: "כמות עותקים",
+          sections: [
+            {
+              title: "עותקים",
+              rows: whatsappCopiesRows(messageId, printPlan)
+            }
+          ]
+        });
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "document_print_copies_prompt",
+          clerkUserId: user.clerk_user_id,
+          responseText: `נבחרה תוכנית הדפסה ${printPlan}`
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("docPrintCopies:")) {
+        const [, printPlan, rawCopies, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isDocumentWorkflowAction(messageRecord?.pendingAction)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        if (!canUsePrintQueue(user)) {
+          await sendWhatsAppTextMessages(waId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        const job = await createPrintJobFromStoredDocument({
+          storedDocument: messageRecord.pendingAction.storedDocument,
+          user,
+          printPlan,
+          copies: rawCopies
+        });
+        const responseText = [
+          "המסמך נשלח לתור ההדפסה.",
+          `מספר עבודה: ${job.id}`,
+          `סוג הדפסה: ${job.printPlanLabel}`,
+          `עותקים: ${job.copies}`
+        ].join("\n");
+        await sendWhatsAppTextMessages(waId, responseText);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "document_print_queued",
+          clerkUserId: user.clerk_user_id,
+          responseText
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("docStudentLink:")) {
+        const [, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isDocumentWorkflowAction(messageRecord?.pendingAction)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין לשיוך.");
+          return NextResponse.json({ ok: true });
+        }
+        await sendWhatsAppTextMessages(waId, "מתחיל ניתוח וחיפוש תלמיד לשיוך המסמך.");
+        const result = await processStoredDocumentForStudentLink({
+          user,
+          storedDocument: messageRecord.pendingAction.storedDocument,
+          messageText: "שיוך מסמך לתלמיד",
+          source: "whatsapp"
+        });
+        await sendWhatsAppResult(waId, result);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "document_student_link_started",
+          clerkUserId: user.clerk_user_id,
+          responseText: buildReplyText(result)
         });
         return NextResponse.json({ ok: true });
       }
@@ -1261,7 +1416,7 @@ export async function POST(request) {
           fileName: attachmentMeta.fileName,
           contentType: attachmentMeta.contentType
         });
-        result = await processDocumentAttachment({
+        result = await processDocumentWorkflowAttachment({
           user,
           attachment,
           messageText: text,
