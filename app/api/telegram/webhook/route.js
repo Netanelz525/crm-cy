@@ -356,11 +356,28 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
     return {
       inline_keyboard: [
         [
-          { text: "חוברת A3", callback_data: `docplan:booklet:${messageId}` },
-          { text: "A4 דו צדדי", callback_data: `docplan:duplex:${messageId}` }
+          { text: "A3 x1", callback_data: `docprint:booklet:1:${messageId}` },
+          { text: "A3 x5", callback_data: `docprint:booklet:5:${messageId}` }
         ],
         [
-          { text: "הידוק פינה", callback_data: `docplan:corner-staple:${messageId}` }
+          { text: "A3 x20", callback_data: `docprint:booklet:20:${messageId}` },
+          { text: "A3 x40", callback_data: `docprint:booklet:40:${messageId}` }
+        ],
+        [
+          { text: "דו צדדי x1", callback_data: `docprint:duplex:1:${messageId}` },
+          { text: "דו צדדי x5", callback_data: `docprint:duplex:5:${messageId}` }
+        ],
+        [
+          { text: "דו צדדי x20", callback_data: `docprint:duplex:20:${messageId}` },
+          { text: "דו צדדי x40", callback_data: `docprint:duplex:40:${messageId}` }
+        ],
+        [
+          { text: "הידוק x1", callback_data: `docprint:corner-staple:1:${messageId}` },
+          { text: "הידוק x5", callback_data: `docprint:corner-staple:5:${messageId}` }
+        ],
+        [
+          { text: "הידוק x20", callback_data: `docprint:corner-staple:20:${messageId}` },
+          { text: "הידוק x40", callback_data: `docprint:corner-staple:40:${messageId}` }
         ],
         [
           { text: "שיוך לתלמיד", callback_data: `docstudent:${messageId}` }
@@ -583,6 +600,36 @@ export async function POST(request) {
 
       if (action === "noop") {
         await answerTelegramCallbackQuery(callback.id, "שם תלמיד נשאר תמיד.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "docprint") {
+        const printPlan = clean(parts[1]);
+        const copies = clean(parts[2]);
+        const workflowMessageId = parts[3];
+        const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, workflowMessageId);
+        if (clean(messageRecord?.pendingAction?.type) !== "document_workflow") {
+          await answerTelegramCallbackQuery(callback.id, "לא מצאתי מסמך שממתין להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        if (!canUsePrintQueue(user)) {
+          await answerTelegramCallbackQuery(callback.id, "אין הרשאה להדפסה.");
+          await sendTelegramMessage(chatId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        const job = await createPrintJobFromStoredDocument({
+          storedDocument: messageRecord.pendingAction.storedDocument,
+          user,
+          printPlan,
+          copies
+        });
+        await answerTelegramCallbackQuery(callback.id, "נשלח לתור ההדפסה.");
+        await sendTelegramMessage(chatId, [
+          "המסמך נשלח לתור ההדפסה.",
+          `מספר עבודה: ${job.id}`,
+          `סוג הדפסה: ${job.printPlanLabel}`,
+          `עותקים: ${job.copies}`
+        ].join("\n"));
         return NextResponse.json({ ok: true });
       }
 
