@@ -260,6 +260,32 @@ function isPaymentReportMessage(messageRecord) {
     || isPaymentViewLink(messageRecord?.viewUrl);
 }
 
+function normalizeActionLinks(actionLinks) {
+  if (!Array.isArray(actionLinks)) return [];
+  return actionLinks
+    .map((link) => ({
+      label: clean(link?.label),
+      url: clean(link?.url)
+    }))
+    .filter((link) => link.label && link.url);
+}
+
+function buildWhatsAppDocumentActionRows(result) {
+  const messageId = clean(result?.id);
+  if (!messageId) return [];
+  return normalizeActionLinks(result?.actionLinks)
+    .slice(0, 10)
+    .map((link, index) => ({
+      id: `docAction:${index}:${messageId}`,
+      title: link.label,
+      description: link.url === "/print"
+        ? "בחר תוכנית הדפסה ושלח לתור"
+        : link.url === "/neon"
+          ? "חפש תלמיד ושייך את המסמך"
+          : "פתח במערכת"
+    }));
+}
+
 async function sendInstitutionAttachments(waId, messageRecord) {
   if (isPaymentReportMessage(messageRecord)) {
     const hasExplicitExportUrl = Object.prototype.hasOwnProperty.call(messageRecord || {}, "exportUrl");
@@ -409,6 +435,20 @@ async function sendWhatsAppResult(waId, result) {
   }
 
   if (result?.id) {
+    const documentActionRows = buildWhatsAppDocumentActionRows(result);
+    if (documentActionRows.length) {
+      await sendWhatsAppListMessage(waId, {
+        bodyText: "בחר מה לעשות עם המסמך שקיבלתי.",
+        buttonText: "בחר פעולה",
+        sections: [
+          {
+            title: "פעולות למסמך",
+            rows: documentActionRows
+          }
+        ]
+      });
+    }
+
     if (clean(result?.exportUrl) || clean(result?.pdfUrl)) {
       if (isPaymentReportMessage(result)) {
         await sendWhatsAppPaymentReportActions(waId, result);
@@ -608,6 +648,29 @@ export async function POST(request) {
           processingStatus: "student_card_link_sent",
           clerkUserId: user.clerk_user_id,
           responseText: `נשלח קישור לכרטיס ${clean(student?.name) || "תלמיד"}`
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("docAction:")) {
+        const [, rawIndex, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        const actionLinks = normalizeActionLinks(messageRecord?.actionLinks);
+        const actionLink = actionLinks[Number(rawIndex)];
+        const actionUrl = toAbsoluteUrl(actionLink?.url);
+        if (!actionLink || !actionUrl) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי את הפעולה המבוקשת למסמך.");
+          return NextResponse.json({ ok: true });
+        }
+        const responseText = `${actionLink.label}:\n${actionUrl}`;
+        await sendWhatsAppTextMessages(waId, responseText);
+        await updateWhatsAppInboundEvent(inboundEvent.id, {
+          processingStatus: "document_action_link_sent",
+          clerkUserId: user.clerk_user_id,
+          responseText
         });
         return NextResponse.json({ ok: true });
       }
