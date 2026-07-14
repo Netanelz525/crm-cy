@@ -11,6 +11,7 @@ import {
   PRINT_CREDIT_PACKAGES
 } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
+import { getStudentById } from "../../lib/twenty";
 import PrintCreditPurchaseClient from "./print-credit-purchase-client";
 import PrintUploadClient from "./print-upload-client";
 
@@ -44,6 +45,24 @@ function statusLabel(status) {
   }
 }
 
+function phoneText(phone) {
+  const callingCode = clean(phone?.primaryPhoneCallingCode);
+  const number = clean(phone?.primaryPhoneNumber);
+  return [callingCode, number].filter(Boolean).join(" ");
+}
+
+function buildInitialPayerDetails(user, student) {
+  const studentName = clean(student?.name) || clean(student?.label);
+  const studentEmail = clean(student?.email?.primaryEmail);
+  const studentPhone = phoneText(student?.phone);
+  return {
+    fullName: studentName,
+    email: studentEmail || clean(user?.email),
+    phone: studentPhone,
+    identityNumber: clean(student?.tznum).replace(/\D+/g, "")
+  };
+}
+
 export default async function PrintPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!canAccessPrintFeature(user)) redirect("/unauthorized");
@@ -53,12 +72,15 @@ export default async function PrintPage({ searchParams }) {
   const error = clean(resolvedSearchParams?.error);
   const isSuperAdmin = Boolean(user.is_super_admin);
   const unlimitedPrintCredit = hasUnlimitedPrintCredit(user);
-  const [jobs, usageByUser, creditBalance, creditTransactions] = await Promise.all([
+  const linkedStudentId = clean(user.linked_student_id);
+  const [linkedStudent, jobs, usageByUser, creditBalance, creditTransactions] = await Promise.all([
+    linkedStudentId ? getStudentById(linkedStudentId).catch(() => null) : Promise.resolve(null),
     isSuperAdmin ? listPrintJobs({ limit: 50 }) : Promise.resolve([]),
     isSuperAdmin ? listPrintUsageByUser({ limit: 30 }) : Promise.resolve([]),
     unlimitedPrintCredit ? Promise.resolve(null) : getPrintCreditBalance(user.clerk_user_id),
     unlimitedPrintCredit ? Promise.resolve([]) : listPrintCreditTransactions(user.clerk_user_id, { limit: 8 })
   ]);
+  const initialPayerDetails = buildInitialPayerDetails(user, linkedStudent);
   const pendingJobs = jobs.filter((job) => job.status === "pending").length;
   const claimedJobs = jobs.filter((job) => job.status === "claimed").length;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
@@ -101,7 +123,7 @@ export default async function PrintPage({ searchParams }) {
         </div>
         {!unlimitedPrintCredit ? (
           <>
-            <PrintCreditPurchaseClient packages={PRINT_CREDIT_PACKAGES} />
+            <PrintCreditPurchaseClient packages={PRINT_CREDIT_PACKAGES} initialPayerDetails={initialPayerDetails} />
             {creditTransactions.length ? (
               <div style={{ marginTop: 12 }}>
                 <b>תנועות אחרונות</b>

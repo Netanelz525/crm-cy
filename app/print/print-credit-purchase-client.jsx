@@ -29,7 +29,7 @@ async function getJson(url) {
   return data;
 }
 
-export default function PrintCreditPurchaseClient({ packages }) {
+export default function PrintCreditPurchaseClient({ packages, initialPayerDetails = {} }) {
   const frameRef = useRef(null);
   const transactionRef = useRef(null);
   const listenerReadyRef = useRef(false);
@@ -42,10 +42,10 @@ export default function PrintCreditPurchaseClient({ packages }) {
   const [busy, setBusy] = useState(false);
   const [approved, setApproved] = useState(false);
   const [payerDetails, setPayerDetails] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    identityNumber: ""
+    fullName: clean(initialPayerDetails.fullName),
+    email: clean(initialPayerDetails.email),
+    phone: clean(initialPayerDetails.phone),
+    identityNumber: clean(initialPayerDetails.identityNumber)
   });
 
   const selectedPackage = packages.find((pack) => pack.key === selectedPackageKey);
@@ -187,6 +187,15 @@ export default function PrintCreditPurchaseClient({ packages }) {
           <span>לתשלום עכשיו</span>
           <b>{formatAgorot(selectedPackage.amountAgorot)}</b>
           <small>עבור {selectedPackage.pages} דפי הדפסה</small>
+        </div>
+      ) : null}
+
+      {!clean(initialPayerDetails.fullName) ? (
+        <div className="linked-record-card">
+          <b>לא נמצא שם תלמיד מקושר</b>
+          <div className="linked-record-meta">
+            מלא את פרטי המשלם ידנית. הפרטים יועברו לנדרים לצורך החיוב והחשבונית.
+          </div>
         </div>
       ) : null}
 
