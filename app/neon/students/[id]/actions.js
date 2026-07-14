@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { saveOpenAttendanceRecordForStudent } from "../../../../lib/attendance";
 import { DELETE_CONFIRMATION_TEXT, softDeleteStudentById } from "../../../../lib/deleted-students";
-import { assertStudentAccess, requireAuthenticatedUser } from "../../../../lib/rbac";
+import {
+  ensureStaffWhatsAppInviteUser,
+  ensureStudentWhatsAppInviteUser,
+  requireAuthenticatedUser,
+  assertStudentAccess
+} from "../../../../lib/rbac";
 import { buildResendFromAddress, sendResendEmail } from "../../../../lib/resend";
 import { createStudentContactLog } from "../../../../lib/student-contact-logs";
 import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
@@ -12,6 +17,7 @@ import { toFormData } from "../../../../lib/student-fields";
 import { getNeonStudentById, updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
 import { addStudentTagToStudent, removeStudentTagFromStudent, replaceStudentTags } from "../../../../lib/student-tags";
 import { createTask, listAssignableTaskUsers } from "../../../../lib/tasks";
+import { buildWhatsAppDeepLink, createWhatsAppLinkCode } from "../../../../lib/whatsapp";
 
 function clean(v) {
   return String(v || "").trim();
@@ -42,6 +48,74 @@ function getBaseUrl() {
   if (configured) return configured.replace(/\/+$/, "");
   const vercelUrl = clean(process.env.VERCEL_URL);
   return vercelUrl ? `https://${vercelUrl}`.replace(/\/+$/, "") : "";
+}
+
+function appendWhatsAppInviteResult(studentId, params) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const next = clean(value);
+    if (next) searchParams.set(key, next);
+  });
+  return `/neon/students/${encodeURIComponent(studentId)}?${searchParams.toString()}#whatsapp-agent`;
+}
+
+export async function generateStudentWhatsAppAgentLinkAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_super_admin) redirect("/unauthorized");
+
+  const studentId = clean(formData.get("studentId"));
+  const canPrint = clean(formData.get("canPrint")) === "1";
+  if (!studentId) redirect("/neon?error=לא נבחר תלמיד");
+
+  const student = await getNeonStudentById(studentId);
+  if (!student) redirect(`/neon/students/${studentId}?error=${encodeURIComponent("התלמיד לא נמצא")}`);
+
+  const inviteUser = await ensureStudentWhatsAppInviteUser({
+    studentId,
+    studentName: studentDisplayName(student),
+    studentClass: clean(student?.class),
+    canPrint,
+    approvedByUserId: user.clerk_user_id
+  });
+  const code = await createWhatsAppLinkCode(inviteUser.clerk_user_id, 60);
+  revalidatePath(`/neon/students/${studentId}`);
+  redirect(appendWhatsAppInviteResult(studentId, {
+    waCode: code.code,
+    waLink: buildWhatsAppDeepLink(code.code),
+    waTarget: "student",
+    waPrint: canPrint ? "1" : "0",
+    waExpiresAt: code.expiresAt
+  }));
+}
+
+export async function generateStaffWhatsAppAgentLinkAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_super_admin) redirect("/unauthorized");
+
+  const studentId = clean(formData.get("studentId"));
+  const displayName = clean(formData.get("displayName"));
+  const email = clean(formData.get("email"));
+  if (!studentId) redirect("/neon?error=לא נבחר תלמיד");
+  if (!email) {
+    redirect(appendWhatsAppInviteResult(studentId, {
+      waError: "כדי ליצור חיבור לאיש צוות צריך להזין מייל."
+    }));
+  }
+
+  const inviteUser = await ensureStaffWhatsAppInviteUser({
+    email,
+    displayName,
+    approvedByUserId: user.clerk_user_id
+  });
+  const code = await createWhatsAppLinkCode(inviteUser.clerk_user_id, 60);
+  revalidatePath(`/neon/students/${studentId}`);
+  redirect(appendWhatsAppInviteResult(studentId, {
+    waCode: code.code,
+    waLink: buildWhatsAppDeepLink(code.code),
+    waTarget: "staff",
+    waStaff: inviteUser.display_name || email,
+    waExpiresAt: code.expiresAt
+  }));
 }
 
 export async function updateNeonStudentAction(formData) {

@@ -4,7 +4,13 @@ import AttendanceHistoryPanel from "../../../../components/attendance-history-pa
 import OpenAttendanceSessionsPanel from "../../../../components/open-attendance-sessions-panel";
 import PendingSubmitButton from "../../../../components/pending-submit-button";
 import { getAttendanceSummaryForStudent, listAttendanceHistoryForStudent, listOpenAttendanceSessionsForStudent } from "../../../../lib/attendance";
-import { assertStudentAccess, canEditStudentCard, requireAuthenticatedUser } from "../../../../lib/rbac";
+import {
+  assertStudentAccess,
+  buildStudentWhatsAppInviteUserId,
+  canEditStudentCard,
+  getAppUserByClerkUserId,
+  requireAuthenticatedUser
+} from "../../../../lib/rbac";
 import { ENUM_LABELS, FIELD_SECTIONS, getByPath, hasDisplayValue, studentToFormValues } from "../../../../lib/student-fields";
 import { listStudentEmailDeliveries } from "../../../../lib/email-campaigns";
 import { listStudentEvents } from "../../../../lib/student-events";
@@ -14,7 +20,16 @@ import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { listTasks, taskStatusLabel } from "../../../../lib/tasks";
-import { deleteNeonStudentAction, submitStudentApprovalReceiptRequestAction, updateNeonStudentAction, uploadStudentDocumentAction, updateStudentDocumentNameAction, updateStudentOpenAttendanceAction } from "./actions";
+import {
+  deleteNeonStudentAction,
+  generateStaffWhatsAppAgentLinkAction,
+  generateStudentWhatsAppAgentLinkAction,
+  submitStudentApprovalReceiptRequestAction,
+  updateNeonStudentAction,
+  uploadStudentDocumentAction,
+  updateStudentDocumentNameAction,
+  updateStudentOpenAttendanceAction
+} from "./actions";
 import StudentContactLiveClient from "./student-contact-live-client";
 import StudentEventsLiveClient from "./student-events-live-client";
 import StudentTagsLiveClient from "./student-tags-live-client";
@@ -180,6 +195,14 @@ function classLabel(value) {
   return ENUM_LABELS.class?.[key] || clean(value) || "-";
 }
 
+function formatDateTime(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" });
+}
+
 function documentKindLabel(value) {
   const normalized = clean(value).toLowerCase();
   if (normalized === "id") return "תעודת זהות";
@@ -265,6 +288,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const requestError = clean(resolvedSearchParams?.requestError);
   const staffEmailWarning = clean(resolvedSearchParams?.staffEmailWarning);
   const errorText = clean(resolvedSearchParams?.error);
+  const whatsappInviteCode = clean(resolvedSearchParams?.waCode);
+  const whatsappInviteLink = clean(resolvedSearchParams?.waLink);
+  const whatsappInviteTarget = clean(resolvedSearchParams?.waTarget);
+  const whatsappInviteExpiresAt = clean(resolvedSearchParams?.waExpiresAt);
+  const whatsappInviteError = clean(resolvedSearchParams?.waError);
 
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
@@ -275,6 +303,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const availableTags = await listStudentTags();
   const studentTagsMap = await getStudentTagsByStudentIds([studentId]);
   const assignedTags = studentTagsMap[studentId] || [];
+  const canManageWhatsAppAgent = Boolean(currentUser?.is_super_admin);
+  const studentWhatsAppAgentUser = canManageWhatsAppAgent
+    ? await getAppUserByClerkUserId(buildStudentWhatsAppInviteUserId(studentId))
+    : null;
+  const studentWhatsAppCanPrint = Boolean(studentWhatsAppAgentUser?.is_print_only || studentWhatsAppAgentUser?.can_use_print_queue);
   const emailDeliveries = canViewEmailRecords ? await listStudentEmailDeliveries(studentId, 8) : [];
   const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks] = await Promise.all([
     canViewAttendanceHistory ? getAttendanceSummaryForStudent(studentId) : Promise.resolve(null),
@@ -374,6 +407,79 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {staffEmailWarning ? <div className="card muted">המשימה נפתחה, אבל היתה בעיה בשליחת המייל לצוות: {staffEmailWarning}</div> : null}
       {requestError ? <div className="error">{requestError}</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
+
+      {canManageWhatsAppAgent ? (
+        <section id="whatsapp-agent" className="card">
+          <div className="summary-row">
+            <div>
+              <h3 style={{ marginTop: 0 }}>חיבור סוכן WhatsApp</h3>
+              <p className="muted" style={{ marginBottom: 0 }}>
+                סופר אדמין יכול ליצור קישור חיבור גם לפני שהמשתמש פתח חשבון במערכת.
+              </p>
+            </div>
+            <span className={`meta-chip ${studentWhatsAppAgentUser?.whatsapp_wa_id ? "automation-chip-ok" : ""}`}>
+              {studentWhatsAppAgentUser?.whatsapp_wa_id ? "תלמיד מחובר" : "תלמיד לא מחובר"}
+            </span>
+          </div>
+
+          {whatsappInviteCode ? (
+            <div className="ok" style={{ marginTop: 12 }}>
+              <b>קישור חיבור מוכן ({whatsappInviteTarget === "staff" ? "איש צוות" : "תלמיד"}):</b>
+              {whatsappInviteLink ? (
+                <div dir="ltr" style={{ wordBreak: "break-all", marginTop: 6 }}>
+                  <a href={whatsappInviteLink} target="_blank" rel="noreferrer">{whatsappInviteLink}</a>
+                </div>
+              ) : null}
+              <div style={{ marginTop: 6 }}>קוד: <b dir="ltr">{whatsappInviteCode}</b></div>
+              <div className="muted">תוקף עד: {formatDateTime(whatsappInviteExpiresAt)}</div>
+            </div>
+          ) : null}
+          {whatsappInviteError ? <div className="error">{whatsappInviteError}</div> : null}
+
+          <div className="grid" style={{ marginTop: 12 }}>
+            <form action={generateStudentWhatsAppAgentLinkAction} className="linked-record-card">
+              <input type="hidden" name="studentId" value={studentId} />
+              <b>תלמיד</b>
+              <div className="linked-record-meta">יוצר משתמש WhatsApp מקושר לכרטיס התלמיד הזה.</div>
+              <div className="linked-record-meta">
+                סטטוס: {studentWhatsAppAgentUser?.whatsapp_wa_id
+                  ? `מחובר (${studentWhatsAppAgentUser.whatsapp_phone_number || studentWhatsAppAgentUser.whatsapp_wa_id})`
+                  : "עדיין לא מחובר"}
+              </div>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+                <input
+                  type="checkbox"
+                  name="canPrint"
+                  value="1"
+                  defaultChecked={studentWhatsAppCanPrint}
+                  style={{ width: "auto" }}
+                />
+                <span>מורשה הדפסה דרך הסוכן</span>
+              </label>
+              <button type="submit" className="quick-action-btn quick-action-primary" style={{ marginTop: 12 }}>
+                צור קישור חיבור לתלמיד
+              </button>
+            </form>
+
+            <form action={generateStaffWhatsAppAgentLinkAction} className="linked-record-card">
+              <input type="hidden" name="studentId" value={studentId} />
+              <b>איש צוות</b>
+              <div className="linked-record-meta">יוצר/מעדכן משתמש צוות מורשה לסוכן WhatsApp.</div>
+              <label>
+                שם איש צוות
+                <input name="displayName" placeholder="שם להצגה" />
+              </label>
+              <label>
+                מייל איש צוות
+                <input name="email" type="email" placeholder="name@example.com" required />
+              </label>
+              <button type="submit" className="quick-action-btn quick-action-outline" style={{ marginTop: 12 }}>
+                צור קישור חיבור לאיש צוות
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       <section className="card student-request-card">
         <div className="summary-row">
