@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { canUsePrintQueue } from "../../lib/print-jobs";
+import { canAccessPrintFeature } from "../../lib/print-jobs";
 import { getCurrentAppUser } from "../../lib/rbac";
 import { getTelegramLinkByClerkUserId, getTelegramBotUsername, isTelegramConfigured } from "../../lib/telegram";
 import { getWhatsAppBusinessNumber, getWhatsAppLinkByClerkUserId, isWhatsAppConfigured } from "../../lib/whatsapp";
@@ -21,7 +21,7 @@ export default async function AccountPage() {
   if (!user) redirect("/sign-in");
 
   const canUseAiChat = Boolean(user.is_team_member || user.is_manager);
-  const canSendPrintJobs = canUsePrintQueue(user);
+  const canSendPrintJobs = canAccessPrintFeature(user);
   const canUseWhatsAppAgent = Boolean(canUseAiChat || user.linked_student_id || canSendPrintJobs);
   const telegramLink = canUseAiChat ? await getTelegramLinkByClerkUserId(user.clerk_user_id) : null;
   const whatsappLink = canUseWhatsAppAgent ? await getWhatsAppLinkByClerkUserId(user.clerk_user_id) : null;
