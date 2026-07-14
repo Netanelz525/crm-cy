@@ -58,7 +58,7 @@ async function postUploadPart(payload) {
   return data;
 }
 
-export default function PrintUploadClient({ maxFileBytes }) {
+export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unlimitedPrintCredit = false }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [copies, setCopies] = useState("1");
   const [printPlan, setPrintPlan] = useState("booklet");
@@ -146,6 +146,14 @@ export default function PrintUploadClient({ maxFileBytes }) {
         />
       </label>
       {selectedFile ? <p className="muted">{selectedFile.name} | {formatSize(selectedFile.size)}</p> : null}
+      {!unlimitedPrintCredit ? (
+        <div className="linked-record-card" style={{ marginBottom: 8 }}>
+          <b>יתרת קרדיט: {creditBalance} דפים</b>
+          <div className="linked-record-meta">
+            אם אין מספיק יתרה, המערכת תחסום את השליחה ותציע רכישת חבילת הדפסה.
+          </div>
+        </div>
+      ) : null}
       <label>
         <span className="muted">כמות עותקים</span>
         <input

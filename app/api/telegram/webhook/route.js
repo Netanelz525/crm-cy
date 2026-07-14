@@ -4,7 +4,7 @@ import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkC
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { clearAiChatMessagePendingAction, createAiChatMessage, getAiChatMessageById, getAiChatMessageByIdPrefix, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { createPrintJobFromStoredDocument, processDocumentWorkflowAttachment, processStoredDocumentForStudentLink } from "../../../../lib/ai-document-agent";
-import { canUsePrintQueue } from "../../../../lib/print-jobs";
+import { canAccessPrintFeature } from "../../../../lib/print-jobs";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
@@ -599,7 +599,7 @@ export async function POST(request) {
           await answerTelegramCallbackQuery(callback.id, "לא מצאתי מסמך שממתין להדפסה.");
           return NextResponse.json({ ok: true });
         }
-        if (!canUsePrintQueue(user)) {
+        if (!canAccessPrintFeature(user)) {
           await answerTelegramCallbackQuery(callback.id, "אין הרשאה להדפסה.");
           await sendTelegramMessage(chatId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
           return NextResponse.json({ ok: true });
@@ -628,7 +628,7 @@ export async function POST(request) {
           await answerTelegramCallbackQuery(callback.id, "לא מצאתי מסמך שממתין להדפסה.");
           return NextResponse.json({ ok: true });
         }
-        if (!canUsePrintQueue(user)) {
+        if (!canAccessPrintFeature(user)) {
           await answerTelegramCallbackQuery(callback.id, "אין הרשאה להדפסה.");
           await sendTelegramMessage(chatId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
           return NextResponse.json({ ok: true });
@@ -672,7 +672,7 @@ export async function POST(request) {
           await answerTelegramCallbackQuery(callback.id, "לא מצאתי מסמך שממתין להדפסה.");
           return NextResponse.json({ ok: true });
         }
-        if (!canUsePrintQueue(user)) {
+        if (!canAccessPrintFeature(user)) {
           await answerTelegramCallbackQuery(callback.id, "אין הרשאה להדפסה.");
           await sendTelegramMessage(chatId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
           return NextResponse.json({ ok: true });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb, sql } from "../../../../lib/db";
-import { canUsePrintQueue, createPrintJobFromBuffer, MAX_PRINT_COPIES, MAX_PRINT_FILE_BYTES, normalizePrintPlan } from "../../../../lib/print-jobs";
+import { canAccessPrintFeature, createPrintJobFromBuffer, MAX_PRINT_COPIES, MAX_PRINT_FILE_BYTES, normalizePrintPlan } from "../../../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
 
 export const runtime = "nodejs";
@@ -158,7 +158,8 @@ async function finishUpload(body, user) {
     contentType: upload.content_type,
     copies: upload.copies,
     printPlan: upload.print_plan,
-    uploadedByUserId: user.clerk_user_id
+    uploadedByUserId: user.clerk_user_id,
+    user
   });
 
   await sql`DELETE FROM print_job_uploads WHERE id = ${uploadId}`;
@@ -167,7 +168,7 @@ async function finishUpload(body, user) {
 
 export async function POST(request) {
   const user = await requireAuthenticatedUser();
-  if (!canUsePrintQueue(user)) return json({ error: "אין הרשאה לשליחה להדפסה." }, 403);
+  if (!canAccessPrintFeature(user)) return json({ error: "אין הרשאה לשליחה להדפסה." }, 403);
 
   try {
     const body = await request.json();

@@ -4,7 +4,7 @@ import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { clearAiChatMessagePendingAction, getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { createPrintJobFromStoredDocument, processDocumentWorkflowAttachment, processStoredDocumentForStudentLink } from "../../../../lib/ai-document-agent";
-import { canUsePrintQueue } from "../../../../lib/print-jobs";
+import { canAccessPrintFeature, canUsePrintQueue } from "../../../../lib/print-jobs";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
 import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
@@ -408,7 +408,7 @@ async function sendLimitedWhatsAppMenu(waId, user) {
   if (clean(user?.linked_student_id)) {
     buttons.push({ id: "limited:request", title: "בקשת אישור" });
   }
-  if (canUsePrintQueue(user)) {
+  if (canAccessPrintFeature(user)) {
     buttons.push({ id: "limited:print", title: "הדפסה" });
   }
   if (!buttons.length) {
@@ -735,7 +735,7 @@ async function sendWhatsAppResult(waId, result) {
 
 async function handleLimitedWhatsAppAgentMessage({ waId, user, text, attachmentMeta }) {
   if (attachmentMeta) {
-    if (!canUsePrintQueue(user)) {
+    if (!canAccessPrintFeature(user)) {
       await sendWhatsAppTextMessages(
         waId,
         "קיבלתי את המסמך, אבל לחשבון הזה אין הרשאה לשליחה להדפסה. אפשר לשלוח כאן בקשה לאישורים/קבלות בטקסט."
@@ -758,7 +758,7 @@ async function handleLimitedWhatsAppAgentMessage({ waId, user, text, attachmentM
   }
 
   if (isPrintRequestText(text)) {
-    if (!canUsePrintQueue(user)) {
+    if (!canAccessPrintFeature(user)) {
       await sendWhatsAppTextMessages(waId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
       return "limited_print_no_permission";
     }
@@ -926,12 +926,12 @@ export async function POST(request) {
           return NextResponse.json({ ok: true });
         }
         if (interactiveActionId === "limited:print") {
-          const responseText = canUsePrintQueue(user)
+          const responseText = canAccessPrintFeature(user)
             ? `פתיחת מסך הדפסה:\n${toAbsoluteUrl("/print")}`
             : "אין לחשבון הזה הרשאה לשליחה להדפסה.";
           await sendWhatsAppTextMessages(waId, responseText);
           await updateWhatsAppInboundEvent(inboundEvent.id, {
-            processingStatus: canUsePrintQueue(user) ? "limited_print_link_sent" : "limited_print_no_permission",
+            processingStatus: canAccessPrintFeature(user) ? "limited_print_link_sent" : "limited_print_no_permission",
             clerkUserId: user.clerk_user_id,
             responseText
           });
@@ -1023,7 +1023,7 @@ export async function POST(request) {
           await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין להדפסה.");
           return NextResponse.json({ ok: true });
         }
-        if (!canUsePrintQueue(user)) {
+        if (!canAccessPrintFeature(user)) {
           await sendWhatsAppTextMessages(waId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
           return NextResponse.json({ ok: true });
         }
@@ -1058,7 +1058,7 @@ export async function POST(request) {
           await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין להדפסה.");
           return NextResponse.json({ ok: true });
         }
-        if (!canUsePrintQueue(user)) {
+        if (!canAccessPrintFeature(user)) {
           await sendWhatsAppTextMessages(waId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
           return NextResponse.json({ ok: true });
         }
@@ -1112,7 +1112,7 @@ export async function POST(request) {
           await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין להדפסה.");
           return NextResponse.json({ ok: true });
         }
-        if (!canUsePrintQueue(user)) {
+        if (!canAccessPrintFeature(user)) {
           await sendWhatsAppTextMessages(waId, "אין לחשבון הזה הרשאה לשליחה להדפסה.");
           return NextResponse.json({ ok: true });
         }

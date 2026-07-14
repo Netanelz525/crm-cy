@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { canUsePrintQueue, listPrintJobs, listPrintUsageByUser, MAX_PRINT_FILE_BYTES } from "../../lib/print-jobs";
+import {
+  canAccessPrintFeature,
+  getPrintCreditBalance,
+  hasUnlimitedPrintCredit,
+  listPrintCreditTransactions,
+  listPrintJobs,
+  listPrintUsageByUser,
+  MAX_PRINT_FILE_BYTES,
+  PRINT_CREDIT_PACKAGES
+} from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import PrintUploadClient from "./print-upload-client";
 
@@ -36,14 +45,17 @@ function statusLabel(status) {
 
 export default async function PrintPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
-  if (!canUsePrintQueue(user)) redirect("/unauthorized");
+  if (!canAccessPrintFeature(user)) redirect("/unauthorized");
   const resolvedSearchParams = await searchParams;
   const uploaded = clean(resolvedSearchParams?.uploaded) === "1";
   const error = clean(resolvedSearchParams?.error);
   const isSuperAdmin = Boolean(user.is_super_admin);
-  const [jobs, usageByUser] = await Promise.all([
+  const unlimitedPrintCredit = hasUnlimitedPrintCredit(user);
+  const [jobs, usageByUser, creditBalance, creditTransactions] = await Promise.all([
     isSuperAdmin ? listPrintJobs({ limit: 50 }) : Promise.resolve([]),
-    isSuperAdmin ? listPrintUsageByUser({ limit: 30 }) : Promise.resolve([])
+    isSuperAdmin ? listPrintUsageByUser({ limit: 30 }) : Promise.resolve([]),
+    unlimitedPrintCredit ? Promise.resolve(null) : getPrintCreditBalance(user.clerk_user_id),
+    unlimitedPrintCredit ? Promise.resolve([]) : listPrintCreditTransactions(user.clerk_user_id, { limit: 8 })
   ]);
   const pendingJobs = jobs.filter((job) => job.status === "pending").length;
   const claimedJobs = jobs.filter((job) => job.status === "claimed").length;
@@ -70,10 +82,62 @@ export default async function PrintPage({ searchParams }) {
       {uploaded ? <div className="ok">המסמך נשלח לתור ההדפסה.</div> : null}
       {error ? <div className="error">{error}</div> : null}
 
+      <section className="card">
+        <div className="summary-row">
+          <div>
+            <h3 style={{ marginTop: 0 }}>קרדיט הדפסה</h3>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              {unlimitedPrintCredit
+                ? "למשתמש הזה יש הרשאת הדפסה ללא הגבלת קרדיט."
+                : "כל משתמש רגיל מתחיל עם 0 דפים וצריך יתרה כדי לשלוח להדפסה."}
+            </p>
+          </div>
+          <span className="meta-chip meta-chip-strong">
+            {unlimitedPrintCredit ? "ללא הגבלה" : `${creditBalance || 0} דפים`}
+          </span>
+        </div>
+        {!unlimitedPrintCredit ? (
+          <>
+            <div className="print-usage-grid" style={{ marginTop: 12 }}>
+              {PRINT_CREDIT_PACKAGES.map((pack) => (
+                <div key={pack.key} className="linked-record-card">
+                  <div className="linked-record-card-top">
+                    <b>{pack.label}</b>
+                    <span className="linked-record-pill">{pack.priceLabel}</span>
+                  </div>
+                  <div className="linked-record-meta">התשלום יחובר בשלב הבא. כרגע החבילה מוצגת להכנת המערכת.</div>
+                </div>
+              ))}
+            </div>
+            {creditTransactions.length ? (
+              <div style={{ marginTop: 12 }}>
+                <b>תנועות אחרונות</b>
+                <div className="print-usage-grid" style={{ marginTop: 8 }}>
+                  {creditTransactions.map((tx) => (
+                    <div key={tx.id} className="linked-record-card">
+                      <div className="linked-record-card-top">
+                        <b>{tx.deltaPages > 0 ? `+${tx.deltaPages}` : tx.deltaPages} דפים</b>
+                        <span className="linked-record-pill">יתרה: {tx.balanceAfter}</span>
+                      </div>
+                      <div className="linked-record-meta">{tx.reason === "purchase" ? "רכישת חבילה" : "הדפסה"}</div>
+                      <div className="linked-record-meta">{formatDateTime(tx.createdAt)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </section>
+
       <section className="print-dashboard-grid">
         <div className="card print-upload-card">
           <h3>מסמך חדש להדפסה</h3>
-          <PrintUploadClient maxFileBytes={MAX_PRINT_FILE_BYTES} />
+          <PrintUploadClient
+            maxFileBytes={MAX_PRINT_FILE_BYTES}
+            creditBalance={creditBalance || 0}
+            unlimitedPrintCredit={unlimitedPrintCredit}
+          />
         </div>
 
         {isSuperAdmin ? (
@@ -120,7 +184,7 @@ export default async function PrintPage({ searchParams }) {
                       <td>{job.copies}</td>
                       <td>{job.printPlanLabel}</td>
                       <td>{job.pageCount || "-"}</td>
-                      <td>{job.printedPageCount || (job.pageCount ? job.pageCount * job.copies : "-")}</td>
+                      <td>{job.creditPagesCharged || job.printedPageCount || (job.pageCount ? job.pageCount * job.copies : "-")}</td>
                       <td>{statusLabel(job.status)}</td>
                       <td>{job.receiptSentAt ? "נשלח" : job.receiptError ? "נכשל" : "-"}</td>
                       <td>{job.uploadedByDisplayName}{job.uploadedByEmail ? ` | ${job.uploadedByEmail}` : ""}</td>

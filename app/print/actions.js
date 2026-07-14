@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canUsePrintQueue, createPrintJob } from "../../lib/print-jobs";
+import { canAccessPrintFeature, createPrintJob } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 
 function clean(value) {
@@ -11,14 +11,15 @@ function clean(value) {
 
 export async function createPrintJobAction(formData) {
   const user = await requireAuthenticatedUser();
-  if (!canUsePrintQueue(user)) redirect("/unauthorized");
+  if (!canAccessPrintFeature(user)) redirect("/unauthorized");
 
   try {
     await createPrintJob({
       file: formData.get("file"),
       copies: formData.get("copies"),
       printPlan: formData.get("printPlan"),
-      uploadedByUserId: user.clerk_user_id
+      uploadedByUserId: user.clerk_user_id,
+      user
     });
   } catch (error) {
     redirect(`/print?error=${encodeURIComponent(clean(error?.message) || "שליחת המסמך להדפסה נכשלה")}`);
