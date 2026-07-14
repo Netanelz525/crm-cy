@@ -513,7 +513,8 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           </FoldItem>
           <FoldItem title="print:read">
             <div className="api-param-list">
-              <div>GET /api/print-jobs/next מושך את העבודה הבאה ומחזיר `downloadRawUrl` לקובץ מלא.</div>
+              <div>מומלץ: השרת הפנימי מושך `job_id` מ־Cloudflare Queue, ואז קורא `GET /api/print-jobs/{"{jobId}"}` כדי לבצע claim ולקבל `downloadRawUrl`.</div>
+              <div>תאימות לאחור: GET /api/print-jobs/next עדיין מושך את העבודה הבאה מ־Neon למי שלא עבר ל־Queue.</div>
               <div>GET /api/print-jobs/{"{jobId}"}/file?raw=1 מוריד קובץ בינארי רגיל לשמירה מקומית.</div>
               <div>GET /api/print-jobs/{"{jobId}"}/file?offset=0&length=1000000 זמין רק אם השרת יודע להרכיב base64 בחלקים.</div>
             </div>
@@ -521,7 +522,7 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           <FoldItem title="print:delete">
             <div className="api-param-list">
               <div>DELETE /api/print-jobs/{"{jobId}"} מפעילים רק אחרי הורדה והדפסה מוצלחות.</div>
-              <div>הפעולה מסמנת השלמה, מוחקת את תוכן הקובץ מ-Neon, ומשאירה רשומת הדפסה ובעלות.</div>
+              <div>הפעולה מסמנת השלמה, מוחקת את תוכן הקובץ מ־R2 או מ־Neon, ומשאירה רשומת הדפסה ובעלות.</div>
             </div>
           </FoldItem>
         </DocBlock>
