@@ -409,8 +409,8 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       {canManageWhatsAppAgent ? (
-        <section id="whatsapp-agent" className="card">
-          <div className="summary-row">
+        <details id="whatsapp-agent" className="card">
+          <summary className="linked-records-toggle">
             <div>
               <h3 style={{ marginTop: 0 }}>חיבור סוכן WhatsApp</h3>
               <p className="muted" style={{ marginBottom: 0 }}>
@@ -420,7 +420,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <span className={`meta-chip ${studentWhatsAppAgentUser?.whatsapp_wa_id ? "automation-chip-ok" : ""}`}>
               {studentWhatsAppAgentUser?.whatsapp_wa_id ? "תלמיד מחובר" : "תלמיד לא מחובר"}
             </span>
-          </div>
+          </summary>
 
           {whatsappInviteCode ? (
             <div className="ok" style={{ marginTop: 12 }}>
@@ -478,7 +478,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
               </button>
             </form>
           </div>
-        </section>
+        </details>
       ) : null}
 
       <section className="card student-request-card">
@@ -502,11 +502,9 @@ export default async function NeonStudentPage({ params, searchParams }) {
             <input type="hidden" name="studentId" value={studentId} />
             <label>
               סוג בקשה
-              <select name="requestType" defaultValue="אישורים וקבלות">
-                <option value="אישורים וקבלות">אישורים וקבלות</option>
+              <select name="requestType" defaultValue="אישור לימודים">
                 <option value="אישור לימודים">אישור לימודים</option>
                 <option value="קבלות תרומות/תשלומים">קבלות תרומות/תשלומים</option>
-                <option value="אישור אחר">אישור אחר</option>
               </select>
             </label>
             <label>

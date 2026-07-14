@@ -34,6 +34,11 @@ function studentDisplayName(student) {
   ].filter(Boolean).join(" ") || clean(student?.label) || clean(student?.name) || "תלמיד";
 }
 
+const ALLOWED_STUDENT_REQUEST_TYPES = new Set([
+  "אישור לימודים",
+  "קבלות תרומות/תשלומים"
+]);
+
 function appendStudentMessage(studentId, params) {
   const searchParams = new URLSearchParams();
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -356,7 +361,7 @@ export async function updateStudentOpenAttendanceAction(formData) {
 export async function submitStudentApprovalReceiptRequestAction(formData) {
   const user = await requireAuthenticatedUser();
   const studentId = clean(formData.get("studentId"));
-  const requestType = clean(formData.get("requestType")) || "אישורים וקבלות";
+  const requestType = clean(formData.get("requestType")) || "אישור לימודים";
   const requestText = clean(formData.get("requestText"));
 
   if (!assertStudentAccess(user, studentId)) {
@@ -365,6 +370,10 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
 
   if (!requestText) {
     redirect(appendStudentMessage(studentId, { requestError: "יש לפרט את הבקשה לפני השליחה." }));
+  }
+
+  if (!ALLOWED_STUDENT_REQUEST_TYPES.has(requestType)) {
+    redirect(appendStudentMessage(studentId, { requestError: "ניתן להגיש רק בקשה לאישור לימודים או בקשה על קבלות לתשלום." }));
   }
 
   const student = await getNeonStudentById(studentId);
@@ -381,7 +390,7 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
   const assigneeUserIds = teamUsers.map((teamUser) => teamUser.id).filter(Boolean);
   const teamEmails = [...new Set(teamUsers.map((teamUser) => clean(teamUser.email).toLowerCase()).filter(Boolean))];
   const studentName = studentDisplayName(student);
-  const title = `בקשת תלמיד לאישורים וקבלות - ${studentName}`;
+  const title = `בקשת תלמיד: ${requestType} - ${studentName}`;
   const description = [
     `סוג בקשה: ${requestType}`,
     `שם תלמיד: ${studentName}`,

@@ -394,7 +394,15 @@ async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
 function isApprovalReceiptRequestText(text) {
   const value = clean(text);
   if (!value) return false;
-  return /(אישור|אישורים|קבלה|קבלות|מסמך|מסמכים|בקשה|אישור לימודים|תרומה|תשלום)/.test(value);
+  return /(אישור\s+לימודים|אישור\s+תלמיד|אישורי\s+לימודים|קבלה|קבלות|אישור\s+תשלום|אישורי\s+תשלום|תשלום|תשלומים)/.test(value);
+}
+
+function inferStudentRequestType(text) {
+  const value = clean(text);
+  if (/(קבלה|קבלות|תשלום|תשלומים|אישור\s+תשלום|אישורי\s+תשלום)/.test(value)) {
+    return "קבלות תרומות/תשלומים";
+  }
+  return "אישור לימודים";
 }
 
 function isPrintRequestText(text) {
@@ -441,9 +449,10 @@ async function createStudentApprovalReceiptTaskFromWhatsApp({ user, requestText 
   const assigneeUserIds = teamUsers.map((teamUser) => clean(teamUser.id)).filter(Boolean);
   const teamEmails = [...new Set(teamUsers.map((teamUser) => clean(teamUser.email).toLowerCase()).filter(Boolean))];
   const studentName = studentDisplayName(student);
-  const title = `בקשת תלמיד לאישורים וקבלות - ${studentName}`;
+  const requestType = inferStudentRequestType(requestText);
+  const title = `בקשת תלמיד: ${requestType} - ${studentName}`;
   const description = [
-    "סוג בקשה: אישורים וקבלות",
+    `סוג בקשה: ${requestType}`,
     `שם תלמיד: ${studentName}`,
     `ת"ז: ${tznum}`,
     `מוסד: ${clean(student?.currentInstitution) || "-"}`,
@@ -467,7 +476,7 @@ async function createStudentApprovalReceiptTaskFromWhatsApp({ user, requestText 
       createdByUserId: user.clerk_user_id,
       sourceSnapshot: {
         source: "student_whatsapp_approval_receipt_request",
-        requestType: "אישורים וקבלות",
+        requestType,
         requestedByUserId: user.clerk_user_id,
         studentName,
         tznum
@@ -766,7 +775,7 @@ async function handleLimitedWhatsAppAgentMessage({ waId, user, text, attachmentM
     return "limited_print_link_sent";
   }
 
-  if (clean(user?.linked_student_id) && (isApprovalReceiptRequestText(text) || clean(text).length >= 8)) {
+  if (clean(user?.linked_student_id) && isApprovalReceiptRequestText(text)) {
     const responseText = await createStudentApprovalReceiptTaskFromWhatsApp({
       user,
       requestText: text
@@ -916,7 +925,7 @@ export async function POST(request) {
           return NextResponse.json({ ok: true });
         } else {
         if (interactiveActionId === "limited:request") {
-          const responseText = "כתוב כאן את פירוט הבקשה לאישורים/קבלות, כולל שנה/תקופה ומה בדיוק נדרש.";
+          const responseText = "כתוב כאן פירוט לבקשה לאישור לימודים או לקבלות/אישורי תשלום. בקשות אחרות לא יפתחו משימה.";
           await sendWhatsAppTextMessages(waId, responseText);
           await updateWhatsAppInboundEvent(inboundEvent.id, {
             processingStatus: "limited_request_prompt",
@@ -937,7 +946,7 @@ export async function POST(request) {
           });
           return NextResponse.json({ ok: true });
         }
-        const responseText = "החשבון הזה מחובר לסוכן מוגבל. אפשר להשתמש רק בבקשות אישורים/קבלות ובהדפסה לפי הרשאה.";
+        const responseText = "החשבון הזה מחובר לסוכן מוגבל. אפשר להשתמש רק בבקשת אישור לימודים, בקשות קבלות/אישורי תשלום, ובהדפסה לפי הרשאה.";
         await sendWhatsAppTextMessages(waId, responseText);
         await sendLimitedWhatsAppMenu(waId, user);
         await updateWhatsAppInboundEvent(inboundEvent.id, {
