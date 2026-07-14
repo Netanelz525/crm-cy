@@ -481,18 +481,18 @@ export default async function NeonStudentPage({ params, searchParams }) {
         </details>
       ) : null}
 
-      <section className="card student-request-card">
-        <div className="summary-row">
+      <details className="card student-request-card">
+        <summary className="linked-records-toggle">
           <div>
             <h3 style={{ marginTop: 0 }}>בקשה לאישורים וקבלות</h3>
             <p className="muted" style={{ marginBottom: 0 }}>
-              ניתן לשלוח בקשה לצוות לקבלת אישורים או קבלות. לאחר השליחה תיפתח משימה לטיפול.
+              ניתן לשלוח בקשה לאישור לימודים או קבלות. לאחר השליחה תיפתח משימה לטיפול.
             </p>
           </div>
           <span className={`meta-chip ${hasIdentityNumber ? "automation-chip-ok" : "automation-chip-error"}`}>
             {hasIdentityNumber ? "ת״ז קיימת בכרטיס" : "חסרה ת״ז בכרטיס"}
           </span>
-        </div>
+        </summary>
         {!hasIdentityNumber ? (
           <div className="student-request-warning">
             לא ניתן להגיש בקשה לפני שמספר הזהות מופיע בכרטיס התלמיד. יש לפנות לצוות לעדכון הפרטים.
@@ -516,12 +516,20 @@ export default async function NeonStudentPage({ params, searchParams }) {
                 required
               />
             </label>
+            <label>
+              קובץ מצורף עד 2MB
+              <input
+                name="requestAttachment"
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.doc,.docx,.xls,.xlsx"
+              />
+            </label>
             <PendingSubmitButton className="quick-action-btn quick-action-primary" pendingText="שולח בקשה...">
               שלח בקשה לצוות
             </PendingSubmitButton>
           </form>
         )}
-      </section>
+      </details>
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel neon-student-linked-records">
         <summary className="linked-records-toggle">

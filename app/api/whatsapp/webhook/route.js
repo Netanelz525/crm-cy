@@ -100,6 +100,11 @@ function isFullWhatsAppAgentUser(user) {
   return Boolean(user?.is_team_member || user?.is_manager || user?.is_super_admin);
 }
 
+function canLinkDocumentsToStudents(user) {
+  const role = clean(user?.role).toLowerCase();
+  return Boolean(user?.is_super_admin || role === "admin");
+}
+
 function isLimitedWhatsAppAgentUser(user) {
   return Boolean(user?.access_status === "approved" && (clean(user?.linked_student_id) || canUsePrintQueue(user)));
 }
@@ -371,7 +376,7 @@ async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
     title: plan.label,
     description: plan.description
   }));
-  if (!user || isFullWhatsAppAgentUser(user)) {
+  if (!user || canLinkDocumentsToStudents(user)) {
     rows.push({
       id: `docStudentLink:${result.id}`,
       title: "שיוך לתלמיד",
@@ -915,7 +920,7 @@ export async function POST(request) {
         if (interactiveActionId.startsWith("docPrint:") || interactiveActionId.startsWith("docPrintPlan:") || interactiveActionId.startsWith("docPrintCopies:") || interactiveActionId.startsWith("docPrintDone:")) {
           // Limited users may continue only through the print workflow handlers below.
         } else if (interactiveActionId.startsWith("docStudentLink:")) {
-          const responseText = "שיוך מסמך לתלמיד זמין רק למשתמשי צוות/מנהל.";
+          const responseText = "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.";
           await sendWhatsAppTextMessages(waId, responseText);
           await updateWhatsAppInboundEvent(inboundEvent.id, {
             processingStatus: "limited_student_link_blocked",
@@ -1151,6 +1156,16 @@ export async function POST(request) {
       }
 
       if (interactiveActionId.startsWith("docStudentLink:")) {
+        if (!canLinkDocumentsToStudents(user)) {
+          const responseText = "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.";
+          await sendWhatsAppTextMessages(waId, responseText);
+          await updateWhatsAppInboundEvent(inboundEvent.id, {
+            processingStatus: "document_student_link_forbidden",
+            clerkUserId: user.clerk_user_id,
+            responseText
+          });
+          return NextResponse.json({ ok: true });
+        }
         const [, messageId] = interactiveActionId.split(":");
         const messageRecord = await getAiChatMessageById({
           clerkUserId: user.clerk_user_id,

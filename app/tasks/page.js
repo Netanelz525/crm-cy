@@ -2,6 +2,7 @@ import Link from "next/link";
 import PendingSubmitButton from "../../components/pending-submit-button";
 import { searchNeonStudentsByText, searchNeonStudentsByTz } from "../../lib/neon-students";
 import { requireAttendanceUser } from "../../lib/rbac";
+import { listTaskAttachments } from "../../lib/task-attachments";
 import { listTaskContactLogsByTaskIds } from "../../lib/task-contact-logs";
 import {
   listAssignableTaskUsers,
@@ -112,6 +113,35 @@ function TaskContactActions({ task, linkHref }) {
         {phones.map((item) => (
           <a key={`whatsapp-${item.label}-${item.value}`} className="quick-action-btn quick-action-outline" href={`https://wa.me/${item.value}`} target="_blank" rel="noreferrer">
             WhatsApp {item.label.replace("טלפון ", "")}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function formatFileSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)}MB`;
+  if (size >= 1024) return `${Math.ceil(size / 1024)}KB`;
+  return `${size}B`;
+}
+
+function TaskAttachmentsPanel({ attachments = [] }) {
+  if (!attachments.length) return null;
+  return (
+    <div className="task-contact-actions">
+      <b>קבצים מצורפים</b>
+      <div className="task-contact-buttons">
+        {attachments.map((attachment) => (
+          <a
+            key={attachment.id}
+            className="quick-action-btn quick-action-outline"
+            href={`/api/task-attachments/${attachment.id}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {attachment.fileName} ({formatFileSize(attachment.sizeBytes)})
           </a>
         ))}
       </div>
@@ -458,6 +488,7 @@ function TaskCard({ task, users, currentPath, activeTaskId = "" }) {
           <div className="tasks-wide"><b>הערות:</b> {task.description || "-"}</div>
         </div>
         <TaskContactActions task={task} linkHref={linkHref} />
+        <TaskAttachmentsPanel attachments={task.attachments || []} />
         <TaskContactLogPanel task={task} currentPath={currentPath} />
         <MandateSnapshotPanel task={task} currentPath={currentPath} />
 
@@ -525,9 +556,12 @@ export default async function TasksPage({ searchParams }) {
       : [];
   const baseTasks = await listTasks({ taskId, status, assignedTo, linkedType, q, limit: 250 });
   const contactLogsByTaskId = await listTaskContactLogsByTaskIds(baseTasks.map((task) => task.id), 10);
+  const attachmentPairs = await Promise.all(baseTasks.map(async (task) => [task.id, await listTaskAttachments(task.id)]));
+  const attachmentsByTaskId = Object.fromEntries(attachmentPairs);
   const tasks = baseTasks.map((task) => ({
     ...task,
-    contactLogs: contactLogsByTaskId[task.id] || []
+    contactLogs: contactLogsByTaskId[task.id] || [],
+    attachments: attachmentsByTaskId[task.id] || []
   }));
 
   if (clean(resolvedSearchParams?.studentId) && !students.some((student) => student.id === clean(resolvedSearchParams.studentId))) {

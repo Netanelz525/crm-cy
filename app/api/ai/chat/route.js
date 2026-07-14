@@ -32,6 +32,11 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function canLinkDocumentsToStudents(user) {
+  const role = clean(user?.role).toLowerCase();
+  return Boolean(user?.is_super_admin || role === "admin");
+}
+
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -932,6 +937,12 @@ export async function POST(request) {
     }
 
     if (attachment) {
+      if (!canLinkDocumentsToStudents(user)) {
+        return NextResponse.json({
+          reply: "שיוך מסמכים לתלמידים דרך הסוכן זמין רק למנהל או סופר אדמין.",
+          studentCards: []
+        });
+      }
       const result = await processDocumentAttachment({
         user,
         attachment,

@@ -16,6 +16,11 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function canLinkDocumentsToStudents(user) {
+  const role = clean(user?.role).toLowerCase();
+  return Boolean(user?.is_super_admin || role === "admin");
+}
+
 function extractChat(update) {
   return update?.message?.chat || update?.callback_query?.message?.chat || null;
 }
@@ -355,7 +360,7 @@ const DOCUMENT_PRINT_PLANS = [
 ];
 const DOCUMENT_PRINT_COPIES = [1, 5, 20, 40];
 
-function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", actionLinks = [], exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true }) {
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", actionLinks = [], exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true, canLinkStudentDocuments = false }) {
   const inlineKeyboard = [];
   const isPaymentReport = isPaymentReportLink(exportUrl) || isPaymentReportLink(pdfUrl) || isPaymentViewLink(viewUrl);
 
@@ -365,9 +370,9 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
         ...DOCUMENT_PRINT_PLANS.map((plan) => ([
           { text: plan.label, callback_data: `docplan:${plan.value}:${messageId}` }
         ])),
-        [
+        ...(canLinkStudentDocuments ? [[
           { text: "שיוך לתלמיד", callback_data: `docstudent:${messageId}` }
-        ]
+        ]] : [])
       ]
     };
   }
@@ -698,6 +703,11 @@ export async function POST(request) {
       }
 
       if (action === "docstudent") {
+        if (!canLinkDocumentsToStudents(user)) {
+          await answerTelegramCallbackQuery(callback.id, "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.");
+          await sendTelegramMessage(chatId, "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.");
+          return NextResponse.json({ ok: true });
+        }
         const workflowMessageId = parts[1];
         const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, workflowMessageId);
         if (clean(messageRecord?.pendingAction?.type) !== "document_workflow") {
@@ -724,7 +734,8 @@ export async function POST(request) {
             pdfUrl: result.pdfUrl || "",
             actionLinks: result.actionLinks || [],
             exportColumns: result.exportColumns || [],
-            sortLevels: result.sortLevels || []
+            sortLevels: result.sortLevels || [],
+            canLinkStudentDocuments: canLinkDocumentsToStudents(user)
           })
         });
         return NextResponse.json({ ok: true });
@@ -1320,7 +1331,8 @@ export async function POST(request) {
         actionLinks: result.actionLinks || [],
         exportColumns: result.exportColumns || [],
         sortLevels: result.sortLevels || [],
-        hasMore: collapsedReply.hasMore
+        hasMore: collapsedReply.hasMore,
+        canLinkStudentDocuments: canLinkDocumentsToStudents(user)
       });
     await sendTelegramMessageWithFallback(chatId, replyText, { replyMarkup });
 

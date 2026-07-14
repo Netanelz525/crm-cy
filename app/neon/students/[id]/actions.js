@@ -13,6 +13,7 @@ import {
 import { buildResendFromAddress, sendResendEmail } from "../../../../lib/resend";
 import { createStudentContactLog } from "../../../../lib/student-contact-logs";
 import { createStudentDocument, getStudentDocumentById, updateStudentDocumentName } from "../../../../lib/student-documents";
+import { createTaskAttachment } from "../../../../lib/task-attachments";
 import { toFormData } from "../../../../lib/student-fields";
 import { getNeonStudentById, updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
 import { addStudentTagToStudent, removeStudentTagFromStudent, replaceStudentTags } from "../../../../lib/student-tags";
@@ -363,6 +364,7 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
   const studentId = clean(formData.get("studentId"));
   const requestType = clean(formData.get("requestType")) || "אישור לימודים";
   const requestText = clean(formData.get("requestText"));
+  const attachmentFile = formData.get("requestAttachment");
 
   if (!assertStudentAccess(user, studentId)) {
     redirect("/unauthorized");
@@ -405,6 +407,7 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
   ].join("\n");
 
   let taskId = "";
+  let attachment = null;
   try {
     taskId = await createTask({
       title,
@@ -422,6 +425,13 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
         tznum
       }
     });
+    if (attachmentFile instanceof File && clean(attachmentFile.name)) {
+      attachment = await createTaskAttachment({
+        taskId,
+        uploadedByUserId: user.clerk_user_id,
+        file: attachmentFile
+      });
+    }
   } catch (error) {
     redirect(appendStudentMessage(studentId, { requestError: clean(error?.message) || "פתיחת המשימה נכשלה." }));
   }
@@ -430,6 +440,8 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
   if (teamEmails.length) {
       const taskPath = `/tasks?taskId=${encodeURIComponent(taskId)}`;
       const taskUrl = getBaseUrl() ? `${getBaseUrl()}${taskPath}` : taskPath;
+      const attachmentPath = attachment?.id ? `/api/task-attachments/${encodeURIComponent(attachment.id)}` : "";
+      const attachmentUrl = attachmentPath && getBaseUrl() ? `${getBaseUrl()}${attachmentPath}` : attachmentPath;
     try {
       await sendResendEmail({
         to: teamEmails,
@@ -441,7 +453,8 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
           description,
           "",
           `משימה: ${taskId}`,
-          `פתיחה במערכת: ${taskUrl}`
+          `פתיחה במערכת: ${taskUrl}`,
+          attachmentUrl ? `קובץ מצורף: ${attachment.fileName} - ${attachmentUrl}` : ""
         ].join("\n"),
         html: [
           "<div dir=\"rtl\" style=\"font-family:Arial,sans-serif;line-height:1.7\">",
@@ -450,6 +463,7 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
           `<p><b>ת"ז:</b> ${tznum}</p>`,
           `<p><b>סוג בקשה:</b> ${requestType}</p>`,
           `<p><b>פירוט:</b></p><div style=\"white-space:pre-wrap;border:1px solid #d7e1ef;border-radius:10px;padding:12px;background:#f8fbff\">${requestText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`,
+          attachmentUrl ? `<p><b>קובץ מצורף:</b> <a href=\"${attachmentUrl}\">${attachment.fileName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</a></p>` : "",
           `<p><b>משימה:</b> ${taskId}</p>`,
           "</div>"
         ].join(""),
