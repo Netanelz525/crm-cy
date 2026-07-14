@@ -513,8 +513,8 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           </FoldItem>
           <FoldItem title="print:read">
             <div className="api-param-list">
-              <div>מומלץ: השרת הפנימי מושך `job_id` מ־Cloudflare Queue, ואז קורא `GET /api/print-jobs/{"{jobId}"}` כדי לבצע claim ולקבל `downloadRawUrl`.</div>
-              <div>תאימות לאחור: GET /api/print-jobs/next עדיין מושך את העבודה הבאה מ־Neon למי שלא עבר ל־Queue.</div>
+              <div>מומלץ: השרת הפנימי ממשיך לקרוא `GET /api/print-jobs/next`. כאשר Cloudflare Queue מוגדר, Vercel מושך ממנו הודעה ורק אז פונה ל־Neon לקבלת פרטי העבודה.</div>
+              <div>אם Queue לא מוגדר או אינו זמין, `GET /api/print-jobs/next` חוזר לתאימות לאחור ומושך את העבודה הבאה ישירות מ־Neon.</div>
               <div>GET /api/print-jobs/{"{jobId}"}/file?raw=1 מוריד קובץ בינארי רגיל לשמירה מקומית.</div>
               <div>GET /api/print-jobs/{"{jobId}"}/file?offset=0&length=1000000 זמין רק אם השרת יודע להרכיב base64 בחלקים.</div>
             </div>

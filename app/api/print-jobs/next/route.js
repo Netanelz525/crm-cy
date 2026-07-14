@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateApiToken, readBearerToken } from "../../../../lib/api-tokens";
-import { claimNextPrintJob, sendPrintJobReceiptEmail } from "../../../../lib/print-jobs";
+import { claimNextPrintJob, claimNextPrintJobViaQueue, sendPrintJobReceiptEmail } from "../../../../lib/print-jobs";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -12,7 +12,21 @@ export async function GET(request) {
   if (!auth) return unauthorized();
 
   try {
-    const job = await claimNextPrintJob({ claimedByTokenId: auth.id });
+    let job = null;
+    let usedQueue = false;
+
+    try {
+      const queueResult = await claimNextPrintJobViaQueue({ claimedByTokenId: auth.id });
+      usedQueue = Boolean(queueResult?.configured);
+      job = queueResult?.job || null;
+    } catch (queueError) {
+      console.error("Print queue lookup failed, falling back to database polling.", queueError);
+    }
+
+    if (!usedQueue) {
+      job = await claimNextPrintJob({ claimedByTokenId: auth.id });
+    }
+
     if (!job) {
       return NextResponse.json({
         resource: "printJob",
