@@ -10,7 +10,7 @@ import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { buildResendFromAddress, sendResendEmail } from "../../../../lib/resend";
-import { createTask, listAssignableTaskUsers } from "../../../../lib/tasks";
+import { createTask, listOfficeTaskEmailUsers } from "../../../../lib/tasks";
 import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
   consumeWhatsAppLinkCode,
@@ -437,7 +437,7 @@ async function createStudentApprovalReceiptTaskFromWhatsApp({ user, requestText 
     return "לא ניתן להגיש בקשה בלי מספר זהות בכרטיס התלמיד. פנה לצוות לעדכון התעודה בכרטיס.";
   }
 
-  const teamUsers = await listAssignableTaskUsers();
+  const teamUsers = await listOfficeTaskEmailUsers();
   const assigneeUserIds = teamUsers.map((teamUser) => clean(teamUser.id)).filter(Boolean);
   const teamEmails = [...new Set(teamUsers.map((teamUser) => clean(teamUser.email).toLowerCase()).filter(Boolean))];
   const studentName = studentDisplayName(student);
@@ -508,7 +508,7 @@ async function createStudentApprovalReceiptTaskFromWhatsApp({ user, requestText 
       emailWarning = clean(error?.message) || "המייל לצוות לא נשלח.";
     }
   } else {
-    emailWarning = "לא נמצאו כתובות מייל צוות לשליחה.";
+    emailWarning = "לא נמצאו אנשי צוות עם תווית משרד לשליחת מייל.";
   }
 
   return [

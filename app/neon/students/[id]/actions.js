@@ -16,7 +16,7 @@ import { createStudentDocument, getStudentDocumentById, updateStudentDocumentNam
 import { toFormData } from "../../../../lib/student-fields";
 import { getNeonStudentById, updateNeonStudentViaTwenty } from "../../../../lib/neon-students";
 import { addStudentTagToStudent, removeStudentTagFromStudent, replaceStudentTags } from "../../../../lib/student-tags";
-import { createTask, listAssignableTaskUsers } from "../../../../lib/tasks";
+import { createTask, listOfficeTaskEmailUsers } from "../../../../lib/tasks";
 import { buildWhatsAppDeepLink, createWhatsAppLinkCode } from "../../../../lib/whatsapp";
 
 function clean(v) {
@@ -377,7 +377,7 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
     redirect(appendStudentMessage(studentId, { requestError: "לא ניתן להגיש בקשה בלי מספר זהות בכרטיס התלמיד. יש לפנות לצוות לעדכון התעודה." }));
   }
 
-  const teamUsers = await listAssignableTaskUsers();
+  const teamUsers = await listOfficeTaskEmailUsers();
   const assigneeUserIds = teamUsers.map((teamUser) => teamUser.id).filter(Boolean);
   const teamEmails = [...new Set(teamUsers.map((teamUser) => clean(teamUser.email).toLowerCase()).filter(Boolean))];
   const studentName = studentDisplayName(student);
@@ -450,7 +450,7 @@ export async function submitStudentApprovalReceiptRequestAction(formData) {
       staffEmailWarning = clean(error?.message) || "המייל לצוות לא נשלח.";
     }
   } else {
-    staffEmailWarning = "לא נמצאו כתובות מייל של אנשי צוות לשליחה.";
+    staffEmailWarning = "לא נמצאו אנשי צוות עם תווית משרד לשליחת מייל.";
   }
 
   revalidatePath(`/neon/students/${studentId}`);

@@ -10,7 +10,7 @@ import {
   createTask,
   deleteTask,
   getTaskById,
-  listAssignableTaskUsers,
+  listOfficeTaskEmailUsers,
   taskLinkTypeLabel,
   taskStatusLabel,
   TASK_STATUS_OPTIONS,
@@ -156,13 +156,13 @@ async function sendTaskCreatedEmail({ taskId, assigneeUserIds }) {
   const task = await getTaskById(taskId);
   if (!task) return "המשימה נוצרה אך לא נמצאה לצורך שליחת מייל.";
 
-  const users = await listAssignableTaskUsers();
+  const users = await listOfficeTaskEmailUsers();
   const recipients = users
     .filter((user) => assigneeSet.has(clean(user.id)))
     .map((user) => clean(user.email).toLowerCase())
     .filter(Boolean);
   const uniqueRecipients = [...new Set(recipients)];
-  if (!uniqueRecipients.length) return "לא נמצאו כתובות מייל לאחראים שנבחרו.";
+  if (!uniqueRecipients.length) return "לא נמצאו אחראים שנבחרו עם תווית משרד לשליחת מייל.";
 
   const url = taskUrl(taskId);
   const contacts = taskContactOptions(task);
