@@ -29,7 +29,8 @@ export async function POST(request) {
     const result = await createPrintCreditPurchaseIntent({
       user,
       packageKey: body?.packageKey,
-      callbackUrl: callbackUrl(request)
+      callbackUrl: callbackUrl(request),
+      payerDetails: body?.payerDetails
     });
     return json({ ok: true, ...result });
   } catch (error) {

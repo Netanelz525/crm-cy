@@ -41,6 +41,12 @@ export default function PrintCreditPurchaseClient({ packages }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [payerDetails, setPayerDetails] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    identityNumber: ""
+  });
 
   const selectedPackage = packages.find((pack) => pack.key === selectedPackageKey);
 
@@ -136,13 +142,24 @@ export default function PrintCreditPurchaseClient({ packages }) {
 
   async function startPayment() {
     if (busy || !selectedPackage) return;
+    if (!clean(payerDetails.fullName)) {
+      setError("יש להזין שם משלם כדי שהפרטים יעברו לנדרים ולחשבונית.");
+      return;
+    }
+    if (!clean(payerDetails.email)) {
+      setError("יש להזין מייל לקבלת פרטי החיוב.");
+      return;
+    }
     setBusy(true);
     setError("");
     setApproved(false);
     setStatus("מכין דף חיוב...");
 
     try {
-      const data = await postJson("/api/print-credit/nedarim", { packageKey: selectedPackage.key });
+      const data = await postJson("/api/print-credit/nedarim", {
+        packageKey: selectedPackage.key,
+        payerDetails
+      });
       setIntentId(data.intentId);
       setIframeUrl(data.iframeUrl);
       transactionRef.current = data.transaction;
@@ -165,6 +182,14 @@ export default function PrintCreditPurchaseClient({ packages }) {
 
   return (
     <div className="print-credit-purchase">
+      {selectedPackage ? (
+        <div className="print-credit-total">
+          <span>לתשלום עכשיו</span>
+          <b>{formatAgorot(selectedPackage.amountAgorot)}</b>
+          <small>עבור {selectedPackage.pages} דפי הדפסה</small>
+        </div>
+      ) : null}
+
       <div className="print-credit-package-row">
         {packages.map((pack) => (
           <button
@@ -189,11 +214,63 @@ export default function PrintCreditPurchaseClient({ packages }) {
       </div>
 
       {!iframeUrl ? (
-        <button type="button" className="quick-action-btn quick-action-primary" onClick={startPayment} disabled={busy || !selectedPackage}>
-          {busy ? "פותח חיוב..." : "קנה חבילת הדפסה"}
-        </button>
+        <>
+          <div className="print-credit-payer-grid">
+            <label>
+              <span className="muted">שם משלם</span>
+              <input
+                type="text"
+                value={payerDetails.fullName}
+                onChange={(event) => setPayerDetails((current) => ({ ...current, fullName: event.target.value }))}
+                placeholder="שם מלא לחשבונית"
+                disabled={busy}
+              />
+            </label>
+            <label>
+              <span className="muted">מייל</span>
+              <input
+                type="email"
+                value={payerDetails.email}
+                onChange={(event) => setPayerDetails((current) => ({ ...current, email: event.target.value }))}
+                placeholder="מייל לקבלת פרטי החיוב"
+                disabled={busy}
+              />
+            </label>
+            <label>
+              <span className="muted">טלפון</span>
+              <input
+                type="tel"
+                value={payerDetails.phone}
+                onChange={(event) => setPayerDetails((current) => ({ ...current, phone: event.target.value }))}
+                placeholder="טלפון משלם"
+                disabled={busy}
+              />
+            </label>
+            <label>
+              <span className="muted">תעודת זהות <b className="optional-field-label">לא חובה</b></span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={payerDetails.identityNumber}
+                onChange={(event) => setPayerDetails((current) => ({ ...current, identityNumber: event.target.value }))}
+                placeholder="מומלץ להזין אם רוצים שיופיע בפרטי החיוב"
+                disabled={busy}
+              />
+            </label>
+          </div>
+          <button type="button" className="quick-action-btn quick-action-primary" onClick={startPayment} disabled={busy || !selectedPackage}>
+            {busy ? "פותח חיוב..." : `המשך לתשלום ${selectedPackage ? formatAgorot(selectedPackage.amountAgorot) : ""}`}
+          </button>
+        </>
       ) : (
         <div className="nedarim-payment-box">
+          {selectedPackage ? (
+            <div className="print-credit-total compact">
+              <span>סכום לחיוב</span>
+              <b>{formatAgorot(selectedPackage.amountAgorot)}</b>
+              <small>{selectedPackage.pages} דפים</small>
+            </div>
+          ) : null}
           <iframe
             ref={frameRef}
             src={iframeUrl}

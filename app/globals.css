@@ -1396,6 +1396,34 @@ button[aria-disabled="true"] {
   margin-top: 12px;
 }
 
+.print-credit-total {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #b8d7f0;
+  border-radius: 8px;
+  background: #f4faff;
+}
+
+.print-credit-total b {
+  color: var(--primary);
+  font-size: 1.55rem;
+  text-align: center;
+}
+
+.print-credit-total span,
+.print-credit-total small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.print-credit-total.compact {
+  grid-template-columns: auto 1fr auto;
+  padding: 10px 12px;
+}
+
 .print-credit-package-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1434,6 +1462,35 @@ button[aria-disabled="true"] {
 .print-credit-package:disabled {
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+.print-credit-payer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.print-credit-payer-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.print-credit-payer-grid input {
+  width: 100%;
+  min-width: 0;
+}
+
+.optional-field-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-inline-start: 6px;
+  padding: 2px 8px;
+  border: 1px solid #cfe0ef;
+  border-radius: 999px;
+  background: #fff;
+  color: #46617b;
+  font-size: 0.78rem;
 }
 
 .nedarim-payment-box {
@@ -5853,5 +5910,15 @@ td {
 
   .print-credit-package-row {
     grid-template-columns: 1fr;
+  }
+
+  .print-credit-total,
+  .print-credit-total.compact,
+  .print-credit-payer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .print-credit-total b {
+    text-align: start;
   }
 }
