@@ -11,6 +11,7 @@ import {
   PRINT_CREDIT_PACKAGES
 } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
+import PrintCreditPurchaseClient from "./print-credit-purchase-client";
 import PrintUploadClient from "./print-upload-client";
 
 function clean(value) {
@@ -48,6 +49,7 @@ export default async function PrintPage({ searchParams }) {
   if (!canAccessPrintFeature(user)) redirect("/unauthorized");
   const resolvedSearchParams = await searchParams;
   const uploaded = clean(resolvedSearchParams?.uploaded) === "1";
+  const creditAdded = clean(resolvedSearchParams?.credit) === "1";
   const error = clean(resolvedSearchParams?.error);
   const isSuperAdmin = Boolean(user.is_super_admin);
   const unlimitedPrintCredit = hasUnlimitedPrintCredit(user);
@@ -80,6 +82,7 @@ export default async function PrintPage({ searchParams }) {
       </div>
 
       {uploaded ? <div className="ok">המסמך נשלח לתור ההדפסה.</div> : null}
+      {creditAdded ? <div className="ok">חבילת ההדפסה נקלטה והקרדיט עודכן.</div> : null}
       {error ? <div className="error">{error}</div> : null}
 
       <section className="card">
@@ -98,17 +101,7 @@ export default async function PrintPage({ searchParams }) {
         </div>
         {!unlimitedPrintCredit ? (
           <>
-            <div className="print-usage-grid" style={{ marginTop: 12 }}>
-              {PRINT_CREDIT_PACKAGES.map((pack) => (
-                <div key={pack.key} className="linked-record-card">
-                  <div className="linked-record-card-top">
-                    <b>{pack.label}</b>
-                    <span className="linked-record-pill">{pack.priceLabel}</span>
-                  </div>
-                  <div className="linked-record-meta">התשלום יחובר בשלב הבא. כרגע החבילה מוצגת להכנת המערכת.</div>
-                </div>
-              ))}
-            </div>
+            <PrintCreditPurchaseClient packages={PRINT_CREDIT_PACKAGES} />
             {creditTransactions.length ? (
               <div style={{ marginTop: 12 }}>
                 <b>תנועות אחרונות</b>
