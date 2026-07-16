@@ -17,8 +17,7 @@ function clean(value) {
 }
 
 function canLinkDocumentsToStudents(user) {
-  const role = clean(user?.role).toLowerCase();
-  return Boolean(user?.is_super_admin || role === "admin");
+  return Boolean(user?.is_super_admin);
 }
 
 function extractChat(update) {
@@ -704,8 +703,8 @@ export async function POST(request) {
 
       if (action === "docstudent") {
         if (!canLinkDocumentsToStudents(user)) {
-          await answerTelegramCallbackQuery(callback.id, "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.");
-          await sendTelegramMessage(chatId, "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.");
+          await answerTelegramCallbackQuery(callback.id, "שיוך מסמך לתלמיד זמין רק לסופר אדמין.");
+          await sendTelegramMessage(chatId, "שיוך מסמך לתלמיד זמין רק לסופר אדמין.");
           return NextResponse.json({ ok: true });
         }
         const workflowMessageId = parts[1];

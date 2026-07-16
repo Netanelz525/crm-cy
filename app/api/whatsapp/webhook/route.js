@@ -101,8 +101,7 @@ function isFullWhatsAppAgentUser(user) {
 }
 
 function canLinkDocumentsToStudents(user) {
-  const role = clean(user?.role).toLowerCase();
-  return Boolean(user?.is_super_admin || role === "admin");
+  return Boolean(user?.is_super_admin);
 }
 
 function isLimitedWhatsAppAgentUser(user) {
@@ -376,7 +375,7 @@ async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
     title: plan.label,
     description: plan.description
   }));
-  if (!user || canLinkDocumentsToStudents(user)) {
+  if (canLinkDocumentsToStudents(user)) {
     rows.push({
       id: `docStudentLink:${result.id}`,
       title: "שיוך לתלמיד",
@@ -663,14 +662,14 @@ async function refreshAndSendPaymentReport(waId, user, messageRecord, updateConf
   return refreshedRecord;
 }
 
-async function sendWhatsAppResult(waId, result) {
+async function sendWhatsAppResult(waId, result, user = null) {
   const replyText = buildReplyText(result);
   if (replyText) {
     await sendWhatsAppTextMessages(waId, replyText);
   }
 
   if (isDocumentWorkflowAction(result?.pendingAction)) {
-    await sendWhatsAppDocumentWorkflowActions(waId, result);
+    await sendWhatsAppDocumentWorkflowActions(waId, result, user);
     return;
   }
 
@@ -920,7 +919,7 @@ export async function POST(request) {
         if (interactiveActionId.startsWith("docPrint:") || interactiveActionId.startsWith("docPrintPlan:") || interactiveActionId.startsWith("docPrintCopies:") || interactiveActionId.startsWith("docPrintDone:")) {
           // Limited users may continue only through the print workflow handlers below.
         } else if (interactiveActionId.startsWith("docStudentLink:")) {
-          const responseText = "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.";
+          const responseText = "שיוך מסמך לתלמיד זמין רק לסופר אדמין.";
           await sendWhatsAppTextMessages(waId, responseText);
           await updateWhatsAppInboundEvent(inboundEvent.id, {
             processingStatus: "limited_student_link_blocked",
@@ -1157,7 +1156,7 @@ export async function POST(request) {
 
       if (interactiveActionId.startsWith("docStudentLink:")) {
         if (!canLinkDocumentsToStudents(user)) {
-          const responseText = "שיוך מסמך לתלמיד זמין רק למנהל או סופר אדמין.";
+          const responseText = "שיוך מסמך לתלמיד זמין רק לסופר אדמין.";
           await sendWhatsAppTextMessages(waId, responseText);
           await updateWhatsAppInboundEvent(inboundEvent.id, {
             processingStatus: "document_student_link_forbidden",
@@ -1182,7 +1181,7 @@ export async function POST(request) {
           messageText: "שיוך מסמך לתלמיד",
           source: "whatsapp"
         });
-        await sendWhatsAppResult(waId, result);
+        await sendWhatsAppResult(waId, result, user);
         await updateWhatsAppInboundEvent(inboundEvent.id, {
           processingStatus: "document_student_link_started",
           clerkUserId: user.clerk_user_id,
@@ -1425,7 +1424,7 @@ export async function POST(request) {
           searchSummary: result.searchSummary || "",
           viewUrl: assistantMessage?.viewUrl || "",
           exportUrl: assistantMessage?.exportUrl || ""
-        });
+        }, user);
         await updateWhatsAppInboundEvent(inboundEvent.id, {
           processingStatus: decision === "approve" ? "approved_action" : "rejected_action",
           clerkUserId: user.clerk_user_id,
@@ -1547,7 +1546,7 @@ export async function POST(request) {
         });
         return NextResponse.json({ ok: true });
       }
-      await sendWhatsAppResult(waId, result);
+      await sendWhatsAppResult(waId, result, user);
       await updateWhatsAppInboundEvent(inboundEvent.id, {
         processingStatus: "processed_document",
         clerkUserId: user.clerk_user_id,
@@ -1581,7 +1580,7 @@ export async function POST(request) {
       });
       return NextResponse.json({ ok: true });
     }
-    await sendWhatsAppResult(waId, result);
+    await sendWhatsAppResult(waId, result, user);
     await updateWhatsAppInboundEvent(inboundEvent.id, {
       processingStatus: "processed_text",
       clerkUserId: user.clerk_user_id,
