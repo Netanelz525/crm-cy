@@ -39,7 +39,7 @@ function validateUploadMetadata(body) {
   if (!uploadId || uploadId.length > 120) throw new Error("מזהה העלאה חסר.");
   if (!fileName) throw new Error("שם הקובץ חסר.");
   if (!fileSizeBytes) throw new Error("הקובץ ריק.");
-  if (fileSizeBytes > MAX_PRINT_FILE_BYTES) throw new Error("אפשר לשלוח להדפסה קבצים עד 10MB.");
+  if (fileSizeBytes > MAX_PRINT_FILE_BYTES) throw new Error("אפשר לשלוח להדפסה קבצים עד 30MB.");
   if (!Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > MAX_UPLOAD_CHUNKS) {
     throw new Error("מספר חלקי הקובץ לא תקין.");
   }
