@@ -310,6 +310,26 @@ export async function createQueuedAnnouncementAction(formData) {
       fileName: `${title}.pdf`,
       contentType: "application/pdf",
       outputMode,
+      sourceType: "announcement",
+      sourceId: announcement.id,
+      sourceMetadata: {
+        announcement: {
+          id: announcement.id,
+          title: announcement.title,
+          date: announcement.announcementDate,
+          bodyText: announcement.bodyText
+        },
+        template: {
+          id: template.id,
+          templateKey: template.templateKey,
+          name: template.name,
+          generatorName: template.generatorName,
+          category: template.category,
+          version: template.version,
+          engine: template.engine
+        },
+        fields: values
+      },
       copies,
       printPlan,
       uploadedByUserId: user.clerk_user_id,
