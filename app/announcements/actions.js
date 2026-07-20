@@ -150,6 +150,28 @@ function queuedAnnouncementLayout(template, bodyText) {
   };
 }
 
+function templateFieldDefinitions(template) {
+  return (template.fields || []).map((field) => ({
+    key: clean(field.key),
+    templateFieldId: clean(field.templateFieldId),
+    label: clean(field.label),
+    type: clean(field.type) || "text",
+    required: Boolean(field.required),
+    maxLength: Number(field.maxLength || 0) || null
+  }));
+}
+
+function fieldValuesByTemplateId(template, values) {
+  const result = {};
+  for (const field of template.fields || []) {
+    const templateFieldId = clean(field.templateFieldId);
+    const key = clean(field.key);
+    if (!templateFieldId || !key) continue;
+    result[templateFieldId] = clean(values[key]);
+  }
+  return result;
+}
+
 async function uploadTemplateBlank(file, templateId) {
   if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) {
     return { key: "", contentType: "" };
@@ -328,7 +350,9 @@ export async function createQueuedAnnouncementAction(formData) {
           version: template.version,
           engine: template.engine
         },
-        fields: values
+        fields: values,
+        fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
+        fieldDefinitions: templateFieldDefinitions(template)
       },
       copies,
       printPlan,
