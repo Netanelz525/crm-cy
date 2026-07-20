@@ -2,14 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, updateAnnouncement, updateAnnouncementTemplate } from "../../lib/announcements";
+import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate } from "../../lib/announcements";
 import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
-import { canUsePrintQueue, createPrintJobFromBuffer } from "../../lib/print-jobs";
+import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { isR2Configured, uploadBufferToR2 } from "../../lib/r2";
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function escapeHtml(value) {
+  return clean(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function getExtension(fileName, contentType) {
@@ -69,6 +78,73 @@ function announcementLayoutFromForm(formData) {
       fontSize: numberFromForm(formData, "bodyFontSize", 24),
       lineHeight: numberFromForm(formData, "bodyLineHeight", 1.55),
       textAlign: clean(formData.get("bodyAlign")) || "center",
+      fontWeight: 400
+    }
+  };
+}
+
+function validateTemplateFields(template, formData) {
+  const values = {};
+  const lines = [];
+
+  for (const field of template.fields || []) {
+    const key = clean(field.key);
+    if (!key) continue;
+    const value = clean(formData.get(`field:${key}`));
+    if (field.required && !value) {
+      throw new Error(`חסר שדה חובה: ${field.label || key}`);
+    }
+    if (field.maxLength && value.length > Number(field.maxLength)) {
+      throw new Error(`${field.label || key} ארוך מדי. ניתן להזין עד ${field.maxLength} תווים.`);
+    }
+    values[key] = value;
+    if (value) lines.push({ label: clean(field.label) || key, key, value, multiline: field.type === "multiline" });
+  }
+
+  return { values, lines };
+}
+
+function titleForAnnouncement(template, fields) {
+  return clean(fields.title)
+    || clean(fields.name)
+    || clean(fields.date && `${template.name} - ${fields.date}`)
+    || clean(template.name)
+    || "מודעה";
+}
+
+function bodyTextForAnnouncement(template, lines) {
+  if (lines.length === 1 && ["body", "sources", "source"].includes(lines[0].key)) return lines[0].value;
+  return [
+    template.name,
+    ...lines.map((line) => `${line.label}: ${line.value}`)
+  ].filter(Boolean).join("\n");
+}
+
+function bodyHtmlForAnnouncement(template, lines) {
+  if (lines.length === 1 && ["body", "sources", "source"].includes(lines[0].key)) {
+    return `<p>${escapeHtml(lines[0].value).replace(/\n/g, "<br>")}</p>`;
+  }
+
+  const parts = [`<h2>${escapeHtml(template.name)}</h2>`];
+  for (const line of lines) {
+    const value = escapeHtml(line.value).replace(/\n/g, "<br>");
+    parts.push(`<p><strong>${escapeHtml(line.label)}:</strong><br>${value}</p>`);
+  }
+  return parts.join("");
+}
+
+function queuedAnnouncementLayout(template, bodyText) {
+  const length = clean(bodyText).length;
+  const isSources = template.category === "sources";
+  return {
+    body: {
+      top: isSources ? 17 : 22,
+      left: 11,
+      right: 11,
+      bottom: 15,
+      fontSize: length > 1100 ? 18 : length > 700 ? 20 : isSources ? 21 : 24,
+      lineHeight: isSources ? 1.45 : 1.5,
+      textAlign: isSources ? "right" : "center",
       fontWeight: 400
     }
   };
@@ -194,6 +270,58 @@ export async function createAnnouncementAction(formData) {
 
   revalidatePath("/announcements");
   redirect(`/announcements/${announcementId}?created=1`);
+}
+
+export async function createQueuedAnnouncementAction(formData) {
+  const user = await requireAnnouncementEditor();
+  if (!canUsePrintQueue(user)) redirect("/unauthorized");
+
+  const templateId = clean(formData.get("templateId"));
+  const copies = numberFromForm(formData, "copies", 1);
+  const printPlan = normalizePrintPlan(formData.get("printPlan"));
+  const announcementId = crypto.randomUUID();
+
+  try {
+    const template = await getAnnouncementTemplateById(templateId);
+    if (!template) throw new Error("התבנית לא נמצאה");
+
+    const { values, lines } = validateTemplateFields(template, formData);
+    const title = titleForAnnouncement(template, values);
+    const bodyText = bodyTextForAnnouncement(template, lines);
+    const bodyHtml = bodyHtmlForAnnouncement(template, lines);
+
+    const announcement = await createAnnouncement({
+      id: announcementId,
+      title,
+      announcementDate: clean(values.date) || new Date().toISOString().slice(0, 10),
+      bodyText,
+      bodyHtml,
+      layoutOverride: queuedAnnouncementLayout(template, bodyText),
+      templateId: template.id,
+      templateKey: template.templateKey,
+      templateFields: values,
+      createdByUserId: user.clerk_user_id
+    });
+
+    const pdf = await renderAnnouncementPdf({ announcement, template });
+    const printJob = await createPrintJobFromBuffer({
+      buffer: pdf,
+      fileName: `${title}.pdf`,
+      contentType: "application/pdf",
+      copies,
+      printPlan,
+      uploadedByUserId: user.clerk_user_id,
+      user
+    });
+
+    await markAnnouncementPrintQueued(announcement.id, printJob.id);
+  } catch (error) {
+    redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "יצירת המודעה ושליחתה לתור נכשלה")}`);
+  }
+
+  revalidatePath("/announcements");
+  revalidatePath("/print");
+  redirect("/announcements?created=1&queued=1");
 }
 
 export async function printAnnouncementAction(formData) {

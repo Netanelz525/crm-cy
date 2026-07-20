@@ -5862,6 +5862,80 @@ td {
   color: #9f1239 !important;
 }
 
+.announcement-generator-form {
+  display: grid;
+  gap: 18px;
+}
+
+.announcement-template-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.announcement-template-option {
+  display: grid;
+  gap: 5px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fbff;
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.announcement-template-option span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.announcement-template-option.active {
+  border-color: #0f5f9d;
+  background: #eef7ff;
+  box-shadow: inset 0 0 0 1px rgba(15, 95, 157, 0.22);
+}
+
+.announcement-generator-panel {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.announcement-fields-grid,
+.announcement-print-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.announcement-field-span,
+.announcement-submit-wide {
+  grid-column: 1 / -1;
+}
+
+.announcement-record-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.announcement-record-field {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.announcement-record-field span {
+  white-space: pre-wrap;
+}
+
 @media (max-width: 980px) {
   .email-layout {
     grid-template-columns: 1fr;
@@ -5920,5 +5994,10 @@ td {
 
   .print-credit-total b {
     text-align: start;
+  }
+
+  .announcement-fields-grid,
+  .announcement-print-options {
+    grid-template-columns: 1fr;
   }
 }

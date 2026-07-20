@@ -1,37 +1,75 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getAnnouncementById, getAnnouncementTemplateById, listAnnouncementTemplates } from "../../../lib/announcements";
+import { getAnnouncementById } from "../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
-import AnnouncementEditClient from "../announcement-edit-client";
 
 function clean(value) {
   return String(value || "").trim();
 }
 
-export default async function AnnouncementPage({ params, searchParams }) {
+function formatDateTime(value) {
+  const raw = clean(value);
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" });
+}
+
+function statusLabel(value) {
+  if (value === "completed") return "הושלם";
+  if (value === "claimed") return "נאסף על ידי השרת המקומי";
+  if (value === "failed") return "שגיאה";
+  if (value === "pending") return "בתור";
+  return value || "נשמר";
+}
+
+export default async function AnnouncementPage({ params }) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
     redirect("/unauthorized");
   }
 
   const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
   const announcement = await getAnnouncementById(resolvedParams.id);
   if (!announcement) notFound();
 
-  const [template, templates] = await Promise.all([
-    getAnnouncementTemplateById(announcement.templateId),
-    listAnnouncementTemplates()
-  ]);
+  const fieldEntries = Object.entries(announcement.templateFields || {}).filter(([, value]) => clean(value));
 
   return (
-    <AnnouncementEditClient
-      announcement={announcement}
-      templates={templates}
-      initialTemplate={template}
-      created={clean(resolvedSearchParams?.created) === "1"}
-      updated={clean(resolvedSearchParams?.updated) === "1"}
-      printQueued={clean(resolvedSearchParams?.printQueued) === "1"}
-      errorText={clean(resolvedSearchParams?.error)}
-    />
+    <>
+      <div className="card glass">
+        <div className="student-topbar">
+          <div>
+            <h1>{announcement.title}</h1>
+            <div className="student-meta-line">
+              <span className="meta-chip">{announcement.templateName}</span>
+              <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>
+              <span className="meta-chip">{formatDateTime(announcement.queuedAt || announcement.createdAt)}</span>
+            </div>
+          </div>
+          <div className="student-actions student-actions-wrap">
+            <Link className="btn btn-ghost" href="/announcements">חזרה למודעות</Link>
+            <Link className="btn btn-primary" href={`/api/announcements/${announcement.id}/pdf`} target="_blank">פתח PDF</Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="card glass">
+        <h3>פרטי המודעה</h3>
+        {announcement.printJobId ? <p className="muted">עבודת הדפסה: {announcement.printJobId}</p> : null}
+        {!fieldEntries.length ? (
+          <p className="muted">{announcement.bodyText}</p>
+        ) : (
+          <div className="announcement-record-fields">
+            {fieldEntries.map(([key, value]) => (
+              <div key={key} className="announcement-record-field">
+                <strong>{key}</strong>
+                <span>{clean(value)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
