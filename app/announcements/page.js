@@ -25,6 +25,10 @@ function statusLabel(value) {
   return value || "נשמר";
 }
 
+function outputModeLabel(value) {
+  return value === "print" ? "הדפסה" : "מייל בלבד";
+}
+
 export default async function AnnouncementsPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
@@ -59,7 +63,7 @@ export default async function AnnouncementsPage({ searchParams }) {
         </div>
       </div>
 
-      {created ? <div className="ok">המודעה נוצרה, נשמרה ונשלחה לתור ההדפסות.</div> : null}
+      {created ? <div className="ok">המודעה נוצרה, נשמרה ונשלחה לתור השרת המקומי.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card glass">
@@ -90,6 +94,7 @@ export default async function AnnouncementsPage({ searchParams }) {
                 </div>
                 <div className="announcement-row-meta">
                   <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>
+                  <span className="meta-chip">{outputModeLabel(announcement.printJobOutputMode)}</span>
                   <span className="meta-chip">{formatDateTime(announcement.queuedAt || announcement.createdAt)}</span>
                   {announcement.printJobId ? <span className="muted">Job: {announcement.printJobId.slice(0, 8)}</span> : null}
                 </div>

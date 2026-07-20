@@ -277,6 +277,7 @@ export async function createQueuedAnnouncementAction(formData) {
   if (!canUsePrintQueue(user)) redirect("/unauthorized");
 
   const templateId = clean(formData.get("templateId"));
+  const outputMode = clean(formData.get("outputMode")) === "print" ? "print" : "email";
   const copies = numberFromForm(formData, "copies", 1);
   const printPlan = normalizePrintPlan(formData.get("printPlan"));
   const announcementId = crypto.randomUUID();
@@ -308,6 +309,7 @@ export async function createQueuedAnnouncementAction(formData) {
       buffer: pdf,
       fileName: `${title}.pdf`,
       contentType: "application/pdf",
+      outputMode,
       copies,
       printPlan,
       uploadedByUserId: user.clerk_user_id,

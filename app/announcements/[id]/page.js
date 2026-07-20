@@ -23,6 +23,10 @@ function statusLabel(value) {
   return value || "נשמר";
 }
 
+function outputModeLabel(value) {
+  return value === "print" ? "הדפסה" : "מייל בלבד";
+}
+
 export default async function AnnouncementPage({ params }) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
@@ -44,6 +48,7 @@ export default async function AnnouncementPage({ params }) {
             <div className="student-meta-line">
               <span className="meta-chip">{announcement.templateName}</span>
               <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>
+              <span className="meta-chip">{outputModeLabel(announcement.printJobOutputMode)}</span>
               <span className="meta-chip">{formatDateTime(announcement.queuedAt || announcement.createdAt)}</span>
             </div>
           </div>

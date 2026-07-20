@@ -19,13 +19,14 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn btn-primary announcement-submit-wide" disabled={pending}>
-      {pending ? "יוצר ושולח לתור..." : "צור מודעה ושלח לתור"}
+      {pending ? "יוצר ושולח לתור..." : "צור מודעה ושלח לשרת המקומי"}
     </button>
   );
 }
 
 export default function AnnouncementGeneratorClient({ templates, action }) {
   const [selectedId, setSelectedId] = useState(templates[0]?.id || "");
+  const [outputMode, setOutputMode] = useState("email");
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedId) || templates[0],
     [templates, selectedId]
@@ -81,10 +82,39 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
           ))}
         </div>
 
-        <div className="announcement-print-options">
+        <div className="announcement-delivery-mode">
+          <label className={outputMode === "email" ? "active" : ""}>
+            <input
+              type="radio"
+              name="outputMode"
+              value="email"
+              checked={outputMode === "email"}
+              onChange={() => setOutputMode("email")}
+            />
+            <span>
+              <strong>שליחה במייל בלבד</strong>
+              <small>ברירת מחדל. השרת המקומי יוריד את ה־PDF וישלח אותו במייל.</small>
+            </span>
+          </label>
+          <label className={outputMode === "print" ? "active" : ""}>
+            <input
+              type="radio"
+              name="outputMode"
+              value="print"
+              checked={outputMode === "print"}
+              onChange={() => setOutputMode("print")}
+            />
+            <span>
+              <strong>הדפסה</strong>
+              <small>בחר רק אם צריך להדפיס פיזית.</small>
+            </span>
+          </label>
+        </div>
+
+        <div className={`announcement-print-options${outputMode === "print" ? "" : " muted-options"}`}>
           <label>
             <span>סוג הדפסה</span>
-            <select name="printPlan" defaultValue="corner-staple">
+            <select name="printPlan" defaultValue="corner-staple" disabled={outputMode !== "print"}>
               {PRINT_PLANS.map((plan) => (
                 <option key={plan.value} value={plan.value}>{plan.label}</option>
               ))}
@@ -92,7 +122,7 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
           </label>
           <label>
             <span>כמות עותקים</span>
-            <input type="number" name="copies" min="1" max="99" defaultValue="1" />
+            <input type="number" name="copies" min="1" max="99" defaultValue="1" disabled={outputMode !== "print"} />
           </label>
         </div>
 
