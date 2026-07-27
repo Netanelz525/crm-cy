@@ -6001,6 +6001,88 @@ td {
   flex-wrap: wrap;
 }
 
+.announcement-template-admin-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fbff;
+  overflow: hidden;
+}
+
+.announcement-template-admin-card summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.announcement-template-admin-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.announcement-template-admin-card summary span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.announcement-template-admin-card summary small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.announcement-template-admin-form {
+  display: grid;
+  gap: 14px;
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.announcement-template-fields-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.announcement-template-fields-head,
+.announcement-template-field-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.9fr) minmax(120px, 1fr) minmax(160px, 1.3fr) minmax(110px, 0.8fr) minmax(80px, 0.6fr) minmax(90px, 0.7fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.announcement-template-fields-head {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.announcement-template-field-row {
+  padding: 8px;
+  border: 1px solid #dbe8f7;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.checkbox-inline {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 40px;
+  font-weight: 800;
+}
+
+.checkbox-inline input {
+  width: auto;
+}
+
+.announcement-template-admin-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 980px) {
   .email-layout {
     grid-template-columns: 1fr;
@@ -6070,5 +6152,31 @@ td {
 
   .announcement-template-docs-meta {
     justify-content: flex-start;
+  }
+
+  .announcement-template-fields-head {
+    display: none;
+  }
+
+  .announcement-template-field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .announcement-template-field-row input,
+  .announcement-template-field-row select {
+    min-width: 0;
+  }
+
+  .announcement-template-admin-card summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .announcement-template-admin-actions {
+    justify-content: stretch;
+  }
+
+  .announcement-template-admin-actions .btn {
+    width: 100%;
   }
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateGoogleDocs } from "../../lib/announcements";
+import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
 import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
@@ -202,6 +202,37 @@ async function requireAnnouncementEditor() {
   return user;
 }
 
+async function requireAnnouncementTemplateAdmin() {
+  const user = await requireAuthenticatedUser();
+  if (!user.is_super_admin) {
+    redirect("/unauthorized");
+  }
+  return user;
+}
+
+function templateFieldsFromForm(formData) {
+  const fieldCount = Number(clean(formData.get("fieldCount")) || 0);
+  const fields = [];
+
+  for (let index = 0; index < fieldCount; index += 1) {
+    const key = clean(formData.get(`fieldKey:${index}`));
+    const templateFieldId = clean(formData.get(`fieldTemplateFieldId:${index}`));
+    const label = clean(formData.get(`fieldLabel:${index}`));
+    if (!key && !templateFieldId && !label) continue;
+
+    fields.push({
+      key,
+      templateFieldId,
+      label,
+      type: clean(formData.get(`fieldType:${index}`)) === "multiline" ? "multiline" : "text",
+      required: clean(formData.get(`fieldRequired:${index}`)) === "on",
+      maxLength: Number(clean(formData.get(`fieldMaxLength:${index}`)) || 0) || undefined
+    });
+  }
+
+  return fields;
+}
+
 export async function createAnnouncementTemplateAction(formData) {
   const user = await requireAnnouncementEditor();
   const templateId = crypto.randomUUID();
@@ -373,13 +404,16 @@ export async function createQueuedAnnouncementAction(formData) {
 }
 
 export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
-  await requireAnnouncementEditor();
+  await requireAnnouncementTemplateAdmin();
   const templateId = clean(formData.get("templateId"));
 
   try {
-    await updateAnnouncementTemplateGoogleDocs(templateId, formData.get("googleDocsUrl"));
+    await updateAnnouncementTemplateSettings(templateId, {
+      googleDocsUrl: formData.get("googleDocsUrl"),
+      fields: templateFieldsFromForm(formData)
+    });
   } catch (error) {
-    redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "שמירת קישור Google Docs נכשלה")}`);
+    redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "שמירת התבנית נכשלה")}`);
   }
 
   revalidatePath("/announcements");

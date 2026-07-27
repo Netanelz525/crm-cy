@@ -29,6 +29,10 @@ function outputModeLabel(value) {
   return value === "print" ? "הדפסה" : "מייל בלבד";
 }
 
+function fullGoogleDocsId(value) {
+  return clean(value) || "לא נשמר ID";
+}
+
 export default async function AnnouncementsPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.is_team_member && !user.is_manager) {
@@ -65,40 +69,88 @@ export default async function AnnouncementsPage({ searchParams }) {
       </div>
 
       {created ? <div className="ok">המודעה נוצרה, נשמרה ונשלחה לתור השרת המקומי.</div> : null}
-      {templateUpdated ? <div className="ok">קישור Google Docs נשמר לתבנית.</div> : null}
+      {templateUpdated ? <div className="ok">התבנית נשמרה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card glass">
         <AnnouncementGeneratorClient templates={templates} action={createQueuedAnnouncementAction} />
       </div>
 
-      <div className="card glass">
-        <div className="student-topbar">
-          <div>
-            <h3>קישורי Google Docs לתבניות</h3>
-            <p className="muted">הדבק כאן את קישור Google Docs של כל תבנית. ה־Document ID יישמר ויישלח תמיד לשרת הפנימי בכל עבודה.</p>
+      {user.is_super_admin ? (
+        <div className="card glass">
+          <div className="student-topbar">
+            <div>
+              <h3>ניהול תבניות Google Docs</h3>
+              <p className="muted">סופר־אדמין יכול לשמור קישור Google Docs ולערוך את מיפוי השדות. ה־Document ID והשדות נשלחים תמיד לשרת הפנימי בכל יצירת מודעה.</p>
+            </div>
+          </div>
+          <div className="announcement-template-docs-list">
+            {templates.map((template) => {
+              const fieldRows = [...(template.fields || []), {}, {}];
+              return (
+                <details key={template.id} className="announcement-template-admin-card">
+                  <summary>
+                    <span>
+                      <strong>{template.name}</strong>
+                      <small>{template.generatorName || template.templateKey}</small>
+                    </span>
+                    <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
+                  </summary>
+                  <form action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-admin-form">
+                    <input type="hidden" name="templateId" value={template.id} />
+                    <input type="hidden" name="fieldCount" value={fieldRows.length} />
+
+                    <div className="announcement-template-docs-row">
+                      <div>
+                        <strong>{template.templateKey}</strong>
+                        <div className="muted">generatorName: {template.generatorName || "-"}</div>
+                      </div>
+                      <label>
+                        <span>קישור Google Docs</span>
+                        <input name="googleDocsUrl" defaultValue={template.googleDocsUrl || ""} placeholder="https://docs.google.com/document/d/..." />
+                      </label>
+                      <div className="announcement-template-docs-meta">
+                        <span className="meta-chip">{fullGoogleDocsId(template.googleDocsId)}</span>
+                      </div>
+                    </div>
+
+                    <div className="announcement-template-fields-editor">
+                      <div className="announcement-template-fields-head">
+                        <span>שדה במערכת</span>
+                        <span>ID בתבנית Google Docs</span>
+                        <span>תיאור/תווית למשתמש</span>
+                        <span>סוג</span>
+                        <span>חובה</span>
+                        <span>מגבלת אורך</span>
+                      </div>
+                      {fieldRows.map((field, index) => (
+                        <div key={`${template.id}-${index}`} className="announcement-template-field-row">
+                          <input name={`fieldKey:${index}`} defaultValue={field.key || ""} placeholder="body" />
+                          <input name={`fieldTemplateFieldId:${index}`} defaultValue={field.templateFieldId || ""} placeholder="7 / data / name" />
+                          <input name={`fieldLabel:${index}`} defaultValue={field.label || ""} placeholder="תוכן המודעה" />
+                          <select name={`fieldType:${index}`} defaultValue={field.type || "text"}>
+                            <option value="text">טקסט קצר</option>
+                            <option value="multiline">טקסט ארוך</option>
+                          </select>
+                          <label className="checkbox-inline">
+                            <input name={`fieldRequired:${index}`} type="checkbox" defaultChecked={field.required === true} />
+                            <span>חובה</span>
+                          </label>
+                          <input name={`fieldMaxLength:${index}`} type="number" min="1" defaultValue={field.maxLength || ""} placeholder="1500" />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="announcement-template-admin-actions">
+                      <button type="submit" className="btn">שמור תבנית</button>
+                    </div>
+                  </form>
+                </details>
+              );
+            })}
           </div>
         </div>
-        <div className="announcement-template-docs-list">
-          {templates.map((template) => (
-            <form key={template.id} action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-docs-row">
-              <input type="hidden" name="templateId" value={template.id} />
-              <div>
-                <strong>{template.name}</strong>
-                <div className="muted">{template.templateKey}</div>
-              </div>
-              <label>
-                <span>קישור Google Docs</span>
-                <input name="googleDocsUrl" defaultValue={template.googleDocsUrl || ""} placeholder="https://docs.google.com/document/d/..." />
-              </label>
-              <div className="announcement-template-docs-meta">
-                <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "לא נשמר ID"}</span>
-                <button type="submit" className="btn btn-ghost">שמור</button>
-              </div>
-            </form>
-          ))}
-        </div>
-      </div>
+      ) : null}
 
       <div className="card glass">
         <div className="student-topbar">
