@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate } from "../../lib/announcements";
+import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateGoogleDocs } from "../../lib/announcements";
 import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
@@ -346,6 +346,8 @@ export async function createQueuedAnnouncementAction(formData) {
           templateKey: template.templateKey,
           name: template.name,
           generatorName: template.generatorName,
+          googleDocsUrl: template.googleDocsUrl,
+          googleDocsId: template.googleDocsId,
           category: template.category,
           version: template.version,
           engine: template.engine
@@ -368,6 +370,20 @@ export async function createQueuedAnnouncementAction(formData) {
   revalidatePath("/announcements");
   revalidatePath("/print");
   redirect("/announcements?created=1&queued=1");
+}
+
+export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
+  await requireAnnouncementEditor();
+  const templateId = clean(formData.get("templateId"));
+
+  try {
+    await updateAnnouncementTemplateGoogleDocs(templateId, formData.get("googleDocsUrl"));
+  } catch (error) {
+    redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "שמירת קישור Google Docs נכשלה")}`);
+  }
+
+  revalidatePath("/announcements");
+  redirect("/announcements?templateUpdated=1");
 }
 
 export async function printAnnouncementAction(formData) {

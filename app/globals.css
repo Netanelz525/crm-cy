@@ -5977,6 +5977,30 @@ td {
   white-space: pre-wrap;
 }
 
+.announcement-template-docs-list {
+  display: grid;
+  gap: 10px;
+}
+
+.announcement-template-docs-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(240px, 1.6fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.announcement-template-docs-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 980px) {
   .email-layout {
     grid-template-columns: 1fr;
@@ -6039,7 +6063,12 @@ td {
 
   .announcement-fields-grid,
   .announcement-print-options,
-  .announcement-delivery-mode {
+  .announcement-delivery-mode,
+  .announcement-template-docs-row {
     grid-template-columns: 1fr;
+  }
+
+  .announcement-template-docs-meta {
+    justify-content: flex-start;
   }
 }

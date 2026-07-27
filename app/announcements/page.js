@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
-import { createQueuedAnnouncementAction } from "./actions";
+import { createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
 import AnnouncementGeneratorClient from "./announcement-generator-client";
 
 function clean(value) {
@@ -39,6 +39,7 @@ export default async function AnnouncementsPage({ searchParams }) {
   const q = clean(resolvedSearchParams?.q);
   const errorText = clean(resolvedSearchParams?.error);
   const created = clean(resolvedSearchParams?.created) === "1";
+  const templateUpdated = clean(resolvedSearchParams?.templateUpdated) === "1";
 
   const [templates, announcements] = await Promise.all([
     listAnnouncementTemplates(),
@@ -64,10 +65,39 @@ export default async function AnnouncementsPage({ searchParams }) {
       </div>
 
       {created ? <div className="ok">המודעה נוצרה, נשמרה ונשלחה לתור השרת המקומי.</div> : null}
+      {templateUpdated ? <div className="ok">קישור Google Docs נשמר לתבנית.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card glass">
         <AnnouncementGeneratorClient templates={templates} action={createQueuedAnnouncementAction} />
+      </div>
+
+      <div className="card glass">
+        <div className="student-topbar">
+          <div>
+            <h3>קישורי Google Docs לתבניות</h3>
+            <p className="muted">הדבק כאן את קישור Google Docs של כל תבנית. ה־Document ID יישמר ויישלח תמיד לשרת הפנימי בכל עבודה.</p>
+          </div>
+        </div>
+        <div className="announcement-template-docs-list">
+          {templates.map((template) => (
+            <form key={template.id} action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-docs-row">
+              <input type="hidden" name="templateId" value={template.id} />
+              <div>
+                <strong>{template.name}</strong>
+                <div className="muted">{template.templateKey}</div>
+              </div>
+              <label>
+                <span>קישור Google Docs</span>
+                <input name="googleDocsUrl" defaultValue={template.googleDocsUrl || ""} placeholder="https://docs.google.com/document/d/..." />
+              </label>
+              <div className="announcement-template-docs-meta">
+                <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "לא נשמר ID"}</span>
+                <button type="submit" className="btn btn-ghost">שמור</button>
+              </div>
+            </form>
+          ))}
+        </div>
       </div>
 
       <div className="card glass">
