@@ -5977,6 +5977,18 @@ td {
   white-space: pre-wrap;
 }
 
+.announcement-edit-form {
+  display: grid;
+  gap: 16px;
+}
+
+.announcement-edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .announcement-template-docs-list {
   display: grid;
   gap: 10px;
@@ -6194,5 +6206,10 @@ td {
 
   .announcement-template-admin-actions .btn {
     width: 100%;
+  }
+
+  .announcement-edit-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }

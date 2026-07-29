@@ -428,6 +428,94 @@ export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
   redirect("/announcements?templateUpdated=1");
 }
 
+export async function updateQueuedAnnouncementAction(formData) {
+  const user = await requireAnnouncementEditor();
+  const announcementId = clean(formData.get("announcementId"));
+  const submitMode = clean(formData.get("submitMode"));
+  const shouldQueue = ["email", "print"].includes(submitMode);
+  const outputMode = submitMode === "print" ? "print" : "email";
+  const copies = submitMode === "print" ? numberFromForm(formData, "copies", 1) : 1;
+  const printPlan = normalizePrintPlan(formData.get("printPlan"));
+  let redirectTarget = announcementId ? `/announcements/${announcementId}` : "/announcements";
+  let redirectSuffix = "updated=1";
+
+  try {
+    const current = await getAnnouncementById(announcementId);
+    if (!current) throw new Error("המודעה לא נמצאה");
+    redirectTarget = `/announcements/${current.id}`;
+
+    const template = await getAnnouncementTemplateById(current.templateId);
+    if (!template) throw new Error("התבנית של המודעה לא נמצאה");
+    if (!canUseAnnouncementTemplate(user, template)) throw new Error("אין הרשאה להשתמש בתבנית זו");
+    if (shouldQueue && !canUsePrintQueue(user)) throw new Error("אין הרשאה לשליחה לתור");
+
+    const { values, lines } = validateTemplateFields(template, formData);
+    const title = titleForAnnouncement(template, values);
+    const bodyText = bodyTextForAnnouncement(template, lines);
+    const bodyHtml = bodyHtmlForAnnouncement(template, lines);
+
+    const updatedAnnouncement = await updateAnnouncement(current.id, {
+      title,
+      announcementDate: clean(values.date) || current.announcementDate || new Date().toISOString().slice(0, 10),
+      bodyText,
+      bodyHtml,
+      layoutOverride: queuedAnnouncementLayout(template, bodyText),
+      templateId: template.id,
+      templateKey: template.templateKey,
+      templateFields: values
+    });
+
+    if (shouldQueue) {
+      const pdf = await renderAnnouncementPdf({ announcement: updatedAnnouncement, template });
+      const printJob = await createPrintJobFromBuffer({
+        buffer: pdf,
+        fileName: `${title}.pdf`,
+        contentType: "application/pdf",
+        outputMode,
+        sourceType: "announcement",
+        sourceId: updatedAnnouncement.id,
+        sourceMetadata: {
+          announcement: {
+            id: updatedAnnouncement.id,
+            title: updatedAnnouncement.title,
+            date: updatedAnnouncement.announcementDate,
+            bodyText: updatedAnnouncement.bodyText
+          },
+          template: {
+            id: template.id,
+            templateKey: template.templateKey,
+            name: template.name,
+            generatorName: template.generatorName,
+            googleDocsUrl: template.googleDocsUrl,
+            googleDocsId: template.googleDocsId,
+            category: template.category,
+            version: template.version,
+            engine: template.engine,
+            allowedRoles: template.allowedRoles
+          },
+          fields: values,
+          fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
+          fieldDefinitions: templateFieldDefinitions(template)
+        },
+        copies,
+        printPlan,
+        uploadedByUserId: user.clerk_user_id,
+        user
+      });
+
+      await markAnnouncementPrintQueued(updatedAnnouncement.id, printJob.id);
+      redirectSuffix = `updated=1&queued=${outputMode}`;
+    }
+  } catch (error) {
+    redirect(`${redirectTarget}?error=${encodeURIComponent(clean(error?.message) || "עדכון המודעה נכשל")}`);
+  }
+
+  revalidatePath("/announcements");
+  revalidatePath(`/announcements/${announcementId}`);
+  revalidatePath("/print");
+  redirect(`${redirectTarget}?${redirectSuffix}`);
+}
+
 export async function printAnnouncementAction(formData) {
   const user = await requireAnnouncementEditor();
   if (!canUsePrintQueue(user)) redirect("/unauthorized");

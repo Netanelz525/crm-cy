@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
+import { updateQueuedAnnouncementAction } from "../actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -27,19 +28,30 @@ function outputModeLabel(value) {
   return value === "print" ? "הדפסה" : "מייל בלבד";
 }
 
-export default async function AnnouncementPage({ params }) {
+function queuedLabel(value) {
+  if (value === "print") return "המודעה נשמרה ונשלחה להדפסה מחדש.";
+  if (value === "email") return "המודעה נשמרה ונשלחה במייל מחדש.";
+  return "";
+}
+
+export default async function AnnouncementPage({ params, searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.can_use_announcement_templates) {
     redirect("/unauthorized");
   }
 
   const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const announcement = await getAnnouncementById(resolvedParams.id);
   if (!announcement) notFound();
   const template = await getAnnouncementTemplateById(announcement.templateId);
   if (!template || !canUseAnnouncementTemplate(user, template)) redirect("/unauthorized");
 
-  const fieldEntries = Object.entries(announcement.templateFields || {}).filter(([, value]) => clean(value));
+  const errorText = clean(resolvedSearchParams?.error);
+  const updated = clean(resolvedSearchParams?.updated) === "1";
+  const queued = clean(resolvedSearchParams?.queued);
+  const queuedMessage = queuedLabel(queued);
+  const templateFields = template.fields || [];
 
   return (
     <>
@@ -61,21 +73,61 @@ export default async function AnnouncementPage({ params }) {
         </div>
       </div>
 
+      {updated && !queuedMessage ? <div className="ok">המודעה נשמרה.</div> : null}
+      {queuedMessage ? <div className="ok">{queuedMessage}</div> : null}
+      {errorText ? <div className="error">{errorText}</div> : null}
+
       <div className="card glass">
-        <h3>פרטי המודעה</h3>
+        <h3>עריכת הודעה</h3>
         {announcement.printJobId ? <p className="muted">עבודת הדפסה: {announcement.printJobId}</p> : null}
-        {!fieldEntries.length ? (
-          <p className="muted">{announcement.bodyText}</p>
-        ) : (
-          <div className="announcement-record-fields">
-            {fieldEntries.map(([key, value]) => (
-              <div key={key} className="announcement-record-field">
-                <strong>{key}</strong>
-                <span>{clean(value)}</span>
-              </div>
+        <form action={updateQueuedAnnouncementAction} className="announcement-edit-form">
+          <input type="hidden" name="announcementId" value={announcement.id} />
+
+          <div className="announcement-fields-grid">
+            {templateFields.map((field) => (
+              <label key={field.key} className={field.type === "multiline" ? "announcement-field-span" : ""}>
+                <span>{field.label}{field.required ? " *" : ""}</span>
+                {field.type === "multiline" ? (
+                  <textarea
+                    name={`field:${field.key}`}
+                    rows={field.maxLength > 1200 ? 8 : 5}
+                    maxLength={field.maxLength || undefined}
+                    required={Boolean(field.required)}
+                    defaultValue={clean(announcement.templateFields?.[field.key])}
+                  />
+                ) : (
+                  <input
+                    name={`field:${field.key}`}
+                    maxLength={field.maxLength || undefined}
+                    required={Boolean(field.required)}
+                    defaultValue={clean(announcement.templateFields?.[field.key])}
+                  />
+                )}
+              </label>
             ))}
           </div>
-        )}
+
+          <div className="announcement-print-options">
+            <label>
+              <span>סוג הדפסה עבור הדפסה מחדש</span>
+              <select name="printPlan" defaultValue="corner-staple">
+                <option value="corner-staple">A4 רגיל, הידוק פינה ימנית עליונה</option>
+                <option value="duplex">A4 רגיל דו-צדדי</option>
+                <option value="booklet">חוברת A3, קיפול והידוק</option>
+              </select>
+            </label>
+            <label>
+              <span>כמות עותקים עבור הדפסה מחדש</span>
+              <input type="number" name="copies" min="1" max="99" defaultValue="1" />
+            </label>
+          </div>
+
+          <div className="announcement-edit-actions">
+            <button type="submit" name="submitMode" value="save" className="btn btn-ghost">שמור בלבד</button>
+            <button type="submit" name="submitMode" value="email" className="btn">שלח במייל מחדש</button>
+            <button type="submit" name="submitMode" value="print" className="btn btn-primary">הדפס מחדש</button>
+          </div>
+        </form>
       </div>
     </>
   );
