@@ -6067,6 +6067,14 @@ td {
   background: #ffffff;
 }
 
+.announcement-template-fields-title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
 .announcement-template-fields-head,
 .announcement-template-field-row {
   display: grid;

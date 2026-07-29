@@ -88,7 +88,7 @@ export default async function AnnouncementsPage({ searchParams }) {
           </div>
           <div className="announcement-template-docs-list">
             {templates.map((template) => {
-              const fieldRows = [...(template.fields || []), {}, {}];
+              const fieldRows = [...(template.fields || []), ...Array.from({ length: 8 }, () => ({}))];
               return (
                 <details key={template.id} className="announcement-template-admin-card">
                   <summary>
@@ -127,6 +127,10 @@ export default async function AnnouncementsPage({ searchParams }) {
                           <input name="allowedRoles" value="marei_mekomot" type="checkbox" defaultChecked={(template.allowedRoles || []).includes("marei_mekomot")} />
                           <span>מאושר להרשאת מראה מקומות</span>
                         </label>
+                      </div>
+                      <div className="announcement-template-fields-title">
+                        <strong>שדות התבנית</strong>
+                        <span className="muted">אפשר לשנות שדות קיימים או למלא שורות ריקות כדי להוסיף שדות חדשים.</span>
                       </div>
                       <div className="announcement-template-fields-head">
                         <span>ID בתבנית Google Docs</span>
