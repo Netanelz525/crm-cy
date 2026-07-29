@@ -215,8 +215,8 @@ function templateFieldsFromForm(formData) {
   const fields = [];
 
   for (let index = 0; index < fieldCount; index += 1) {
-    const key = clean(formData.get(`fieldKey:${index}`));
     const templateFieldId = clean(formData.get(`fieldTemplateFieldId:${index}`));
+    const key = clean(formData.get(`fieldKey:${index}`)) || fieldKeyFromTemplateId(templateFieldId, index);
     const label = clean(formData.get(`fieldLabel:${index}`));
     if (!key && !templateFieldId && !label) continue;
 
@@ -224,13 +224,37 @@ function templateFieldsFromForm(formData) {
       key,
       templateFieldId,
       label,
-      type: clean(formData.get(`fieldType:${index}`)) === "multiline" ? "multiline" : "text",
-      required: clean(formData.get(`fieldRequired:${index}`)) === "on",
+      type: fieldTypeFromForm(formData, index, templateFieldId, label),
+      required: clean(formData.get(`fieldRequired:${index}`)) !== "0",
       maxLength: Number(clean(formData.get(`fieldMaxLength:${index}`)) || 0) || undefined
     });
   }
 
   return fields;
+}
+
+function fieldTypeFromForm(formData, index, templateFieldId, label) {
+  const explicitType = clean(formData.get(`fieldType:${index}`));
+  if (explicitType === "multiline") return "multiline";
+  if (explicitType === "text") return "text";
+  const hint = `${templateFieldId} ${label}`;
+  if (/body|data|source|sources|תוכן|מקור|מראה/i.test(hint)) return "multiline";
+  return "text";
+}
+
+function fieldKeyFromTemplateId(templateFieldId, index) {
+  const normalized = clean(templateFieldId)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+  return normalized || `field_${index + 1}`;
+}
+
+function categoryFromForm(value) {
+  const category = clean(value);
+  if (["announcement", "letter", "sources"].includes(category)) return category;
+  return "announcement";
 }
 
 function allowedTemplateRolesFromForm(formData) {
@@ -239,28 +263,30 @@ function allowedTemplateRolesFromForm(formData) {
 }
 
 export async function createAnnouncementTemplateAction(formData) {
-  const user = await requireAnnouncementEditor();
+  const user = await requireAnnouncementTemplateAdmin();
   const templateId = crypto.randomUUID();
   const name = clean(formData.get("name"));
-  const headerText = clean(formData.get("headerText"));
-  const footerText = clean(formData.get("footerText"));
-  const blankFile = formData.get("blankFile");
+  const generatorName = clean(formData.get("generatorName")) || name;
+  const category = categoryFromForm(formData.get("category"));
 
   if (!name) {
     redirect("/announcements?error=יש להזין שם תבנית");
   }
 
-  let blank = { key: "", contentType: "" };
   try {
-    blank = await uploadTemplateBlank(blankFile, templateId);
     await createAnnouncementTemplate({
       id: templateId,
       name,
-      headerText,
-      footerText,
-      blankObjectKey: blank.key,
-      blankContentType: blank.contentType,
-      layout: layoutFromForm(formData),
+      templateKey: clean(formData.get("templateKey")) || undefined,
+      generatorName,
+      googleDocsUrl: formData.get("googleDocsUrl"),
+      category,
+      fields: templateFieldsFromForm(formData),
+      allowedRoles: allowedTemplateRolesFromForm(formData),
+      isPreferred: clean(formData.get("isPreferred")) === "on",
+      headerText: generatorName,
+      footerText: "",
+      layout: undefined,
       createdByUserId: user.clerk_user_id
     });
   } catch (error) {
@@ -268,7 +294,7 @@ export async function createAnnouncementTemplateAction(formData) {
   }
 
   revalidatePath("/announcements");
-  redirect(`/announcements/templates/${templateId}?created=1`);
+  redirect("/announcements?templateCreated=1");
 }
 
 export async function updateAnnouncementTemplateAction(formData) {
@@ -418,7 +444,8 @@ export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
     await updateAnnouncementTemplateSettings(templateId, {
       googleDocsUrl: formData.get("googleDocsUrl"),
       fields: templateFieldsFromForm(formData),
-      allowedRoles: allowedTemplateRolesFromForm(formData)
+      allowedRoles: allowedTemplateRolesFromForm(formData),
+      isPreferred: clean(formData.get("isPreferred")) === "on"
     });
   } catch (error) {
     redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "שמירת התבנית נכשלה")}`);

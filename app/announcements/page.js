@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
-import { createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
+import { createAnnouncementTemplateAction, createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
 import AnnouncementGeneratorClient from "./announcement-generator-client";
 
 function clean(value) {
@@ -44,6 +44,7 @@ export default async function AnnouncementsPage({ searchParams }) {
   const errorText = clean(resolvedSearchParams?.error);
   const created = clean(resolvedSearchParams?.created) === "1";
   const templateUpdated = clean(resolvedSearchParams?.templateUpdated) === "1";
+  const templateCreated = clean(resolvedSearchParams?.templateCreated) === "1";
 
   const [templates, announcements] = await Promise.all([
     listAnnouncementTemplates({ user }),
@@ -70,6 +71,7 @@ export default async function AnnouncementsPage({ searchParams }) {
 
       {created ? <div className="ok">המודעה נוצרה, נשמרה ונשלחה לתור השרת המקומי.</div> : null}
       {templateUpdated ? <div className="ok">התבנית נשמרה.</div> : null}
+      {templateCreated ? <div className="ok">התבנית החדשה נוצרה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card glass">
@@ -92,7 +94,7 @@ export default async function AnnouncementsPage({ searchParams }) {
                   <summary>
                     <span>
                       <strong>{template.name}</strong>
-                      <small>{template.generatorName || template.templateKey}</small>
+                      <small>{template.generatorName || template.templateKey}{template.isPreferred ? " · מועדפת" : ""}</small>
                     </span>
                     <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
                   </summary>
@@ -116,34 +118,28 @@ export default async function AnnouncementsPage({ searchParams }) {
 
                     <div className="announcement-template-fields-editor">
                       <div className="announcement-template-role-access">
-                        <strong>הרשאות לתבנית</strong>
+                        <strong>הגדרות תבנית</strong>
+                        <label className="checkbox-inline">
+                          <input name="isPreferred" type="checkbox" defaultChecked={template.isPreferred === true} />
+                          <span>תבנית מועדפת</span>
+                        </label>
                         <label className="checkbox-inline">
                           <input name="allowedRoles" value="marei_mekomot" type="checkbox" defaultChecked={(template.allowedRoles || []).includes("marei_mekomot")} />
                           <span>מאושר להרשאת מראה מקומות</span>
                         </label>
                       </div>
                       <div className="announcement-template-fields-head">
-                        <span>שדה במערכת</span>
                         <span>ID בתבנית Google Docs</span>
                         <span>תיאור/תווית למשתמש</span>
-                        <span>סוג</span>
-                        <span>חובה</span>
-                        <span>מגבלת אורך</span>
                       </div>
                       {fieldRows.map((field, index) => (
                         <div key={`${template.id}-${index}`} className="announcement-template-field-row">
-                          <input name={`fieldKey:${index}`} defaultValue={field.key || ""} placeholder="body" />
+                          <input type="hidden" name={`fieldKey:${index}`} defaultValue={field.key || ""} />
+                          <input type="hidden" name={`fieldType:${index}`} defaultValue={field.type || ""} />
+                          <input type="hidden" name={`fieldRequired:${index}`} defaultValue={field.required === false ? "0" : "1"} />
+                          <input type="hidden" name={`fieldMaxLength:${index}`} defaultValue={field.maxLength || ""} />
                           <input name={`fieldTemplateFieldId:${index}`} defaultValue={field.templateFieldId || ""} placeholder="7 / data / name" />
                           <input name={`fieldLabel:${index}`} defaultValue={field.label || ""} placeholder="תוכן המודעה" />
-                          <select name={`fieldType:${index}`} defaultValue={field.type || "text"}>
-                            <option value="text">טקסט קצר</option>
-                            <option value="multiline">טקסט ארוך</option>
-                          </select>
-                          <label className="checkbox-inline">
-                            <input name={`fieldRequired:${index}`} type="checkbox" defaultChecked={field.required === true} />
-                            <span>חובה</span>
-                          </label>
-                          <input name={`fieldMaxLength:${index}`} type="number" min="1" defaultValue={field.maxLength || ""} placeholder="1500" />
                         </div>
                       ))}
                     </div>
@@ -156,6 +152,64 @@ export default async function AnnouncementsPage({ searchParams }) {
               );
             })}
           </div>
+
+          <details className="announcement-template-admin-card">
+            <summary>
+              <span>
+                <strong>יצירת תבנית חדשה</strong>
+                <small>Google Docs + שדות החלפה</small>
+              </span>
+              <span className="meta-chip">חדש</span>
+            </summary>
+            <form action={createAnnouncementTemplateAction} className="announcement-template-admin-form">
+              <div className="announcement-template-create-grid">
+                <label>
+                  <span>שם תבנית</span>
+                  <input name="name" required placeholder="מראה מקומות חדש" />
+                </label>
+                <label>
+                  <span>קישור Google Docs</span>
+                  <input name="googleDocsUrl" required placeholder="https://docs.google.com/document/d/..." />
+                </label>
+                <label>
+                  <span>סוג</span>
+                  <select name="category" defaultValue="sources">
+                    <option value="sources">מראה מקומות</option>
+                    <option value="announcement">מודעה</option>
+                    <option value="letter">מכתב</option>
+                  </select>
+                </label>
+              </div>
+              <div className="announcement-template-role-access">
+                <strong>הגדרות תבנית</strong>
+                <label className="checkbox-inline">
+                  <input name="isPreferred" type="checkbox" defaultChecked />
+                  <span>תבנית מועדפת</span>
+                </label>
+                <label className="checkbox-inline">
+                  <input name="allowedRoles" value="marei_mekomot" type="checkbox" defaultChecked />
+                  <span>מאושר להרשאת מראה מקומות</span>
+                </label>
+              </div>
+              <input type="hidden" name="fieldCount" value="6" />
+              <div className="announcement-template-fields-editor">
+                <div className="announcement-template-fields-head">
+                  <span>ID בתבנית Google Docs</span>
+                  <span>תיאור/תווית למשתמש</span>
+                </div>
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <div key={`new-template-field-${index}`} className="announcement-template-field-row">
+                    <input type="hidden" name={`fieldRequired:${index}`} value="1" />
+                    <input name={`fieldTemplateFieldId:${index}`} placeholder={index === 0 ? "title" : "data / name / 7"} />
+                    <input name={`fieldLabel:${index}`} placeholder={index === 0 ? "כותרת ראשית" : "תיאור למשתמש"} />
+                  </div>
+                ))}
+              </div>
+              <div className="announcement-template-admin-actions">
+                <button type="submit" className="btn">צור תבנית</button>
+              </div>
+            </form>
+          </details>
         </div>
       ) : null}
 
