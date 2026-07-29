@@ -98,7 +98,11 @@ export default async function PrintPage({ searchParams }) {
           </p>
         </div>
         <div className="quick-actions">
-          {!user.is_print_only ? <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה לתלמידים</Link> : null}
+          {user.is_marei_mekomot ? (
+            <Link className="quick-action-btn quick-action-outline" href="/announcements">חזרה למראה מקומות</Link>
+          ) : !user.is_print_only ? (
+            <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה לתלמידים</Link>
+          ) : null}
           {isSuperAdmin ? <Link className="quick-action-btn quick-action-outline" href="/admin/api-access">טוקנים לשרת מקומי</Link> : null}
         </div>
       </div>

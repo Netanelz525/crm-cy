@@ -35,7 +35,7 @@ function fullGoogleDocsId(value) {
 
 export default async function AnnouncementsPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!user.can_use_announcement_templates) {
     redirect("/unauthorized");
   }
 
@@ -46,8 +46,8 @@ export default async function AnnouncementsPage({ searchParams }) {
   const templateUpdated = clean(resolvedSearchParams?.templateUpdated) === "1";
 
   const [templates, announcements] = await Promise.all([
-    listAnnouncementTemplates(),
-    listAnnouncements(q)
+    listAnnouncementTemplates({ user }),
+    listAnnouncements(q, { user })
   ]);
 
   return (
@@ -115,6 +115,13 @@ export default async function AnnouncementsPage({ searchParams }) {
                     </div>
 
                     <div className="announcement-template-fields-editor">
+                      <div className="announcement-template-role-access">
+                        <strong>הרשאות לתבנית</strong>
+                        <label className="checkbox-inline">
+                          <input name="allowedRoles" value="marei_mekomot" type="checkbox" defaultChecked={(template.allowedRoles || []).includes("marei_mekomot")} />
+                          <span>מאושר להרשאת מראה מקומות</span>
+                        </label>
+                      </div>
                       <div className="announcement-template-fields-head">
                         <span>שדה במערכת</span>
                         <span>ID בתבנית Google Docs</span>

@@ -16,6 +16,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const canShowTopbar = Boolean(currentUser?.is_manager || currentUser?.is_super_admin || canUsePrintQueue);
   const primaryNavItems = currentUser?.is_print_only ? [
     { href: "/print", label: "הדפסה" }
+  ] : currentUser?.is_marei_mekomot ? [
+    { href: "/announcements", label: "מראה מקומות" },
+    { href: "/print", label: "הדפסה" }
   ] : [
     { href: "/neon", label: "תלמידים" },
     { href: "/email", label: "מיילים" },

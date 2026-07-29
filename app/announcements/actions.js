@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
+import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
 import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
@@ -196,7 +196,7 @@ async function uploadTemplateBlank(file, templateId) {
 
 async function requireAnnouncementEditor() {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!user.can_use_announcement_templates) {
     redirect("/unauthorized");
   }
   return user;
@@ -231,6 +231,11 @@ function templateFieldsFromForm(formData) {
   }
 
   return fields;
+}
+
+function allowedTemplateRolesFromForm(formData) {
+  const roles = formData.getAll("allowedRoles").map(clean).filter(Boolean);
+  return roles.filter((role) => ["marei_mekomot"].includes(role));
 }
 
 export async function createAnnouncementTemplateAction(formData) {
@@ -338,6 +343,7 @@ export async function createQueuedAnnouncementAction(formData) {
   try {
     const template = await getAnnouncementTemplateById(templateId);
     if (!template) throw new Error("התבנית לא נמצאה");
+    if (!canUseAnnouncementTemplate(user, template)) throw new Error("אין הרשאה להשתמש בתבנית זו");
 
     const { values, lines } = validateTemplateFields(template, formData);
     const title = titleForAnnouncement(template, values);
@@ -381,7 +387,8 @@ export async function createQueuedAnnouncementAction(formData) {
           googleDocsId: template.googleDocsId,
           category: template.category,
           version: template.version,
-          engine: template.engine
+          engine: template.engine,
+          allowedRoles: template.allowedRoles
         },
         fields: values,
         fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
@@ -410,7 +417,8 @@ export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
   try {
     await updateAnnouncementTemplateSettings(templateId, {
       googleDocsUrl: formData.get("googleDocsUrl"),
-      fields: templateFieldsFromForm(formData)
+      fields: templateFieldsFromForm(formData),
+      allowedRoles: allowedTemplateRolesFromForm(formData)
     });
   } catch (error) {
     redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "שמירת התבנית נכשלה")}`);

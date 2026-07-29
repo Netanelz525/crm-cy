@@ -142,6 +142,7 @@ export default async function HomePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect("/sign-in");
   if (currentUser.is_print_only) redirect("/print");
+  if (currentUser.is_marei_mekomot) redirect("/announcements");
   await purgeExpiredSoftDeletedStudents();
 
   const resolvedSearchParams = await searchParams;

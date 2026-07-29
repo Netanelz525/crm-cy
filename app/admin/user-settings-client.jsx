@@ -27,6 +27,8 @@ function roleLabel(role) {
       return "עורך";
     case "print_only":
       return "הדפסה בלבד";
+    case "marei_mekomot":
+      return "מראה מקומות";
     default:
       return "צופה";
   }
@@ -204,6 +206,7 @@ export default function UserSettingsClient({
           <select defaultValue={user.role} id="role" disabled={isSelf} style={{ width: "100%" }}>
             <option value="viewer">צופה</option>
             <option value="print_only">הדפסה בלבד</option>
+            <option value="marei_mekomot">מראה מקומות</option>
             <option value="editor">עורך</option>
             <option value="admin">מנהל</option>
             <option value="super_admin">סופר אדמין</option>

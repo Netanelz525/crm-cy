@@ -6044,6 +6044,17 @@ td {
   gap: 8px;
 }
 
+.announcement-template-role-access {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid #dbe8f7;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
 .announcement-template-fields-head,
 .announcement-template-field-row {
   display: grid;
@@ -6156,6 +6167,11 @@ td {
 
   .announcement-template-fields-head {
     display: none;
+  }
+
+  .announcement-template-role-access {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .announcement-template-field-row {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getAnnouncementById } from "../../../lib/announcements";
+import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
 
 function clean(value) {
@@ -29,13 +29,15 @@ function outputModeLabel(value) {
 
 export default async function AnnouncementPage({ params }) {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!user.can_use_announcement_templates) {
     redirect("/unauthorized");
   }
 
   const resolvedParams = await params;
   const announcement = await getAnnouncementById(resolvedParams.id);
   if (!announcement) notFound();
+  const template = await getAnnouncementTemplateById(announcement.templateId);
+  if (!template || !canUseAnnouncementTemplate(user, template)) redirect("/unauthorized");
 
   const fieldEntries = Object.entries(announcement.templateFields || {}).filter(([, value]) => clean(value));
 

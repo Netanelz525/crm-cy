@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getAnnouncementById, getAnnouncementTemplateById } from "../../../../lib/announcements";
+import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
 import AnnouncementSheet from "../../announcement-sheet";
 import AnnouncementPrintClient from "./print-client";
 
 export default async function AnnouncementPrintPage({ params }) {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!user.can_use_announcement_templates) {
     redirect("/unauthorized");
   }
 
@@ -17,6 +17,7 @@ export default async function AnnouncementPrintPage({ params }) {
 
   const template = await getAnnouncementTemplateById(announcement.templateId);
   if (!template) notFound();
+  if (!canUseAnnouncementTemplate(user, template)) redirect("/unauthorized");
 
   return (
     <div className="announcement-print-page">

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAnnouncementById, getAnnouncementTemplateById } from "../../../../../lib/announcements";
+import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../../../lib/announcements";
 import { getCurrentAppUser } from "../../../../../lib/rbac";
 import { renderAnnouncementPdf } from "../../../../../lib/announcement-pdf";
 
@@ -18,7 +18,7 @@ function fileName(value) {
 
 export async function GET(_request, { params }) {
   const user = await getCurrentAppUser();
-  if (!user || (!user.is_team_member && !user.is_manager)) {
+  if (!user || !user.can_use_announcement_templates) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -31,6 +31,9 @@ export async function GET(_request, { params }) {
   const template = await getAnnouncementTemplateById(announcement.templateId);
   if (!template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
+  }
+  if (!canUseAnnouncementTemplate(user, template)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
