@@ -475,6 +475,7 @@ export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
 
   try {
     await updateAnnouncementTemplateSettings(templateId, {
+      name: formData.get("name"),
       googleDocsUrl: formData.get("googleDocsUrl"),
       fields: templateFieldsFromForm(formData),
       allowedRoles: allowedTemplateRolesFromForm(formData),

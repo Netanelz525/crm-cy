@@ -34,6 +34,13 @@ function fullGoogleDocsId(value) {
   return clean(value) || "לא נשמר ID";
 }
 
+function googleDocsEditUrl(template) {
+  const url = clean(template?.googleDocsUrl);
+  if (/^https:\/\/docs\.google\.com\/document\/d\//.test(url)) return url;
+  const id = clean(template?.googleDocsId);
+  return id ? `https://docs.google.com/document/d/${id}/edit` : "";
+}
+
 export default async function AnnouncementsPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.can_use_announcement_templates) {
@@ -90,6 +97,7 @@ export default async function AnnouncementsPage({ searchParams }) {
           </summary>
           <div className="announcement-template-docs-list">
             {templates.map((template) => {
+              const docsUrl = googleDocsEditUrl(template);
               return (
                 <details key={template.id} className="announcement-template-admin-card">
                   <summary>
@@ -97,7 +105,10 @@ export default async function AnnouncementsPage({ searchParams }) {
                       <strong>{template.name}</strong>
                       <small>{template.generatorName || template.templateKey}</small>
                     </span>
-                    <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
+                    <span className="announcement-template-summary-actions">
+                      {docsUrl ? <a className="btn btn-ghost" href={docsUrl} target="_blank" rel="noreferrer">פתח ב־Google Docs</a> : null}
+                      <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
+                    </span>
                   </summary>
                   <form action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-admin-form">
                     <input type="hidden" name="templateId" value={template.id} />
@@ -108,10 +119,15 @@ export default async function AnnouncementsPage({ searchParams }) {
                         <div className="muted">generatorName: {template.generatorName || "-"}</div>
                       </div>
                       <label>
+                        <span>שם התבנית</span>
+                        <input name="name" defaultValue={template.name || ""} placeholder="שם להצגה במערכת" required />
+                      </label>
+                      <label>
                         <span>קישור Google Docs</span>
                         <input name="googleDocsUrl" defaultValue={template.googleDocsUrl || ""} placeholder="https://docs.google.com/document/d/..." />
                       </label>
                       <div className="announcement-template-docs-meta">
+                        {docsUrl ? <a className="btn btn-ghost" href={docsUrl} target="_blank" rel="noreferrer">ערוך תבנית מלאה</a> : null}
                         <span className="meta-chip">{fullGoogleDocsId(template.googleDocsId)}</span>
                       </div>
                     </div>

@@ -6110,7 +6110,7 @@ td {
 
 .announcement-template-docs-row {
   display: grid;
-  grid-template-columns: minmax(150px, 0.7fr) minmax(240px, 1.6fr) auto;
+  grid-template-columns: minmax(140px, 0.7fr) minmax(180px, 0.9fr) minmax(240px, 1.5fr) auto;
   gap: 12px;
   align-items: end;
   padding: 12px;
@@ -6121,6 +6121,14 @@ td {
 
 .announcement-template-docs-meta {
   display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.announcement-template-summary-actions {
+  display: inline-flex;
   gap: 8px;
   align-items: center;
   justify-content: flex-end;
