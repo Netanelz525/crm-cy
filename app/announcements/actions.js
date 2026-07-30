@@ -37,6 +37,14 @@ function numberFromForm(formData, key, fallback) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function postgresDateOrNull(value) {
+  const raw = clean(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const date = new Date(`${raw}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10) === raw ? raw : null;
+}
+
 function layoutFromForm(formData) {
   return {
     header: {
@@ -388,7 +396,7 @@ export async function createQueuedAnnouncementAction(formData) {
     announcement = await createAnnouncement({
       id: announcementId,
       title,
-      announcementDate: clean(values.date) || new Date().toISOString().slice(0, 10),
+      announcementDate: postgresDateOrNull(values.date),
       bodyText,
       bodyHtml,
       layoutOverride: queuedAnnouncementLayout(template, bodyText),
@@ -508,7 +516,7 @@ export async function updateQueuedAnnouncementAction(formData) {
 
     const updatedAnnouncement = await updateAnnouncement(current.id, {
       title,
-      announcementDate: clean(values.date) || current.announcementDate || new Date().toISOString().slice(0, 10),
+      announcementDate: postgresDateOrNull(values.date) || current.announcementDate,
       bodyText,
       bodyHtml,
       layoutOverride: queuedAnnouncementLayout(template, bodyText),
