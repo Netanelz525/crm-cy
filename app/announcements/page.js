@@ -80,13 +80,14 @@ export default async function AnnouncementsPage({ searchParams }) {
       </div>
 
       {user.is_super_admin ? (
-        <div className="card glass">
-          <div className="student-topbar">
-            <div>
+        <details className="card glass announcement-section-card" open={templateUpdated || templateCreated}>
+          <summary>
+            <span>
               <h3>ניהול תבניות Google Docs</h3>
               <p className="muted">סופר־אדמין יכול לשמור קישור Google Docs ולערוך את מיפוי השדות. ה־Document ID והשדות נשלחים תמיד לשרת הפנימי בכל יצירת מודעה.</p>
-            </div>
-          </div>
+            </span>
+            <span className="meta-chip">תבניות: {templates.length}</span>
+          </summary>
           <div className="announcement-template-docs-list">
             {templates.map((template) => {
               return (
@@ -177,42 +178,45 @@ export default async function AnnouncementsPage({ searchParams }) {
               </div>
             </form>
           </details>
-        </div>
+        </details>
       ) : null}
 
-      <div className="card glass">
-        <div className="student-topbar">
-          <div>
+      <details className="card glass announcement-section-card" open={Boolean(q)}>
+        <summary>
+          <span>
             <h3>מודעות שנוצרו</h3>
             <p className="muted">כל מודעה נשמרת עם סוג התבנית, השדות שנשלחו ומזהה עבודת ההדפסה.</p>
-          </div>
+          </span>
+          <span className="meta-chip">רשומות: {announcements.length}</span>
+        </summary>
+        <div className="announcement-section-body">
           <form method="GET" className="announcements-search-form">
             <input name="q" defaultValue={q} placeholder="חפש לפי כותרת, תוכן או תבנית" />
             <button type="submit">חפש</button>
           </form>
-        </div>
 
-        {!announcements.length ? (
-          <div className="muted">אין מודעות להצגה.</div>
-        ) : (
-          <div className="announcements-list">
-            {announcements.map((announcement) => (
-              <Link key={announcement.id} href={`/announcements/${announcement.id}`} className="announcement-row">
-                <div>
-                  <strong>{announcement.title}</strong>
-                  <div className="muted">{announcement.templateName} · {announcement.templateGeneratorName || "local-pdf"}</div>
-                </div>
-                <div className="announcement-row-meta">
-                  <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>
-                  <span className="meta-chip">{outputModeLabel(announcement.printJobOutputMode)}</span>
-                  <span className="meta-chip">{formatDateTime(announcement.queuedAt || announcement.createdAt)}</span>
-                  {announcement.printJobId ? <span className="muted">Job: {announcement.printJobId.slice(0, 8)}</span> : null}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+          {!announcements.length ? (
+            <div className="muted">אין מודעות להצגה.</div>
+          ) : (
+            <div className="announcements-list">
+              {announcements.map((announcement) => (
+                <Link key={announcement.id} href={`/announcements/${announcement.id}`} className="announcement-row">
+                  <div>
+                    <strong>{announcement.title}</strong>
+                    <div className="muted">{announcement.templateName} · {announcement.templateGeneratorName || "local-pdf"}</div>
+                  </div>
+                  <div className="announcement-row-meta">
+                    <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>
+                    <span className="meta-chip">{outputModeLabel(announcement.printJobOutputMode)}</span>
+                    <span className="meta-chip">{formatDateTime(announcement.queuedAt || announcement.createdAt)}</span>
+                    {announcement.printJobId ? <span className="muted">Job: {announcement.printJobId.slice(0, 8)}</span> : null}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </details>
     </>
   );
 }

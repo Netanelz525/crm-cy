@@ -6059,6 +6059,42 @@ td {
   flex-wrap: wrap;
 }
 
+.announcement-section-card {
+  display: block;
+}
+
+.announcement-section-card > summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.announcement-section-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.announcement-section-card > summary span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.announcement-section-card > summary h3 {
+  margin: 0;
+}
+
+.announcement-section-body,
+.announcement-section-card > .announcement-template-docs-list {
+  margin-top: 16px;
+}
+
+.announcement-section-body {
+  display: grid;
+  gap: 14px;
+}
+
 .announcement-template-docs-list {
   display: grid;
   gap: 10px;

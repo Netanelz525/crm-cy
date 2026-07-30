@@ -365,18 +365,27 @@ export async function createQueuedAnnouncementAction(formData) {
   const copies = numberFromForm(formData, "copies", 1);
   const printPlan = normalizePrintPlan(formData.get("printPlan"));
   const announcementId = crypto.randomUUID();
+  let announcement = null;
+  let template = null;
+  let values = {};
+  let lines = [];
+  let title = "";
+  let bodyText = "";
+  let bodyHtml = "";
 
   try {
-    const template = await getAnnouncementTemplateById(templateId);
+    template = await getAnnouncementTemplateById(templateId);
     if (!template) throw new Error("התבנית לא נמצאה");
     if (!canUseAnnouncementTemplate(user, template)) throw new Error("אין הרשאה להשתמש בתבנית זו");
 
-    const { values, lines } = validateTemplateFields(template, formData);
-    const title = titleForAnnouncement(template, values);
-    const bodyText = bodyTextForAnnouncement(template, lines);
-    const bodyHtml = bodyHtmlForAnnouncement(template, lines);
+    const validated = validateTemplateFields(template, formData);
+    values = validated.values;
+    lines = validated.lines;
+    title = titleForAnnouncement(template, values);
+    bodyText = bodyTextForAnnouncement(template, lines);
+    bodyHtml = bodyHtmlForAnnouncement(template, lines);
 
-    const announcement = await createAnnouncement({
+    announcement = await createAnnouncement({
       id: announcementId,
       title,
       announcementDate: clean(values.date) || new Date().toISOString().slice(0, 10),
@@ -388,7 +397,11 @@ export async function createQueuedAnnouncementAction(formData) {
       templateFields: values,
       createdByUserId: user.clerk_user_id
     });
+  } catch (error) {
+    redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "יצירת המודעה נכשלה")}`);
+  }
 
+  try {
     const pdf = await renderAnnouncementPdf({ announcement, template });
     const printJob = await createPrintJobFromBuffer({
       buffer: pdf,
@@ -428,7 +441,8 @@ export async function createQueuedAnnouncementAction(formData) {
 
     await markAnnouncementPrintQueued(announcement.id, printJob.id);
   } catch (error) {
-    redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "יצירת המודעה ושליחתה לתור נכשלה")}`);
+    revalidatePath("/announcements");
+    redirect(`/announcements/${announcement.id}?created=1&error=${encodeURIComponent(clean(error?.message) || "המודעה נשמרה, אבל השליחה לשרת המקומי נכשלה")}`);
   }
 
   revalidatePath("/announcements");
