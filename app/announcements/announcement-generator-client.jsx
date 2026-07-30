@@ -77,6 +77,14 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
         key={template.id}
         className={`announcement-template-option${selectedTemplate?.id === template.id ? " active" : ""}`}
       >
+        <input
+          className="announcement-template-radio"
+          type="radio"
+          name="templateId"
+          value={template.id}
+          checked={selectedTemplate?.id === template.id}
+          onChange={() => setSelectedId(template.id)}
+        />
         <button type="button" className="announcement-template-select" onClick={() => setSelectedId(template.id)}>
           <strong>{template.name}</strong>
           <span>{categoryLabel(template.category)}</span>
@@ -122,8 +130,6 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
           </div>
         ) : null}
       </div>
-
-      <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
 
       <div className="announcement-generator-panel">
         <div>

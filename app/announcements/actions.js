@@ -398,6 +398,11 @@ export async function createQueuedAnnouncementAction(formData) {
       createdByUserId: user.clerk_user_id
     });
   } catch (error) {
+    console.error("announcement_create_failed", {
+      templateId,
+      message: clean(error?.message),
+      userId: clean(user?.clerk_user_id)
+    });
     redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "יצירת המודעה נכשלה")}`);
   }
 
@@ -441,6 +446,12 @@ export async function createQueuedAnnouncementAction(formData) {
 
     await markAnnouncementPrintQueued(announcement.id, printJob.id);
   } catch (error) {
+    console.error("announcement_queue_failed", {
+      announcementId: announcement?.id,
+      templateId: template?.id,
+      message: clean(error?.message),
+      userId: clean(user?.clerk_user_id)
+    });
     revalidatePath("/announcements");
     redirect(`/announcements/${announcement.id}?created=1&error=${encodeURIComponent(clean(error?.message) || "המודעה נשמרה, אבל השליחה לשרת המקומי נכשלה")}`);
   }

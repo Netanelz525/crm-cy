@@ -5932,6 +5932,14 @@ td {
   box-shadow: inset 0 0 0 1px rgba(15, 95, 157, 0.22);
 }
 
+.announcement-template-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .announcement-template-select {
   display: grid;
   gap: 5px;
