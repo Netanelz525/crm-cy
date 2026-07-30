@@ -53,15 +53,26 @@ export default async function AnnouncementsPage({ searchParams }) {
 
   const resolvedSearchParams = await searchParams;
   const q = clean(resolvedSearchParams?.q);
+  const selectedTemplateId = clean(resolvedSearchParams?.templateId);
   const errorText = clean(resolvedSearchParams?.error);
   const created = clean(resolvedSearchParams?.created) === "1";
   const templateUpdated = clean(resolvedSearchParams?.templateUpdated) === "1";
   const templateCreated = clean(resolvedSearchParams?.templateCreated) === "1";
 
-  const [templates, announcements] = await Promise.all([
+  const [templates, announcements, announcementHistory] = await Promise.all([
     listAnnouncementTemplates({ user }),
-    listAnnouncements(q, { user })
+    listAnnouncements(q, { user }),
+    q ? listAnnouncements("", { user }) : Promise.resolve(null)
   ]);
+  const allAnnouncements = announcementHistory || announcements;
+  const announcementsByTemplateId = allAnnouncements.reduce((map, announcement) => {
+    const templateId = clean(announcement.templateId);
+    if (!templateId) return map;
+    const current = map.get(templateId) || [];
+    current.push(announcement);
+    map.set(templateId, current);
+    return map;
+  }, new Map());
 
   return (
     <>
@@ -86,8 +97,12 @@ export default async function AnnouncementsPage({ searchParams }) {
       {templateCreated ? <div className="ok">התבנית החדשה נוצרה.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
-      <div className="card glass">
-        <AnnouncementGeneratorClient templates={templates} action={createQueuedAnnouncementAction} />
+      <div className="card glass" id="create-announcement">
+        <AnnouncementGeneratorClient
+          templates={templates}
+          action={createQueuedAnnouncementAction}
+          initialTemplateId={selectedTemplateId}
+        />
       </div>
 
       {user.is_super_admin ? (
@@ -102,6 +117,7 @@ export default async function AnnouncementsPage({ searchParams }) {
           <div className="announcement-template-docs-list">
             {templates.map((template) => {
               const docsUrl = googleDocsEditUrl(template);
+              const templateAnnouncements = announcementsByTemplateId.get(template.id) || [];
               return (
                 <details key={template.id} className="announcement-template-admin-card">
                   <summary>
@@ -110,7 +126,9 @@ export default async function AnnouncementsPage({ searchParams }) {
                       <small>{template.generatorName || template.templateKey}</small>
                     </span>
                     <span className="announcement-template-summary-actions">
+                      <Link className="btn btn-primary" href={`/announcements?templateId=${encodeURIComponent(template.id)}#create-announcement`}>צור מודעה מתבנית זו</Link>
                       {docsUrl ? <a className="btn btn-ghost" href={docsUrl} target="_blank" rel="noreferrer">פתח ב־Google Docs</a> : null}
+                      <span className="meta-chip">נוצרו: {templateAnnouncements.length}</span>
                       <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
                     </span>
                   </summary>
@@ -152,6 +170,32 @@ export default async function AnnouncementsPage({ searchParams }) {
                       <button type="submit" className="btn">שמור תבנית</button>
                     </div>
                   </form>
+
+                  <div className="announcement-template-history">
+                    <div className="announcement-template-history-title">
+                      <strong>היסטוריית מודעות מתבנית זו</strong>
+                      <span className="meta-chip">{templateAnnouncements.length} רשומות</span>
+                    </div>
+                    {templateAnnouncements.length ? (
+                      <div className="announcement-template-history-list">
+                        {templateAnnouncements.slice(0, 8).map((announcement) => (
+                          <Link key={announcement.id} href={`/announcements/${announcement.id}`} className="announcement-template-history-row">
+                            <span>
+                              <strong>{announcement.title}</strong>
+                              <small>נוצר על ידי: {creatorLabel(announcement)}</small>
+                            </span>
+                            <span className="announcement-row-meta">
+                              <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>
+                              <span className="meta-chip">{outputModeLabel(announcement.printJobOutputMode)}</span>
+                              <span className="muted">{formatDateTime(announcement.queuedAt || announcement.createdAt)}</span>
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="muted">עדיין לא נוצרו מודעות מהתבנית הזו.</div>
+                    )}
+                  </div>
                 </details>
               );
             })}

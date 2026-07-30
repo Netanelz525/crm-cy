@@ -26,8 +26,11 @@ function SubmitButton() {
   );
 }
 
-export default function AnnouncementGeneratorClient({ templates, action }) {
-  const [selectedId, setSelectedId] = useState(templates[0]?.id || "");
+export default function AnnouncementGeneratorClient({ templates, action, initialTemplateId = "" }) {
+  const initialSelectedId = templates.some((template) => template.id === initialTemplateId)
+    ? initialTemplateId
+    : templates[0]?.id || "";
+  const [selectedId, setSelectedId] = useState(initialSelectedId);
   const [outputMode, setOutputMode] = useState("email");
   const [favoriteIds, setFavoriteIds] = useState([]);
 
@@ -47,6 +50,12 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
       // Local preference only; ignore browsers that block storage.
     }
   }, [favoriteIds]);
+
+  useEffect(() => {
+    if (initialTemplateId && templates.some((template) => template.id === initialTemplateId)) {
+      setSelectedId(initialTemplateId);
+    }
+  }, [initialTemplateId, templates]);
 
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   const favoriteTemplates = useMemo(
