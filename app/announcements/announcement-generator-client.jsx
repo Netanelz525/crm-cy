@@ -49,17 +49,14 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
   }, [favoriteIds]);
 
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
-  const orderedTemplates = useMemo(() => {
-    const withOriginalIndex = templates.map((template, index) => ({ template, index }));
-    return withOriginalIndex
-      .sort((a, b) => {
-        const aFavorite = favoriteIdSet.has(a.template.id);
-        const bFavorite = favoriteIdSet.has(b.template.id);
-        if (aFavorite !== bFavorite) return aFavorite ? -1 : 1;
-        return a.index - b.index;
-      })
-      .map((item) => item.template);
-  }, [templates, favoriteIdSet]);
+  const favoriteTemplates = useMemo(
+    () => templates.filter((template) => favoriteIdSet.has(template.id)),
+    [templates, favoriteIdSet]
+  );
+  const regularTemplates = useMemo(
+    () => templates.filter((template) => !favoriteIdSet.has(template.id)),
+    [templates, favoriteIdSet]
+  );
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedId) || templates[0],
     [templates, selectedId]
@@ -73,6 +70,30 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
     ));
   }
 
+  function renderTemplateOption(template) {
+    const isFavorite = favoriteIdSet.has(template.id);
+    return (
+      <div
+        key={template.id}
+        className={`announcement-template-option${selectedTemplate?.id === template.id ? " active" : ""}`}
+      >
+        <button type="button" className="announcement-template-select" onClick={() => setSelectedId(template.id)}>
+          <strong>{template.name}</strong>
+          <span>{categoryLabel(template.category)}</span>
+        </button>
+        <button
+          type="button"
+          className={`announcement-template-favorite${isFavorite ? " active" : ""}`}
+          aria-label={isFavorite ? "הסר ממועדפות" : "הוסף למועדפות"}
+          title={isFavorite ? "הסר ממועדפות" : "הוסף למועדפות"}
+          onClick={() => toggleFavorite(template.id)}
+        >
+          {isFavorite ? "★" : "☆"}
+        </button>
+      </div>
+    );
+  }
+
   if (!templates.length) {
     return <div className="muted">לא נמצאו תבניות פעילות.</div>;
   }
@@ -84,29 +105,22 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
           <strong>תבניות להכנה</strong>
           <span className="muted">סמן כוכב כדי לשמור תבנית מועדפת להכנה מהירה.</span>
         </div>
-        {orderedTemplates.map((template) => {
-          const isFavorite = favoriteIdSet.has(template.id);
-          return (
-            <div
-              key={template.id}
-              className={`announcement-template-option${selectedTemplate?.id === template.id ? " active" : ""}${isFavorite ? " favorite" : ""}`}
-            >
-              <button type="button" className="announcement-template-select" onClick={() => setSelectedId(template.id)}>
-                <strong>{template.name}</strong>
-                <span>{categoryLabel(template.category)}{isFavorite ? " · מועדפת" : ""}</span>
-              </button>
-              <button
-                type="button"
-                className="announcement-template-favorite"
-                aria-label={isFavorite ? "הסר ממועדפות" : "הוסף למועדפות"}
-                title={isFavorite ? "הסר ממועדפות" : "הוסף למועדפות"}
-                onClick={() => toggleFavorite(template.id)}
-              >
-                {isFavorite ? "★" : "☆"}
-              </button>
+        {favoriteTemplates.length ? (
+          <div className="announcement-template-section favorite-section">
+            <div className="announcement-template-section-title">מועדפות</div>
+            <div className="announcement-template-section-grid">
+              {favoriteTemplates.map(renderTemplateOption)}
             </div>
-          );
-        })}
+          </div>
+        ) : null}
+        {regularTemplates.length || !favoriteTemplates.length ? (
+          <div className="announcement-template-section">
+            <div className="announcement-template-section-title">{favoriteTemplates.length ? "שאר התבניות" : "כל התבניות"}</div>
+            <div className="announcement-template-section-grid">
+              {(favoriteTemplates.length ? regularTemplates : templates).map(renderTemplateOption)}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
