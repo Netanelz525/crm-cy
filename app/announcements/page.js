@@ -4,6 +4,7 @@ import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announce
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { createAnnouncementTemplateAction, createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
 import AnnouncementGeneratorClient from "./announcement-generator-client";
+import AnnouncementTemplateFieldsClient from "./announcement-template-fields-client";
 
 function clean(value) {
   return String(value || "").trim();
@@ -88,19 +89,17 @@ export default async function AnnouncementsPage({ searchParams }) {
           </div>
           <div className="announcement-template-docs-list">
             {templates.map((template) => {
-              const fieldRows = [...(template.fields || []), ...Array.from({ length: 8 }, () => ({}))];
               return (
                 <details key={template.id} className="announcement-template-admin-card">
                   <summary>
                     <span>
                       <strong>{template.name}</strong>
-                      <small>{template.generatorName || template.templateKey}{template.isPreferred ? " · מועדפת" : ""}</small>
+                      <small>{template.generatorName || template.templateKey}</small>
                     </span>
                     <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
                   </summary>
                   <form action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-admin-form">
                     <input type="hidden" name="templateId" value={template.id} />
-                    <input type="hidden" name="fieldCount" value={fieldRows.length} />
 
                     <div className="announcement-template-docs-row">
                       <div>
@@ -119,33 +118,13 @@ export default async function AnnouncementsPage({ searchParams }) {
                     <div className="announcement-template-fields-editor">
                       <div className="announcement-template-role-access">
                         <strong>הגדרות תבנית</strong>
-                        <label className="checkbox-inline">
-                          <input name="isPreferred" type="checkbox" defaultChecked={template.isPreferred === true} />
-                          <span>תבנית מועדפת</span>
-                        </label>
+                        <input type="hidden" name="isPreferred" value={template.isPreferred ? "on" : ""} />
                         <label className="checkbox-inline">
                           <input name="allowedRoles" value="marei_mekomot" type="checkbox" defaultChecked={(template.allowedRoles || []).includes("marei_mekomot")} />
                           <span>מאושר להרשאת מראה מקומות</span>
                         </label>
                       </div>
-                      <div className="announcement-template-fields-title">
-                        <strong>שדות התבנית</strong>
-                        <span className="muted">אפשר לשנות שדות קיימים או למלא שורות ריקות כדי להוסיף שדות חדשים.</span>
-                      </div>
-                      <div className="announcement-template-fields-head">
-                        <span>ID בתבנית Google Docs</span>
-                        <span>תיאור/תווית למשתמש</span>
-                      </div>
-                      {fieldRows.map((field, index) => (
-                        <div key={`${template.id}-${index}`} className="announcement-template-field-row">
-                          <input type="hidden" name={`fieldKey:${index}`} defaultValue={field.key || ""} />
-                          <input type="hidden" name={`fieldType:${index}`} defaultValue={field.type || ""} />
-                          <input type="hidden" name={`fieldRequired:${index}`} defaultValue={field.required === false ? "0" : "1"} />
-                          <input type="hidden" name={`fieldMaxLength:${index}`} defaultValue={field.maxLength || ""} />
-                          <input name={`fieldTemplateFieldId:${index}`} defaultValue={field.templateFieldId || ""} placeholder="7 / data / name" />
-                          <input name={`fieldLabel:${index}`} defaultValue={field.label || ""} placeholder="תוכן המודעה" />
-                        </div>
-                      ))}
+                      <AnnouncementTemplateFieldsClient fields={template.fields || []} />
                     </div>
 
                     <div className="announcement-template-admin-actions">
@@ -186,29 +165,13 @@ export default async function AnnouncementsPage({ searchParams }) {
               </div>
               <div className="announcement-template-role-access">
                 <strong>הגדרות תבנית</strong>
-                <label className="checkbox-inline">
-                  <input name="isPreferred" type="checkbox" defaultChecked />
-                  <span>תבנית מועדפת</span>
-                </label>
+                <input type="hidden" name="isPreferred" value="" />
                 <label className="checkbox-inline">
                   <input name="allowedRoles" value="marei_mekomot" type="checkbox" defaultChecked />
                   <span>מאושר להרשאת מראה מקומות</span>
                 </label>
               </div>
-              <input type="hidden" name="fieldCount" value="6" />
-              <div className="announcement-template-fields-editor">
-                <div className="announcement-template-fields-head">
-                  <span>ID בתבנית Google Docs</span>
-                  <span>תיאור/תווית למשתמש</span>
-                </div>
-                {[0, 1, 2, 3, 4, 5].map((index) => (
-                  <div key={`new-template-field-${index}`} className="announcement-template-field-row">
-                    <input type="hidden" name={`fieldRequired:${index}`} value="1" />
-                    <input name={`fieldTemplateFieldId:${index}`} placeholder={index === 0 ? "title" : "data / name / 7"} />
-                    <input name={`fieldLabel:${index}`} placeholder={index === 0 ? "כותרת ראשית" : "תיאור למשתמש"} />
-                  </div>
-                ))}
-              </div>
+              <AnnouncementTemplateFieldsClient minRows={1} />
               <div className="announcement-template-admin-actions">
                 <button type="submit" className="btn">צור תבנית</button>
               </div>

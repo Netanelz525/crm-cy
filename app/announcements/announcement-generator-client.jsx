@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 const PRINT_PLANS = [
@@ -8,6 +8,8 @@ const PRINT_PLANS = [
   { value: "duplex", label: "A4 רגיל דו-צדדי" },
   { value: "booklet", label: "חוברת A3, קיפול והידוק" }
 ];
+
+const FAVORITES_STORAGE_KEY = "crm-announcement-template-favorites";
 
 function categoryLabel(value) {
   if (value === "letter") return "מכתב";
@@ -27,10 +29,49 @@ function SubmitButton() {
 export default function AnnouncementGeneratorClient({ templates, action }) {
   const [selectedId, setSelectedId] = useState(templates[0]?.id || "");
   const [outputMode, setOutputMode] = useState("email");
+  const [favoriteIds, setFavoriteIds] = useState([]);
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]");
+      if (Array.isArray(parsed)) setFavoriteIds(parsed.filter(Boolean));
+    } catch {
+      setFavoriteIds([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favoriteIds));
+    } catch {
+      // Local preference only; ignore browsers that block storage.
+    }
+  }, [favoriteIds]);
+
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+  const orderedTemplates = useMemo(() => {
+    const withOriginalIndex = templates.map((template, index) => ({ template, index }));
+    return withOriginalIndex
+      .sort((a, b) => {
+        const aFavorite = favoriteIdSet.has(a.template.id);
+        const bFavorite = favoriteIdSet.has(b.template.id);
+        if (aFavorite !== bFavorite) return aFavorite ? -1 : 1;
+        return a.index - b.index;
+      })
+      .map((item) => item.template);
+  }, [templates, favoriteIdSet]);
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedId) || templates[0],
     [templates, selectedId]
   );
+
+  function toggleFavorite(templateId) {
+    setFavoriteIds((current) => (
+      current.includes(templateId)
+        ? current.filter((id) => id !== templateId)
+        : [...current, templateId]
+    ));
+  }
 
   if (!templates.length) {
     return <div className="muted">לא נמצאו תבניות פעילות.</div>;
@@ -39,17 +80,33 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
   return (
     <form action={action} className="announcement-generator-form">
       <div className="announcement-template-picker">
-        {templates.map((template) => (
-          <button
-            key={template.id}
-            type="button"
-            className={`announcement-template-option${selectedTemplate?.id === template.id ? " active" : ""}`}
-            onClick={() => setSelectedId(template.id)}
-          >
-            <strong>{template.name}</strong>
-            <span>{categoryLabel(template.category)}</span>
-          </button>
-        ))}
+        <div className="announcement-template-picker-title">
+          <strong>תבניות להכנה</strong>
+          <span className="muted">סמן כוכב כדי לשמור תבנית מועדפת להכנה מהירה.</span>
+        </div>
+        {orderedTemplates.map((template) => {
+          const isFavorite = favoriteIdSet.has(template.id);
+          return (
+            <div
+              key={template.id}
+              className={`announcement-template-option${selectedTemplate?.id === template.id ? " active" : ""}${isFavorite ? " favorite" : ""}`}
+            >
+              <button type="button" className="announcement-template-select" onClick={() => setSelectedId(template.id)}>
+                <strong>{template.name}</strong>
+                <span>{categoryLabel(template.category)}{isFavorite ? " · מועדפת" : ""}</span>
+              </button>
+              <button
+                type="button"
+                className="announcement-template-favorite"
+                aria-label={isFavorite ? "הסר ממועדפות" : "הוסף למועדפות"}
+                title={isFavorite ? "הסר ממועדפות" : "הוסף למועדפות"}
+                onClick={() => toggleFavorite(template.id)}
+              >
+                {isFavorite ? "★" : "☆"}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
