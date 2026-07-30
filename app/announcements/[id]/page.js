@@ -34,6 +34,10 @@ function queuedLabel(value) {
   return "";
 }
 
+function creatorLabel(value) {
+  return clean(value?.createdByDisplayName) || clean(value?.createdByEmail) || clean(value?.createdByUserId) || "לא ידוע";
+}
+
 export default async function AnnouncementPage({ params, searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.can_use_announcement_templates) {
@@ -64,6 +68,7 @@ export default async function AnnouncementPage({ params, searchParams }) {
               <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>
               <span className="meta-chip">{outputModeLabel(announcement.printJobOutputMode)}</span>
               <span className="meta-chip">{formatDateTime(announcement.queuedAt || announcement.createdAt)}</span>
+              <span className="meta-chip">נוצר על ידי: {creatorLabel(announcement)}</span>
             </div>
           </div>
           <div className="student-actions student-actions-wrap">
@@ -82,6 +87,11 @@ export default async function AnnouncementPage({ params, searchParams }) {
         {announcement.printJobId ? <p className="muted">עבודת הדפסה: {announcement.printJobId}</p> : null}
         <form action={updateQueuedAnnouncementAction} className="announcement-edit-form">
           <input type="hidden" name="announcementId" value={announcement.id} />
+
+          <label>
+            <span>שם רשומה / שם קובץ *</span>
+            <input name="recordName" defaultValue={announcement.title} maxLength={140} required />
+          </label>
 
           <div className="announcement-fields-grid">
             {templateFields.map((field) => (

@@ -62,8 +62,8 @@ export default function AnnouncementComposerClient({
       </div>
 
       <div>
-        <label>כותרת לניהול</label>
-        <input name="title" defaultValue={clean(initialAnnouncement?.title)} placeholder="שם פנימי לחיפוש וניהול" required />
+        <label>שם רשומה / שם קובץ</label>
+        <input name="recordName" defaultValue={clean(initialAnnouncement?.title)} placeholder="שם הקובץ שייווצר למודעה" required />
       </div>
 
       <div>

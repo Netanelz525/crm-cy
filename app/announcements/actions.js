@@ -21,6 +21,14 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function sanitizeFileRecordName(value) {
+  return clean(value)
+    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
+}
+
 function getExtension(fileName, contentType) {
   const byName = clean(fileName).split(".").pop()?.toLowerCase() || "";
   if (["png", "jpg", "jpeg", "webp"].includes(byName)) return byName;
@@ -118,6 +126,14 @@ function titleForAnnouncement(template, fields) {
     || clean(fields.date && `${template.name} - ${fields.date}`)
     || clean(template.name)
     || "מודעה";
+}
+
+function recordNameFromForm(formData, fallback = "") {
+  const recordName = sanitizeFileRecordName(formData.get("recordName"));
+  if (recordName) return recordName;
+  const fallbackName = sanitizeFileRecordName(fallback);
+  if (fallbackName) return fallbackName;
+  throw new Error("יש להזין שם רשומה תקין. תווים לא חוקיים לשם קובץ יוסרו אוטומטית.");
 }
 
 function bodyTextForAnnouncement(template, lines) {
@@ -348,7 +364,7 @@ export async function createAnnouncementAction(formData) {
   try {
     await createAnnouncement({
       id: announcementId,
-      title: clean(formData.get("title")),
+      title: recordNameFromForm(formData, formData.get("title")),
       announcementDate: clean(formData.get("announcementDate")),
       bodyText: clean(formData.get("bodyText")),
       bodyHtml: clean(formData.get("bodyHtml")),
@@ -390,6 +406,7 @@ export async function createQueuedAnnouncementAction(formData) {
     values = validated.values;
     lines = validated.lines;
     title = titleForAnnouncement(template, values);
+    title = recordNameFromForm(formData, title);
     bodyText = bodyTextForAnnouncement(template, lines);
     bodyHtml = bodyHtmlForAnnouncement(template, lines);
 
@@ -511,7 +528,7 @@ export async function updateQueuedAnnouncementAction(formData) {
     if (shouldQueue && !canUsePrintQueue(user)) throw new Error("אין הרשאה לשליחה לתור");
 
     const { values, lines } = validateTemplateFields(template, formData);
-    const title = titleForAnnouncement(template, values);
+    const title = recordNameFromForm(formData, titleForAnnouncement(template, values));
     const bodyText = bodyTextForAnnouncement(template, lines);
     const bodyHtml = bodyHtmlForAnnouncement(template, lines);
 
@@ -595,7 +612,7 @@ export async function printAnnouncementAction(formData) {
     const pdf = await renderAnnouncementPdf({ announcement, template });
     await createPrintJobFromBuffer({
       buffer: pdf,
-      fileName: `${clean(announcement.title) || "מודעה"}.pdf`,
+      fileName: `${recordNameFromForm(formData, announcement.title)}.pdf`,
       contentType: "application/pdf",
       copies,
       uploadedByUserId: user.clerk_user_id
@@ -614,7 +631,7 @@ export async function updateAnnouncementAction(formData) {
 
   try {
     await updateAnnouncement(announcementId, {
-      title: clean(formData.get("title")),
+      title: recordNameFromForm(formData, formData.get("title")),
       announcementDate: clean(formData.get("announcementDate")),
       bodyText: clean(formData.get("bodyText")),
       bodyHtml: clean(formData.get("bodyHtml")),

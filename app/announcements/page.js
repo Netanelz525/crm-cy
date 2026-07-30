@@ -34,6 +34,10 @@ function fullGoogleDocsId(value) {
   return clean(value) || "לא נשמר ID";
 }
 
+function creatorLabel(value) {
+  return clean(value?.createdByDisplayName) || clean(value?.createdByEmail) || clean(value?.createdByUserId) || "לא ידוע";
+}
+
 function googleDocsEditUrl(template) {
   const url = clean(template?.googleDocsUrl);
   if (/^https:\/\/docs\.google\.com\/document\/d\//.test(url)) return url;
@@ -220,6 +224,7 @@ export default async function AnnouncementsPage({ searchParams }) {
                   <div>
                     <strong>{announcement.title}</strong>
                     <div className="muted">{announcement.templateName} · {announcement.templateGeneratorName || "local-pdf"}</div>
+                    <div className="muted">נוצר על ידי: {creatorLabel(announcement)}</div>
                   </div>
                   <div className="announcement-row-meta">
                     <span className="meta-chip">{statusLabel(announcement.printJobStatus)}</span>

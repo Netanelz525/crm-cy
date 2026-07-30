@@ -137,6 +137,16 @@ export default function AnnouncementGeneratorClient({ templates, action }) {
           <p className="muted">{selectedTemplate?.generatorName || "תבנית PDF מקומית"} · {categoryLabel(selectedTemplate?.category)}</p>
         </div>
 
+        <label>
+          <span>שם רשומה / שם קובץ *</span>
+          <input
+            name="recordName"
+            required
+            maxLength={140}
+            placeholder="לדוגמה: נציב יום - יז תמוז"
+          />
+        </label>
+
         <div className="announcement-fields-grid">
           {(selectedTemplate?.fields || []).map((field) => (
             <label key={field.key} className={field.type === "multiline" ? "announcement-field-span" : ""}>

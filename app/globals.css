@@ -6205,7 +6205,7 @@ td {
 .announcement-template-fields-head,
 .announcement-template-field-row {
   display: grid;
-  grid-template-columns: minmax(170px, 0.8fr) minmax(260px, 1.2fr);
+  grid-template-columns: minmax(150px, 0.8fr) minmax(220px, 1.1fr) minmax(160px, 0.7fr);
   gap: 8px;
   align-items: center;
 }
