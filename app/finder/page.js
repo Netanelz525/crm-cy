@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentAppUser } from "../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import { listAllStudents } from "../../lib/twenty";
 import StudentQuickEmailForm from "../student-quick-email-form";
 
@@ -83,7 +83,7 @@ function matchSources(student, fieldType, owner, value) {
 
 export default async function FinderPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   if (!currentUser.is_team_member && !currentUser.is_manager) redirect("/unauthorized");
 
   const sp = await searchParams;

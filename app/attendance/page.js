@@ -10,7 +10,7 @@ import {
   listAttendanceSessions
 } from "../../lib/attendance";
 import { ENUM_LABELS } from "../../lib/student-fields";
-import { getCurrentAppUser } from "../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import { listStudentTags } from "../../lib/student-tags";
 import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction, setAttendanceSessionsBulkLockAction } from "./actions";
@@ -224,7 +224,7 @@ function resolveReportFilters(searchParams) {
 
 export default async function AttendancePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
   const canUseSessionAudienceFilters = true;
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;

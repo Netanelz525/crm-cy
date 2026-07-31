@@ -12,7 +12,7 @@ import {
   renderEmailHtml
 } from "../../../lib/email-campaigns";
 import { getResendConfigStatus } from "../../../lib/resend";
-import { requireEmailSender } from "../../../lib/rbac";
+import { requireEmailSender, signInRedirectUrl } from "../../../lib/rbac";
 import { clean, INSTITUTIONS } from "../../../lib/student-view";
 import { sendEmailCampaignAction } from "../actions";
 
@@ -23,7 +23,7 @@ function institutionLabel(value) {
 
 export default async function EmailConfirmPage({ searchParams }) {
   const user = await requireEmailSender();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect(await signInRedirectUrl());
 
   const resolvedSearchParams = await searchParams;
   const draftId = clean(resolvedSearchParams?.draft);

@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { purgeExpiredSoftDeletedStudents } from "../lib/deleted-students";
-import { getCurrentAppUser } from "../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../lib/rbac";
 import {
   applyAdvancedFilters,
   ageOf,
@@ -140,7 +140,7 @@ function hasInstitutionScopedFilter(filters) {
 
 export default async function HomePage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   if (currentUser.is_print_only) redirect("/print");
   if (currentUser.is_marei_mekomot) redirect("/announcements");
   await purgeExpiredSoftDeletedStudents();

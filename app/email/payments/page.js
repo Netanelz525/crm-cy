@@ -4,7 +4,7 @@ import PaymentReportEmailComposerClient from "./payment-report-email-composer-cl
 import { createPaymentEmailCampaignConfirmAction } from "../actions";
 import { getEmailCampaignDraft, normalizeCustomRecipients } from "../../../lib/email-campaigns";
 import { getResendConfigStatus } from "../../../lib/resend";
-import { requireEmailSender } from "../../../lib/rbac";
+import { requireEmailSender, signInRedirectUrl } from "../../../lib/rbac";
 import { buildPaymentExportSearchParams, filterAndSortPaymentTransactions } from "../../../lib/payment-report";
 import { getPaymentDashboard, getPaymentMandatesDashboard, listPaymentConnections } from "../../../lib/payment-systems";
 
@@ -56,7 +56,7 @@ function buildPaymentMandateRecipients(mandates = []) {
 
 export default async function PaymentEmailPage({ searchParams }) {
   const user = await requireEmailSender();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect(await signInRedirectUrl());
 
   const resolvedSearchParams = await searchParams;
   const draftId = clean(resolvedSearchParams?.draft);

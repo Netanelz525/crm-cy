@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canAccessPrintFeature } from "../../lib/print-jobs";
-import { getCurrentAppUser } from "../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import { getTelegramLinkByClerkUserId, getTelegramBotUsername, isTelegramConfigured } from "../../lib/telegram";
 import { getWhatsAppBusinessNumber, getWhatsAppLinkByClerkUserId, isWhatsAppConfigured } from "../../lib/whatsapp";
 import TelegramSettingsClient from "../telegram/telegram-settings-client";
@@ -18,7 +18,7 @@ import {
 
 export default async function AccountPage() {
   const user = await getCurrentAppUser();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect(await signInRedirectUrl());
 
   const canUseAiChat = Boolean(user.is_team_member || user.is_manager);
   const canSendPrintJobs = canAccessPrintFeature(user);

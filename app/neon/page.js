@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { purgeExpiredSoftDeletedStudents } from "../../lib/deleted-students";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
-import { getCurrentAppUser } from "../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import { attachLatestContactToStudents } from "../../lib/student-contact-logs";
 import { listStudentEventReminderDigest } from "../../lib/student-events";
 import { attachStudentTagsToStudents, listStudentTagsWithUsage } from "../../lib/student-tags";
@@ -153,7 +153,7 @@ function enumDropdownGroup(name, label, options, selectedValues) {
 
 export default async function NeonPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   await purgeExpiredSoftDeletedStudents();
 
   const incomingSearchParams = await searchParams;

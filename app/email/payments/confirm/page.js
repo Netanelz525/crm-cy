@@ -10,7 +10,7 @@ import {
 } from "../../../../lib/email-campaigns";
 import { buildPaymentExportSearchParams } from "../../../../lib/payment-report";
 import { getResendConfigStatus } from "../../../../lib/resend";
-import { requireEmailSender } from "../../../../lib/rbac";
+import { requireEmailSender, signInRedirectUrl } from "../../../../lib/rbac";
 import { sendPaymentEmailCampaignAction } from "../../actions";
 
 function clean(value) {
@@ -19,7 +19,7 @@ function clean(value) {
 
 export default async function PaymentEmailConfirmPage({ searchParams }) {
   const user = await requireEmailSender();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect(await signInRedirectUrl());
 
   const resolvedSearchParams = await searchParams;
   const draftId = clean(resolvedSearchParams?.draft);

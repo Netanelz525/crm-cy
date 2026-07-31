@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listSoftDeletedStudents, purgeExpiredSoftDeletedStudents } from "../../../lib/deleted-students";
-import { getCurrentAppUser } from "../../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
 import { purgeDeletedStudentNowAction, restoreDeletedStudentAction } from "./actions";
 
 function clean(value) {
@@ -17,7 +17,7 @@ function formatDateTime(value) {
 
 export default async function DeletedStudentsPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   if (!currentUser.is_team_member && !currentUser.is_manager) redirect("/unauthorized");
 
   await purgeExpiredSoftDeletedStudents();

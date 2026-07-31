@@ -13,7 +13,7 @@ import {
   summarizeEmailCandidates
 } from "../../lib/email-campaigns";
 import { getResendConfigStatus } from "../../lib/resend";
-import { requireEmailSender } from "../../lib/rbac";
+import { requireEmailSender, signInRedirectUrl } from "../../lib/rbac";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { listStudentTags } from "../../lib/student-tags";
@@ -80,7 +80,7 @@ function summarizeActiveFilters(filters, availableTags) {
 
 export default async function EmailPage({ searchParams }) {
   const user = await requireEmailSender();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect(await signInRedirectUrl());
 
   const resolvedSearchParams = await searchParams;
   const draftId = clean(resolvedSearchParams?.draft);

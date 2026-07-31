@@ -1,6 +1,6 @@
 ﻿import { redirect } from "next/navigation";
 import ViewBuilderClient from "./view-builder-client";
-import { getCurrentAppUser } from "../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import { listSavedViewsForUser } from "../../lib/saved-views";
 import {
   applyAdvancedFilters,
@@ -113,7 +113,7 @@ async function buildPreview(resolvedSearchParams) {
 
 export default async function ViewsPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   if (!currentUser.is_team_member && !currentUser.is_manager) redirect("/unauthorized");
 
   const resolvedSearchParams = await searchParams;

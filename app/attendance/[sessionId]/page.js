@@ -18,7 +18,7 @@ import {
   listAttendanceResponsibleUsers
 } from "../../../lib/attendance";
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
-import { getCurrentAppUser } from "../../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
 import ResponsibleUserPicker from "../responsible-user-picker";
 
 function clean(value) {
@@ -48,7 +48,7 @@ function formatSessionAudience(session) {
 
 export default async function AttendanceSessionPage({ params, searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
 
   const resolvedParams = await params;

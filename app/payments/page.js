@@ -5,7 +5,7 @@ import {
   getPaymentProviderLabel,
   listPaymentConnections
 } from "../../lib/payment-systems";
-import { getCurrentAppUser } from "../../lib/rbac";
+import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import PaymentsReportClient from "./payments-report-client";
 import PaymentMandatesReportClient from "./payment-mandates-report-client";
 import PaymentFilterFormClient from "./payment-filter-form-client";
@@ -16,7 +16,7 @@ function clean(value) {
 
 export default async function PaymentsPage({ searchParams }) {
   const currentUser = await getCurrentAppUser();
-  if (!currentUser) redirect("/sign-in");
+  if (!currentUser) redirect(await signInRedirectUrl());
   if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) {
     redirect("/unauthorized");
   }
