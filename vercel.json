@@ -22,6 +22,10 @@
       "schedule": "0 18 * * *"
     },
     {
+      "path": "/api/cron/monthly-payment-mandate-issues",
+      "schedule": "0 6 27 * *"
+    },
+    {
       "path": "/api/cron/automation-recovery",
       "schedule": "20 19 * * 4"
     }
