@@ -174,10 +174,10 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
                     </label>
                     <label>
                       <span className="muted">חתימה מהמאגר</span>
-                      <select name={`fieldSignatureUrl:${field.key}`} defaultValue="">
+                      <select name={`fieldSignatureId:${field.key}`} defaultValue="">
                         <option value="">בחר חתימה</option>
                         {signatures.map((signature) => (
-                          <option key={signature.id} value={signature.url}>
+                          <option key={signature.id} value={signature.id}>
                             {signature.name} ({signature.width}×{signature.height})
                           </option>
                         ))}

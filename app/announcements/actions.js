@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementSignature, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
+import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementSignature, createAnnouncementTemplate, getAnnouncementById, getAnnouncementSignatureById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
 import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
@@ -172,7 +172,21 @@ async function resolveImageFieldValue({ field, formData, announcementId }) {
 
   const url = source === "manual"
     ? clean(formData.get(`fieldImageUrl:${key}`))
-    : clean(formData.get(`fieldSignatureUrl:${key}`)) || clean(formData.get(`fieldImageUrl:${key}`));
+    : clean(formData.get(`fieldImageUrl:${key}`));
+  if (source === "signature") {
+    const signatureId = clean(formData.get(`fieldSignatureId:${key}`));
+    if (!signatureId) return null;
+    const signature = await getAnnouncementSignatureById(signatureId);
+    if (!signature) throw new Error(`החתימה עבור ${field.label || key} לא נמצאה במאגר.`);
+    return {
+      type: "image",
+      source: "signature",
+      signatureId: signature.id,
+      signatureName: signature.name,
+      width: width || signature.width,
+      height: height || signature.height
+    };
+  }
   if (!url) {
     return null;
   }
@@ -187,7 +201,7 @@ async function resolveImageFieldValue({ field, formData, announcementId }) {
 }
 
 function lineDisplayValue(value) {
-  if (value && typeof value === "object" && value.type === "image") return value.url || "תמונה";
+  if (value && typeof value === "object" && value.type === "image") return value.signatureName || value.fileName || value.url || "תמונה";
   return clean(value);
 }
 

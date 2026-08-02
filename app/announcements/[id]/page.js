@@ -54,8 +54,12 @@ function imageFieldDefaults(value) {
   const image = value && typeof value === "object" && value.type === "image" ? value : null;
   const source = clean(image?.source);
   const url = clean(image?.url);
+  const signatureId = clean(image?.signatureId);
+  const signatureName = clean(image?.signatureName);
   return {
     source: source === "manual" || source === "signature" ? source : url ? "manual" : "signature",
+    signatureId,
+    signatureName,
     url,
     width: Number(image?.width || 180),
     height: Number(image?.height || 70)
@@ -141,10 +145,10 @@ export default async function AnnouncementPage({ params, searchParams }) {
                       </label>
                       <label>
                         <span className="muted">חתימה מהמאגר</span>
-                        <select name={`fieldSignatureUrl:${field.key}`} defaultValue={defaults.source === "signature" ? defaults.url : ""}>
+                        <select name={`fieldSignatureId:${field.key}`} defaultValue={defaults.source === "signature" ? defaults.signatureId : ""}>
                           <option value="">בחר חתימה</option>
                           {signatureOptions.map((signature) => (
-                            <option key={signature.id} value={signature.url}>
+                            <option key={signature.id} value={signature.id}>
                               {signature.name} ({signature.width}×{signature.height})
                             </option>
                           ))}
@@ -152,7 +156,7 @@ export default async function AnnouncementPage({ params, searchParams }) {
                       </label>
                       <label>
                         <span className="muted">קישור חיצוני</span>
-                        <input name={`fieldImageUrl:${field.key}`} defaultValue={defaults.url} placeholder="https://example.com/signature.png" />
+                        <input name={`fieldImageUrl:${field.key}`} defaultValue={defaults.source === "manual" ? defaults.url : ""} placeholder="https://example.com/signature.png" />
                       </label>
                       <label>
                         <span className="muted">קובץ תמונה</span>
@@ -167,10 +171,15 @@ export default async function AnnouncementPage({ params, searchParams }) {
                         <input name={`fieldImageHeight:${field.key}`} type="number" min="1" max="2000" defaultValue={defaults.height} />
                       </label>
                     </div>
-                    {defaults.url ? (
+                    {defaults.source === "signature" && defaults.signatureName ? (
+                      <div className="announcement-image-existing-preview" aria-label="חתימה קיימת">
+                        <span>חתימה קיימת: {defaults.signatureName}</span>
+                      </div>
+                    ) : null}
+                    {defaults.source === "manual" && defaults.url ? (
                       <a className="announcement-image-existing-preview" href={defaults.url} target="_blank" rel="noreferrer">
                         <img src={defaults.url} alt="" />
-                        <span>פתח תמונה קיימת</span>
+                        <span>פתח קישור חיצוני קיים</span>
                       </a>
                     ) : null}
                   </div>
