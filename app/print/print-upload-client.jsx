@@ -22,7 +22,7 @@ const PRINT_PLAN_OPTIONS = [
   {
     value: "convert-pdf",
     label: "המרת קובץ ל-PDF",
-    description: "שליחה למערכת ההמרה הנפרדת"
+    description: "לקבצי Word/Excel, חיוב 2 עמודים"
   }
 ];
 
@@ -48,6 +48,21 @@ function readFileAsBase64(file) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+function isWordOrExcelFile(file) {
+  const name = clean(file?.name).toLowerCase();
+  const type = clean(file?.type).toLowerCase();
+  return (
+    name.endsWith(".doc") ||
+    name.endsWith(".docx") ||
+    name.endsWith(".xls") ||
+    name.endsWith(".xlsx") ||
+    type === "application/msword" ||
+    type === "application/vnd.ms-excel" ||
+    type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
 }
 
 async function postUploadPart(payload) {
@@ -88,6 +103,10 @@ export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unl
     }
     if (file.size > maxFileBytes) {
       setError(`אפשר לשלוח להדפסה קבצים עד ${formatSize(maxFileBytes)}.`);
+      return;
+    }
+    if (!unlimitedPrintCredit && isWordOrExcelFile(file) && printPlan !== "convert-pdf") {
+      setError("קבצי Word או Excel למשתמשי קרדיט צריכים לעבור קודם המרה ל-PDF. בחר סוג הדפסה: המרת קובץ ל-PDF.");
       return;
     }
 
@@ -156,6 +175,7 @@ export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unl
           <b>יתרת קרדיט: {creditBalance} דפים</b>
           <div className="linked-record-meta">
             אם אין מספיק יתרה, המערכת תחסום את השליחה ותציע רכישת חבילת הדפסה.
+            קבצי Word או Excel מחייבים קודם המרה ל-PDF בעלות 2 עמודי שימוש.
           </div>
         </div>
       ) : null}
