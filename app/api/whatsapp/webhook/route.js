@@ -1082,6 +1082,22 @@ export async function POST(request) {
           printPlan,
           copies: 1
         });
+        if (printPlan === "convert-pdf") {
+          const responseText = [
+            "המרה ל-PDF נקלטה בהצלחה.",
+            "העבודה נשלחה למערכת ההמרה הנפרדת.",
+            `מספר עבודה: ${job.id}`,
+            `סוג עבודה: ${job.printPlanLabel}`,
+            "בסיום ההמרה הקובץ המומר יישלח אליך במייל."
+          ].join("\n");
+          await sendWhatsAppTextMessages(waId, responseText);
+          await updateWhatsAppInboundEvent(inboundEvent.id, {
+            processingStatus: "document_pdf_conversion_queued",
+            clerkUserId: user.clerk_user_id,
+            responseText
+          });
+          return NextResponse.json({ ok: true });
+        }
         const introText = [
           "נשלח עותק אחד להדפסה.",
           `מספר עבודה: ${job.id}`,

@@ -644,6 +644,17 @@ export async function POST(request) {
           printPlan,
           copies: 1
         });
+        if (printPlan === "convert-pdf") {
+          await answerTelegramCallbackQuery(callback.id, "המרה ל-PDF נקלטה.");
+          await sendTelegramMessage(chatId, [
+            "המרה ל-PDF נקלטה בהצלחה.",
+            "העבודה נשלחה למערכת ההמרה הנפרדת.",
+            `מספר עבודה: ${job.id}`,
+            `סוג עבודה: ${job.printPlanLabel}`,
+            "בסיום ההמרה הקובץ המומר יישלח אליך במייל."
+          ].join("\n"));
+          return NextResponse.json({ ok: true });
+        }
         await answerTelegramCallbackQuery(callback.id, "נשלח עותק אחד להדפסה.");
         await sendTelegramMessage(chatId, [
           "נשלח עותק אחד להדפסה.",
