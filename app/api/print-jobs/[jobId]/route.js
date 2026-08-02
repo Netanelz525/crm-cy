@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withTemporaryAnnouncementSignatureLinks } from "../../../../lib/announcement-signature-links";
 import { authenticateApiToken, readBearerToken } from "../../../../lib/api-tokens";
 import { claimPrintJobById, completePrintJob, sendPrintJobReceiptEmail } from "../../../../lib/print-jobs";
 
@@ -24,12 +25,13 @@ export async function GET(request, { params }) {
     }
 
     const origin = new URL(request.url).origin;
+    const jobWithTemporaryLinks = await withTemporaryAnnouncementSignatureLinks(job, origin);
     await sendPrintJobReceiptEmail(job.id);
 
     return NextResponse.json({
       resource: "printJob",
       item: {
-        ...job,
+        ...jobWithTemporaryLinks,
         downloadUrl: `${origin}/api/print-jobs/${encodeURIComponent(job.id)}/file`,
         downloadRawUrl: `${origin}/api/print-jobs/${encodeURIComponent(job.id)}/file?raw=1`
       }
