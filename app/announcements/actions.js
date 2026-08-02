@@ -8,6 +8,10 @@ import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { isR2Configured, uploadBufferToR2 } from "../../lib/r2";
 
+const DEFAULT_IMAGE_FIELD_WIDTH = 180;
+const DEFAULT_IMAGE_FIELD_HEIGHT = 70;
+const MAX_ANNOUNCEMENT_IMAGE_BYTES = 2 * 1024 * 1024;
+
 function clean(value) {
   return String(value || "").trim();
 }
@@ -38,6 +42,13 @@ function getExtension(fileName, contentType) {
     "image/webp": "webp"
   };
   return byType[clean(contentType).toLowerCase()] || "bin";
+}
+
+function absoluteUrl(path) {
+  const base = clean(process.env.CRM_BASE_URL || process.env.APP_BASE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL);
+  if (!base) return clean(path);
+  const normalizedBase = /^https?:\/\//i.test(base) ? base : `https://${base}`;
+  return `${normalizedBase.replace(/\/$/, "")}${clean(path).startsWith("/") ? clean(path) : `/${clean(path)}`}`;
 }
 
 function numberFromForm(formData, key, fallback) {
@@ -99,17 +110,101 @@ function announcementLayoutFromForm(formData) {
   };
 }
 
-function validateTemplateFields(template, formData) {
+function templateImageAssetUrl(objectKey) {
+  const key = clean(objectKey);
+  if (!key) return "";
+  return absoluteUrl(`/api/announcements/assets/${encodeURIComponent(Buffer.from(key).toString("base64url"))}`);
+}
+
+async function uploadAnnouncementImageField({ file, announcementId, fieldKey }) {
+  if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) return null;
+  const contentType = clean(file.type).toLowerCase();
+  if (contentType && !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(contentType)) {
+    throw new Error("בשדה תמונה ניתן להעלות PNG, JPG, WEBP או GIF בלבד.");
+  }
+  const size = Number(file.size || 0);
+  if (!size) throw new Error("קובץ התמונה ריק.");
+  if (size > MAX_ANNOUNCEMENT_IMAGE_BYTES) throw new Error("ניתן לצרף תמונה עד 2MB.");
+  if (!isR2Configured()) throw new Error("R2 לא מוגדר עדיין ב-ENV");
+
+  const extension = getExtension(file.name, contentType);
+  const key = `announcement-assets/${clean(announcementId)}/${clean(fieldKey) || "image"}.${extension}`;
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await uploadBufferToR2({
+    key,
+    buffer: bytes,
+    contentType: contentType || "application/octet-stream",
+    contentDisposition: `inline; filename="${clean(file.name).replace(/"/g, "_")}"`
+  });
+  return {
+    objectKey: key,
+    url: templateImageAssetUrl(key),
+    contentType: contentType || "application/octet-stream",
+    fileName: clean(file.name)
+  };
+}
+
+async function resolveImageFieldValue({ field, formData, announcementId }) {
+  const key = clean(field.key);
+  const source = clean(formData.get(`fieldImageSource:${key}`)) || "signature";
+  const width = Math.max(1, Math.min(2000, Number(clean(formData.get(`fieldImageWidth:${key}`)) || DEFAULT_IMAGE_FIELD_WIDTH) || DEFAULT_IMAGE_FIELD_WIDTH));
+  const height = Math.max(1, Math.min(2000, Number(clean(formData.get(`fieldImageHeight:${key}`)) || DEFAULT_IMAGE_FIELD_HEIGHT) || DEFAULT_IMAGE_FIELD_HEIGHT));
+
+  if (source === "upload") {
+    const uploaded = await uploadAnnouncementImageField({
+      file: formData.get(`fieldImageFile:${key}`),
+      announcementId,
+      fieldKey: key
+    });
+    if (!uploaded) {
+      if (field.required) throw new Error(`חסר קובץ תמונה עבור שדה חובה: ${field.label || key}`);
+      return null;
+    }
+    return {
+      type: "image",
+      source: "upload",
+      url: uploaded.url,
+      objectKey: uploaded.objectKey,
+      width,
+      height
+    };
+  }
+
+  const url = clean(formData.get(`fieldImageUrl:${key}`));
+  if (!url) {
+    if (field.required) throw new Error(`חסר קישור תמונה עבור שדה חובה: ${field.label || key}`);
+    return null;
+  }
+  if (!/^https?:\/\//i.test(url)) throw new Error(`קישור התמונה עבור ${field.label || key} חייב להתחיל ב-http או https.`);
+  return {
+    type: "image",
+    source: "signature",
+    url,
+    width,
+    height
+  };
+}
+
+function lineDisplayValue(value) {
+  if (value && typeof value === "object" && value.type === "image") return value.url || "תמונה";
+  return clean(value);
+}
+
+async function validateTemplateFields(template, formData, { announcementId } = {}) {
   const values = {};
   const lines = [];
 
   for (const field of template.fields || []) {
     const key = clean(field.key);
     if (!key) continue;
-    const value = clean(formData.get(`field:${key}`));
-    if (field.required && !value) {
-      throw new Error(`חסר שדה חובה: ${field.label || key}`);
+    if (clean(field.type) === "image") {
+      const imageValue = await resolveImageFieldValue({ field, formData, announcementId });
+      values[key] = imageValue;
+      if (imageValue) lines.push({ label: clean(field.label) || key, key, value: imageValue, multiline: false, image: true });
+      continue;
     }
+    const value = clean(formData.get(`field:${key}`));
+    if (field.required && !value) throw new Error(`חסר שדה חובה: ${field.label || key}`);
     if (field.maxLength && value.length > Number(field.maxLength)) {
       throw new Error(`${field.label || key} ארוך מדי. ניתן להזין עד ${field.maxLength} תווים.`);
     }
@@ -137,10 +232,10 @@ function recordNameFromForm(formData, fallback = "") {
 }
 
 function bodyTextForAnnouncement(template, lines) {
-  if (lines.length === 1 && ["body", "sources", "source"].includes(lines[0].key)) return lines[0].value;
+  if (lines.length === 1 && ["body", "sources", "source"].includes(lines[0].key)) return lineDisplayValue(lines[0].value);
   return [
     template.name,
-    ...lines.map((line) => `${line.label}: ${line.value}`)
+    ...lines.map((line) => `${line.label}: ${lineDisplayValue(line.value)}`)
   ].filter(Boolean).join("\n");
 }
 
@@ -151,7 +246,7 @@ function bodyHtmlForAnnouncement(template, lines) {
 
   const parts = [`<h2>${escapeHtml(template.name)}</h2>`];
   for (const line of lines) {
-    const value = escapeHtml(line.value).replace(/\n/g, "<br>");
+    const value = escapeHtml(lineDisplayValue(line.value)).replace(/\n/g, "<br>");
     parts.push(`<p><strong>${escapeHtml(line.label)}:</strong><br>${value}</p>`);
   }
   return parts.join("");
@@ -191,7 +286,8 @@ function fieldValuesByTemplateId(template, values) {
     const templateFieldId = clean(field.templateFieldId);
     const key = clean(field.key);
     if (!templateFieldId || !key) continue;
-    result[templateFieldId] = clean(values[key]);
+    const value = values[key];
+    result[templateFieldId] = value && typeof value === "object" ? value : clean(value);
   }
   return result;
 }
@@ -260,6 +356,7 @@ function templateFieldsFromForm(formData) {
 function fieldTypeFromForm(formData, index, templateFieldId, label) {
   const explicitType = clean(formData.get(`fieldType:${index}`));
   if (explicitType === "multiline") return "multiline";
+  if (explicitType === "image") return "image";
   if (explicitType === "text") return "text";
   const hint = `${templateFieldId} ${label}`;
   if (/body|data|source|sources|תוכן|מקור|מראה/i.test(hint)) return "multiline";
@@ -402,7 +499,7 @@ export async function createQueuedAnnouncementAction(formData) {
     if (!template) throw new Error("התבנית לא נמצאה");
     if (!canUseAnnouncementTemplate(user, template)) throw new Error("אין הרשאה להשתמש בתבנית זו");
 
-    const validated = validateTemplateFields(template, formData);
+    const validated = await validateTemplateFields(template, formData, { announcementId });
     values = validated.values;
     lines = validated.lines;
     title = titleForAnnouncement(template, values);
@@ -527,7 +624,7 @@ export async function updateQueuedAnnouncementAction(formData) {
     if (!canUseAnnouncementTemplate(user, template)) throw new Error("אין הרשאה להשתמש בתבנית זו");
     if (shouldQueue && !canUsePrintQueue(user)) throw new Error("אין הרשאה לשליחה לתור");
 
-    const { values, lines } = validateTemplateFields(template, formData);
+    const { values, lines } = await validateTemplateFields(template, formData, { announcementId: current.id });
     const title = recordNameFromForm(formData, titleForAnnouncement(template, values));
     const bodyText = bodyTextForAnnouncement(template, lines);
     const bodyHtml = bodyHtmlForAnnouncement(template, lines);

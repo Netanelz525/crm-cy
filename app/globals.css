@@ -5991,6 +5991,27 @@ td {
   gap: 12px;
 }
 
+.announcement-image-field {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dbe8f7;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.announcement-image-field > span {
+  font-weight: 900;
+  color: var(--text);
+}
+
+.announcement-image-field-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.4fr) minmax(180px, 1.2fr) repeat(2, minmax(90px, 0.45fr));
+  gap: 10px;
+  align-items: end;
+}
+
 .announcement-delivery-mode {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6355,6 +6376,7 @@ td {
 
   .announcement-fields-grid,
   .announcement-print-options,
+  .announcement-image-field-grid,
   .announcement-delivery-mode,
   .announcement-template-docs-row {
     grid-template-columns: 1fr;

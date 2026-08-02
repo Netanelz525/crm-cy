@@ -117,7 +117,7 @@ export default function AnnouncementGeneratorClient({ templates, action, initial
   }
 
   return (
-    <form action={action} className="announcement-generator-form">
+    <form action={action} className="announcement-generator-form" encType="multipart/form-data">
       <div className="announcement-template-picker">
         <div className="announcement-template-picker-title">
           <strong>תבניות להכנה</strong>
@@ -158,25 +158,59 @@ export default function AnnouncementGeneratorClient({ templates, action, initial
         </label>
 
         <div className="announcement-fields-grid">
-          {(selectedTemplate?.fields || []).map((field) => (
-            <label key={field.key} className={field.type === "multiline" ? "announcement-field-span" : ""}>
-              <span>{field.label}{field.required ? " *" : ""}</span>
-              {field.type === "multiline" ? (
-                <textarea
-                  name={`field:${field.key}`}
-                  rows={field.maxLength > 1200 ? 8 : 5}
-                  maxLength={field.maxLength || undefined}
-                  required={Boolean(field.required)}
-                />
-              ) : (
-                <input
-                  name={`field:${field.key}`}
-                  maxLength={field.maxLength || undefined}
-                  required={Boolean(field.required)}
-                />
-              )}
-            </label>
-          ))}
+          {(selectedTemplate?.fields || []).map((field) => {
+            if (field.type === "image") {
+              return (
+                <div key={field.key} className="announcement-image-field announcement-field-span">
+                  <span>{field.label}{field.required ? " *" : ""}</span>
+                  <div className="announcement-image-field-grid">
+                    <label>
+                      <span className="muted">מקור תמונה</span>
+                      <select name={`fieldImageSource:${field.key}`} defaultValue="signature">
+                        <option value="signature">מאגר חתימות / קישור שמור</option>
+                        <option value="upload">קובץ מצורף</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span className="muted">קישור תמונה ממאגר חתימות</span>
+                      <input name={`fieldImageUrl:${field.key}`} placeholder="https://example.com/signature.png" />
+                    </label>
+                    <label>
+                      <span className="muted">קובץ תמונה</span>
+                      <input name={`fieldImageFile:${field.key}`} type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                    </label>
+                    <label>
+                      <span className="muted">רוחב</span>
+                      <input name={`fieldImageWidth:${field.key}`} type="number" min="1" max="2000" defaultValue="180" />
+                    </label>
+                    <label>
+                      <span className="muted">גובה</span>
+                      <input name={`fieldImageHeight:${field.key}`} type="number" min="1" max="2000" defaultValue="70" />
+                    </label>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <label key={field.key} className={field.type === "multiline" ? "announcement-field-span" : ""}>
+                <span>{field.label}{field.required ? " *" : ""}</span>
+                {field.type === "multiline" ? (
+                  <textarea
+                    name={`field:${field.key}`}
+                    rows={field.maxLength > 1200 ? 8 : 5}
+                    maxLength={field.maxLength || undefined}
+                    required={Boolean(field.required)}
+                  />
+                ) : (
+                  <input
+                    name={`field:${field.key}`}
+                    maxLength={field.maxLength || undefined}
+                    required={Boolean(field.required)}
+                  />
+                )}
+              </label>
+            );
+          })}
         </div>
 
         <div className="announcement-delivery-mode">

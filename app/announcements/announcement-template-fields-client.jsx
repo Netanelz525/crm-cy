@@ -44,9 +44,10 @@ export default function AnnouncementTemplateFieldsClient({ fields = [], minRows 
           <input type="hidden" name={`fieldMaxLength:${index}`} defaultValue={field.maxLength || ""} />
           <input name={`fieldTemplateFieldId:${index}`} defaultValue={field.templateFieldId || ""} placeholder="7 / data / name" />
           <input name={`fieldLabel:${index}`} defaultValue={field.label || ""} placeholder="תוכן המודעה" />
-          <select name={`fieldType:${index}`} defaultValue={field.type === "multiline" ? "multiline" : "text"}>
+          <select name={`fieldType:${index}`} defaultValue={["multiline", "image"].includes(field.type) ? field.type : "text"}>
             <option value="text">שדה פשוט - שורה אחת</option>
             <option value="multiline">טקסט עשיר - ירידת שורה</option>
+            <option value="image">תמונה - חתימה או קובץ</option>
           </select>
         </div>
       ))}
