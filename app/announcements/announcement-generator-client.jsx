@@ -27,7 +27,7 @@ function SubmitButton() {
   );
 }
 
-export default function AnnouncementGeneratorClient({ templates, action, initialTemplateId = "" }) {
+export default function AnnouncementGeneratorClient({ templates, signatures = [], action, initialTemplateId = "" }) {
   const initialSelectedId = templates.some((template) => template.id === initialTemplateId)
     ? initialTemplateId
     : templates[0]?.id || "";
@@ -167,12 +167,24 @@ export default function AnnouncementGeneratorClient({ templates, action, initial
                     <label>
                       <span className="muted">מקור תמונה</span>
                       <select name={`fieldImageSource:${field.key}`} defaultValue="signature">
-                        <option value="signature">מאגר חתימות / קישור שמור</option>
+                        <option value="signature">מאגר חתימות</option>
+                        <option value="manual">קישור חיצוני</option>
                         <option value="upload">קובץ מצורף</option>
                       </select>
                     </label>
                     <label>
-                      <span className="muted">קישור תמונה ממאגר חתימות</span>
+                      <span className="muted">חתימה מהמאגר</span>
+                      <select name={`fieldSignatureUrl:${field.key}`} defaultValue="">
+                        <option value="">בחר חתימה</option>
+                        {signatures.map((signature) => (
+                          <option key={signature.id} value={signature.url}>
+                            {signature.name} ({signature.width}×{signature.height})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span className="muted">קישור חיצוני</span>
                       <input name={`fieldImageUrl:${field.key}`} placeholder="https://example.com/signature.png" />
                     </label>
                     <label>

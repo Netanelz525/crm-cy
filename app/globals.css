@@ -6007,9 +6007,53 @@ td {
 
 .announcement-image-field-grid {
   display: grid;
-  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.4fr) minmax(180px, 1.2fr) repeat(2, minmax(90px, 0.45fr));
+  grid-template-columns: minmax(130px, 0.75fr) minmax(160px, 1fr) minmax(170px, 1fr) minmax(170px, 1fr) repeat(2, minmax(80px, 0.38fr));
   gap: 10px;
   align-items: end;
+}
+
+.announcement-signature-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.3fr) repeat(2, minmax(90px, 0.45fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.announcement-signature-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.announcement-signature-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 74px;
+  padding: 10px;
+  border: 1px solid #dbe8f7;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.announcement-signature-card span {
+  display: grid;
+  gap: 3px;
+}
+
+.announcement-signature-card small {
+  color: var(--muted);
+}
+
+.announcement-signature-card img {
+  max-width: 90px;
+  max-height: 44px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #ffffff;
 }
 
 .announcement-delivery-mode {
@@ -6377,6 +6421,7 @@ td {
   .announcement-fields-grid,
   .announcement-print-options,
   .announcement-image-field-grid,
+  .announcement-signature-form,
   .announcement-delivery-mode,
   .announcement-template-docs-row {
     grid-template-columns: 1fr;

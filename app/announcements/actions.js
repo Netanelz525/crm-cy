@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
+import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementSignature, createAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
 import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
@@ -35,11 +35,12 @@ function sanitizeFileRecordName(value) {
 
 function getExtension(fileName, contentType) {
   const byName = clean(fileName).split(".").pop()?.toLowerCase() || "";
-  if (["png", "jpg", "jpeg", "webp"].includes(byName)) return byName;
+  if (["png", "jpg", "jpeg", "webp", "gif"].includes(byName)) return byName;
   const byType = {
     "image/png": "png",
     "image/jpeg": "jpg",
-    "image/webp": "webp"
+    "image/webp": "webp",
+    "image/gif": "gif"
   };
   return byType[clean(contentType).toLowerCase()] || "bin";
 }
@@ -157,7 +158,6 @@ async function resolveImageFieldValue({ field, formData, announcementId }) {
       fieldKey: key
     });
     if (!uploaded) {
-      if (field.required) throw new Error(`חסר קובץ תמונה עבור שדה חובה: ${field.label || key}`);
       return null;
     }
     return {
@@ -170,15 +170,16 @@ async function resolveImageFieldValue({ field, formData, announcementId }) {
     };
   }
 
-  const url = clean(formData.get(`fieldImageUrl:${key}`));
+  const url = source === "manual"
+    ? clean(formData.get(`fieldImageUrl:${key}`))
+    : clean(formData.get(`fieldSignatureUrl:${key}`)) || clean(formData.get(`fieldImageUrl:${key}`));
   if (!url) {
-    if (field.required) throw new Error(`חסר קישור תמונה עבור שדה חובה: ${field.label || key}`);
     return null;
   }
   if (!/^https?:\/\//i.test(url)) throw new Error(`קישור התמונה עבור ${field.label || key} חייב להתחיל ב-http או https.`);
   return {
     type: "image",
-    source: "signature",
+    source: source === "manual" ? "manual" : "signature",
     url,
     width,
     height
@@ -204,7 +205,6 @@ async function validateTemplateFields(template, formData, { announcementId } = {
       continue;
     }
     const value = clean(formData.get(`field:${key}`));
-    if (field.required && !value) throw new Error(`חסר שדה חובה: ${field.label || key}`);
     if (field.maxLength && value.length > Number(field.maxLength)) {
       throw new Error(`${field.label || key} ארוך מדי. ניתן להזין עד ${field.maxLength} תווים.`);
     }
@@ -241,7 +241,7 @@ function bodyTextForAnnouncement(template, lines) {
 
 function bodyHtmlForAnnouncement(template, lines) {
   if (lines.length === 1 && ["body", "sources", "source"].includes(lines[0].key)) {
-    return `<p>${escapeHtml(lines[0].value).replace(/\n/g, "<br>")}</p>`;
+    return `<p>${escapeHtml(lineDisplayValue(lines[0].value)).replace(/\n/g, "<br>")}</p>`;
   }
 
   const parts = [`<h2>${escapeHtml(template.name)}</h2>`];
@@ -314,6 +314,31 @@ async function uploadTemplateBlank(file, templateId) {
   return { key, contentType: contentType || "application/octet-stream" };
 }
 
+async function uploadSignatureImage(file, signatureId) {
+  if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) {
+    throw new Error("יש לבחור קובץ חתימה.");
+  }
+  const contentType = clean(file.type).toLowerCase();
+  if (contentType && !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(contentType)) {
+    throw new Error("ניתן להעלות חתימה מסוג PNG, JPG, WEBP או GIF בלבד.");
+  }
+  const size = Number(file.size || 0);
+  if (!size) throw new Error("קובץ החתימה ריק.");
+  if (size > MAX_ANNOUNCEMENT_IMAGE_BYTES) throw new Error("ניתן להעלות חתימה עד 2MB.");
+  if (!isR2Configured()) throw new Error("R2 לא מוגדר עדיין ב-ENV");
+
+  const extension = getExtension(file.name, contentType);
+  const key = `announcement-signatures/${clean(signatureId)}.${extension}`;
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await uploadBufferToR2({
+    key,
+    buffer: bytes,
+    contentType: contentType || "application/octet-stream",
+    contentDisposition: `inline; filename="${clean(file.name).replace(/"/g, "_")}"`
+  });
+  return { key, contentType: contentType || "application/octet-stream" };
+}
+
 async function requireAnnouncementEditor() {
   const user = await requireAuthenticatedUser();
   if (!user.can_use_announcement_templates) {
@@ -345,7 +370,7 @@ function templateFieldsFromForm(formData) {
       templateFieldId,
       label,
       type: fieldTypeFromForm(formData, index, templateFieldId, label),
-      required: clean(formData.get(`fieldRequired:${index}`)) !== "0",
+      required: false,
       maxLength: Number(clean(formData.get(`fieldMaxLength:${index}`)) || 0) || undefined
     });
   }
@@ -601,6 +626,31 @@ export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
 
   revalidatePath("/announcements");
   redirect("/announcements?templateUpdated=1");
+}
+
+export async function createAnnouncementSignatureAction(formData) {
+  const user = await requireAnnouncementTemplateAdmin();
+  const signatureId = crypto.randomUUID();
+  const name = clean(formData.get("signatureName"));
+
+  try {
+    if (!name) throw new Error("יש להזין שם לחתימה.");
+    const uploaded = await uploadSignatureImage(formData.get("signatureFile"), signatureId);
+    await createAnnouncementSignature({
+      id: signatureId,
+      name,
+      objectKey: uploaded.key,
+      contentType: uploaded.contentType,
+      width: numberFromForm(formData, "signatureWidth", DEFAULT_IMAGE_FIELD_WIDTH),
+      height: numberFromForm(formData, "signatureHeight", DEFAULT_IMAGE_FIELD_HEIGHT),
+      createdByUserId: user.clerk_user_id
+    });
+  } catch (error) {
+    redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "העלאת החתימה נכשלה")}`);
+  }
+
+  revalidatePath("/announcements");
+  redirect("/announcements?signatureCreated=1");
 }
 
 export async function updateQueuedAnnouncementAction(formData) {

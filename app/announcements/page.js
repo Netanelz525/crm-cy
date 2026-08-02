@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
+import { listAnnouncementSignatures, listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
-import { createAnnouncementTemplateAction, createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
+import { createAnnouncementSignatureAction, createAnnouncementTemplateAction, createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
 import AnnouncementGeneratorClient from "./announcement-generator-client";
 import AnnouncementTemplateFieldsClient from "./announcement-template-fields-client";
 
@@ -45,6 +45,18 @@ function googleDocsEditUrl(template) {
   return id ? `https://docs.google.com/document/d/${id}/edit` : "";
 }
 
+function absoluteUrl(path) {
+  const base = clean(process.env.CRM_BASE_URL || process.env.APP_BASE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL);
+  const normalizedBase = /^https?:\/\//i.test(base) ? base : `https://${base || "crm-cy-nu.vercel.app"}`;
+  return `${normalizedBase.replace(/\/$/, "")}${clean(path).startsWith("/") ? clean(path) : `/${clean(path)}`}`;
+}
+
+function signatureAssetUrl(signature) {
+  const objectKey = clean(signature?.objectKey);
+  if (!objectKey) return "";
+  return absoluteUrl(`/api/announcements/assets/${encodeURIComponent(Buffer.from(objectKey).toString("base64url"))}`);
+}
+
 export default async function AnnouncementsPage({ searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.can_use_announcement_templates) {
@@ -58,12 +70,18 @@ export default async function AnnouncementsPage({ searchParams }) {
   const created = clean(resolvedSearchParams?.created) === "1";
   const templateUpdated = clean(resolvedSearchParams?.templateUpdated) === "1";
   const templateCreated = clean(resolvedSearchParams?.templateCreated) === "1";
+  const signatureCreated = clean(resolvedSearchParams?.signatureCreated) === "1";
 
-  const [templates, announcements, announcementHistory] = await Promise.all([
+  const [templates, announcements, announcementHistory, signatures] = await Promise.all([
     listAnnouncementTemplates({ user }),
     listAnnouncements(q, { user }),
-    q ? listAnnouncements("", { user }) : Promise.resolve(null)
+    q ? listAnnouncements("", { user }) : Promise.resolve(null),
+    listAnnouncementSignatures()
   ]);
+  const signatureOptions = signatures.map((signature) => ({
+    ...signature,
+    url: signatureAssetUrl(signature)
+  }));
   const allAnnouncements = announcementHistory || announcements;
   const announcementsByTemplateId = allAnnouncements.reduce((map, announcement) => {
     const templateId = clean(announcement.templateId);
@@ -95,11 +113,13 @@ export default async function AnnouncementsPage({ searchParams }) {
       {created ? <div className="ok">המודעה נוצרה, נשמרה ונשלחה לתור השרת המקומי.</div> : null}
       {templateUpdated ? <div className="ok">התבנית נשמרה.</div> : null}
       {templateCreated ? <div className="ok">התבנית החדשה נוצרה.</div> : null}
+      {signatureCreated ? <div className="ok">החתימה נשמרה במאגר.</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
 
       <div className="card glass" id="create-announcement">
         <AnnouncementGeneratorClient
           templates={templates}
+          signatures={signatureOptions}
           action={createQueuedAnnouncementAction}
           initialTemplateId={selectedTemplateId}
         />
@@ -242,6 +262,54 @@ export default async function AnnouncementsPage({ searchParams }) {
               </div>
             </form>
           </details>
+        </details>
+      ) : null}
+
+      {user.is_super_admin ? (
+        <details className="card glass announcement-section-card" open={signatureCreated}>
+          <summary>
+            <span>
+              <h3>מאגר חתימות</h3>
+              <p className="muted">חתימות שמורות זמינות לשדות תמונה בתבניות המודעות. ברירת המחדל לגודל חתימה היא 180×70.</p>
+            </span>
+            <span className="meta-chip">חתימות: {signatures.length}</span>
+          </summary>
+          <div className="announcement-section-body">
+            <form action={createAnnouncementSignatureAction} className="announcement-signature-form" encType="multipart/form-data">
+              <label>
+                <span>שם חתימה</span>
+                <input name="signatureName" required placeholder="חתימת ראש הכולל" />
+              </label>
+              <label>
+                <span>קובץ חתימה</span>
+                <input name="signatureFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" required />
+              </label>
+              <label>
+                <span>רוחב</span>
+                <input name="signatureWidth" type="number" min="1" max="2000" defaultValue="180" />
+              </label>
+              <label>
+                <span>גובה</span>
+                <input name="signatureHeight" type="number" min="1" max="2000" defaultValue="70" />
+              </label>
+              <button type="submit" className="btn btn-primary">העלה חתימה</button>
+            </form>
+            {signatureOptions.length ? (
+              <div className="announcement-signature-list">
+                {signatureOptions.map((signature) => (
+                  <a key={signature.id} className="announcement-signature-card" href={signature.url} target="_blank" rel="noreferrer">
+                    <span>
+                      <strong>{signature.name}</strong>
+                      <small>{signature.width}×{signature.height}</small>
+                    </span>
+                    <img src={signature.url} alt="" />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="muted">אין חתימות במאגר עדיין.</div>
+            )}
+          </div>
         </details>
       ) : null}
 

@@ -18,7 +18,7 @@ function decodeAssetKey(value) {
 export async function GET(_request, { params }) {
   const resolvedParams = await params;
   const objectKey = decodeAssetKey(resolvedParams?.key);
-  if (!objectKey || !objectKey.startsWith("announcement-assets/")) {
+  if (!objectKey || (!objectKey.startsWith("announcement-assets/") && !objectKey.startsWith("announcement-signatures/"))) {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   }
 

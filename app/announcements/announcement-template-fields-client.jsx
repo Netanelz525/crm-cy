@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-function emptyField(required = true) {
+function emptyField(required = false) {
   return {
     key: "",
     type: "text",
