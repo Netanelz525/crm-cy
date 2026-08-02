@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../lib/announcements";
+import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, listAnnouncementSignatures } from "../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
 import { updateQueuedAnnouncementAction } from "../actions";
 
@@ -38,6 +38,30 @@ function creatorLabel(value) {
   return clean(value?.createdByDisplayName) || clean(value?.createdByEmail) || clean(value?.createdByUserId) || "לא ידוע";
 }
 
+function absoluteUrl(path) {
+  const base = clean(process.env.CRM_BASE_URL || process.env.APP_BASE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL);
+  const normalizedBase = /^https?:\/\//i.test(base) ? base : `https://${base || "crm-cy-nu.vercel.app"}`;
+  return `${normalizedBase.replace(/\/$/, "")}${clean(path).startsWith("/") ? clean(path) : `/${clean(path)}`}`;
+}
+
+function signatureAssetUrl(signature) {
+  const objectKey = clean(signature?.objectKey);
+  if (!objectKey) return "";
+  return absoluteUrl(`/api/announcements/assets/${encodeURIComponent(Buffer.from(objectKey).toString("base64url"))}`);
+}
+
+function imageFieldDefaults(value) {
+  const image = value && typeof value === "object" && value.type === "image" ? value : null;
+  const source = clean(image?.source);
+  const url = clean(image?.url);
+  return {
+    source: source === "manual" || source === "signature" ? source : url ? "manual" : "signature",
+    url,
+    width: Number(image?.width || 180),
+    height: Number(image?.height || 70)
+  };
+}
+
 export default async function AnnouncementPage({ params, searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.can_use_announcement_templates) {
@@ -56,6 +80,11 @@ export default async function AnnouncementPage({ params, searchParams }) {
   const queued = clean(resolvedSearchParams?.queued);
   const queuedMessage = queuedLabel(queued);
   const templateFields = template.fields || [];
+  const signatures = await listAnnouncementSignatures();
+  const signatureOptions = signatures.map((signature) => ({
+    ...signature,
+    url: signatureAssetUrl(signature)
+  }));
 
   return (
     <>
@@ -85,7 +114,7 @@ export default async function AnnouncementPage({ params, searchParams }) {
       <div className="card glass">
         <h3>עריכת הודעה</h3>
         {announcement.printJobId ? <p className="muted">עבודת הדפסה: {announcement.printJobId}</p> : null}
-        <form action={updateQueuedAnnouncementAction} className="announcement-edit-form">
+        <form action={updateQueuedAnnouncementAction} className="announcement-edit-form" encType="multipart/form-data">
           <input type="hidden" name="announcementId" value={announcement.id} />
 
           <label>
@@ -94,27 +123,81 @@ export default async function AnnouncementPage({ params, searchParams }) {
           </label>
 
           <div className="announcement-fields-grid">
-            {templateFields.map((field) => (
-              <label key={field.key} className={field.type === "multiline" ? "announcement-field-span" : ""}>
-                <span>{field.label}{field.required ? " *" : ""}</span>
-                {field.type === "multiline" ? (
-                  <textarea
-                    name={`field:${field.key}`}
-                    rows={field.maxLength > 1200 ? 8 : 5}
-                    maxLength={field.maxLength || undefined}
-                    required={Boolean(field.required)}
-                    defaultValue={clean(announcement.templateFields?.[field.key])}
-                  />
-                ) : (
-                  <input
-                    name={`field:${field.key}`}
-                    maxLength={field.maxLength || undefined}
-                    required={Boolean(field.required)}
-                    defaultValue={clean(announcement.templateFields?.[field.key])}
-                  />
-                )}
-              </label>
-            ))}
+            {templateFields.map((field) => {
+              const currentValue = announcement.templateFields?.[field.key];
+              if (field.type === "image") {
+                const defaults = imageFieldDefaults(currentValue);
+                return (
+                  <div key={field.key} className="announcement-image-field announcement-field-span">
+                    <span>{field.label}</span>
+                    <div className="announcement-image-field-grid">
+                      <label>
+                        <span className="muted">מקור תמונה</span>
+                        <select name={`fieldImageSource:${field.key}`} defaultValue={defaults.source}>
+                          <option value="signature">מאגר חתימות</option>
+                          <option value="manual">קישור חיצוני</option>
+                          <option value="upload">קובץ מצורף</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span className="muted">חתימה מהמאגר</span>
+                        <select name={`fieldSignatureUrl:${field.key}`} defaultValue={defaults.source === "signature" ? defaults.url : ""}>
+                          <option value="">בחר חתימה</option>
+                          {signatureOptions.map((signature) => (
+                            <option key={signature.id} value={signature.url}>
+                              {signature.name} ({signature.width}×{signature.height})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="muted">קישור חיצוני</span>
+                        <input name={`fieldImageUrl:${field.key}`} defaultValue={defaults.url} placeholder="https://example.com/signature.png" />
+                      </label>
+                      <label>
+                        <span className="muted">קובץ תמונה</span>
+                        <input name={`fieldImageFile:${field.key}`} type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                      </label>
+                      <label>
+                        <span className="muted">רוחב</span>
+                        <input name={`fieldImageWidth:${field.key}`} type="number" min="1" max="2000" defaultValue={defaults.width} />
+                      </label>
+                      <label>
+                        <span className="muted">גובה</span>
+                        <input name={`fieldImageHeight:${field.key}`} type="number" min="1" max="2000" defaultValue={defaults.height} />
+                      </label>
+                    </div>
+                    {defaults.url ? (
+                      <a className="announcement-image-existing-preview" href={defaults.url} target="_blank" rel="noreferrer">
+                        <img src={defaults.url} alt="" />
+                        <span>פתח תמונה קיימת</span>
+                      </a>
+                    ) : null}
+                  </div>
+                );
+              }
+              return (
+                <label key={field.key} className={field.type === "multiline" ? "announcement-field-span" : ""}>
+                  <span>{field.label}{field.required ? " *" : ""}</span>
+                  {field.type === "multiline" ? (
+                    <textarea
+                      name={`field:${field.key}`}
+                      rows={field.maxLength > 1200 ? 8 : 5}
+                      maxLength={field.maxLength || undefined}
+                      required={Boolean(field.required)}
+                      defaultValue={clean(currentValue)}
+                    />
+                  ) : (
+                    <input
+                      name={`field:${field.key}`}
+                      maxLength={field.maxLength || undefined}
+                      required={Boolean(field.required)}
+                      defaultValue={clean(currentValue)}
+                    />
+                  )}
+                </label>
+              );
+            })}
           </div>
 
           <div className="announcement-print-options">
