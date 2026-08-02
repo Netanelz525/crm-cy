@@ -6,7 +6,8 @@ import { useFormStatus } from "react-dom";
 const PRINT_PLANS = [
   { value: "corner-staple", label: "A4 רגיל, הידוק פינה ימנית עליונה" },
   { value: "duplex", label: "A4 רגיל דו-צדדי" },
-  { value: "booklet", label: "חוברת A3, קיפול והידוק" }
+  { value: "booklet", label: "חוברת A3, קיפול והידוק" },
+  { value: "convert-pdf", label: "המרת קובץ ל-PDF" }
 ];
 
 const FAVORITES_STORAGE_KEY = "crm-announcement-template-favorites";

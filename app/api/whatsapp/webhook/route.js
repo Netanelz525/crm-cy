@@ -333,7 +333,8 @@ function isDocumentWorkflowAction(pendingAction) {
 const DOCUMENT_PRINT_PLANS = [
   { value: "corner-staple", label: "הידוק פינה מומלץ", description: "A4 מימין לשמאל, ברירת מחדל" },
   { value: "duplex", label: "A4 דו צדדי", description: "בלי חוברת ובלי הידוק" },
-  { value: "booklet", label: "חוברת A3", description: "פריסה מימין לשמאל" }
+  { value: "booklet", label: "חוברת A3", description: "פריסה מימין לשמאל" },
+  { value: "convert-pdf", label: "המרה ל-PDF", description: "שליחה למערכת ההמרה הנפרדת" }
 ];
 const DOCUMENT_PRINT_COPIES = [1, 5, 20, 40];
 

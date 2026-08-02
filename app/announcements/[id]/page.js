@@ -124,6 +124,7 @@ export default async function AnnouncementPage({ params, searchParams }) {
                 <option value="corner-staple">A4 רגיל, הידוק פינה ימנית עליונה</option>
                 <option value="duplex">A4 רגיל דו-צדדי</option>
                 <option value="booklet">חוברת A3, קיפול והידוק</option>
+                <option value="convert-pdf">המרת קובץ ל-PDF</option>
               </select>
             </label>
             <label>

@@ -355,7 +355,8 @@ function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) 
 const DOCUMENT_PRINT_PLANS = [
   { value: "corner-staple", label: "הידוק פינה מומלץ" },
   { value: "duplex", label: "A4 דו צדדי" },
-  { value: "booklet", label: "חוברת A3" }
+  { value: "booklet", label: "חוברת A3" },
+  { value: "convert-pdf", label: "המרה ל-PDF" }
 ];
 const DOCUMENT_PRINT_COPIES = [1, 5, 20, 40];
 

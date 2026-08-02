@@ -18,6 +18,11 @@ const PRINT_PLAN_OPTIONS = [
     value: "corner-staple",
     label: "A4 עם הידוק פינה",
     description: "מימין לשמאל, הידוק פינה ימנית עליונה"
+  },
+  {
+    value: "convert-pdf",
+    label: "המרת קובץ ל-PDF",
+    description: "שליחה למערכת ההמרה הנפרדת"
   }
 ];
 
