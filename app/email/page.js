@@ -163,6 +163,7 @@ export default async function EmailPage({ searchParams }) {
   const senderName = user.can_edit_email_sender
     ? (clean(draft?.senderName || resolvedSearchParams?.senderName) || buildDefaultSenderNameForStudents(studentsWithBlacklistState))
     : buildDefaultSenderNameForStudents(studentsWithBlacklistState);
+  const replyTo = clean(draft?.replyTo || resolvedSearchParams?.replyTo) || clean(resendStatus.defaultReplyTo);
   const summary = summarizeEmailCandidates(studentsWithBlacklistState, filters.recipientRoles);
   const unsubscribes = await listEmailUnsubscribes(200);
   const favoriteCampaigns = await listFavoriteEmailCampaignsForUser(user.clerk_user_id, 10);
@@ -260,6 +261,7 @@ export default async function EmailPage({ searchParams }) {
               initialSubject={subject}
               initialHtml={initialHtml}
               initialSenderName={senderName}
+              initialReplyTo={replyTo}
               initialIncludeGreeting={includeGreeting}
               senderNameEditable={user.can_edit_email_sender}
               resendConfigured={resendStatus.configured}

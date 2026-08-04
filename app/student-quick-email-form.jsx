@@ -26,7 +26,7 @@ function QuickEmailSubmit({ disabled }) {
   );
 }
 
-export default function StudentQuickEmailForm({ student, returnTo = "/neon", canSendEmails = false, canEmailParents = true }) {
+export default function StudentQuickEmailForm({ student, returnTo = "/neon", canSendEmails = false, canEmailParents = true, defaultReplyTo = "" }) {
   if (!canSendEmails) return null;
   const studentId = clean(student?.id);
   if (!studentId) return null;
@@ -64,6 +64,7 @@ export default function StudentQuickEmailForm({ student, returnTo = "/neon", can
             <input name="subject" placeholder="נושא המייל" required />
             <textarea name="bodyText" rows={4} placeholder="תוכן ההודעה" required />
             <input name="senderName" placeholder="שם שולח" />
+            <input name="replyTo" type="email" defaultValue={defaultReplyTo} placeholder="מייל להשבה" dir="ltr" />
             <label className="student-quick-email-greeting-toggle">
               <input type="checkbox" name="includeGreeting" value="1" />
               <span>הוסף פניה אישית לפי שם הנמען</span>

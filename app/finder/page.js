@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getResendConfigStatus } from "../../lib/resend";
 import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import { listAllStudents } from "../../lib/twenty";
 import StudentQuickEmailForm from "../student-quick-email-form";
@@ -93,6 +94,7 @@ export default async function FinderPage({ searchParams }) {
   const quickEmailSent = clean(sp?.quickEmailSent) === "1";
   const quickEmailError = clean(sp?.quickEmailError);
   const finderReturnTo = `/finder?fieldType=${encodeURIComponent(fieldType)}&owner=${encodeURIComponent(owner)}&value=${encodeURIComponent(value)}`;
+  const defaultReplyTo = getResendConfigStatus().defaultReplyTo;
 
   let students = [];
   let error = "";
@@ -177,7 +179,7 @@ export default async function FinderPage({ searchParams }) {
                   <td><PhoneLink phoneObj={s.momPhone} /></td>
                   {currentUser.can_send_emails ? (
                     <td>
-                      <StudentQuickEmailForm student={s} returnTo={finderReturnTo} canSendEmails={currentUser.can_send_emails} canEmailParents={currentUser.can_email_parents} />
+                      <StudentQuickEmailForm student={s} returnTo={finderReturnTo} canSendEmails={currentUser.can_send_emails} canEmailParents={currentUser.can_email_parents} defaultReplyTo={defaultReplyTo} />
                     </td>
                   ) : null}
                 </tr>
@@ -205,7 +207,7 @@ export default async function FinderPage({ searchParams }) {
                 <div><b>טלפון אב:</b> <PhoneLink phoneObj={s.dadPhone} /></div>
                 <div><b>טלפון אם:</b> <PhoneLink phoneObj={s.momPhone} /></div>
               </div>
-              <StudentQuickEmailForm student={s} returnTo={finderReturnTo} canSendEmails={currentUser.can_send_emails} canEmailParents={currentUser.can_email_parents} />
+              <StudentQuickEmailForm student={s} returnTo={finderReturnTo} canSendEmails={currentUser.can_send_emails} canEmailParents={currentUser.can_email_parents} defaultReplyTo={defaultReplyTo} />
             </div>
           ))
         )}

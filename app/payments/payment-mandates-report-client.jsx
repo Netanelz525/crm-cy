@@ -120,7 +120,7 @@ function MandateRemoteDetails({ item, detailsState }) {
   );
 }
 
-function QuickMandateEmailForm({ item, returnQuery }) {
+function QuickMandateEmailForm({ item, returnQuery, defaultReplyTo = "" }) {
   const email = clean(item?.email).toLowerCase();
   if (!email) return null;
 
@@ -147,6 +147,10 @@ function QuickMandateEmailForm({ item, returnQuery }) {
         <label>
           שם שולח
           <input name="senderName" defaultValue="מחלקת תרומות" />
+        </label>
+        <label>
+          מייל להשבה
+          <input name="replyTo" type="email" defaultValue={defaultReplyTo} placeholder="reply@example.com" dir="ltr" />
         </label>
         <label>
           נושא
@@ -217,6 +221,7 @@ export default function PaymentMandatesReportClient({
   connections,
   providerOptions,
   initialSelectedConnectionIds = [],
+  defaultReplyTo = "",
   initialMandateStatus = "active"
 }) {
   const [selectedProviders, setSelectedProviders] = useState(providerOptions.map((option) => option.value));
@@ -509,7 +514,7 @@ export default function PaymentMandatesReportClient({
                         צור משימת טיפול
                       </Link>
                     </div>
-                    <QuickMandateEmailForm item={item} returnQuery={exportQuery} />
+                    <QuickMandateEmailForm item={item} returnQuery={exportQuery} defaultReplyTo={defaultReplyTo} />
                     <MandateRemoteDetails
                       item={item}
                       detailsState={detailsByMandate[`${item.connectionId}:${item.mandateId || item.id}`]}

@@ -22,6 +22,7 @@ export async function sendQuickStudentEmailAction(formData) {
   const subject = clean(formData.get("subject"));
   const bodyText = clean(formData.get("bodyText"));
   const senderName = clean(formData.get("senderName"));
+  const replyTo = clean(formData.get("replyTo"));
   const includeGreeting = clean(formData.get("includeGreeting")) === "1";
   const recipientRoles = formData.getAll("recipientRoles").map(clean).filter(Boolean);
 
@@ -35,6 +36,7 @@ export async function sendQuickStudentEmailAction(formData) {
   campaignForm.set("subject", subject);
   campaignForm.set("bodyText", bodyText);
   campaignForm.set("senderName", senderName);
+  campaignForm.set("replyTo", replyTo);
   campaignForm.set("includeGreeting", includeGreeting ? "1" : "0");
   campaignForm.append("studentIds", studentId);
   recipientRoles.forEach((role) => campaignForm.append("recipientRoles", role));

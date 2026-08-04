@@ -61,6 +61,7 @@ export default async function EmailConfirmPage({ searchParams }) {
   const senderName = user.can_edit_email_sender
     ? (clean(draft?.senderName) || buildDefaultSenderNameForStudents(selectedStudents))
     : buildDefaultSenderNameForStudents(selectedStudents);
+  const replyTo = clean(draft?.replyTo) || clean(resendStatus.defaultReplyTo);
 
   if (!subject) {
     redirect(`/email?draft=${encodeURIComponent(draftId)}&error=${encodeURIComponent("יש להזין נושא למייל.")}`);
@@ -112,6 +113,7 @@ export default async function EmailConfirmPage({ searchParams }) {
             {resendStatus.configured ? "Resend מחובר" : "חסר Resend API key"}
           </span>
           <small>{senderName}</small>
+          <small>{replyTo}</small>
         </div>
       </div>
 
@@ -129,6 +131,7 @@ export default async function EmailConfirmPage({ searchParams }) {
             <input type="hidden" name="sendScope" value={filters.sendScope} />
             <input type="hidden" name="subject" value={subject} />
             <input type="hidden" name="senderName" value={senderName} />
+            <input type="hidden" name="replyTo" value={replyTo} />
             <input type="hidden" name="bodyHtml" value={bodyHtml} />
             <input type="hidden" name="bodyText" value={bodyText} />
             <input type="hidden" name="includeGreeting" value={includeGreeting ? "1" : "0"} />
@@ -158,6 +161,12 @@ export default async function EmailConfirmPage({ searchParams }) {
                 <div>
                   <b>שם שולח</b>
                   <small>{senderName}</small>
+                </div>
+              </div>
+              <div className="email-log-row">
+                <div>
+                  <b>מייל להשבה</b>
+                  <small>{replyTo}</small>
                 </div>
               </div>
               <div className="email-log-row">

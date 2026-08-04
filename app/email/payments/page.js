@@ -137,6 +137,7 @@ export default async function PaymentEmailPage({ searchParams }) {
     }
   }
   const resendStatus = getResendConfigStatus();
+  const replyTo = clean(draft?.replyTo) || clean(resendStatus.defaultReplyTo);
   const reportQuery = buildPaymentExportSearchParams({
     reportType: effectiveReportType,
     dateFrom: effectiveDateFrom,
@@ -199,6 +200,7 @@ export default async function PaymentEmailPage({ searchParams }) {
           initialSubject={clean(draft?.subject) || (effectiveReportType === "mandates" ? "עדכון בנושא הוראת הקבע שלך" : "עדכון חשוב בנושא התרומה שלך")}
           initialHtml={clean(draft?.bodyHtml) || "<p>שלום {{שם}},</p><p>תודה על תמיכתך. רצינו לשתף אותך בעדכון חשוב.</p><p>בברכה,<br>מחלקת תרומות</p>"}
           initialSenderName={clean(draft?.senderName) || "מחלקת תרומות"}
+          initialReplyTo={replyTo}
           initialIncludeGreeting={draft ? draft.includeGreeting !== false : true}
           senderNameEditable={user.can_edit_email_sender}
           resendConfigured={resendStatus.configured}

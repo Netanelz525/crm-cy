@@ -19,6 +19,7 @@ import {
 } from "../../../lib/attendance";
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
 import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
+import { getResendConfigStatus } from "../../../lib/resend";
 import ResponsibleUserPicker from "../responsible-user-picker";
 
 function clean(value) {
@@ -49,6 +50,7 @@ function formatSessionAudience(session) {
 export default async function AttendanceSessionPage({ params, searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect(await signInRedirectUrl());
+  const defaultReplyTo = getResendConfigStatus().defaultReplyTo;
   if (!currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin) redirect("/unauthorized");
 
   const resolvedParams = await params;
@@ -349,6 +351,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         isLocked={roster.session.isLocked}
         canSendEmails={currentUser.can_send_emails}
         canEmailParents={currentUser.can_email_parents}
+        defaultReplyTo={defaultReplyTo}
         returnTo={`/attendance/${roster.session.id}`}
       />
     </>

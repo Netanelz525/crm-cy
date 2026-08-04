@@ -42,6 +42,7 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
   const savedAttachments = Array.isArray(draft?.attachments) ? draft.attachments : [];
   const error = clean(resolvedSearchParams?.error);
   const resendStatus = getResendConfigStatus();
+  const replyTo = clean(draft?.replyTo) || clean(resendStatus.defaultReplyTo);
   const reportType = clean(draft?.reportConfig?.reportType) === "mandates" ? "mandates" : "transactions";
   const reportQuery = buildPaymentExportSearchParams({
     reportType,
@@ -96,6 +97,7 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
             {resendStatus.configured ? "Resend מחובר" : "חסר Resend API key"}
           </span>
           <small>{senderName}</small>
+          <small>{replyTo}</small>
         </div>
       </div>
 
@@ -125,6 +127,12 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
                 <div>
                   <b>שם שולח</b>
                   <small>{senderName}</small>
+                </div>
+              </div>
+              <div className="email-log-row">
+                <div>
+                  <b>מייל להשבה</b>
+                  <small>{replyTo}</small>
                 </div>
               </div>
             </div>

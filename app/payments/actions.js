@@ -26,6 +26,7 @@ export async function sendSinglePaymentMandateEmailAction(formData) {
   const recipientName = clean(formData.get("recipientName")) || recipientEmail;
   const subject = clean(formData.get("subject"));
   const senderName = clean(formData.get("senderName"));
+  const replyTo = clean(formData.get("replyTo"));
   const bodyText = clean(formData.get("bodyText"));
 
   if (!recipientEmail) redirect(appendMessage(returnTo, "error", "לרשומה הזו אין כתובת מייל לשליחה."));
@@ -60,6 +61,7 @@ export async function sendSinglePaymentMandateEmailAction(formData) {
         sendScope: "selected",
         subject,
         senderName,
+        replyTo,
         bodyText,
         bodyHtml: "",
         includeGreeting: true,

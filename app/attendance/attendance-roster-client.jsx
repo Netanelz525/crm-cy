@@ -86,7 +86,7 @@ function rowMatchesFilters(row, selectedFilters, query) {
   ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
 }
 
-export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [], isLocked = false, canSendEmails = false, canEmailParents = true, returnTo = "" }) {
+export default function AttendanceRosterClient({ sessionId, students, statusOptions, activeStatusFilters = [], isLocked = false, canSendEmails = false, canEmailParents = true, defaultReplyTo = "", returnTo = "" }) {
   const [rows, setRows] = useState(students);
   const [locked, setLocked] = useState(Boolean(isLocked));
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
@@ -469,7 +469,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                   </td>
                   {canSendEmails ? (
                     <td className="attendance-email-cell">
-                      <StudentQuickEmailForm student={student} returnTo={returnTo || `/attendance/${sessionId}`} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
+                      <StudentQuickEmailForm student={student} returnTo={returnTo || `/attendance/${sessionId}`} canSendEmails={canSendEmails} canEmailParents={canEmailParents} defaultReplyTo={defaultReplyTo} />
                     </td>
                   ) : null}
                 </tr>

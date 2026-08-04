@@ -4,6 +4,7 @@ import { purgeExpiredSoftDeletedStudents } from "../../lib/deleted-students";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getNeonPreferencesForUser, mergeSearchParamsWithNeonPreferences } from "../../lib/neon-preferences";
 import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
+import { getResendConfigStatus } from "../../lib/resend";
 import { attachLatestContactToStudents } from "../../lib/student-contact-logs";
 import { listStudentEventReminderDigest } from "../../lib/student-events";
 import { attachStudentTagsToStudents, listStudentTagsWithUsage } from "../../lib/student-tags";
@@ -186,6 +187,7 @@ export default async function NeonPage({ searchParams }) {
   const resolvedSearchParams = incomingSearchParams;
 
   const currentQueryString = sanitizeQueryString(buildQueryString(resolvedSearchParams));
+  const defaultReplyTo = getResendConfigStatus().defaultReplyTo;
   const selectedInstitutions = normalizeMultiValues(resolvedSearchParams?.institution);
   const institution = selectedInstitutions[0] || "";
   const institutionSearch = clean(resolvedSearchParams?.institutionSearch);
@@ -738,6 +740,7 @@ export default async function NeonPage({ searchParams }) {
         returnTo={currentQueryString ? `/neon?${currentQueryString}` : "/neon"}
         canSendEmails={currentUser.can_send_emails}
         canEmailParents={currentUser.can_email_parents}
+        defaultReplyTo={defaultReplyTo}
       />
     </>
   );

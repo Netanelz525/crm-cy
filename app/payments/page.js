@@ -6,6 +6,7 @@ import {
   listPaymentConnections
 } from "../../lib/payment-systems";
 import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
+import { getResendConfigStatus } from "../../lib/resend";
 import PaymentsReportClient from "./payments-report-client";
 import PaymentMandatesReportClient from "./payment-mandates-report-client";
 import PaymentFilterFormClient from "./payment-filter-form-client";
@@ -51,6 +52,7 @@ export default async function PaymentsPage({ searchParams }) {
     value: provider,
     label: getPaymentProviderLabel(provider)
   }));
+  const defaultReplyTo = getResendConfigStatus().defaultReplyTo;
   const dashboard = shouldRunReport && activeConnections.length
     ? await (await import("../../lib/payment-systems"))[reportType === "mandates" ? "getPaymentMandatesDashboard" : "getPaymentDashboard"]({
         connectionIds: selectedConnectionIds,
@@ -121,6 +123,7 @@ export default async function PaymentsPage({ searchParams }) {
               connections={dashboard.connections}
               providerOptions={activeProviders}
               initialSelectedConnectionIds={selectedConnectionIds}
+              defaultReplyTo={defaultReplyTo}
             />
           ) : (
             <PaymentsReportClient

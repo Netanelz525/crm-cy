@@ -87,12 +87,14 @@ export default function PaymentReportEmailComposerClient({
   initialSubject = "",
   initialHtml = "",
   initialSenderName = "מחלקת תרומות",
+  initialReplyTo = "",
   initialIncludeGreeting = true,
   senderNameEditable = true,
   resendConfigured = false
 }) {
   const [subject, setSubject] = useState(initialSubject);
   const [senderName, setSenderName] = useState(initialSenderName);
+  const [replyTo, setReplyTo] = useState(initialReplyTo);
   const [includeGreeting, setIncludeGreeting] = useState(initialIncludeGreeting);
   const initialContent = useMemo(() => clean(initialHtml) || textToHtml(""), [initialHtml]);
   const [html, setHtml] = useState(initialContent);
@@ -171,6 +173,17 @@ export default function PaymentReportEmailComposerClient({
               value={senderName}
               onChange={(event) => setSenderName(event.target.value)}
               readOnly={!senderNameEditable}
+            />
+          </label>
+          <label>
+            מייל להשבה
+            <input
+              name="replyTo"
+              type="email"
+              value={replyTo}
+              onChange={(event) => setReplyTo(event.target.value)}
+              placeholder="reply@example.com"
+              dir="ltr"
             />
           </label>
           <label>

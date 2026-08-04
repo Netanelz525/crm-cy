@@ -187,6 +187,7 @@ export default function ViewBuilderClient({
   preview,
   canSendEmails = false,
   canEmailParents = true,
+  defaultReplyTo = "",
   initialState,
   exportHref
 }) {
@@ -671,7 +672,7 @@ export default function ViewBuilderClient({
                         ))}
                         {canSendEmails ? (
                           <td>
-                            <StudentQuickEmailForm student={row} returnTo={currentQueryString ? `/views?${currentQueryString}` : "/views"} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
+                            <StudentQuickEmailForm student={row} returnTo={currentQueryString ? `/views?${currentQueryString}` : "/views"} canSendEmails={canSendEmails} canEmailParents={canEmailParents} defaultReplyTo={defaultReplyTo} />
                           </td>
                         ) : null}
                       </tr>
@@ -696,7 +697,7 @@ export default function ViewBuilderClient({
                         </div>
                       ))}
                     </div>
-                    <StudentQuickEmailForm student={row} returnTo={currentQueryString ? `/views?${currentQueryString}` : "/views"} canSendEmails={canSendEmails} canEmailParents={canEmailParents} />
+                    <StudentQuickEmailForm student={row} returnTo={currentQueryString ? `/views?${currentQueryString}` : "/views"} canSendEmails={canSendEmails} canEmailParents={canEmailParents} defaultReplyTo={defaultReplyTo} />
                     {row.hasMissing ? <div className="student-mobile-missing"><b>חוסרים:</b> {row.missingText}</div> : null}
                   </div>
                 ))}

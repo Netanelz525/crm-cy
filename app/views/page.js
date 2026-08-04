@@ -1,6 +1,7 @@
 ﻿import { redirect } from "next/navigation";
 import ViewBuilderClient from "./view-builder-client";
 import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
+import { getResendConfigStatus } from "../../lib/resend";
 import { listSavedViewsForUser } from "../../lib/saved-views";
 import {
   applyAdvancedFilters,
@@ -130,6 +131,7 @@ export default async function ViewsPage({ searchParams }) {
   const preview = await buildPreview(resolvedSearchParams);
   const currentQueryString = sanitizeQueryString(buildQueryString(resolvedSearchParams));
   const exportHref = currentQueryString ? `/api/export/institution?${currentQueryString}` : "/api/export/institution";
+  const defaultReplyTo = getResendConfigStatus().defaultReplyTo;
 
   return (
     <ViewBuilderClient
@@ -153,6 +155,7 @@ export default async function ViewsPage({ searchParams }) {
       preview={preview}
       canSendEmails={currentUser.can_send_emails}
       canEmailParents={currentUser.can_email_parents}
+      defaultReplyTo={defaultReplyTo}
       initialState={{
         sortLevels,
         cols: parseListParam(resolvedSearchParams?.cols).length ? parseListParam(resolvedSearchParams?.cols) : DEFAULT_INSTITUTION_COLUMN_KEYS,
@@ -161,5 +164,4 @@ export default async function ViewsPage({ searchParams }) {
     />
   );
 }
-
 
