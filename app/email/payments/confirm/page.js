@@ -17,6 +17,23 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function attachmentDisplayFile(file) {
+  const content = clean(file?.content);
+  let size = Number(file?.sizeBytes || file?.size || 0);
+  if (!size && content) {
+    try {
+      size = Buffer.byteLength(Buffer.from(content, "base64"));
+    } catch {
+      size = 0;
+    }
+  }
+  return {
+    name: clean(file?.filename || file?.name) || "קובץ מצורף",
+    size,
+    lastModified: 0
+  };
+}
+
 export default async function PaymentEmailConfirmPage({ searchParams }) {
   const user = await requireEmailSender();
   if (!user) redirect(await signInRedirectUrl());
@@ -140,7 +157,7 @@ export default async function PaymentEmailConfirmPage({ searchParams }) {
             <AttachmentsInputClient
               title="קבצים שיצורפו למייל"
               helperText="הקבצים נבחרו בשלב העריכה. כאן אפשר רק לבדוק מה יישלח בפועל לפני האישור הסופי."
-              initialFiles={savedAttachments.map((file) => ({ name: file.filename, size: Number(file.sizeBytes || 0), lastModified: 0 }))}
+              initialFiles={savedAttachments.map(attachmentDisplayFile)}
               readOnly
             />
 
