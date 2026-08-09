@@ -248,11 +248,11 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
             </div>
           </div>
 
-          <div className="email-log-card">
-            <div className="email-section-title">
-              <h2>תלמידים ייחודיים בקמפיין</h2>
+          <details className="email-log-card display-settings">
+            <summary>
+              תלמידים ייחודיים בקמפיין
               <span>{uniqueStudents.length} כרטיסים | {sentUniqueStudentsCount} נשלחו בפועל</span>
-            </div>
+            </summary>
             {!uniqueStudents.length ? (
               <div className="muted">אין כרטיסי תלמיד משויכים לקמפיין הזה.</div>
             ) : (
@@ -273,7 +273,7 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
                 </div>
               ))
             )}
-          </div>
+          </details>
 
           <div className="email-log-card">
             <div className="email-section-title">
