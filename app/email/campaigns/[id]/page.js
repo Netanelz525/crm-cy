@@ -29,9 +29,14 @@ function classLabel(value) {
 function certaintyLabel(level, status) {
   const numeric = Number(level || 0);
   if (status === "unsubscribed") return "הוסר";
+  if (status === "suppressed") return "נחסם";
+  if (status === "complained") return "ספאם";
+  if (status === "bounced") return "חזר";
   if (status === "failed") return "נכשל";
   if (numeric >= 4) return "נלחץ";
   if (numeric >= 3) return "נפתח";
+  if (status === "delivery_delayed") return "מתעכב";
+  if (status === "delivered") return "נמסר";
   if (numeric >= 2) return "נשלח";
   if (numeric >= 1) return "בתור";
   return "אין ודאות";
@@ -64,6 +69,16 @@ const RECIPIENT_ROLE_LABELS = {
   student: "תלמיד"
 };
 
+const PROVIDER_STATUS_LABELS = {
+  sent: "נשלח ל-Resend",
+  delivered: "נמסר לנמען",
+  delivery_delayed: "מסירה מתעכבת",
+  failed: "נכשל ב-Resend",
+  bounced: "חזר מהנמען",
+  complained: "דווח כספאם",
+  suppressed: "נחסם ב-Resend"
+};
+
 function enumLabel(group, value) {
   const key = clean(value).toUpperCase();
   return ENUM_LABELS[group]?.[key] || clean(value);
@@ -72,6 +87,14 @@ function enumLabel(group, value) {
 function valuesList(value) {
   if (Array.isArray(value)) return value.map(clean).filter(Boolean);
   return clean(value) ? [clean(value)] : [];
+}
+
+function providerStatusLabel(delivery) {
+  const status = clean(delivery?.provider_status);
+  if (!status) return "";
+  const event = clean(delivery?.provider_event_type);
+  const eventDate = clean(delivery?.provider_last_event_at) ? ` | עודכן: ${formatDateTime(delivery.provider_last_event_at)}` : "";
+  return `${PROVIDER_STATUS_LABELS[status] || status}${event ? ` | ${event}` : ""}${eventDate}`;
 }
 
 function filterSummaryItems(campaign) {
@@ -101,7 +124,7 @@ function filterSummaryItems(campaign) {
 
 function buildUniqueCampaignStudents(deliveries = []) {
   const students = new Map();
-  const sentStatuses = new Set(["sent", "opened"]);
+  const sentStatuses = new Set(["sent", "delivered", "delivery_delayed", "opened"]);
 
   for (const delivery of deliveries) {
     const ids = Array.isArray(delivery?.related_student_ids) ? delivery.related_student_ids.map(clean) : [];
@@ -292,8 +315,10 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
                   <div>
                     <b>{delivery.recipient_name || delivery.student_name || delivery.recipient_email}</b>
                     <small>{delivery.recipient_email} | {certaintyLabel(delivery.certainty_level, delivery.status)}</small>
+                    {providerStatusLabel(delivery) ? <small>Resend: {providerStatusLabel(delivery)}</small> : null}
                     <small>תלמידים קשורים: {relatedStudentNames(delivery)}</small>
                     <small>פתיחות: {delivery.open_count || 0} | נפתח: {formatDateTime(delivery.opened_at)} | נלחץ: {formatDateTime(delivery.clicked_at)}</small>
+                    {delivery.provider_error ? <small className="email-error-text">Resend: {delivery.provider_error}</small> : null}
                     {delivery.error_message ? <small className="email-error-text">{delivery.error_message}</small> : null}
                   </div>
                   <span className={`email-certainty-badge email-certainty-${delivery.certainty_level}`}>
