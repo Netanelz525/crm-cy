@@ -7,6 +7,7 @@ import {
   renderEmailHtml
 } from "../../../../lib/email-campaigns";
 import { requireAuthenticatedUser } from "../../../../lib/rbac";
+import { ENUM_LABELS } from "../../../../lib/student-fields";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../../../lib/student-view";
 import {
   removeFavoriteEmailCampaignAction,
@@ -57,6 +58,91 @@ function relatedStudentNames(delivery) {
     : clean(delivery?.student_name) || "-";
 }
 
+const RECIPIENT_ROLE_LABELS = {
+  father: "אבא",
+  mother: "אמא",
+  student: "תלמיד"
+};
+
+function enumLabel(group, value) {
+  const key = clean(value).toUpperCase();
+  return ENUM_LABELS[group]?.[key] || clean(value);
+}
+
+function valuesList(value) {
+  if (Array.isArray(value)) return value.map(clean).filter(Boolean);
+  return clean(value) ? [clean(value)] : [];
+}
+
+function filterSummaryItems(campaign) {
+  const filters = campaign?.filter_json && typeof campaign.filter_json === "object" ? campaign.filter_json : {};
+  const items = [];
+  const addList = (label, values, formatter = (item) => item) => {
+    const list = valuesList(values).map(formatter).filter(Boolean);
+    if (list.length) items.push({ label, value: list.join(", ") });
+  };
+
+  addList("מוסדות", filters.institution || campaign.institution, institutionLabel);
+  addList("שיעורים", filters.class || campaign.class_filter, classLabel);
+  addList("רישום", filters.registration, (value) => enumLabel("registration", value));
+  addList("סטטוס משפחתי", filters.familystatus, (value) => enumLabel("familystatus", value));
+  addList("תוויות", filters.tagIds);
+  addList("נמענים", filters.recipientRoles || filters.recipientMode || campaign.recipient_mode, (value) => RECIPIENT_ROLE_LABELS[clean(value)] || clean(value));
+  if (clean(filters.q)) items.push({ label: "חיפוש", value: clean(filters.q) });
+  items.push({
+    label: "היקף שליחה",
+    value: clean(filters.sendScope || campaign.send_scope) === "filtered" ? "כל הרשומות שסוננו" : "רשומות שנבחרו"
+  });
+  if (Array.isArray(filters.targetStudentIds) && filters.targetStudentIds.length) {
+    items.push({ label: "תלמידים שנכנסו לשליחה", value: `${filters.targetStudentIds.length}` });
+  }
+  return items;
+}
+
+function buildUniqueCampaignStudents(deliveries = []) {
+  const students = new Map();
+  const sentStatuses = new Set(["sent", "opened"]);
+
+  for (const delivery of deliveries) {
+    const ids = Array.isArray(delivery?.related_student_ids) ? delivery.related_student_ids.map(clean) : [];
+    const names = Array.isArray(delivery?.related_student_names) ? delivery.related_student_names.map(clean) : [];
+    if (!ids.length && (clean(delivery?.student_id) || clean(delivery?.student_name))) {
+      ids.push(clean(delivery?.student_id));
+      names.push(clean(delivery?.student_name));
+    }
+
+    ids.forEach((id, index) => {
+      const name = names[index] || clean(delivery?.student_name) || id || "תלמיד";
+      const key = id || name;
+      if (!key) return;
+      const current = students.get(key) || {
+        id,
+        name,
+        emails: new Set(),
+        sentEmails: new Set(),
+        statuses: new Set()
+      };
+      current.name = current.name || name;
+      current.id = current.id || id;
+      if (clean(delivery?.recipient_email)) current.emails.add(clean(delivery.recipient_email));
+      if (sentStatuses.has(clean(delivery?.status)) && clean(delivery?.recipient_email)) {
+        current.sentEmails.add(clean(delivery.recipient_email));
+      }
+      if (clean(delivery?.status)) current.statuses.add(clean(delivery.status));
+      students.set(key, current);
+    });
+  }
+
+  return Array.from(students.values())
+    .map((student) => ({
+      ...student,
+      emails: Array.from(student.emails),
+      sentEmails: Array.from(student.sentEmails),
+      statuses: Array.from(student.statuses)
+    }))
+    .sort((a, b) => clean(a.name).localeCompare(clean(b.name), "he"));
+}
+
 export default async function EmailCampaignDetailPage({ params, searchParams }) {
   const user = await requireAuthenticatedUser();
   if (!user.can_view_email_reports) redirect("/unauthorized");
@@ -72,6 +158,9 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
   if (!campaign) notFound();
 
   const deliveries = await listEmailCampaignDeliveries(campaignId);
+  const uniqueStudents = buildUniqueCampaignStudents(deliveries);
+  const sentUniqueStudentsCount = uniqueStudents.filter((student) => student.sentEmails.length).length;
+  const filterItems = filterSummaryItems(campaign);
   const isFavorite = await isEmailCampaignFavorite(user.clerk_user_id, campaignId);
   const selectedDelivery = deliveries.find((delivery) => clean(delivery.id) === selectedDeliveryId) || deliveries[0] || null;
   const previewHtml = selectedDelivery ? buildDeliveryPreviewHtml(campaign, selectedDelivery) : renderEmailHtml({
@@ -136,10 +225,54 @@ export default async function EmailCampaignDetailPage({ params, searchParams }) 
             <h2>סיכום קמפיין</h2>
             <div className="email-certainty-steps">
               <div><b>{campaign.total_recipients || 0}</b><span>נמענים</span><small>מספר הכתובות הייחודיות שנכנסו לשליחה.</small></div>
+              <div><b>{uniqueStudents.length}</b><span>תלמידים</span><small>כרטיסי תלמיד ייחודיים שמופיעים בקמפיין.</small></div>
+              <div><b>{sentUniqueStudentsCount}</b><span>תלמידים נשלחו</span><small>כרטיסי תלמיד שלפחות מייל אחד נשלח עבורם.</small></div>
               <div><b>{campaign.sent_count || 0}</b><span>נשלחו</span><small>נשלחו בהצלחה דרך Resend.</small></div>
               <div><b>{campaign.opened_count || 0}</b><span>נפתחו</span><small>לפחות פתיחה אחת זוהתה.</small></div>
               <div><b>{campaign.failed_count || 0}</b><span>נכשלו</span><small>נכשלו מול הספק או נפלו במהלך השליחה.</small></div>
             </div>
+          </div>
+
+          <div className="email-log-card">
+            <div className="email-section-title">
+              <h2>הגדרות המסנן שנשמרו</h2>
+              <span>{filterItems.length} פרטים</span>
+            </div>
+            <div className="email-filter-tags">
+              {filterItems.map((item) => (
+                <span key={`${item.label}-${item.value}`} className="email-filter-pill">
+                  <b>{item.label}</b>
+                  {item.value}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="email-log-card">
+            <div className="email-section-title">
+              <h2>תלמידים ייחודיים בקמפיין</h2>
+              <span>{uniqueStudents.length} כרטיסים | {sentUniqueStudentsCount} נשלחו בפועל</span>
+            </div>
+            {!uniqueStudents.length ? (
+              <div className="muted">אין כרטיסי תלמיד משויכים לקמפיין הזה.</div>
+            ) : (
+              uniqueStudents.map((student) => (
+                <div key={student.id || student.name} className="email-log-row">
+                  <div>
+                    {student.id ? (
+                      <Link className="student-link" href={`/neon/students/${student.id}`}>{student.name || student.id}</Link>
+                    ) : (
+                      <b>{student.name}</b>
+                    )}
+                    <small>{student.emails.length} כתובות בקמפיין | {student.sentEmails.length} נשלחו בהצלחה</small>
+                    <small>{student.emails.join(" | ")}</small>
+                  </div>
+                  <span className={`email-certainty-badge ${student.sentEmails.length ? "email-certainty-2" : ""}`}>
+                    {student.sentEmails.length ? "נשלח" : "לא נשלח"}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="email-log-card">

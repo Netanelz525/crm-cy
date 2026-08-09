@@ -339,7 +339,11 @@ export async function reopenEmailCampaignAction(formData) {
         ? [clean(filters.recipientMode || campaign.recipient_mode)]
         : ["father", "mother"],
     sendScope: clean(filters.sendScope || campaign.send_scope) || "selected",
-    selectedStudentIds: Array.isArray(filters.selectedStudentIds) ? filters.selectedStudentIds.map(clean).filter(Boolean) : [],
+    selectedStudentIds: Array.isArray(filters.selectedStudentIds) && filters.selectedStudentIds.length
+      ? filters.selectedStudentIds.map(clean).filter(Boolean)
+      : Array.isArray(filters.targetStudentIds)
+        ? filters.targetStudentIds.map(clean).filter(Boolean)
+        : [],
     subject: clean(campaign.subject),
     senderName: clean(campaign.sender_name),
     replyTo: clean(campaign.reply_to),
