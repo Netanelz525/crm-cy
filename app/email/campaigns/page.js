@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listRecentEmailCampaigns } from "../../../lib/email-campaigns";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
+import { ENUM_LABELS } from "../../../lib/student-fields";
 import { clean, CLASS_LABELS, INSTITUTIONS } from "../../../lib/student-view";
 
 const RECIPIENT_MODE_LABELS = {
@@ -26,6 +27,48 @@ function classLabel(value) {
 
 function recipientModeLabel(value) {
   return RECIPIENT_MODE_LABELS[clean(value)] || clean(value) || "-";
+}
+
+function valuesList(value) {
+  if (Array.isArray(value)) return value.map(clean).filter(Boolean);
+  return clean(value) ? [clean(value)] : [];
+}
+
+function enumLabel(group, value) {
+  const key = clean(value).toUpperCase();
+  return ENUM_LABELS[group]?.[key] || clean(value);
+}
+
+function campaignFilters(campaign) {
+  return campaign?.filter_json && typeof campaign.filter_json === "object" ? campaign.filter_json : {};
+}
+
+function campaignFilterSummaryItems(campaign) {
+  const filters = campaignFilters(campaign);
+  const items = [];
+  const addList = (label, values, formatter = (item) => item) => {
+    const list = valuesList(values).map(formatter).filter(Boolean);
+    if (list.length) items.push({ label, value: list.join(", ") });
+  };
+
+  addList("מוסד", filters.institution || campaign.institution, institutionLabel);
+  addList("שיעור", filters.class || campaign.class_filter, classLabel);
+  addList("רישום", filters.registration, (value) => enumLabel("registration", value));
+  addList("מצב משפחתי", filters.familystatus, (value) => enumLabel("familystatus", value));
+  addList("תוויות", filters.tagIds);
+  addList("נמענים", filters.recipientRoles || filters.recipientMode || campaign.recipient_mode, recipientModeLabel);
+  if (clean(filters.q)) items.push({ label: "חיפוש", value: clean(filters.q) });
+
+  items.push({
+    label: "היקף",
+    value: clean(filters.sendScope || campaign.send_scope) === "filtered" ? "כל המסנן" : "נבחרו ידנית"
+  });
+
+  if (Array.isArray(filters.targetStudentIds) && filters.targetStudentIds.length) {
+    items.push({ label: "תלמידים", value: `${filters.targetStudentIds.length}` });
+  }
+
+  return items;
 }
 
 function campaignTimestamp(campaign) {
@@ -94,7 +137,8 @@ export default async function EmailCampaignListPage({ searchParams }) {
         clean(campaign.institution),
         clean(campaign.class_filter),
         clean(campaign.status),
-        clean(campaign.recipient_mode)
+        clean(campaign.recipient_mode),
+        JSON.stringify(campaignFilters(campaign))
         ].join(" ").toLowerCase();
       const sentOrCreated = campaignTimestamp(campaign);
       const campaignDate = sentOrCreated ? new Date(sentOrCreated) : null;
@@ -226,19 +270,19 @@ export default async function EmailCampaignListPage({ searchParams }) {
             const delivered = Number(campaign.sent_count || 0);
             const opens = Number(campaign.opened_count || 0);
             const openRate = delivered > 0 ? Math.round((opens / delivered) * 100) : 0;
+            const filterItems = campaignFilterSummaryItems(campaign);
             return (
               <Link key={campaign.id} href={`/email/campaigns/${campaign.id}`} className="email-log-row email-log-row-link">
                 <div>
                   <b>{campaign.subject}</b>
-                  <small>
-                    {[
-                      formatCampaignDate(campaignTimestamp(campaign)),
-                      campaign.sender_name || "-",
-                      campaign.institution ? institutionLabel(campaign.institution) : "",
-                      campaign.class_filter ? classLabel(campaign.class_filter) : "",
-                      campaign.recipient_mode ? recipientModeLabel(campaign.recipient_mode) : ""
-                    ].filter(Boolean).join(" | ")}
-                  </small>
+                  <small>{[formatCampaignDate(campaignTimestamp(campaign)), campaign.sender_name || "-"].filter(Boolean).join(" | ")}</small>
+                  <div className="email-campaign-filter-line" aria-label="הגדרות מסנן הקמפיין">
+                    {filterItems.map((item) => (
+                      <span key={`${campaign.id}-${item.label}`} className="email-campaign-filter-pill">
+                        <b>{item.label}:</b> {item.value}
+                      </span>
+                    ))}
+                  </div>
                   <small>{campaign.total_recipients || 0} נמענים | {campaign.sent_count || 0} נשלחו | {campaign.failed_count || 0} נכשלו | {openRate}% פתיחה</small>
                 </div>
                 <span className={`email-certainty-badge email-certainty-${openRate > 0 ? 3 : 2}`}>

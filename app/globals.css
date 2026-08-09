@@ -5682,6 +5682,31 @@ td {
   margin-top: 3px;
 }
 
+.email-campaign-filter-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.email-campaign-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid #d7e6f5;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #f7fbff;
+  color: #163451;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.email-campaign-filter-pill b {
+  margin-inline-end: 4px;
+}
+
 .email-student-row-blacklisted small,
 .email-student-row-blacklisted b {
   color: #ffffff !important;
