@@ -5,7 +5,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
 import { getStudentTagTheme } from "../../lib/student-tag-theme";
-import { ageOf, buildMissingState, classLabel, clean, columnText, enumLabel, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
+import { ageOf, buildMissingState, classLabel, CLASS_ORDER, clean, columnText, enumLabel, FIELD_DEF_MAP, getByPath, phoneHref, phoneText } from "../../lib/student-view";
 import StudentQuickEmailForm from "../student-quick-email-form";
 import { addStudentContactLiveAction, addStudentEventLiveAction, addStudentTagLiveAction, bulkUpdateStudentsLiveAction, removeStudentTagLiveAction } from "./student-live-actions";
 import { bulkDeleteNeonStudentsAction } from "./actions";
@@ -136,6 +136,79 @@ function MatchScoreBadge({ score }) {
   const value = Number(score);
   if (!Number.isFinite(value)) return <span className="match-score-pill score-neutral">-</span>;
   return <span className={`match-score-pill ${scoreClassName(value)}`}>{Math.round(value * 100)}%</span>;
+}
+
+const NUMERIC_SORT_COLUMNS = new Set(["age", "class", "tznum", "fatherTz", "motherTz", "childrenCount"]);
+const DEFAULT_TABLE_COLUMNS = [
+  { key: "name", label: "שם" },
+  { key: "class", label: "שיעור" },
+  { key: "tznum", label: "ת\"ז" },
+  { key: "age", label: "גיל" },
+  { key: "studentPhone", label: "טלפון תלמיד" },
+  { key: "dadPhone", label: "טלפון אב" },
+  { key: "momPhone", label: "טלפון אם" },
+  { key: "missing", label: "חוסרים" }
+];
+
+function tableSortValue(student, columnKey) {
+  if (columnKey === "name") return clean(student?.label);
+  if (columnKey === "age") return ageOf(student?.dateofbirth);
+  if (columnKey === "class") return CLASS_ORDER[clean(student?.class).toUpperCase()] ?? "";
+  if (columnKey === "missing") return Array.isArray(student?.missingItems) ? student.missingItems.join(", ") : "";
+  return columnText(student, columnKey);
+}
+
+function hasTableSortValue(value) {
+  const normalized = clean(value);
+  return Boolean(normalized && normalized !== "-");
+}
+
+function compareTableRows(left, right, sortState) {
+  if (!sortState?.key) return 0;
+  const leftValue = tableSortValue(left, sortState.key);
+  const rightValue = tableSortValue(right, sortState.key);
+  const leftHasValue = hasTableSortValue(leftValue);
+  const rightHasValue = hasTableSortValue(rightValue);
+
+  if (sortState.mode === "empty") return Number(leftHasValue) - Number(rightHasValue);
+  if (sortState.mode === "filled") return Number(rightHasValue) - Number(leftHasValue);
+
+  if (!leftHasValue && !rightHasValue) return 0;
+  if (!leftHasValue) return 1;
+  if (!rightHasValue) return -1;
+
+  const direction = sortState.mode === "desc" ? -1 : 1;
+  const leftNumber = Number(String(leftValue).replace(/[^\d.-]/g, ""));
+  const rightNumber = Number(String(rightValue).replace(/[^\d.-]/g, ""));
+  const numeric = NUMERIC_SORT_COLUMNS.has(sortState.key) && Number.isFinite(leftNumber) && Number.isFinite(rightNumber);
+  if (numeric) return (leftNumber - rightNumber) * direction;
+  return clean(leftValue).localeCompare(clean(rightValue), "he", { numeric: true, sensitivity: "base" }) * direction;
+}
+
+function TableSortHeader({ column, activeSort, onSort }) {
+  const numeric = NUMERIC_SORT_COLUMNS.has(column.key);
+  const active = activeSort?.key === column.key ? activeSort.mode : "";
+  return (
+    <th>
+      <div className="table-sort-head">
+        <span>{column.label}</span>
+        <div className="table-sort-buttons" aria-label={`מיון לפי ${column.label}`}>
+          <button type="button" className={active === "asc" ? "active" : ""} onClick={() => onSort(column.key, "asc")}>
+            {numeric ? "קטן" : "א-ב"}
+          </button>
+          <button type="button" className={active === "desc" ? "active" : ""} onClick={() => onSort(column.key, "desc")}>
+            {numeric ? "גדול" : "ת-א"}
+          </button>
+          <button type="button" className={active === "empty" ? "active" : ""} onClick={() => onSort(column.key, "empty")}>
+            ריק
+          </button>
+          <button type="button" className={active === "filled" ? "active" : ""} onClick={() => onSort(column.key, "filled")}>
+            מלא
+          </button>
+        </div>
+      </div>
+    </th>
+  );
 }
 
 function formatDateValue(value) {
@@ -349,13 +422,24 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
   const [studentRows, setStudentRows] = useState(Array.isArray(students) ? students : []);
   const [tagOptions, setTagOptions] = useState(Array.isArray(availableTags) ? availableTags : []);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [activeSort, setActiveSort] = useState(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const allVisibleSelected = studentRows.length > 0 && studentRows.every((student) => selectedSet.has(student.id));
+  const displayedRows = useMemo(() => {
+    if (!activeSort?.key) return studentRows;
+    return [...studentRows].sort((left, right) => compareTableRows(left, right, activeSort));
+  }, [activeSort, studentRows]);
+  const allVisibleSelected = displayedRows.length > 0 && displayedRows.every((student) => selectedSet.has(student.id));
+
+  function handleHeaderSort(columnKey, mode) {
+    setActiveSort((current) => (
+      current?.key === columnKey && current?.mode === mode ? null : { key: columnKey, mode }
+    ));
+  }
 
   function updateStudentRow(studentId, updater) {
     setStudentRows((current) => current.map((student) => (
@@ -459,7 +543,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
   }
 
   function toggleAll(checked) {
-    setSelectedIds(checked ? studentRows.map((student) => student.id) : []);
+    setSelectedIds(checked ? displayedRows.map((student) => student.id) : []);
   }
 
   function closeBulk() {
@@ -551,11 +635,21 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
           <div className="bulk-toolbar-copy">
             <strong>פעולות מרוכזות על התצוגה הנוכחית</strong>
             <div className="muted">נבחרו לעדכון מרוכז: <b>{selectedIds.length}</b> מתוך <b>{studentRows.length}</b> רשומות בתצוגה</div>
+            {activeSort ? (
+              <div className="muted">
+                מיון מהיר פעיל: {[...selectedColumns, ...DEFAULT_TABLE_COLUMNS].find((column) => column.key === activeSort.key)?.label || activeSort.key}
+                {" "}
+                {activeSort.mode === "empty" ? "ריקים תחילה" : activeSort.mode === "filled" ? "מלאים תחילה" : activeSort.mode === "desc" ? "יורד" : "עולה"}
+              </div>
+            ) : null}
             {feedback ? <div className="student-inline-feedback">{feedback}</div> : null}
           </div>
           <div className="quick-actions bulk-toolbar-actions" style={{ marginTop: 0 }}>
-            <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(studentRows.map((student) => student.id))}>
-              בחר את כל {studentRows.length} הרשומות בתצוגה
+            <button type="button" className="btn btn-primary bulk-primary-btn" onClick={() => setSelectedIds(displayedRows.map((student) => student.id))}>
+              בחר את כל {displayedRows.length} הרשומות בתצוגה
+            </button>
+            <button type="button" className="btn btn-ghost bulk-open-btn" disabled={!activeSort} onClick={() => setActiveSort(null)}>
+              נקה מיון מהיר
             </button>
             <Link className="btn btn-ghost bulk-open-btn" href={emailHref} aria-disabled={!studentRows.length} onClick={(event) => {
               if (!studentRows.length) event.preventDefault();
@@ -711,7 +805,9 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <th className="selection-cell">
                   <input type="checkbox" checked={allVisibleSelected} onChange={(event) => toggleAll(event.target.checked)} />
                 </th>
-                {selectedColumns.map((col) => <th key={col.key}>{col.label}</th>)}
+                {selectedColumns.map((col) => (
+                  <TableSortHeader key={col.key} column={col} activeSort={activeSort} onSort={handleHeaderSort} />
+                ))}
                 {canSendEmails ? <th>מייל</th> : null}
               </tr>
             ) : (
@@ -719,24 +815,21 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 <th className="selection-cell">
                   <input type="checkbox" checked={allVisibleSelected} onChange={(event) => toggleAll(event.target.checked)} />
                 </th>
-                <th>שם</th>
+                <TableSortHeader column={DEFAULT_TABLE_COLUMNS[0]} activeSort={activeSort} onSort={handleHeaderSort} />
                 {showMatchScores ? <th>דיוק</th> : null}
-                <th>שיעור</th>
-                <th>ת"ז</th>
-                <th>גיל</th>
-                <th>טלפון תלמיד</th>
-                <th>טלפון אב</th>
-                <th>טלפון אם</th>
+                {DEFAULT_TABLE_COLUMNS.slice(1, 7).map((column) => (
+                  <TableSortHeader key={column.key} column={column} activeSort={activeSort} onSort={handleHeaderSort} />
+                ))}
                 <th>יצירת קשר</th>
                 <th>אירוע</th>
                 {canSendEmails ? <th>מייל</th> : null}
                 <th>תוויות</th>
-                <th>חוסרים</th>
+                <TableSortHeader column={DEFAULT_TABLE_COLUMNS[7]} activeSort={activeSort} onSort={handleHeaderSort} />
               </tr>
             )}
           </thead>
           <tbody>
-            {!studentRows.length ? (
+            {!displayedRows.length ? (
               <tr>
                 <td
                   colSpan={
@@ -750,7 +843,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 </td>
               </tr>
             ) : showInstitutionView ? (
-              studentRows.map((student) => {
+              displayedRows.map((student) => {
                 const hasMissing = (student.missingItems || []).length > 0;
                 return (
                   <tr key={student.id} style={hasMissing ? { background: "#fff1f2" } : undefined}>
@@ -771,7 +864,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                 );
               })
             ) : (
-              studentRows.map((student) => {
+              displayedRows.map((student) => {
                 const missingState = buildMissingState(student);
                 const hasMissing = missingState.items.length > 0;
                 return (
@@ -816,10 +909,10 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
       </div>
 
       <div className="mobile-student-list">
-        {!studentRows.length ? (
+        {!displayedRows.length ? (
           <div className="card muted">אין תוצאות</div>
         ) : showInstitutionView ? (
-          studentRows.map((student) => {
+          displayedRows.map((student) => {
             const hasMissing = (student.missingItems || []).length > 0;
             return (
               <div key={student.id} className={`student-mobile-card ${hasMissing ? "missing" : ""}`}>
@@ -848,7 +941,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
             );
           })
         ) : (
-          studentRows.map((student) => {
+          displayedRows.map((student) => {
             const missingState = buildMissingState(student);
             const hasMissing = missingState.items.length > 0;
             return (

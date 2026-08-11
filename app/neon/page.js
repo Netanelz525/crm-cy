@@ -40,6 +40,7 @@ import {
   saveNeonPreferencesAction
 } from "./actions";
 import BulkStudentsClient from "./bulk-students-client";
+import ColumnPickerClient from "./column-picker-client";
 import UpcomingEventsBoardClient from "./upcoming-events-board-client";
 
 const NEON_SORT_LEVEL_COUNT = 3;
@@ -657,14 +658,10 @@ export default async function NeonPage({ searchParams }) {
                     <option value="identity">חוסר בת"ז או תאריך לידה</option>
                   </select>
                 </div>
-                <div className="column-grid">
-                  {Object.values(INSTITUTION_COLUMN_MAP).map((col) => (
-                    <label key={col.key} className="column-item">
-                      <input type="checkbox" name="cols" value={col.key} defaultChecked={selectedColumnKeys.includes(col.key)} />
-                      <span>{col.label}</span>
-                    </label>
-                  ))}
-                </div>
+                <ColumnPickerClient
+                  columns={Object.values(INSTITUTION_COLUMN_MAP)}
+                  selectedColumnKeys={selectedColumnKeys}
+                />
                 <button type="submit">עדכן תצוגה</button>
               </form>
             </details>

@@ -3938,6 +3938,24 @@ td {
     width: 100%;
   }
 
+  .field-picker-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .field-sort-buttons,
+  .table-sort-buttons {
+    width: 100%;
+  }
+
+  .field-sort-buttons button {
+    flex: 1 1 88px;
+  }
+
+  .table-sort-head {
+    min-width: 96px;
+  }
+
   .announcement-bottom-actions {
     justify-content: stretch;
   }
@@ -4000,6 +4018,88 @@ td {
 
 .column-item input {
   width: auto;
+}
+
+.column-picker-client {
+  display: grid;
+  gap: 10px;
+}
+
+.field-picker-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.field-picker-search {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.field-picker-search span {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.field-sort-buttons,
+.table-sort-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.field-sort-buttons button,
+.table-sort-buttons button {
+  width: auto;
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.field-sort-buttons button.active,
+.table-sort-buttons button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.field-picker-count {
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.field-picker-grid {
+  align-items: stretch;
+}
+
+.table-sort-head {
+  display: grid;
+  gap: 6px;
+  min-width: 118px;
+}
+
+.table-sort-head > span {
+  white-space: nowrap;
+}
+
+.table-sort-buttons {
+  gap: 4px;
+}
+
+.table-sort-buttons button {
+  min-height: 26px;
+  padding: 4px 7px;
+  font-size: 0.72rem;
 }
 
 .display-settings {
