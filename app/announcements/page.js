@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listAnnouncementSignatures, listAnnouncements, listAnnouncementTemplates } from "../../lib/announcements";
 import { requireAuthenticatedUser } from "../../lib/rbac";
+import { canUseColorPrint } from "../../lib/print-jobs";
 import { createAnnouncementSignatureAction, createAnnouncementTemplateAction, createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
 import AnnouncementGeneratorClient from "./announcement-generator-client";
 import AnnouncementTemplateFieldsClient from "./announcement-template-fields-client";
@@ -122,6 +123,7 @@ export default async function AnnouncementsPage({ searchParams }) {
           signatures={signatureOptions}
           action={createQueuedAnnouncementAction}
           initialTemplateId={selectedTemplateId}
+          canUseColor={canUseColorPrint(user)}
         />
       </div>
 

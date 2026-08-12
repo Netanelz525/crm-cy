@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById, listAnnouncementSignatures } from "../../../lib/announcements";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
+import { canUseColorPrint } from "../../../lib/print-jobs";
 import { updateQueuedAnnouncementAction } from "../actions";
 
 function clean(value) {
@@ -212,10 +213,19 @@ export default async function AnnouncementPage({ params, searchParams }) {
           <div className="announcement-print-options">
             <label>
               <span>סוג הדפסה עבור הדפסה מחדש</span>
-              <select name="printPlan" defaultValue="corner-staple">
-                <option value="corner-staple">A4 רגיל, הידוק פינה ימנית עליונה</option>
-                <option value="duplex">A4 רגיל דו-צדדי</option>
-                <option value="booklet">חוברת A3, קיפול והידוק</option>
+              <select name="printPlan" defaultValue="corner-staple-bw">
+                <option value="corner-staple-bw">שחור לבן, A4 הידוק פינה ימנית עליונה</option>
+                <option value="duplex-bw">שחור לבן, A4 דו-צדדי</option>
+                <option value="booklet-bw">שחור לבן, חוברת A3</option>
+                <option value="single-a4-bw">שחור לבן, A4 צד אחד</option>
+                <option value="single-a3-bw">שחור לבן, A3 צד אחד</option>
+                {canUseColorPrint(user) ? <>
+                  <option value="booklet-color">צבע, חוברת A3</option>
+                  <option value="duplex-color">צבע, A4 דו-צדדי</option>
+                  <option value="corner-staple-color">צבע, A4 הידוק פינה</option>
+                  <option value="single-a4-color">צבע, A4 צד אחד</option>
+                  <option value="single-a3-color">צבע, A3 צד אחד</option>
+                </> : null}
                 <option value="convert-pdf">המרת קובץ ל-PDF</option>
               </select>
             </label>

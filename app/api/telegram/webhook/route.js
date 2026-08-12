@@ -4,7 +4,7 @@ import { getTelegramWebhookSecret, getTelegramLinkByChatId, consumeTelegramLinkC
 import { processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { clearAiChatMessagePendingAction, createAiChatMessage, getAiChatMessageById, getAiChatMessageByIdPrefix, setAiChatMessageExportColumns, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { createPrintJobFromStoredDocument, processDocumentWorkflowAttachment, processStoredDocumentForStudentLink } from "../../../../lib/ai-document-agent";
-import { canAccessPrintFeature } from "../../../../lib/print-jobs";
+import { canAccessPrintFeature, canUseColorPrint } from "../../../../lib/print-jobs";
 import { buildInstitutionCsvExport, buildInstitutionPdfExport } from "../../../../lib/institution-exports";
 import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
@@ -353,21 +353,30 @@ function buildExportUrlWithOptions(url, { columns = [], sortLevels = [] } = {}) 
 }
 
 const DOCUMENT_PRINT_PLANS = [
-  { value: "corner-staple", label: "הידוק פינה מומלץ" },
-  { value: "duplex", label: "A4 דו צדדי" },
-  { value: "booklet", label: "חוברת A3" },
+  { value: "corner-staple-bw", label: "שחור לבן, הידוק פינה" },
+  { value: "duplex-bw", label: "שחור לבן, A4 דו צדדי" },
+  { value: "booklet-bw", label: "שחור לבן, חוברת A3" },
+  { value: "single-a4-bw", label: "שחור לבן, A4 צד אחד" },
+  { value: "single-a3-bw", label: "שחור לבן, A3 צד אחד" },
   { value: "convert-pdf", label: "המרה ל-PDF" }
+];
+const COLOR_DOCUMENT_PRINT_PLANS = [
+  { value: "corner-staple-color", label: "צבע, הידוק פינה" },
+  { value: "duplex-color", label: "צבע, A4 דו צדדי" },
+  { value: "booklet-color", label: "צבע, חוברת A3" },
+  { value: "single-a4-color", label: "צבע, A4 צד אחד" },
+  { value: "single-a3-color", label: "צבע, A3 צד אחד" }
 ];
 const DOCUMENT_PRINT_COPIES = [1, 5, 20, 40];
 
-function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", actionLinks = [], exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true, canLinkStudentDocuments = false }) {
+function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards = [], viewUrl = "", exportUrl = "", pdfUrl = "", actionLinks = [], exportColumns = [], sortLevels = [], hasMore = false, includeFeedback = true, canLinkStudentDocuments = false, canUseColor = false }) {
   const inlineKeyboard = [];
   const isPaymentReport = isPaymentReportLink(exportUrl) || isPaymentReportLink(pdfUrl) || isPaymentViewLink(viewUrl);
 
   if (clean(pendingAction?.type) === "document_workflow" && messageId) {
     return {
       inline_keyboard: [
-        ...DOCUMENT_PRINT_PLANS.map((plan) => ([
+        ...[...DOCUMENT_PRINT_PLANS, ...(canUseColor ? COLOR_DOCUMENT_PRINT_PLANS : [])].map((plan) => ([
           { text: plan.label, callback_data: `docplan:${plan.value}:${messageId}` }
         ])),
         ...(canLinkStudentDocuments ? [[
@@ -754,7 +763,8 @@ export async function POST(request) {
             actionLinks: result.actionLinks || [],
             exportColumns: result.exportColumns || [],
             sortLevels: result.sortLevels || [],
-            canLinkStudentDocuments: canLinkDocumentsToStudents(user)
+            canLinkStudentDocuments: canLinkDocumentsToStudents(user),
+            canUseColor: canUseColorPrint(user)
           })
         });
         return NextResponse.json({ ok: true });
@@ -1353,6 +1363,7 @@ export async function POST(request) {
         sortLevels: result.sortLevels || [],
         hasMore: collapsedReply.hasMore,
         canLinkStudentDocuments: canLinkDocumentsToStudents(user)
+        , canUseColor: canUseColorPrint(user)
       });
     await sendTelegramMessageWithFallback(chatId, replyText, { replyMarkup });
 

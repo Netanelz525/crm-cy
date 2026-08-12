@@ -3,27 +3,42 @@
 import { useRef, useState } from "react";
 
 const CHUNK_BASE64_LENGTH = 650000;
-const PRINT_PLAN_OPTIONS = [
+const BW_PRINT_PLAN_OPTIONS = [
   {
-    value: "booklet",
-    label: "חוברת A3",
+    value: "booklet-bw",
+    label: "חוברת A3 שחור לבן",
     description: "פריסה מימין לשמאל, קיפול/הידוק"
   },
   {
-    value: "duplex",
-    label: "A4 דו-צדדי",
+    value: "duplex-bw",
+    label: "A4 דו-צדדי שחור לבן",
     description: "רגיל, דו-צדדי כשיש יותר מעמוד אחד"
   },
   {
-    value: "corner-staple",
-    label: "A4 עם הידוק פינה",
+    value: "corner-staple-bw",
+    label: "A4 שחור לבן עם הידוק פינה",
     description: "מימין לשמאל, הידוק פינה ימנית עליונה"
+  },
+  {
+    value: "single-a4-bw",
+    label: "A4 שחור לבן, צד אחד",
+    description: "A4, צד אחד בלבד"
+  },
+  {
+    value: "single-a3-bw",
+    label: "A3 שחור לבן, צד אחד",
+    description: "A3, צד אחד בלבד"
   },
   {
     value: "convert-pdf",
     label: "המרת קובץ ל-PDF",
     description: "לקבצי Word/Excel, חיוב 2 עמודים"
-  }
+  },
+  { value: "booklet-color", label: "חוברת A3 צבע", description: "פריסה מימין לשמאל, קיפול/הידוק" },
+  { value: "duplex-color", label: "A4 דו-צדדי צבע", description: "רגיל, דו-צדדי" },
+  { value: "corner-staple-color", label: "A4 צבע עם הידוק פינה", description: "מימין לשמאל, הידוק פינה ימנית עליונה" },
+  { value: "single-a4-color", label: "A4 צבע, צד אחד", description: "A4, צד אחד בלבד" },
+  { value: "single-a3-color", label: "A3 צבע, צד אחד", description: "A3, צד אחד בלבד" }
 ];
 
 function clean(value) {
@@ -78,10 +93,11 @@ async function postUploadPart(payload) {
   return data;
 }
 
-export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unlimitedPrintCredit = false }) {
+export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unlimitedPrintCredit = false, canUseColor = false }) {
+  const printPlanOptions = canUseColor ? BW_PRINT_PLAN_OPTIONS : BW_PRINT_PLAN_OPTIONS.slice(0, 6);
   const [selectedFile, setSelectedFile] = useState(null);
   const [copies, setCopies] = useState("1");
-  const [printPlan, setPrintPlan] = useState("booklet");
+  const [printPlan, setPrintPlan] = useState("booklet-bw");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
@@ -195,7 +211,7 @@ export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unl
       <label>
         <span className="muted">סוג הדפסה</span>
         <select value={printPlan} onChange={(event) => setPrintPlan(event.target.value)} disabled={submitting}>
-          {PRINT_PLAN_OPTIONS.map((option) => (
+          {printPlanOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label} - {option.description}
             </option>

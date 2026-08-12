@@ -10,6 +10,7 @@ import {
   MAX_PRINT_FILE_BYTES,
   PRINT_CREDIT_PACKAGES
 } from "../../lib/print-jobs";
+import { canUseColorPrint } from "../../lib/print-jobs";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { getStudentById } from "../../lib/twenty";
 import PrintCreditPurchaseClient from "./print-credit-purchase-client";
@@ -156,6 +157,7 @@ export default async function PrintPage({ searchParams }) {
             maxFileBytes={MAX_PRINT_FILE_BYTES}
             creditBalance={creditBalance || 0}
             unlimitedPrintCredit={unlimitedPrintCredit}
+            canUseColor={canUseColorPrint(user)}
           />
         </div>
 

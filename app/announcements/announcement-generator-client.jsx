@@ -3,11 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-const PRINT_PLANS = [
-  { value: "corner-staple", label: "A4 רגיל, הידוק פינה ימנית עליונה" },
-  { value: "duplex", label: "A4 רגיל דו-צדדי" },
-  { value: "booklet", label: "חוברת A3, קיפול והידוק" },
+const BW_PRINT_PLANS = [
+  { value: "corner-staple-bw", label: "שחור לבן, A4 הידוק פינה" },
+  { value: "duplex-bw", label: "שחור לבן, A4 דו-צדדי" },
+  { value: "booklet-bw", label: "שחור לבן, חוברת A3" },
+  { value: "single-a4-bw", label: "שחור לבן, A4 צד אחד" },
+  { value: "single-a3-bw", label: "שחור לבן, A3 צד אחד" },
   { value: "convert-pdf", label: "המרת קובץ ל-PDF" }
+];
+const COLOR_PRINT_PLANS = [
+  { value: "corner-staple-color", label: "צבע, A4 הידוק פינה" },
+  { value: "duplex-color", label: "צבע, A4 דו-צדדי" },
+  { value: "booklet-color", label: "צבע, חוברת A3" },
+  { value: "single-a4-color", label: "צבע, A4 צד אחד" },
+  { value: "single-a3-color", label: "צבע, A3 צד אחד" }
 ];
 
 const FAVORITES_STORAGE_KEY = "crm-announcement-template-favorites";
@@ -27,7 +36,8 @@ function SubmitButton() {
   );
 }
 
-export default function AnnouncementGeneratorClient({ templates, signatures = [], action, initialTemplateId = "" }) {
+export default function AnnouncementGeneratorClient({ templates, signatures = [], action, initialTemplateId = "", canUseColor = false }) {
+  const printPlans = canUseColor ? [...BW_PRINT_PLANS, ...COLOR_PRINT_PLANS] : BW_PRINT_PLANS;
   const initialSelectedId = templates.some((template) => template.id === initialTemplateId)
     ? initialTemplateId
     : templates[0]?.id || "";
@@ -257,8 +267,8 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
         <div className={`announcement-print-options${outputMode === "print" ? "" : " muted-options"}`}>
           <label>
             <span>סוג הדפסה</span>
-            <select name="printPlan" defaultValue="corner-staple" disabled={outputMode !== "print"}>
-              {PRINT_PLANS.map((plan) => (
+            <select name="printPlan" defaultValue="corner-staple-bw" disabled={outputMode !== "print"}>
+              {printPlans.map((plan) => (
                 <option key={plan.value} value={plan.value}>{plan.label}</option>
               ))}
             </select>

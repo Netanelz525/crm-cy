@@ -4,7 +4,7 @@ import { getAppUserByClerkUserId } from "../../../../lib/rbac";
 import { clearAiChatMessagePendingAction, getAiChatMessageById, setAiChatMessageFeedback, setAiChatMessageReportConfig } from "../../../../lib/ai-chat-history";
 import { CRM_SCOPE_MESSAGE, processTextAiMessage, handleApprovedAiAction, getPendingActionForMessage } from "../../../../lib/ai-text-agent";
 import { createPrintJobFromStoredDocument, processDocumentWorkflowAttachment, processStoredDocumentForStudentLink } from "../../../../lib/ai-document-agent";
-import { canAccessPrintFeature, canUsePrintQueue } from "../../../../lib/print-jobs";
+import { canAccessPrintFeature, canUseColorPrint, canUsePrintQueue } from "../../../../lib/print-jobs";
 import { buildPaymentReportAgentResultFromConfig } from "../../../../lib/payment-agent";
 import { buildPaymentReportUrls } from "../../../../lib/payment-report";
 import { buildStudentCardLines } from "../../../../lib/student-agent";
@@ -331,10 +331,19 @@ function isDocumentWorkflowAction(pendingAction) {
 }
 
 const DOCUMENT_PRINT_PLANS = [
-  { value: "corner-staple", label: "הידוק פינה מומלץ", description: "A4 מימין לשמאל, ברירת מחדל" },
-  { value: "duplex", label: "A4 דו צדדי", description: "בלי חוברת ובלי הידוק" },
-  { value: "booklet", label: "חוברת A3", description: "פריסה מימין לשמאל" },
-  { value: "convert-pdf", label: "המרה ל-PDF", description: "לקבצי Word/Excel, חיוב 2 עמודים" }
+  { value: "corner-staple-bw", label: "שחור לבן, הידוק פינה", description: "A4 מימין לשמאל" },
+  { value: "duplex-bw", label: "שחור לבן, A4 דו צדדי", description: "בלי חוברת ובלי הידוק" },
+  { value: "booklet-bw", label: "שחור לבן, חוברת A3", description: "פריסה מימין לשמאל" },
+  { value: "single-a4-bw", label: "שחור לבן, A4 צד אחד", description: "צד אחד בלבד" },
+  { value: "single-a3-bw", label: "שחור לבן, A3 צד אחד", description: "צד אחד בלבד" },
+  { value: "convert-pdf", label: "המרה ל-PDF", description: "לקבצי Word/Excel" }
+];
+const COLOR_DOCUMENT_PRINT_PLANS = [
+  { value: "corner-staple-color", label: "צבע, הידוק פינה", description: "A4 מימין לשמאל" },
+  { value: "duplex-color", label: "צבע, A4 דו צדדי", description: "בלי חוברת ובלי הידוק" },
+  { value: "booklet-color", label: "צבע, חוברת A3", description: "פריסה מימין לשמאל" },
+  { value: "single-a4-color", label: "צבע, A4 צד אחד", description: "צד אחד בלבד" },
+  { value: "single-a3-color", label: "צבע, A3 צד אחד", description: "צד אחד בלבד" }
 ];
 const DOCUMENT_PRINT_COPIES = [1, 5, 20, 40];
 
@@ -371,7 +380,7 @@ async function sendWhatsAppAdditionalCopiesPrompt(waId, { messageId, printPlan, 
 
 async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
   if (!isDocumentWorkflowAction(result?.pendingAction) || !result?.id) return false;
-  const rows = DOCUMENT_PRINT_PLANS.map((plan) => ({
+  const rows = [...DOCUMENT_PRINT_PLANS, ...(canUseColorPrint(user) ? COLOR_DOCUMENT_PRINT_PLANS : [])].map((plan) => ({
     id: `docPrintPlan:${plan.value}:${result.id}`,
     title: plan.label,
     description: plan.description
