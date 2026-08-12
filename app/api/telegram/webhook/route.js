@@ -388,10 +388,18 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   actionButtons.forEach((button) => inlineKeyboard.push([button]));
 
   if (pendingAction) {
-    inlineKeyboard.push([
-      { text: "אשר", callback_data: `approve:${messageId}` },
-      { text: "סרב", callback_data: `reject:${messageId}` }
-    ]);
+    if (clean(pendingAction.type) === "attach_document") {
+      inlineKeyboard.push([
+        { text: "שייך צילום בלבד", callback_data: `attachonly:${messageId}` },
+        { text: "שייך ועדכן", callback_data: `approve:${messageId}` }
+      ]);
+      inlineKeyboard.push([{ text: "סרב", callback_data: `reject:${messageId}` }]);
+    } else {
+      inlineKeyboard.push([
+        { text: "אשר", callback_data: `approve:${messageId}` },
+        { text: "סרב", callback_data: `reject:${messageId}` }
+      ]);
+    }
   }
 
   const paymentViewUrl = isPaymentReport && messageId ? buildAiLinkPath(messageId, "view") : viewUrl;
@@ -1218,7 +1226,8 @@ export async function POST(request) {
         return NextResponse.json({ ok: true });
       }
 
-      const result = await handleApprovedAiAction({ user, decision: action, pendingAction, messageId });
+      const normalizedDecision = action === "attachonly" ? "attach_only" : action;
+      const result = await handleApprovedAiAction({ user, decision: normalizedDecision, pendingAction, messageId });
       if (callback?.message?.message_id) {
         await editTelegramMessageReplyMarkup({
           chatId,
@@ -1231,7 +1240,7 @@ export async function POST(request) {
           })
         }).catch(() => null);
       }
-      await answerTelegramCallbackQuery(callback.id, action === "approve" ? "הפעולה אושרה" : "הפעולה נדחתה");
+      await answerTelegramCallbackQuery(callback.id, normalizedDecision === "attach_only" ? "הצילום שויך ללא שינוי שדות" : normalizedDecision === "approve" ? "הפעולה אושרה" : "הפעולה נדחתה");
       const approvalReplyMarkup = isPaymentReportMessage(result)
         ? await buildTelegramPaymentKeyboard({ messageId, messageRecord: { ...result, id: messageId } })
         : buildTelegramKeyboard({

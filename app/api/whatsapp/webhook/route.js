@@ -675,12 +675,19 @@ async function sendWhatsAppResult(waId, result, user = null) {
   }
 
   if (result?.pendingAction?.id && result?.id) {
+    const isDocumentUpdateChoice = result.pendingAction.type === "attach_document";
     await sendWhatsAppReplyButtons(waId, {
-      bodyText: "לא בוצע שינוי עדיין. אפשר לאשר או לדחות כאן.",
-      buttons: [
-        { id: `approve:${result.id}`, title: "אשר" },
-        { id: `reject:${result.id}`, title: "דחה" }
-      ]
+      bodyText: isDocumentUpdateChoice ? "בחר אם לשייך את הצילום בלבד או גם לעדכן את פרטי התלמיד." : "לא בוצע שינוי עדיין. אפשר לאשר או לדחות כאן.",
+      buttons: isDocumentUpdateChoice
+        ? [
+          { id: `attachonly:${result.id}`, title: "שייך צילום בלבד" },
+          { id: `approve:${result.id}`, title: "שייך ועדכן" },
+          { id: `reject:${result.id}`, title: "דחה" }
+        ]
+        : [
+          { id: `approve:${result.id}`, title: "אשר" },
+          { id: `reject:${result.id}`, title: "דחה" }
+        ]
     });
     return;
   }
@@ -1412,7 +1419,7 @@ export async function POST(request) {
         return NextResponse.json({ ok: true });
       }
 
-      if (interactiveActionId.startsWith("approve:") || interactiveActionId.startsWith("reject:")) {
+      if (interactiveActionId.startsWith("approve:") || interactiveActionId.startsWith("attachonly:") || interactiveActionId.startsWith("reject:")) {
         const [decision, messageId] = interactiveActionId.split(":");
         const pendingAction = await getPendingActionForMessage({
           clerkUserId: user.clerk_user_id,
@@ -1429,7 +1436,8 @@ export async function POST(request) {
           return NextResponse.json({ ok: true });
         }
 
-        const result = await handleApprovedAiAction({ user, decision, pendingAction, messageId });
+        const normalizedDecision = decision === "attachonly" ? "attach_only" : decision;
+        const result = await handleApprovedAiAction({ user, decision: normalizedDecision, pendingAction, messageId });
         const assistantMessage = await getAiChatMessageById({
           clerkUserId: user.clerk_user_id,
           messageId
@@ -1443,7 +1451,7 @@ export async function POST(request) {
           exportUrl: assistantMessage?.exportUrl || ""
         }, user);
         await updateWhatsAppInboundEvent(inboundEvent.id, {
-          processingStatus: decision === "approve" ? "approved_action" : "rejected_action",
+          processingStatus: normalizedDecision === "approve" ? "approved_action" : normalizedDecision === "attach_only" ? "attached_document_only" : "rejected_action",
           clerkUserId: user.clerk_user_id,
           responseText: result.reply
         });

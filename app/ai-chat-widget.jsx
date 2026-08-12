@@ -202,12 +202,17 @@ function MessageCard({ message, onDecision, onFeedback, deciding }) {
       ) : null}
       {message.pendingAction ? (
         <div className="ai-chat-decision-row">
-          <button type="button" onClick={() => onDecision(message, "approve")} disabled={deciding}>
+          {message.pendingAction.type === "attach_document" ? (
+            <>
+              <button type="button" onClick={() => onDecision(message, "attach_only")} disabled={deciding}>שייך צילום בלבד</button>
+              <button type="button" onClick={() => onDecision(message, "approve")} disabled={deciding}>שייך ועדכן שדות</button>
+            </>
+          ) : <button type="button" onClick={() => onDecision(message, "approve")} disabled={deciding}>
             {message.pendingAction.type === "create_student" ? "אשר יצירת תלמיד ושיוך מסמך"
               : message.pendingAction.type === "create_student_manual" ? "אשר יצירת תלמיד"
                 : message.pendingAction.type === "update_student" ? "אשר עדכון תלמיד"
-                  : "אשר פעולה"}
-          </button>
+                : "אשר פעולה"}
+          </button>}
           <button type="button" className="ai-chat-reject-btn" onClick={() => onDecision(message, "reject")} disabled={deciding}>
             סרב
           </button>

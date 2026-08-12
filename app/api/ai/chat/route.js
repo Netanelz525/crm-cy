@@ -661,7 +661,7 @@ export async function PUT(request) {
       return badRequest("Missing pending action");
     }
 
-    if (!["approve", "reject"].includes(decision)) {
+    if (!["approve", "attach_only", "reject"].includes(decision)) {
       return badRequest("Invalid decision");
     }
 
