@@ -7,7 +7,8 @@ import {
   unlinkUserWhatsAppAction,
   updateUserAgentPreferencesAction,
   updateUserWeeklyBackupPreferencesAction,
-  updateUserRoleAction
+  updateUserRoleAction,
+  updateUserPrintColorPermissionAction
 } from "../../actions";
 import UserSettingsClient from "../../user-settings-client";
 import { getAppUserByClerkUserId, requireSuperAdmin } from "../../../../lib/rbac";
@@ -27,6 +28,7 @@ export default async function AdminUserSettingsPage({ params }) {
       onUnlinkWhatsApp={unlinkUserWhatsAppAction}
       onSaveRole={updateUserRoleAction}
       onSavePreferences={updateUserAgentPreferencesAction}
+      onSavePrintColorPermission={updateUserPrintColorPermissionAction}
       onSaveWeeklyBackupPreferences={updateUserWeeklyBackupPreferencesAction}
       onDeleteUser={deleteUserAction}
     />

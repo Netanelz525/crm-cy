@@ -66,6 +66,7 @@ export default function UserSettingsClient({
   onUnlinkWhatsApp,
   onSaveRole,
   onSavePreferences,
+  onSavePrintColorPermission,
   onSaveWeeklyBackupPreferences,
   onDeleteUser
 }) {
@@ -143,6 +144,16 @@ export default function UserSettingsClient({
     return runAction("prefs", async () => {
       await onSavePreferences(formData);
       setMessage("העדפות הערוץ נשמרו.");
+    });
+  }
+
+  function handlePrintColorSave() {
+    const formData = new FormData();
+    formData.set("targetUserId", user.clerk_user_id);
+    formData.set("printColorEnabled", document.getElementById("print-color-enabled")?.checked ? "1" : "0");
+    return runAction("print-color", async () => {
+      await onSavePrintColorPermission(formData);
+      setMessage("הרשאת הדפסה בצבע נשמרה.");
     });
   }
 
@@ -237,6 +248,18 @@ export default function UserSettingsClient({
             שמור העדפות
           </button>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>הרשאות הדפסה</h3>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto" }}>
+          <input id="print-color-enabled" type="checkbox" defaultChecked={user.is_super_admin || user.print_color_enabled === true} disabled={user.is_super_admin} style={{ width: "auto" }} />
+          מורשה להדפסה בצבע
+        </label>
+        <p className="muted" style={{ margin: "8px 0" }}>הדפסה רגילה בשחור־לבן זמינה לפי הרשאת ההדפסה הרגילה. סופר־אדמין מורשה אוטומטית גם לצבע.</p>
+        <button style={{ width: "auto" }} type="button" disabled={user.is_super_admin || busyKey === "print-color"} onClick={handlePrintColorSave}>
+          שמור הרשאת צבע
+        </button>
       </div>
 
       <div className="card">

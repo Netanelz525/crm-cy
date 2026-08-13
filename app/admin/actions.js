@@ -12,6 +12,7 @@ import {
   setAppUserRole,
   setOwnCardEditPermission,
   setUserAgentChannelPreferences,
+  setUserPrintColorPermission,
   setUserWeeklyBackupPreferences
 } from "../../lib/rbac";
 import {
@@ -115,6 +116,14 @@ export async function updateUserAgentPreferencesAction(formData) {
     telegramEnabled: clean(formData.get("agentTelegramEnabled")) === "1",
     whatsappEnabled: clean(formData.get("agentWhatsAppEnabled")) === "1"
   });
+  revalidatePath("/admin");
+}
+
+export async function updateUserPrintColorPermissionAction(formData) {
+  await requireSuperAdmin();
+  const targetUserId = clean(formData.get("targetUserId"));
+  if (!targetUserId) return;
+  await setUserPrintColorPermission(targetUserId, clean(formData.get("printColorEnabled")) === "1");
   revalidatePath("/admin");
 }
 

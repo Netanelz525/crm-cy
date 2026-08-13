@@ -376,9 +376,7 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   if (clean(pendingAction?.type) === "document_workflow" && messageId) {
     return {
       inline_keyboard: [
-        ...[...DOCUMENT_PRINT_PLANS, ...(canUseColor ? COLOR_DOCUMENT_PRINT_PLANS : [])].map((plan) => ([
-          { text: plan.label, callback_data: `docplan:${plan.value}:${messageId}` }
-        ])),
+        [{ text: "הדפסה", callback_data: `docprintstart:${messageId}` }],
         ...(canLinkStudentDocuments ? [[
           { text: "שיוך לתלמיד", callback_data: `docstudent:${messageId}` }
         ]] : [])
@@ -479,6 +477,17 @@ function buildTelegramDocumentCopiesKeyboard({ messageId, printPlan }) {
       [20, 40].map((copies) => ({ text: `עוד ${copies}`, callback_data: `doccopies:${printPlan}:${copies}:${messageId}` }))
     ]
   };
+}
+
+function buildTelegramDocumentPrintPlansKeyboard({ messageId, canUseColor = false, colorOnly = false }) {
+  const plans = colorOnly ? COLOR_DOCUMENT_PRINT_PLANS : DOCUMENT_PRINT_PLANS;
+  const rows = plans.map((plan) => ([
+    { text: plan.label, callback_data: `docplan:${plan.value}:${messageId}` }
+  ]));
+  if (!colorOnly && canUseColor) {
+    rows.push([{ text: "הדפסה בצבע", callback_data: `doccolormenu:${messageId}` }]);
+  }
+  return { inline_keyboard: rows };
 }
 
 function buildTelegramColumnsKeyboard({ messageId, exportColumns = [], sortLevels = [], viewUrl = "", includeFeedback = false }) {
@@ -599,7 +608,7 @@ export async function POST(request) {
         return NextResponse.json({ ok: true });
       }
       const user = await getAppUserByClerkUserId(link.clerk_user_id);
-      if (!user || (!user.is_team_member && !user.is_manager)) {
+      if (!user || (!user.is_team_member && !user.is_manager && !user.is_super_admin && !user.is_print_only && !user.is_marei_mekomot)) {
         await answerTelegramCallbackQuery(callback.id, "אין הרשאה לפעולה.");
         return NextResponse.json({ ok: true });
       }
@@ -609,6 +618,45 @@ export async function POST(request) {
 
       if (action === "noop") {
         await answerTelegramCallbackQuery(callback.id, "שם תלמיד נשאר תמיד.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "docprintstart") {
+        const workflowMessageId = parts[1];
+        const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, workflowMessageId);
+        if (clean(messageRecord?.pendingAction?.type) !== "document_workflow") {
+          await answerTelegramCallbackQuery(callback.id, "לא מצאתי מסמך שממתין להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        await answerTelegramCallbackQuery(callback.id, "בחר תוכנית הדפסה.");
+        await sendTelegramMessage(chatId, "ברירת המחדל היא שחור לבן. בחר תוכנית:", {
+          replyMarkup: buildTelegramDocumentPrintPlansKeyboard({
+            messageId: messageRecord.id,
+            canUseColor: canUseColorPrint(user)
+          })
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "doccolormenu") {
+        const workflowMessageId = parts[1];
+        if (!canUseColorPrint(user)) {
+          await answerTelegramCallbackQuery(callback.id, "הדפסה בצבע זמינה רק למשתמשים מורשים.");
+          return NextResponse.json({ ok: true });
+        }
+        const messageRecord = await resolveTelegramMessageRecord(user.clerk_user_id, workflowMessageId);
+        if (clean(messageRecord?.pendingAction?.type) !== "document_workflow") {
+          await answerTelegramCallbackQuery(callback.id, "לא מצאתי מסמך שממתין להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        await answerTelegramCallbackQuery(callback.id, "בחר תוכנית צבע.");
+        await sendTelegramMessage(chatId, "בחר תוכנית הדפסה בצבע:", {
+          replyMarkup: buildTelegramDocumentPrintPlansKeyboard({
+            messageId: messageRecord.id,
+            canUseColor: true,
+            colorOnly: true
+          })
+        });
         return NextResponse.json({ ok: true });
       }
 
@@ -1362,8 +1410,8 @@ export async function POST(request) {
         exportColumns: result.exportColumns || [],
         sortLevels: result.sortLevels || [],
         hasMore: collapsedReply.hasMore,
-        canLinkStudentDocuments: canLinkDocumentsToStudents(user)
-        , canUseColor: canUseColorPrint(user)
+        canLinkStudentDocuments: canLinkDocumentsToStudents(user),
+        canUseColor: canUseColorPrint(user)
       });
     await sendTelegramMessageWithFallback(chatId, replyText, { replyMarkup });
 
