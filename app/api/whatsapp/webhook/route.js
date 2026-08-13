@@ -380,11 +380,11 @@ async function sendWhatsAppAdditionalCopiesPrompt(waId, { messageId, printPlan, 
 
 async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
   if (!isDocumentWorkflowAction(result?.pendingAction) || !result?.id) return false;
-  const rows = [...DOCUMENT_PRINT_PLANS, ...(canUseColorPrint(user) ? COLOR_DOCUMENT_PRINT_PLANS : [])].map((plan) => ({
-    id: `docPrintPlan:${plan.value}:${result.id}`,
-    title: plan.label,
-    description: plan.description
-  }));
+  const rows = [{
+    id: `docPrintStart:${result.id}`,
+    title: "הדפסה",
+    description: "בחירת תוכנית והדפסת עותק אחד"
+  }];
   if (canLinkDocumentsToStudents(user)) {
     rows.push({
       id: `docStudentLink:${result.id}`,
@@ -393,14 +393,44 @@ async function sendWhatsAppDocumentWorkflowActions(waId, result, user = null) {
     });
   }
   await sendWhatsAppListMessage(waId, {
-    bodyText: "בחר תוכנית הדפסה. מיד לאחר הבחירה יישלח עותק אחד, ואז תוכל לבחור אם להוסיף עוד עותקים.",
-    buttonText: "תוכנית הדפסה",
+    bodyText: "קיבלתי את המסמך. בחר מה לעשות בו. ברירת המחדל היא הדפסה; לסופר־אדמין קיימת גם אפשרות לשייך את המסמך לתלמיד.",
+    buttonText: "מה לעשות במסמך",
     sections: [
       {
         title: "המשך טיפול",
         rows
       }
     ]
+  });
+  return true;
+}
+
+async function sendWhatsAppDocumentPrintPlans(waId, result, user = null, { colorOnly = false } = {}) {
+  if (!isDocumentWorkflowAction(result?.pendingAction) || !result?.id) return false;
+  const plans = colorOnly
+    ? COLOR_DOCUMENT_PRINT_PLANS
+    : DOCUMENT_PRINT_PLANS;
+  const rows = plans.map((plan) => ({
+    id: `docPrintPlan:${plan.value}:${result.id}`,
+    title: plan.label,
+    description: plan.description
+  }));
+  if (!colorOnly && canUseColorPrint(user)) {
+    rows.push({
+      id: `docPrintColorMenu:${result.id}`,
+      title: "הדפסה בצבע",
+      description: "בחירת תוכנית צבעונית"
+    });
+  }
+  await sendWhatsAppListMessage(waId, {
+    bodyText: colorOnly
+      ? "בחר תוכנית הדפסה בצבע. מיד לאחר הבחירה יישלח עותק אחד."
+      : "בחר תוכנית הדפסה. מיד לאחר הבחירה יישלח עותק אחד, ואז תוכל לבחור אם להוסיף עוד עותקים.",
+    buttonText: colorOnly ? "תוכניות צבע" : "תוכנית הדפסה",
+    sections: [{
+      title: colorOnly ? "הדפסה בצבע" : "שחור לבן והמרה",
+      rows
+    }]
   });
   return true;
 }
@@ -933,7 +963,7 @@ export async function POST(request) {
       }
 
       if (!isFullWhatsAppAgentUser(user)) {
-        if (interactiveActionId.startsWith("docPrint:") || interactiveActionId.startsWith("docPrintPlan:") || interactiveActionId.startsWith("docPrintCopies:") || interactiveActionId.startsWith("docPrintDone:")) {
+        if (interactiveActionId.startsWith("docPrint:") || interactiveActionId.startsWith("docPrintStart:") || interactiveActionId.startsWith("docPrintColorMenu:") || interactiveActionId.startsWith("docPrintPlan:") || interactiveActionId.startsWith("docPrintCopies:") || interactiveActionId.startsWith("docPrintDone:")) {
           // Limited users may continue only through the print workflow handlers below.
         } else if (interactiveActionId.startsWith("docStudentLink:")) {
           const responseText = "שיוך מסמך לתלמיד זמין רק לסופר אדמין.";
@@ -1075,6 +1105,38 @@ export async function POST(request) {
           clerkUserId: user.clerk_user_id,
           responseText
         });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("docPrintStart:")) {
+        const [, messageId] = interactiveActionId.split(":");
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isDocumentWorkflowAction(messageRecord?.pendingAction)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        await sendWhatsAppDocumentPrintPlans(waId, messageRecord, user);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (interactiveActionId.startsWith("docPrintColorMenu:")) {
+        const [, messageId] = interactiveActionId.split(":");
+        if (!canUseColorPrint(user)) {
+          await sendWhatsAppTextMessages(waId, "הדפסה בצבע זמינה רק למשתמשים מורשים.");
+          return NextResponse.json({ ok: true });
+        }
+        const messageRecord = await getAiChatMessageById({
+          clerkUserId: user.clerk_user_id,
+          messageId
+        });
+        if (!isDocumentWorkflowAction(messageRecord?.pendingAction)) {
+          await sendWhatsAppTextMessages(waId, "לא מצאתי מסמך שממתין להדפסה.");
+          return NextResponse.json({ ok: true });
+        }
+        await sendWhatsAppDocumentPrintPlans(waId, messageRecord, user, { colorOnly: true });
         return NextResponse.json({ ok: true });
       }
 
