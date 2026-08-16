@@ -422,6 +422,13 @@ async function sendWhatsAppDocumentPrintPlans(waId, result, user = null, { color
       description: "בחירת תוכנית צבעונית"
     });
   }
+  if (!colorOnly && canLinkDocumentsToStudents(user)) {
+    rows.push({
+      id: `docStudentLink:${result.id}`,
+      title: "שיוך לתלמיד",
+      description: "חיפוש תלמיד ושיוך המסמך"
+    });
+  }
   await sendWhatsAppListMessage(waId, {
     bodyText: colorOnly
       ? "בחר תוכנית הדפסה בצבע. מיד לאחר הבחירה יישלח עותק אחד."
@@ -709,7 +716,7 @@ async function sendWhatsAppResult(waId, result, user = null) {
   }
 
   if (isDocumentWorkflowAction(result?.pendingAction)) {
-    await sendWhatsAppDocumentWorkflowActions(waId, result, user);
+    await sendWhatsAppDocumentPrintPlans(waId, result, user);
     return;
   }
 
@@ -813,7 +820,7 @@ async function handleLimitedWhatsAppAgentMessage({ waId, user, text, attachmentM
       source: "whatsapp"
     });
     await sendWhatsAppTextMessages(waId, buildReplyText(result));
-    await sendWhatsAppDocumentWorkflowActions(waId, result, user);
+    await sendWhatsAppDocumentPrintPlans(waId, result, user);
     return "limited_document_print_options_sent";
   }
 

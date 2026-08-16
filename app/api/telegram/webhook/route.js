@@ -374,14 +374,11 @@ function buildTelegramKeyboard({ messageId, pendingAction = null, studentCards =
   const isPaymentReport = isPaymentReportLink(exportUrl) || isPaymentReportLink(pdfUrl) || isPaymentViewLink(viewUrl);
 
   if (clean(pendingAction?.type) === "document_workflow" && messageId) {
-    return {
-      inline_keyboard: [
-        [{ text: "הדפסה", callback_data: `docprintstart:${messageId}` }],
-        ...(canLinkStudentDocuments ? [[
-          { text: "שיוך לתלמיד", callback_data: `docstudent:${messageId}` }
-        ]] : [])
-      ]
-    };
+    return buildTelegramDocumentPrintPlansKeyboard({
+      messageId,
+      canUseColor,
+      canLinkStudentDocuments
+    });
   }
 
   const actionButtons = (Array.isArray(actionLinks) ? actionLinks : [])
@@ -479,13 +476,16 @@ function buildTelegramDocumentCopiesKeyboard({ messageId, printPlan }) {
   };
 }
 
-function buildTelegramDocumentPrintPlansKeyboard({ messageId, canUseColor = false, colorOnly = false }) {
+function buildTelegramDocumentPrintPlansKeyboard({ messageId, canUseColor = false, colorOnly = false, canLinkStudentDocuments = false }) {
   const plans = colorOnly ? COLOR_DOCUMENT_PRINT_PLANS : DOCUMENT_PRINT_PLANS;
   const rows = plans.map((plan) => ([
     { text: plan.label, callback_data: `docplan:${plan.value}:${messageId}` }
   ]));
   if (!colorOnly && canUseColor) {
     rows.push([{ text: "הדפסה בצבע", callback_data: `doccolormenu:${messageId}` }]);
+  }
+  if (!colorOnly && canLinkStudentDocuments) {
+    rows.push([{ text: "שיוך לתלמיד", callback_data: `docstudent:${messageId}` }]);
   }
   return { inline_keyboard: rows };
 }
