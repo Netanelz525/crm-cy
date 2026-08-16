@@ -250,6 +250,8 @@ export default async function NeonPage({ searchParams }) {
   const pdfBlankColumnKeys = parsePdfBlankColumns(resolvedSearchParams);
   const pdfOrientationParam = clean(resolvedSearchParams?.pdfOrientation).toLowerCase();
   const pdfOrientation = pdfOrientationParam === "landscape" ? "landscape" : "portrait";
+  const pdfTextSizeParam = clean(resolvedSearchParams?.pdfTextSize).toLowerCase();
+  const pdfTextSize = ["large", "medium", "small"].includes(pdfTextSizeParam) ? pdfTextSizeParam : "large";
 
   let students = [];
   let error = "";
@@ -314,7 +316,8 @@ export default async function NeonPage({ searchParams }) {
     mode: "institution",
     cols: selectedColumnKeys,
     pdfBlankCol: pdfBlankColumnKeys,
-    pdfOrientation
+    pdfOrientation,
+    pdfTextSize
   });
   const exportHref = currentQueryString ? `/api/export/institution?source=neon&${currentQueryString}` : "/api/export/institution?source=neon";
   const pdfExportHref = currentQueryString ? `/api/export/institution-pdf?source=neon&${currentQueryString}` : "/api/export/institution-pdf?source=neon";
@@ -703,6 +706,11 @@ export default async function NeonPage({ searchParams }) {
                   <select name="pdfOrientation" defaultValue={pdfOrientation}>
                     <option value="portrait">אנכי</option>
                     <option value="landscape">אופקי</option>
+                  </select>
+                  <select name="pdfTextSize" defaultValue={pdfTextSize}>
+                    <option value="large">גודל טקסט גדול</option>
+                    <option value="medium">גודל טקסט בינוני</option>
+                    <option value="small">גודל טקסט קטן</option>
                   </select>
                 </div>
                 <div className="column-grid">
