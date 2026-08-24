@@ -213,6 +213,111 @@ a {
   gap: 10px 14px;
 }
 
+.payment-student-summary {
+  margin: 14px 0;
+  color: var(--muted);
+}
+
+.payment-student-table {
+  display: grid;
+  gap: 8px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.payment-student-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(4, minmax(100px, 1fr));
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.payment-student-row a {
+  font-weight: 800;
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.payment-record-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.payment-record-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfdff;
+  overflow: hidden;
+}
+
+.payment-record-card summary {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(230px, 1.5fr) minmax(150px, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.payment-record-card summary::-webkit-details-marker { display: none; }
+.payment-record-card summary span { color: var(--muted); }
+.payment-linked { color: #166534 !important; font-weight: 800; }
+.payment-unlinked { color: #9a3412 !important; font-weight: 800; }
+
+.payment-record-details {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+.payment-link-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(140px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.payment-student-picker { position: relative; display: grid; gap: 6px; }
+.payment-student-results {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .14);
+}
+
+.payment-student-results button {
+  border: 0;
+  padding: 9px 10px;
+  text-align: right;
+  background: transparent;
+  cursor: pointer;
+}
+
+.payment-student-results button:hover { background: #eff6ff; }
+
+@media (max-width: 900px) {
+  .payment-student-row,
+  .payment-record-card summary,
+  .payment-link-form { grid-template-columns: 1fr 1fr; }
+}
+
 .payments-report-grid-wide {
   grid-column: 1 / -1;
 }

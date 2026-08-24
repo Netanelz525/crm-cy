@@ -1,0 +1,60 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getDefaultPaymentDateRange, getPaymentProviderLabel, listPaymentConnections, getPaymentDashboard, getPaymentMandatesDashboard } from "../../../lib/payment-systems";
+import { listAllNeonStudents } from "../../../lib/neon-students";
+import { listPaymentRecordLinks } from "../../../lib/payment-links";
+import { getCurrentAppUser } from "../../../lib/rbac";
+import PaymentLinkingClient from "./payment-linking-client";
+
+function clean(value) { return String(value || "").trim(); }
+
+export default async function PaymentLinkingPage({ searchParams }) {
+  const user = await getCurrentAppUser();
+  if (!user) redirect("/sign-in?redirect_url=/payments/linking");
+  if (!user.is_team_member && !user.is_manager && !user.is_super_admin) redirect("/unauthorized");
+
+  const params = await searchParams;
+  const defaults = getDefaultPaymentDateRange();
+  const dateFrom = clean(params?.dateFrom) || defaults.dateFrom;
+  const dateTo = clean(params?.dateTo) || defaults.dateTo;
+  const connections = await listPaymentConnections({ activeOnly: true });
+  const selectedIds = connections.map((item) => item.id);
+  const [transactionDashboard, mandateDashboard, students, links] = await Promise.all([
+    getPaymentDashboard({ connectionIds: selectedIds, dateFrom, dateTo }),
+    getPaymentMandatesDashboard({ connectionIds: selectedIds }),
+    listAllNeonStudents(),
+    listPaymentRecordLinks()
+  ]);
+  const providerOptions = [...new Set(connections.map((item) => item.provider))].map((provider) => ({ value: provider, label: getPaymentProviderLabel(provider) }));
+
+  return (
+    <div style={{ display: "grid", gap: 20 }}>
+      <section className="card glass">
+        <h1 style={{ marginTop: 0 }}>שיוך תשלומים לתלמידים</h1>
+        <p className="muted">מסך מרכזי לבדיקת בעלות על עסקאות והוראות קבע, שיוך ידני ותיעוד האם המשלם הוא התלמיד או אחד ההורים.</p>
+        <div className="quick-actions">
+          <Link className="quick-action-btn quick-action-outline" href="/payments">חזרה למערכות תשלום</Link>
+          <Link className="quick-action-btn quick-action-outline" href="/neon">רשימת תלמידים</Link>
+        </div>
+      </section>
+      <PaymentLinkingClient
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        transactions={transactionDashboard.transactions || []}
+        mandates={mandateDashboard.mandates || []}
+        students={students.filter(Boolean).map((student) => ({
+          id: student.id,
+          label: student.label || student.name || "ללא שם",
+          tznum: student.tznum || "",
+          className: student.class || "",
+          institution: student.currentInstitution || ""
+        }))}
+        links={links}
+        connections={connections}
+        providerOptions={providerOptions}
+        notice={clean(params?.notice)}
+        error={clean(params?.error)}
+      />
+    </div>
+  );
+}

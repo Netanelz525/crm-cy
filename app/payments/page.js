@@ -78,6 +78,7 @@ export default async function PaymentsPage({ searchParams }) {
           {currentUser.is_super_admin ? (
             <Link className="quick-action-btn quick-action-outline" href="/admin/payments">ניהול חיבורים</Link>
           ) : null}
+          <Link className="quick-action-btn quick-action-outline" href="/payments/linking">שיוך עסקאות לתלמידים</Link>
         </div>
       </section>
 
