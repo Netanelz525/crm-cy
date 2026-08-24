@@ -10,6 +10,7 @@ import { getResendConfigStatus } from "../../lib/resend";
 import PaymentsReportClient from "./payments-report-client";
 import PaymentMandatesReportClient from "./payment-mandates-report-client";
 import PaymentFilterFormClient from "./payment-filter-form-client";
+import { runPaymentStudentLinkingAction } from "./actions";
 
 function clean(value) {
   return String(value || "").trim();
@@ -38,6 +39,8 @@ export default async function PaymentsPage({ searchParams }) {
     : clean(resolvedSearchParams?.dateTo) || defaults.dateTo;
   const notice = clean(resolvedSearchParams?.notice);
   const error = clean(resolvedSearchParams?.error);
+  const linkingCompleted = clean(resolvedSearchParams?.linkingCompleted) === "1";
+  const linkingError = clean(resolvedSearchParams?.linkingError);
   const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
   const requestedConnectionIds = Array.isArray(resolvedSearchParams?.connectionId)
@@ -77,6 +80,19 @@ export default async function PaymentsPage({ searchParams }) {
           ) : null}
         </div>
       </section>
+
+      {linkingCompleted ? <div className="ok">סריקת התשלומים לחודש {clean(resolvedSearchParams?.linkingMonth)} הסתיימה. בוצעו {clean(resolvedSearchParams?.linked) || "0"} שיוכים אוטומטיים.</div> : null}
+      {linkingError ? <div className="error">{linkingError}</div> : null}
+      {currentUser.is_super_admin ? (
+        <details className="card">
+          <summary><b>סריקה ושיוך תלמידים</b></summary>
+          <form action={runPaymentStudentLinkingAction} className="quick-actions" style={{ marginTop: 12 }}>
+            <label>חודש לסריקה <input type="month" name="periodMonth" defaultValue="2026-07" /></label>
+            <button type="submit" className="quick-action-btn quick-action-primary">סרוק ושייך</button>
+          </form>
+          <p className="muted">שיוך אוטומטי יתבצע רק כאשר לפחות שניים מתוך תעודת זהות, אימייל וטלפון תואמים לתלמיד יחיד.</p>
+        </details>
+      ) : null}
 
       <section className="card">
         <h2 style={{ marginTop: 0 }}>סינון הדוח</h2>

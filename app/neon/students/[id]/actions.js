@@ -19,9 +19,34 @@ import { getNeonStudentById, updateNeonStudentViaTwenty } from "../../../../lib/
 import { addStudentTagToStudent, removeStudentTagFromStudent, replaceStudentTags } from "../../../../lib/student-tags";
 import { createTask, listOfficeTaskEmailUsers } from "../../../../lib/tasks";
 import { buildWhatsAppDeepLink, createWhatsAppLinkCode } from "../../../../lib/whatsapp";
+import { linkPaymentToStudent, unlinkPaymentFromStudent } from "../../../../lib/payment-student-links";
 
 function clean(v) {
   return String(v || "").trim();
+}
+
+export async function linkStudentPaymentAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!(user?.is_team_member || user?.is_manager || user?.is_super_admin)) redirect("/unauthorized");
+  const studentId = clean(formData.get("studentId"));
+  const paymentRecordId = clean(formData.get("paymentRecordId"));
+  if (studentId && paymentRecordId) {
+    await linkPaymentToStudent({ paymentRecordId, studentId, userId: user.clerk_user_id });
+    revalidatePath(`/neon/students/${studentId}`);
+  }
+  redirect(`/neon/students/${encodeURIComponent(studentId)}?paymentLinked=1#payments`);
+}
+
+export async function unlinkStudentPaymentAction(formData) {
+  const user = await requireAuthenticatedUser();
+  if (!(user?.is_team_member || user?.is_manager || user?.is_super_admin)) redirect("/unauthorized");
+  const studentId = clean(formData.get("studentId"));
+  const paymentRecordId = clean(formData.get("paymentRecordId"));
+  if (studentId && paymentRecordId) {
+    await unlinkPaymentFromStudent({ paymentRecordId, studentId });
+    revalidatePath(`/neon/students/${studentId}`);
+  }
+  redirect(`/neon/students/${encodeURIComponent(studentId)}?paymentUnlinked=1#payments`);
 }
 
 function normalizeDigits(value) {

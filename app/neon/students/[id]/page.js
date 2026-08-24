@@ -20,6 +20,7 @@ import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { listTasks, taskStatusLabel } from "../../../../lib/tasks";
+import { listStudentPayments, listUnlinkedPayments } from "../../../../lib/payment-student-links";
 import {
   deleteNeonStudentAction,
   generateStaffWhatsAppAgentLinkAction,
@@ -28,7 +29,9 @@ import {
   updateNeonStudentAction,
   uploadStudentDocumentAction,
   updateStudentDocumentNameAction,
-  updateStudentOpenAttendanceAction
+  updateStudentOpenAttendanceAction,
+  linkStudentPaymentAction,
+  unlinkStudentPaymentAction
 } from "./actions";
 import StudentContactLiveClient from "./student-contact-live-client";
 import StudentEventsLiveClient from "./student-events-live-client";
@@ -48,6 +51,10 @@ function formatDate(value) {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
   return date.toLocaleDateString("he-IL");
+}
+
+function formatPaymentAmount(value, currency = "ILS") {
+  return new Intl.NumberFormat("he-IL", { style: "currency", currency: clean(currency) || "ILS" }).format(Number(value || 0));
 }
 
 function phoneText(phoneObj) {
@@ -293,6 +300,8 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const whatsappInviteTarget = clean(resolvedSearchParams?.waTarget);
   const whatsappInviteExpiresAt = clean(resolvedSearchParams?.waExpiresAt);
   const whatsappInviteError = clean(resolvedSearchParams?.waError);
+  const paymentLinked = clean(resolvedSearchParams?.paymentLinked) === "1";
+  const paymentUnlinked = clean(resolvedSearchParams?.paymentUnlinked) === "1";
 
   const sections = visibleSections(student);
   const editValues = studentToFormValues(student);
@@ -309,13 +318,15 @@ export default async function NeonStudentPage({ params, searchParams }) {
     : null;
   const studentWhatsAppCanPrint = Boolean(studentWhatsAppAgentUser?.is_print_only || studentWhatsAppAgentUser?.can_use_print_queue);
   const emailDeliveries = canViewEmailRecords ? await listStudentEmailDeliveries(studentId, 8) : [];
-  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks] = await Promise.all([
+  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks, studentPayments, unlinkedPayments] = await Promise.all([
     canViewAttendanceHistory ? getAttendanceSummaryForStudent(studentId) : Promise.resolve(null),
     canViewAttendanceHistory ? listAttendanceHistoryForStudent(studentId, { limit: 8 }) : Promise.resolve([]),
     listOpenAttendanceSessionsForStudent(studentId, { limit: 8 }),
     canViewContactRecords ? listStudentContactLogs(studentId, 8) : Promise.resolve([]),
     listStudentEvents(studentId, 12),
-    canManageStudent ? listTasks({ studentId, limit: 20 }) : Promise.resolve([])
+    canManageStudent ? listTasks({ studentId, limit: 20 }) : Promise.resolve([]),
+    canManageStudent ? listStudentPayments(studentId, { limit: 100 }) : Promise.resolve([]),
+    canManageStudent ? listUnlinkedPayments({ limit: 40 }) : Promise.resolve([])
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
@@ -340,6 +351,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link>
+            {canManageStudent ? <Link className="btn btn-ghost" href={`/neon/students/${studentId}?payments=1#payments`}>תשלומים</Link> : null}
             {canManageStudent ? (
               <Link
                 className="btn btn-ghost"
@@ -407,6 +419,8 @@ export default async function NeonStudentPage({ params, searchParams }) {
       {staffEmailWarning ? <div className="card muted">המשימה נפתחה, אבל היתה בעיה בשליחת המייל לצוות: {staffEmailWarning}</div> : null}
       {requestError ? <div className="error">{requestError}</div> : null}
       {errorText ? <div className="card muted">{errorText}</div> : null}
+      {paymentLinked ? <div className="ok">התשלום שויך לתלמיד.</div> : null}
+      {paymentUnlinked ? <div className="ok">שיוך התשלום הוסר.</div> : null}
 
       {canManageWhatsAppAgent ? (
         <details id="whatsapp-agent" className="card">
@@ -530,6 +544,60 @@ export default async function NeonStudentPage({ params, searchParams }) {
           </form>
         )}
       </details>
+
+      {canManageStudent ? (
+        <details id="payments" className="card linked-records-panel" open={clean(resolvedSearchParams?.payments) === "1"}>
+          <summary className="linked-records-toggle">
+            <div>
+              <h3>תשלומים</h3>
+              <p className="muted" style={{ marginBottom: 0 }}>עסקאות והוראות קבע המשויכות לתלמיד.</p>
+            </div>
+            <div className="linked-records-summary">
+              <span className="linked-record-pill">משויכים: {studentPayments.length}</span>
+              <span className="linked-record-pill">ממתינים לשיוך: {unlinkedPayments.length}</span>
+            </div>
+          </summary>
+          <div className="linked-record-group-body">
+            {studentPayments.length ? (
+              <div className="linked-records-grid">
+                {studentPayments.map((payment) => (
+                  <div key={payment.id} className="linked-record-card">
+                    <b>{payment.type === "mandate" ? "הוראת קבע" : "עסקה"} · {payment.customerName || "ללא שם"}</b>
+                    <div className="linked-record-meta">{formatPaymentAmount(payment.amount, payment.currency)} · {payment.provider} · {payment.periodMonth}</div>
+                    <div className="linked-record-meta">מזהה: <span dir="ltr">{payment.externalId}</span></div>
+                    <div className="linked-record-meta">שיוך: {payment.linkSource === "automatic" ? `אוטומטי (${payment.matchedFields.join(", ")})` : "ידני"}</div>
+                    <form action={unlinkStudentPaymentAction} style={{ marginTop: 8 }}>
+                      <input type="hidden" name="studentId" value={studentId} />
+                      <input type="hidden" name="paymentRecordId" value={payment.id} />
+                      <button type="submit" className="quick-action-btn quick-action-outline">הסר שיוך</button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            ) : <div className="muted">לא נמצאו תשלומים משויכים לתלמיד.</div>}
+
+            <details className="linked-record-group" style={{ marginTop: 16 }}>
+              <summary className="linked-record-group-summary">
+                <div><b>שיוך ידני</b><div className="linked-record-meta">רשומות שלא נמצאה להן התאמה של שני מזהים חזקים.</div></div>
+                <span className="linked-record-pill">{unlinkedPayments.length}</span>
+              </summary>
+              <div className="linked-record-group-body">
+                {unlinkedPayments.map((payment) => (
+                  <form key={payment.id} action={linkStudentPaymentAction} className="linked-record-card" style={{ marginBottom: 10 }}>
+                    <input type="hidden" name="studentId" value={studentId} />
+                    <input type="hidden" name="paymentRecordId" value={payment.id} />
+                    <b>{payment.type === "mandate" ? "הוראת קבע" : "עסקה"} · {payment.customerName || "ללא שם"}</b>
+                    <div className="linked-record-meta">{formatPaymentAmount(payment.amount, payment.currency)} · {payment.periodMonth}</div>
+                    <div className="linked-record-meta">ת״ז: {payment.donorId || "-"} · מייל: {payment.email || "-"} · טלפון: {payment.phone || "-"}</div>
+                    <button type="submit" className="quick-action-btn quick-action-primary" style={{ marginTop: 8 }}>שייך לתלמיד זה</button>
+                  </form>
+                ))}
+                {!unlinkedPayments.length ? <div className="muted">אין כרגע רשומות שממתינות לשיוך.</div> : null}
+              </div>
+            </details>
+          </div>
+        </details>
+      ) : null}
 
       <details key={`linked-records-${editMode ? "edit" : "view"}`} className="card linked-records-panel neon-student-linked-records">
         <summary className="linked-records-toggle">

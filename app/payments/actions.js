@@ -1,16 +1,31 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import {
   buildAttachmentsFromForm,
   dispatchEmailCampaign,
   sendCustomEmailCampaign
 } from "../../lib/email-campaigns";
-import { requireEmailSender } from "../../lib/rbac";
+import { requireEmailSender, requireSuperAdmin } from "../../lib/rbac";
+import { runMonthlyPaymentStudentLinking } from "../../lib/monthly-payment-student-linking";
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+export async function runPaymentStudentLinkingAction(formData) {
+  await requireSuperAdmin();
+  const periodMonth = clean(formData.get("periodMonth")) || "2026-07";
+  let result;
+  try {
+    result = await runMonthlyPaymentStudentLinking({ periodMonth, force: true });
+  } catch (error) {
+    redirect(`/payments?linkingError=${encodeURIComponent(error?.message || "הרצת השיוך נכשלה")}`);
+  }
+  revalidatePath("/payments");
+  redirect(`/payments?linkingCompleted=1&linkingMonth=${encodeURIComponent(periodMonth)}&linked=${result?.autoLinked || 0}`);
 }
 
 function appendMessage(url, key, value) {
