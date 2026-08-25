@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
 import { getPaymentDashboard, getPaymentMandatesDashboard, listPaymentConnections } from "../../../../lib/payment-systems";
 import { deletePaymentRecordLink, upsertPaymentRecordLink } from "../../../../lib/payment-links";
-import { upsertAndLinkPaymentRecord } from "../../../../lib/payment-student-links";
+import { getCachedPaymentTransactions, upsertAndLinkPaymentRecord } from "../../../../lib/payment-student-links";
 
 function clean(value) { return String(value || "").trim(); }
 
@@ -19,8 +19,12 @@ export async function GET(request) {
   const connections = await listPaymentConnections({ activeOnly: true });
   const connectionIds = connections.map((item) => item.id);
   if (type === "transactions") {
-    const dashboard = await getPaymentDashboard({ connectionIds, dateFrom: clean(params.get("dateFrom")), dateTo: clean(params.get("dateTo")) });
-    return NextResponse.json({ transactions: dashboard.transactions || [], errors: dashboard.errors || [] });
+    try {
+      const dashboard = await getCachedPaymentTransactions({ connections, dateFrom: clean(params.get("dateFrom")), dateTo: clean(params.get("dateTo")), refresh: params.get("refresh") === "1" });
+      return NextResponse.json(dashboard);
+    } catch (error) {
+      return NextResponse.json({ error: error?.message || "שליפת העסקאות נכשלה." }, { status: 400 });
+    }
   }
   if (type === "mandates") {
     const dashboard = await getPaymentMandatesDashboard({ connectionIds });

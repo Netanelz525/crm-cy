@@ -94,6 +94,8 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
   const [liveRecords, setLiveRecords] = useState({ transactions, mandates });
   const [loadingRecords, setLoadingRecords] = useState({ transactions: true, mandates: true });
   const [localLinks, setLocalLinks] = useState(links);
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [studentFilter, setStudentFilter] = useState("all");
   const [recordFilter, setRecordFilter] = useState("transaction");
   const [mandateRelationFilter, setMandateRelationFilter] = useState("all");
@@ -134,14 +136,14 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     let active = true;
     setLoadingRecords({ transactions: true, mandates: true });
     for (const type of ["transactions", "mandates"]) {
-      fetch(`/api/payments/linking?type=${type}&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`)
+      fetch(`/api/payments/linking?type=${type}&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}${refreshCounter && type === "transactions" ? "&refresh=1" : ""}`)
         .then((response) => response.ok ? response.json() : Promise.reject(new Error("שליפת הנתונים נכשלה")))
-        .then((data) => { if (active) setLiveRecords((previous) => ({ ...previous, [type]: data[type] || [] })); })
+        .then((data) => { if (active) { setLiveRecords((previous) => ({ ...previous, [type]: data[type] || [] })); if (type === "transactions") setLastSyncedAt(data.lastSyncedAt || ""); } })
         .catch(() => {})
         .finally(() => { if (active) setLoadingRecords((previous) => ({ ...previous, [type]: false })); });
     }
     return () => { active = false; };
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, refreshCounter]);
   const visibleRecords = records.filter((item) => {
     if (item.recordType === "mandate") {
       const linkedToStudent = byKey.has(`mandate:${item.provider}:${item.connectionId}:${item.id}`);
@@ -185,6 +187,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
         <button type="button" role="tab" aria-selected={recordFilter === "transaction"} className={`payment-record-tab${recordFilter === "transaction" ? " is-active" : ""}`} onClick={() => setRecordFilter("transaction")}>עסקאות ({liveRecords.transactions.length})</button>
         <button type="button" role="tab" aria-selected={recordFilter === "mandate"} className={`payment-record-tab${recordFilter === "mandate" ? " is-active" : ""}`} onClick={() => setRecordFilter("mandate")}>הוראות קבע פעילות ({liveRecords.mandates.length})</button>
       </div>
+      <div className="quick-actions"><button type="button" className="quick-action-btn quick-action-outline" onClick={() => setRefreshCounter((value) => value + 1)} disabled={loadingRecords.transactions || loadingRecords.mandates}>רענון נתונים מהמערכות</button>{lastSyncedAt ? <span className="muted">עדכון אחרון: {new Date(lastSyncedAt).toLocaleString("he-IL")}</span> : null}</div>
       <div className="grid" style={{ marginTop: 12 }}>
         {recordFilter === "transaction" ? <select value={mandateRelationFilter} onChange={(event) => setMandateRelationFilter(event.target.value)}><option value="all">כל העסקאות</option><option value="linked">עסקאות המשויכות להוראת קבע</option><option value="unlinked">עסקאות ללא הוראת קבע</option></select> : null}
         {recordFilter === "mandate" ? <><select value={mandateStudentLinkFilter} onChange={(event) => setMandateStudentLinkFilter(event.target.value)} aria-label="סינון הוראות קבע לפי שיוך לתלמיד"><option value="all">כל הוראות הקבע</option><option value="linked">הוראות קבע משויכות לתלמיד</option><option value="unlinked">הוראות קבע לא משויכות</option></select><select value={mandateIssueFilter} onChange={(event) => setMandateIssueFilter(event.target.value)} aria-label="סינון הוראות קבע לפי תקלות"><option value="all">עם ובלי תקלות</option><option value="issues">הוראות קבע עם תקלה</option><option value="healthy">הוראות קבע ללא תקלה</option></select></> : null}

@@ -29,6 +29,11 @@ export default async function PaymentLinkingPage({ searchParams }) {
           <Link className="quick-action-btn quick-action-outline" href="/payments">חזרה למערכות תשלום</Link>
           <Link className="quick-action-btn quick-action-outline" href="/neon">רשימת תלמידים</Link>
         </div>
+        <form method="get" className="grid" style={{ marginTop: 16, alignItems: "end" }}>
+          <label>מתאריך<input type="date" name="dateFrom" defaultValue={dateFrom} required /></label>
+          <label>עד תאריך<input type="date" name="dateTo" defaultValue={dateTo} required /></label>
+          <button type="submit" className="quick-action-btn quick-action-primary">הצג טווח תאריכים</button>
+        </form>
       </section>
       <PaymentLinkingClient
         dateFrom={dateFrom}
