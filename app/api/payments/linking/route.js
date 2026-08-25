@@ -15,13 +15,22 @@ async function requirePaymentManager() {
 export async function GET(request) {
   if (!await requirePaymentManager()) return NextResponse.json({ error: "אין הרשאה." }, { status: 403 });
   const params = new URL(request.url).searchParams;
+  const type = clean(params.get("type"));
   const connections = await listPaymentConnections({ activeOnly: true });
   const connectionIds = connections.map((item) => item.id);
+  if (type === "transactions") {
+    const dashboard = await getPaymentDashboard({ connectionIds, dateFrom: clean(params.get("dateFrom")), dateTo: clean(params.get("dateTo")) });
+    return NextResponse.json({ transactions: dashboard.transactions || [], errors: dashboard.errors || [] });
+  }
+  if (type === "mandates") {
+    const dashboard = await getPaymentMandatesDashboard({ connectionIds });
+    return NextResponse.json({ mandates: (dashboard.mandates || []).filter((item) => ["active", "issues"].includes(item.status)), errors: dashboard.errors || [] });
+  }
   const [transactions, mandates] = await Promise.all([
     getPaymentDashboard({ connectionIds, dateFrom: clean(params.get("dateFrom")), dateTo: clean(params.get("dateTo")) }),
     getPaymentMandatesDashboard({ connectionIds })
   ]);
-  return NextResponse.json({ transactions: transactions.transactions || [], mandates: mandates.mandates || [] });
+  return NextResponse.json({ transactions: transactions.transactions || [], mandates: (mandates.mandates || []).filter((item) => ["active", "issues"].includes(item.status)) });
 }
 
 export async function POST(request) {

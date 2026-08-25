@@ -242,6 +242,17 @@ a {
   text-decoration: underline;
 }
 
+.payment-student-expandable > summary { cursor: pointer; list-style: none; }
+.payment-student-expandable > summary::-webkit-details-marker { display: none; }
+.payment-student-expandable[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.payment-student-linked-preview { display: grid; gap: 9px; padding: 12px 14px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; background: #fff; }
+.payment-student-issue > summary { border-color: #fecaca; background: #fff5f5; }
+.payment-mandate-issue-label { color: #b91c1c !important; font-weight: 800; }
+
+.payment-record-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.payment-record-tab { padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.payment-record-tab.is-active { border-color: var(--primary); background: var(--primary); color: #fff; }
+
 .payment-record-list {
   display: grid;
   gap: 12px;
@@ -254,6 +265,9 @@ a {
   background: #fbfdff;
   overflow: hidden;
 }
+
+.payment-record-card-issue { border-color: #fca5a5; background: #fff5f5; }
+.payment-record-card-issue > summary { background: #fff1f2; }
 
 .payment-record-card summary {
   display: grid;
