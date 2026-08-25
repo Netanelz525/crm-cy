@@ -7,11 +7,6 @@ import { getCurrentAppUser } from "../../../lib/rbac";
 import PaymentLinkingClient from "./payment-linking-client";
 
 function clean(value) { return String(value || "").trim(); }
-function isBogerStudent(student) {
-  const institution = clean(student?.currentInstitution).toUpperCase();
-  return institution === "BOGER" || institution === "בוגר" || institution === "בוגרים";
-}
-
 export default async function PaymentLinkingPage({ searchParams }) {
   const user = await getCurrentAppUser();
   if (!user) redirect("/sign-in?redirect_url=/payments/linking");
@@ -28,7 +23,7 @@ export default async function PaymentLinkingPage({ searchParams }) {
     <div style={{ display: "grid", gap: 20 }}>
       <section className="card glass">
         <h1 style={{ marginTop: 0 }}>שיוך תשלומים לתלמידים</h1>
-        <p className="muted">מסך מרכזי לבדיקת בעלות על עסקאות והוראות קבע של תלמידי BOGER, שיוך ידני ותיעוד האם המשלם הוא התלמיד או אחד ההורים.</p>
+        <p className="muted">מסך מרכזי לבדיקת בעלות על עסקאות והוראות קבע, שיוך ידני ותיעוד האם המשלם הוא התלמיד או אחד ההורים. ברירת המחדל מציגה תלמידי BOGER.</p>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/payments">חזרה למערכות תשלום</Link>
           <Link className="quick-action-btn quick-action-outline" href="/neon">רשימת תלמידים</Link>
@@ -44,7 +39,7 @@ export default async function PaymentLinkingPage({ searchParams }) {
         dateTo={dateTo}
         transactions={[]}
         mandates={[]}
-        students={students.filter((student) => student && isBogerStudent(student)).map((student) => ({
+        students={students.filter(Boolean).map((student) => ({
           id: student.id,
           label: student.label || student.name || "ללא שם",
           tznum: student.tznum || "",

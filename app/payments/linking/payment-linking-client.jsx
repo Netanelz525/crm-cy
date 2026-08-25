@@ -8,6 +8,13 @@ function normalize(value) { return clean(value).toLocaleLowerCase("he").replace(
 function formatMoney(value) { return new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(Number(value || 0)); }
 function dateText(value) { if (!value) return "-"; const date = new Date(value); return Number.isNaN(date.getTime()) ? clean(value) : date.toLocaleDateString("he-IL"); }
 function compact(value) { return clean(value).toLocaleLowerCase("he").replace(/[^\p{L}\p{N}]/gu, ""); }
+const INSTITUTION_LABELS = { BOGER: "BOGER / בוגר", BOGERNOCONTACT: "בוגר ללא יצירת קשר", CY: "חכמי ירושלים", OE: "אור אפרים", YR: "יחי ראובן", TEST: "טסט" };
+function institutionCode(value) {
+  const normalized = clean(value).toUpperCase();
+  if (normalized === "בוגר" || normalized === "בוגרים") return "BOGER";
+  if (normalized === "בוגר ללא יצירת קשר" || normalized === "בוגרים ללא יצירת קשר") return "BOGERNOCONTACT";
+  return normalized;
+}
 
 function StudentPicker({ students, value, onChange }) {
   const [query, setQuery] = useState("");
@@ -151,6 +158,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [studentFilter, setStudentFilter] = useState("all");
+  const [selectedInstitutions, setSelectedInstitutions] = useState(() => new Set(["BOGER"]));
   const [recordFilter, setRecordFilter] = useState("transaction");
   const [mandateRelationFilter, setMandateRelationFilter] = useState("all");
   const [mandateStudentLinkFilter, setMandateStudentLinkFilter] = useState("all");
@@ -164,12 +172,14 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     ...externalStudentIds
   ]), [localLinks, externalStudentIds]);
   const issueMandateStudentIds = useMemo(() => new Set(localLinks.filter((link) => link.recordType === "mandate" && link.recordSnapshot?.status === "issues").map((link) => link.studentId)), [localLinks]);
+  const institutionOptions = useMemo(() => [...new Set(students.map((student) => institutionCode(student.institution)).filter(Boolean))].sort((a, b) => (INSTITUTION_LABELS[a] || a).localeCompare(INSTITUTION_LABELS[b] || b, "he")), [students]);
   const filteredStudents = useMemo(() => students.filter((student) => {
+    const matchesInstitution = selectedInstitutions.has(institutionCode(student.institution));
     const hasTransactions = linkedStudentIds.has(student.id);
     const hasMandate = activeMandateStudentIds.has(student.id);
     const matchesType = studentFilter === "all" || (studentFilter === "transactions" && hasTransactions) || (studentFilter === "mandates" && hasMandate) || (studentFilter === "none" && !hasTransactions && !hasMandate);
-    return matchesType && (!query || normalize(`${student.label} ${student.tznum} ${student.className} ${student.institution}`).includes(normalize(query)));
-  }).sort((a, b) => sort === "count" ? (Number(linkedStudentIds.has(b.id)) - Number(linkedStudentIds.has(a.id))) : a.label.localeCompare(b.label, "he")), [students, studentFilter, query, sort, linkedStudentIds, activeMandateStudentIds]);
+    return matchesInstitution && matchesType && (!query || normalize(`${student.label} ${student.tznum} ${student.className} ${student.institution}`).includes(normalize(query)));
+  }).sort((a, b) => sort === "count" ? (Number(linkedStudentIds.has(b.id)) - Number(linkedStudentIds.has(a.id))) : a.label.localeCompare(b.label, "he")), [students, selectedInstitutions, studentFilter, query, sort, linkedStudentIds, activeMandateStudentIds]);
   const records = useMemo(() => [
     ...liveRecords.transactions.map((item) => ({ ...item, recordType: "transaction" })),
     ...liveRecords.mandates.map((item) => ({ ...item, recordType: "mandate", id: item.mandateId || item.id }))
@@ -219,12 +229,20 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
   return <>
     {notice ? <div className="ok">{notice}</div> : null}{error ? <div className="error">{error}</div> : null}
     <section className="card">
-      <h2 style={{ marginTop: 0 }}>מצב תלמידי BOGER</h2>
+      <h2 style={{ marginTop: 0 }}>מצב תלמידים</h2>
       <div className="grid">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="חיפוש תלמיד" />
         <select value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}><option value="all">כל התלמידים</option><option value="transactions">עם עסקאות משויכות</option><option value="mandates">עם הוראת קבע פעילה משויכת</option><option value="none">ללא עסקה וללא הוראת קבע</option></select>
         <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="name">מיון לפי שם</option><option value="count">מיון לפי שיוך</option></select>
       </div>
+      <fieldset className="payment-institution-filter">
+        <legend>מוסדות להצגה</legend>
+        <div className="quick-actions">
+          {institutionOptions.map((institution) => <label key={institution} className="checkbox-label"><input type="checkbox" checked={selectedInstitutions.has(institution)} onChange={() => setSelectedInstitutions((previous) => { const next = new Set(previous); if (next.has(institution)) next.delete(institution); else next.add(institution); return next; })} />{INSTITUTION_LABELS[institution] || institution}</label>)}
+          <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setSelectedInstitutions(new Set(institutionOptions))}>בחר הכל</button>
+          <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setSelectedInstitutions(new Set(["BOGER"]))}>BOGER בלבד</button>
+        </div>
+      </fieldset>
       <div className="payment-student-summary"><b>{filteredStudents.length}</b> תלמידים בתצוגה</div>
       <div className="payment-student-table">{filteredStudents.slice(0, 200).map((student) => {
         const studentLinks = localLinks.filter((link) => link.studentId === student.id);
@@ -252,7 +270,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
         {recordFilter === "mandate" ? <><select value={mandateStudentLinkFilter} onChange={(event) => setMandateStudentLinkFilter(event.target.value)} aria-label="סינון הוראות קבע לפי שיוך לתלמיד"><option value="all">כל הוראות הקבע</option><option value="linked">הוראות קבע משויכות לתלמיד</option><option value="unlinked">הוראות קבע לא משויכות</option></select><select value={mandateIssueFilter} onChange={(event) => setMandateIssueFilter(event.target.value)} aria-label="סינון הוראות קבע לפי תקלות"><option value="all">עם ובלי תקלות</option><option value="issues">הוראות קבע עם תקלה</option><option value="healthy">הוראות קבע ללא תקלה</option></select></> : null}
         <span className="muted">{recordFilter === "transaction" ? `עסקאות עבור ${dateFrom} עד ${dateTo}` : `מוצגות ${visibleRecords.length} מתוך ${records.length} הוראות קבע פעילות והוראות עם תקלה`}</span>
       </div>
-      <div className="payment-record-list">{loadingRecords[recordFilter === "transaction" ? "transactions" : "mandates"] ? <div className="muted">{recordFilter === "transaction" ? "טוען עסקאות..." : "טוען הוראות קבע פעילות..."}</div> : visibleRecords.map((item) => { const key = `${item.recordType}:${item.provider}:${item.connectionId}:${item.id}`; const existing = byKey.get(key); const student = students.find((candidate) => candidate.id === existing?.studentId); const relatedMandate = findRelatedMandate(item); const hasMandate = item.recordType === "mandate" || Boolean(item.directDebitNumber) || Boolean(relatedMandate); const hasIssue = item.recordType === "mandate" && item.status === "issues"; return <details className={`payment-record-card${hasIssue ? " payment-record-card-issue" : ""}`} key={key}><summary><b>{item.customerName || "ללא שם"}</b><span>{item.recordType === "mandate" ? "הוראת קבע" : "עסקה"} | {item.connectionLabel} | {dateText(item.createdAt)} | {formatMoney(item.amount)}</span>{hasIssue ? <span className="payment-mandate-issue-label">תקלה: {item.errorText || item.statusLabel}</span> : null}<span className={existing ? "payment-linked" : "payment-unlinked"}>{existing ? `משויך ל-${student?.label || existing.studentId}` : "לא משויך"}</span></summary><div className="payment-record-details"><div className="payments-report-grid"><div><b>מזהה:</b> {item.id}</div><div><b>ספק:</b> {item.providerLabel}</div><div><b>סוג רשומה:</b> {item.recordType === "mandate" ? "הוראת קבע" : "עסקה"}</div><div><b>קשר להוראת קבע:</b> <span className={hasMandate ? "payment-related-yes" : "payment-related-no"}>{hasMandate ? (relatedMandate ? `כן, ${relatedMandate.mandateId || relatedMandate.id}` : "כן") : "לא"}</span></div><div><b>מייל:</b> {item.email || "-"}</div><div><b>טלפון:</b> {item.phone || "-"}</div><div><b>סטטוס:</b> <span className={hasIssue ? "payment-mandate-issue-label" : ""}>{item.statusLabel || item.status || "-"}</span></div><div><b>אסמכתא:</b> {item.reference || item.receiptNumber || "-"}</div>{relatedMandate ? <div className="payment-related-note">העסקה מקושרת להוראת קבע; השיוך יעדכן את העסקה ואת הוראת הקבע לאותו תלמיד.</div> : null}</div><LinkForm item={item} recordType={item.recordType} students={students} existing={existing} relatedMandate={relatedMandate} onSaved={saveLinks} onDeleted={(id) => setLocalLinks((previous) => previous.filter((link) => link.id !== id))} /></div></details>; })}</div>
+      <div className="payment-record-list">{loadingRecords[recordFilter === "transaction" ? "transactions" : "mandates"] ? <div className="muted">{recordFilter === "transaction" ? "טוען עסקאות..." : "טוען הוראות קבע פעילות..."}</div> : visibleRecords.map((item) => { const key = `${item.recordType}:${item.provider}:${item.connectionId}:${item.id}`; const existing = byKey.get(key); const student = students.find((candidate) => candidate.id === existing?.studentId); const relatedMandate = findRelatedMandate(item); const hasMandate = item.recordType === "mandate" || Boolean(item.directDebitNumber) || Boolean(relatedMandate); const hasIssue = item.recordType === "mandate" && item.status === "issues"; return <details className={`payment-record-card${hasIssue ? " payment-record-card-issue" : ""}`} key={key}><summary><b>{item.customerName || "ללא שם"}</b><span>{item.recordType === "mandate" ? "הוראת קבע" : "עסקה"} | {item.connectionLabel} | {dateText(item.createdAt)} | {formatMoney(item.amount)}</span>{hasIssue ? <span className="payment-mandate-issue-label">תקלה: {item.errorText || item.statusLabel}</span> : null}<span className={existing ? "payment-linked" : "payment-unlinked"}>{existing ? `משויך ל-${student?.label || existing.studentId}` : "לא משויך"}</span></summary><div className="payment-record-details"><div className="payments-report-grid"><div><b>מזהה:</b> {item.id}</div><div><b>ספק:</b> {item.providerLabel}</div><div><b>סוג רשומה:</b> {item.recordType === "mandate" ? "הוראת קבע" : "עסקה"}</div><div><b>תלמיד משויך:</b> <b>{student?.label || "לא שויך תלמיד"}</b></div><div><b>קשר להוראת קבע:</b> <span className={hasMandate ? "payment-related-yes" : "payment-related-no"}>{hasMandate ? (relatedMandate ? `כן, ${relatedMandate.mandateId || relatedMandate.id}` : "כן") : "לא"}</span></div><div><b>מייל:</b> {item.email || "-"}</div><div><b>טלפון:</b> {item.phone || "-"}</div><div><b>סטטוס:</b> <span className={hasIssue ? "payment-mandate-issue-label" : ""}>{item.statusLabel || item.status || "-"}</span></div><div><b>אסמכתא:</b> {item.reference || item.receiptNumber || "-"}</div>{relatedMandate ? <div className="payment-related-note">העסקה מקושרת להוראת קבע; השיוך יעדכן את העסקה ואת הוראת הקבע לאותו תלמיד.</div> : null}</div><LinkForm item={item} recordType={item.recordType} students={students} existing={existing} relatedMandate={relatedMandate} onSaved={saveLinks} onDeleted={(id) => setLocalLinks((previous) => previous.filter((link) => link.id !== id))} /></div></details>; })}</div>
     </section>
     <button type="button" className="payment-back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="חזרה לראש העמוד">↑ לראש העמוד</button>
   </>;
