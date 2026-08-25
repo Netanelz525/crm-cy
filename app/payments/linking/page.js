@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getDefaultPaymentDateRange, getPaymentProviderLabel, listPaymentConnections, getPaymentDashboard, getPaymentMandatesDashboard } from "../../../lib/payment-systems";
+import { getDefaultPaymentDateRange, listPaymentConnections } from "../../../lib/payment-systems";
 import { listAllNeonStudents } from "../../../lib/neon-students";
 import { listPaymentRecordLinks } from "../../../lib/payment-links";
 import { getCurrentAppUser } from "../../../lib/rbac";
@@ -18,14 +18,7 @@ export default async function PaymentLinkingPage({ searchParams }) {
   const dateFrom = clean(params?.dateFrom) || defaults.dateFrom;
   const dateTo = clean(params?.dateTo) || defaults.dateTo;
   const connections = await listPaymentConnections({ activeOnly: true });
-  const selectedIds = connections.map((item) => item.id);
-  const [transactionDashboard, mandateDashboard, students, links] = await Promise.all([
-    getPaymentDashboard({ connectionIds: selectedIds, dateFrom, dateTo }),
-    getPaymentMandatesDashboard({ connectionIds: selectedIds }),
-    listAllNeonStudents(),
-    listPaymentRecordLinks()
-  ]);
-  const providerOptions = [...new Set(connections.map((item) => item.provider))].map((provider) => ({ value: provider, label: getPaymentProviderLabel(provider) }));
+  const [students, links] = await Promise.all([listAllNeonStudents(), listPaymentRecordLinks()]);
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -40,8 +33,8 @@ export default async function PaymentLinkingPage({ searchParams }) {
       <PaymentLinkingClient
         dateFrom={dateFrom}
         dateTo={dateTo}
-        transactions={transactionDashboard.transactions || []}
-        mandates={mandateDashboard.mandates || []}
+        transactions={[]}
+        mandates={[]}
         students={students.filter(Boolean).map((student) => ({
           id: student.id,
           label: student.label || student.name || "ללא שם",
@@ -51,7 +44,6 @@ export default async function PaymentLinkingPage({ searchParams }) {
         }))}
         links={links}
         connections={connections}
-        providerOptions={providerOptions}
         notice={clean(params?.notice)}
         error={clean(params?.error)}
       />

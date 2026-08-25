@@ -307,10 +307,14 @@ a {
   padding: 9px 10px;
   text-align: right;
   background: transparent;
+  color: #102a43;
+  font: inherit;
   cursor: pointer;
 }
 
 .payment-student-results button:hover { background: #eff6ff; }
+.payment-link-message { grid-column: 1 / -1; color: #166534; font-weight: 700; }
+.payment-related-note { grid-column: 1 / -1; color: #155e75; font-weight: 700; }
 
 @media (max-width: 900px) {
   .payment-student-row,
