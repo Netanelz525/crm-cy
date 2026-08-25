@@ -219,7 +219,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
   return <>
     {notice ? <div className="ok">{notice}</div> : null}{error ? <div className="error">{error}</div> : null}
     <section className="card">
-      <h2 style={{ marginTop: 0 }}>מצב תלמידים</h2>
+      <h2 style={{ marginTop: 0 }}>מצב תלמידי BOGER</h2>
       <div className="grid">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="חיפוש תלמיד" />
         <select value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}><option value="all">כל התלמידים</option><option value="transactions">עם עסקאות משויכות</option><option value="mandates">עם הוראת קבע פעילה משויכת</option><option value="none">ללא עסקה וללא הוראת קבע</option></select>
