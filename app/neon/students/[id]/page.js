@@ -557,7 +557,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
           </summary>
           <div className="linked-record-group-body">
             {studentPayments.length ? (
-              <div className="linked-records-grid">
+              <div className="linked-records-grid student-payments-grid">
                 {studentPayments.map((payment) => {
                   const matchingTransactions = studentPayments.filter((item) => item.type === "transaction"
                     && item.provider === payment.provider && item.connectionId === payment.connectionId

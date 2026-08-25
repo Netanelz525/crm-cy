@@ -32,19 +32,20 @@ export default function StudentPaymentCard({ payment, studentId, transactions = 
   }
 
   if (!isMandate) return (
-    <div className="linked-record-card">
-      <b>עסקה · {payment.customerName || "ללא שם"}</b>
-      <div className="linked-record-meta">{money(payment.amount, payment.currency)} · {payment.provider} · {payment.periodMonth}</div>
+    <div className="linked-record-card student-payment-card student-payment-transaction">
+      <div className="student-payment-header"><span className="student-payment-kind">עסקה</span><b>{payment.customerName || "ללא שם"}</b></div>
+      <div className="student-payment-amount">{money(payment.amount, payment.currency)}</div>
+      <div className="linked-record-meta">{payment.provider} · {payment.periodMonth}</div>
       <div className="linked-record-meta">מזהה: <span dir="ltr">{payment.externalId}</span></div>
-      <form action={unlinkAction} style={{ marginTop: 8 }}><input type="hidden" name="studentId" value={studentId} /><input type="hidden" name="paymentRecordId" value={payment.id} /><button className="quick-action-btn quick-action-outline">הסר שיוך</button></form>
+      <form action={unlinkAction} className="student-payment-actions"><input type="hidden" name="studentId" value={studentId} /><input type="hidden" name="paymentRecordId" value={payment.id} /><button className="quick-action-btn quick-action-outline">הסר שיוך</button></form>
     </div>
   );
 
   const history = Array.isArray(details?.history) ? details.history.slice(0, 3) : [];
   return (
-    <details className="linked-record-card" onToggle={loadDetails}>
-      <summary><b>הוראת קבע · {payment.customerName || "ללא שם"}</b><div className="linked-record-meta">{money(payment.amount, payment.currency)} · {payment.provider} · {payment.periodMonth}</div></summary>
-      <div className="payments-report-grid" style={{ marginTop: 12 }}>
+    <details className="linked-record-card student-payment-card student-payment-mandate" onToggle={loadDetails}>
+      <summary className="student-payment-summary"><div className="student-payment-header"><span className="student-payment-kind">הוראת קבע</span><b>{payment.customerName || "ללא שם"}</b></div><div className="student-payment-summary-meta"><span className="student-payment-amount">{money(payment.amount, payment.currency)}</span><span className="linked-record-meta">{payment.provider}</span></div></summary>
+      <div className="payments-report-grid student-payment-details">
         <div><b>סטטוס:</b> {details?.statusLabel || payment.status || "-"}</div>
         <div><b>חיוב הבא:</b> {dateText(details?.nextChargeDate)}</div>
         <div><b>סכום:</b> {money(details?.amount ?? payment.amount, details?.currency || payment.currency)}</div>
@@ -54,15 +55,16 @@ export default function StudentPaymentCard({ payment, studentId, transactions = 
       </div>
       {loading ? <div className="muted">טוען פרטים עדכניים...</div> : null}
       {error ? <div className="error">{error}</div> : null}
-      <h4>שלוש עסקאות אחרונות</h4>
-      {(history.length ? history : transactions).slice(0, 3).map((item, index) => (
-        <div key={item.id || index} className="payments-report-history-row">
-          <b>{dateText(item.date || item.occurredAt)}</b> · {money(item.amount, item.currency || payment.currency)}
-          <div className="linked-record-meta">אסמכתא: {item.transactionId || item.externalId || "-"}</div>
-        </div>
-      ))}
-      {!history.length && !transactions.length && !loading ? <div className="muted">לא נמצאו עסקאות משויכות.</div> : null}
-      <div className="quick-actions" style={{ marginTop: 12 }}>
+      <div className="student-payment-history"><h4>שלוש עסקאות אחרונות</h4>
+        {(history.length ? history : transactions).slice(0, 3).map((item, index) => (
+          <div key={item.id || index} className="payments-report-history-row student-payment-history-row">
+            <div><b>{dateText(item.date || item.occurredAt)}</b><span className="linked-record-meta">אסמכתא: {item.transactionId || item.externalId || "-"}</span></div>
+            <b>{money(item.amount, item.currency || payment.currency)}</b>
+          </div>
+        ))}
+        {!history.length && !transactions.length && !loading ? <div className="muted">לא נמצאו עסקאות משויכות.</div> : null}
+      </div>
+      <div className="quick-actions student-payment-actions">
         <Link className="quick-action-btn quick-action-primary" href={`/payments/mandates/${encodeURIComponent(payment.id)}?studentId=${encodeURIComponent(studentId)}`}>פתח עמוד הוראת קבע מלא</Link>
         <form action={unlinkAction}><input type="hidden" name="studentId" value={studentId} /><input type="hidden" name="paymentRecordId" value={payment.id} /><button className="quick-action-btn quick-action-outline">הסר שיוך</button></form>
       </div>
