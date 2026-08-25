@@ -312,9 +312,17 @@ a {
   cursor: pointer;
 }
 
+.payment-student-results button,
+.payment-student-results button * {
+  color: #111827 !important;
+  opacity: 1 !important;
+}
+
 .payment-student-results button:hover { background: #eff6ff; }
 .payment-link-message { grid-column: 1 / -1; color: #166534; font-weight: 700; }
 .payment-related-note { grid-column: 1 / -1; color: #155e75; font-weight: 700; }
+.payment-related-yes { color: #166534; font-weight: 800; }
+.payment-related-no { color: #9a3412; font-weight: 800; }
 
 @media (max-width: 900px) {
   .payment-student-row,

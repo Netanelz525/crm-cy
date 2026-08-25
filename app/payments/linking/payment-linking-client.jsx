@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function clean(value) { return String(value || "").trim(); }
 function normalize(value) { return clean(value).toLocaleLowerCase("he").replace(/[\u0591-\u05c7]/g, "").replace(/\s+/g, " "); }
 function formatMoney(value) { return new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(Number(value || 0)); }
 function dateText(value) { if (!value) return "-"; const date = new Date(value); return Number.isNaN(date.getTime()) ? clean(value) : date.toLocaleDateString("he-IL"); }
+function compact(value) { return clean(value).toLocaleLowerCase("he").replace(/[^\p{L}\p{N}]/gu, ""); }
 
 function StudentPicker({ students, value, onChange }) {
   const [query, setQuery] = useState("");
@@ -30,11 +31,11 @@ function LinkForm({ item, recordType, students, existing, relatedMandate, onSave
   const [studentId, setStudentId] = useState(existing?.studentId || "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  async function submit(event) {
-    event.preventDefault();
+  const formRef = useRef(null);
+  async function submit() {
     if (!studentId || busy) return;
     setBusy(true); setMessage("");
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formRef.current);
     const response = await fetch("/api/payments/linking", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
       record: toLinkRecord(item), recordType, relatedMandate: relatedMandate ? toLinkRecord(relatedMandate) : null, studentId,
       payerType: form.get("payerType"), payerName: form.get("payerName"), payerEmail: form.get("payerEmail"), payerPhone: form.get("payerPhone"), notes: form.get("notes")
@@ -53,7 +54,7 @@ function LinkForm({ item, recordType, students, existing, relatedMandate, onSave
     if (response.ok) { setMessage("השיוך הוסר"); onDeleted(existing.id); } else setMessage("ההסרה נכשלה");
   }
   return (
-    <form onSubmit={submit} className="payment-link-form">
+    <form ref={formRef} onSubmit={(event) => event.preventDefault()} className="payment-link-form">
       <StudentPicker students={students} value={studentId} onChange={setStudentId} />
       <select name="payerType" defaultValue={existing?.payerType || "student"}>
         <option value="student">העסקה מהתלמיד</option>
@@ -64,7 +65,7 @@ function LinkForm({ item, recordType, students, existing, relatedMandate, onSave
       <input name="payerEmail" type="email" defaultValue={existing?.payerEmail || item.email || ""} placeholder="מייל המשלם" dir="ltr" />
       <input name="payerPhone" defaultValue={existing?.payerPhone || item.phone || ""} placeholder="טלפון המשלם" dir="ltr" />
       <input name="notes" defaultValue={existing?.notes || ""} placeholder="הערה לשיוך" />
-      <button className="quick-action-btn quick-action-primary" type="submit" disabled={!studentId || busy}>{busy ? "שומר..." : existing ? "עדכן שיוך" : "שייך לתלמיד"}</button>
+      <button className="quick-action-btn quick-action-primary" type="button" onClick={submit} disabled={!studentId || busy}>{busy ? "שומר..." : existing ? "עדכן שיוך" : "שייך לתלמיד"}</button>
       {existing ? <button className="quick-action-btn quick-action-outline" type="button" onClick={remove} disabled={busy}>הסר שיוך</button> : null}
       {message ? <span className="payment-link-message">{message}</span> : null}
     </form>
@@ -92,6 +93,21 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     ...liveRecords.transactions.map((item) => ({ ...item, recordType: "transaction" })),
     ...liveRecords.mandates.map((item) => ({ ...item, recordType: "mandate", id: item.mandateId || item.id }))
   ].filter((item) => recordFilter === "all" || item.recordType === recordFilter), [liveRecords, recordFilter]);
+  function findRelatedMandate(item) {
+    if (item.recordType !== "transaction") return null;
+    const directDebitId = compact(item.directDebitNumber);
+    const donorId = compact(item.donorId);
+    const email = compact(item.email);
+    const phone = compact(item.phone);
+    return liveRecords.mandates.find((mandate) => {
+      if (clean(mandate.provider) !== clean(item.provider) || clean(mandate.connectionId) !== clean(item.connectionId)) return false;
+      const mandateId = compact(mandate.mandateId || mandate.id);
+      if (directDebitId && mandateId && directDebitId === mandateId) return true;
+      if (donorId && compact(mandate.donorId) === donorId) return true;
+      if (email && compact(mandate.email) === email) return true;
+      return Boolean(phone && compact(mandate.phone) === phone);
+    }) || null;
+  }
   useEffect(() => {
     let active = true;
     setLoadingRecords(true);
@@ -118,7 +134,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     <section className="card">
       <h2 style={{ marginTop: 0 }}>רשומות תשלום לשיוך</h2>
       <div className="grid"><select value={recordFilter} onChange={(event) => setRecordFilter(event.target.value)}><option value="all">עסקאות והוראות קבע</option><option value="transaction">עסקאות בלבד</option><option value="mandate">הוראות קבע בלבד</option></select><span className="muted">העסקאות מוצגות עבור {dateFrom} עד {dateTo}; הוראות הקבע נשלפות במלואן.</span></div>
-      <div className="payment-record-list">{loadingRecords ? <div className="muted">טוען עסקאות והוראות קבע ברקע...</div> : records.map((item) => { const key = `${item.recordType}:${item.provider}:${item.connectionId}:${item.id}`; const existing = byKey.get(key); const student = students.find((candidate) => candidate.id === existing?.studentId); const relatedMandate = item.recordType === "transaction" ? liveRecords.mandates.find((mandate) => clean(mandate.mandateId || mandate.id) === clean(item.directDebitNumber)) : null; return <details className="payment-record-card" key={key}><summary><b>{item.customerName || "ללא שם"}</b><span>{item.recordType === "mandate" ? "הוראת קבע" : "עסקה"} | {item.connectionLabel} | {dateText(item.createdAt)} | {formatMoney(item.amount)}</span><span className={existing ? "payment-linked" : "payment-unlinked"}>{existing ? `משויך ל-${student?.label || existing.studentId}` : "לא משויך"}</span></summary><div className="payment-record-details"><div className="payments-report-grid"><div><b>מזהה:</b> {item.id}</div><div><b>ספק:</b> {item.providerLabel}</div><div><b>מייל:</b> {item.email || "-"}</div><div><b>טלפון:</b> {item.phone || "-"}</div><div><b>סטטוס:</b> {item.statusLabel || item.status || "-"}</div><div><b>אסמכתא:</b> {item.reference || item.receiptNumber || "-"}</div>{relatedMandate ? <div className="payment-related-note">העסקה מקושרת להוראת קבע {relatedMandate.mandateId || relatedMandate.id}; השיוך יעדכן את שתיהן.</div> : null}</div><LinkForm item={item} recordType={item.recordType} students={students} existing={existing} relatedMandate={relatedMandate} onSaved={saveLinks} onDeleted={(id) => setLocalLinks((previous) => previous.filter((link) => link.id !== id))} /></div></details>; })}</div>
+      <div className="payment-record-list">{loadingRecords ? <div className="muted">טוען עסקאות והוראות קבע ברקע...</div> : records.map((item) => { const key = `${item.recordType}:${item.provider}:${item.connectionId}:${item.id}`; const existing = byKey.get(key); const student = students.find((candidate) => candidate.id === existing?.studentId); const relatedMandate = findRelatedMandate(item); const hasMandate = item.recordType === "mandate" || Boolean(item.directDebitNumber) || Boolean(relatedMandate); return <details className="payment-record-card" key={key}><summary><b>{item.customerName || "ללא שם"}</b><span>{item.recordType === "mandate" ? "הוראת קבע" : "עסקה"} | {item.connectionLabel} | {dateText(item.createdAt)} | {formatMoney(item.amount)}</span><span className={existing ? "payment-linked" : "payment-unlinked"}>{existing ? `משויך ל-${student?.label || existing.studentId}` : "לא משויך"}</span></summary><div className="payment-record-details"><div className="payments-report-grid"><div><b>מזהה:</b> {item.id}</div><div><b>ספק:</b> {item.providerLabel}</div><div><b>סוג רשומה:</b> {item.recordType === "mandate" ? "הוראת קבע" : "עסקה"}</div><div><b>קשר להוראת קבע:</b> <span className={hasMandate ? "payment-related-yes" : "payment-related-no"}>{hasMandate ? (relatedMandate ? `כן, ${relatedMandate.mandateId || relatedMandate.id}` : "כן") : "לא"}</span></div><div><b>מייל:</b> {item.email || "-"}</div><div><b>טלפון:</b> {item.phone || "-"}</div><div><b>סטטוס:</b> {item.statusLabel || item.status || "-"}</div><div><b>אסמכתא:</b> {item.reference || item.receiptNumber || "-"}</div>{relatedMandate ? <div className="payment-related-note">העסקה מקושרת להוראת קבע; השיוך יעדכן את העסקה ואת הוראת הקבע לאותו תלמיד.</div> : null}</div><LinkForm item={item} recordType={item.recordType} students={students} existing={existing} relatedMandate={relatedMandate} onSaved={saveLinks} onDeleted={(id) => setLocalLinks((previous) => previous.filter((link) => link.id !== id))} /></div></details>; })}</div>
     </section>
   </>;
 }
