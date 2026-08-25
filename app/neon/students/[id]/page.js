@@ -35,6 +35,7 @@ import {
 import StudentContactLiveClient from "./student-contact-live-client";
 import StudentEventsLiveClient from "./student-events-live-client";
 import StudentTagsLiveClient from "./student-tags-live-client";
+import StudentPaymentCard from "./student-payment-card";
 
 const TOP_EDIT_KEYS = new Set(["currentInstitution", "registration", "class"]);
 const ALL_FIELDS = FIELD_SECTIONS.flatMap((section) => section.fields);
@@ -557,19 +558,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
           <div className="linked-record-group-body">
             {studentPayments.length ? (
               <div className="linked-records-grid">
-                {studentPayments.map((payment) => (
-                  <div key={payment.id} className="linked-record-card">
-                    <b>{payment.type === "mandate" ? "הוראת קבע" : "עסקה"} · {payment.customerName || "ללא שם"}</b>
-                    <div className="linked-record-meta">{formatPaymentAmount(payment.amount, payment.currency)} · {payment.provider} · {payment.periodMonth}</div>
-                    <div className="linked-record-meta">מזהה: <span dir="ltr">{payment.externalId}</span></div>
-                    <div className="linked-record-meta">שיוך: {payment.linkSource === "automatic" ? `אוטומטי (${payment.matchedFields.join(", ")})` : "ידני"}</div>
-                    <form action={unlinkStudentPaymentAction} style={{ marginTop: 8 }}>
-                      <input type="hidden" name="studentId" value={studentId} />
-                      <input type="hidden" name="paymentRecordId" value={payment.id} />
-                      <button type="submit" className="quick-action-btn quick-action-outline">הסר שיוך</button>
-                    </form>
-                  </div>
-                ))}
+                {studentPayments.map((payment) => {
+                  const matchingTransactions = studentPayments.filter((item) => item.type === "transaction"
+                    && item.provider === payment.provider && item.connectionId === payment.connectionId
+                    && (!clean(item.payload?.directDebitNumber) || clean(item.payload.directDebitNumber) === payment.externalId));
+                  return <StudentPaymentCard key={payment.id} payment={payment} studentId={studentId} transactions={matchingTransactions.slice(0, 3)} unlinkAction={unlinkStudentPaymentAction} />;
+                })}
               </div>
             ) : <div className="muted">לא נמצאו תשלומים משויכים לתלמיד.</div>}
 
