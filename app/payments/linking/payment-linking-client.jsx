@@ -90,10 +90,64 @@ function LinkForm({ item, recordType, students, existing, relatedMandate, onSave
   );
 }
 
+function ExternalMandateLink({ student, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const formRef = useRef(null);
+
+  async function submit() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    const form = new FormData(formRef.current);
+    try {
+      const response = await fetch("/api/payments/external-mandates", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          externalKey: form.get("externalKey"),
+          studentId: student.id,
+          contactName: form.get("contactName"),
+          contactPhone: form.get("contactPhone"),
+          contactEmail: form.get("contactEmail"),
+          notes: form.get("notes"),
+          status: "active"
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "שמירת הוראת הקבע החיצונית נכשלה");
+      setMessage("הוראת קבע חיצונית סומנה");
+      onSaved(student.id);
+    } catch (error) {
+      setMessage(error.message || "השמירה נכשלה");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details className="payment-external-mandate-form">
+      <summary className="quick-action-btn quick-action-outline">סמן הוראת קבע חיצונית</summary>
+      <form ref={formRef} onSubmit={(event) => event.preventDefault()} className="payment-link-form">
+        <input name="externalKey" defaultValue={`חיצונית-${student.id}`} placeholder="מזהה או שם ההוראה החיצונית" required />
+        <input name="contactName" defaultValue={student.label || ""} placeholder="איש קשר" />
+        <input name="contactPhone" placeholder="טלפון" dir="ltr" />
+        <input name="contactEmail" type="email" placeholder="דוא״ל" dir="ltr" />
+        <input name="notes" placeholder="הערה" />
+        <button className="quick-action-btn quick-action-primary" type="button" onClick={submit} disabled={busy}>
+          {busy ? "שומר..." : "שמירת הוראת קבע חיצונית"}
+        </button>
+        {message ? <span className="payment-link-message">{message}</span> : null}
+      </form>
+    </details>
+  );
+}
+
 export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, mandates, students, links, notice, error }) {
   const [liveRecords, setLiveRecords] = useState({ transactions, mandates });
   const [loadingRecords, setLoadingRecords] = useState({ transactions: true, mandates: true });
   const [localLinks, setLocalLinks] = useState(links);
+  const [externalStudentIds, setExternalStudentIds] = useState(() => new Set());
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [studentFilter, setStudentFilter] = useState("all");
@@ -105,7 +159,10 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
   const [sort, setSort] = useState("name");
   const byKey = useMemo(() => new Map(localLinks.map((link) => [`${link.recordType}:${link.provider}:${link.connectionId}:${link.externalRecordId}`, link])), [localLinks]);
   const linkedStudentIds = useMemo(() => new Set(localLinks.filter((link) => link.recordType === "transaction").map((link) => link.studentId)), [localLinks]);
-  const activeMandateStudentIds = useMemo(() => new Set(localLinks.filter((link) => link.recordType === "mandate" && ["active", "issues"].includes(link.recordSnapshot?.status)).map((link) => link.studentId)), [localLinks]);
+  const activeMandateStudentIds = useMemo(() => new Set([
+    ...localLinks.filter((link) => link.recordType === "mandate" && ["active", "issues"].includes(link.recordSnapshot?.status)).map((link) => link.studentId),
+    ...externalStudentIds
+  ]), [localLinks, externalStudentIds]);
   const issueMandateStudentIds = useMemo(() => new Set(localLinks.filter((link) => link.recordType === "mandate" && link.recordSnapshot?.status === "issues").map((link) => link.studentId)), [localLinks]);
   const filteredStudents = useMemo(() => students.filter((student) => {
     const hasTransactions = linkedStudentIds.has(student.id);
@@ -172,10 +229,12 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
       <div className="payment-student-table">{filteredStudents.slice(0, 200).map((student) => {
         const studentLinks = localLinks.filter((link) => link.studentId === student.id);
         const hasIssue = issueMandateStudentIds.has(student.id);
+        const hasMandate = activeMandateStudentIds.has(student.id);
         return <details className={`payment-student-expandable${hasIssue ? " payment-student-issue" : ""}`} key={student.id}>
           <summary className="payment-student-row"><b>{student.label}</b><span>{student.institution || "-"}</span><span>{student.className || "-"}</span><span>{linkedStudentIds.has(student.id) ? "עסקה ✓" : "עסקה -"}</span><span className={hasIssue ? "payment-mandate-issue-label" : ""}>{hasIssue ? "הו״ק עם תקלה" : activeMandateStudentIds.has(student.id) ? "הו״ק פעילה ✓" : "הו״ק -"}</span></summary>
           <div className="payment-student-linked-preview">
             {studentLinks.length ? studentLinks.map((link) => <div key={link.id} className={link.recordSnapshot?.status === "issues" ? "payment-mandate-issue-label" : ""}><b>{link.recordType === "mandate" ? "הוראת קבע" : "עסקה"}</b> · {link.payerName || link.recordSnapshot?.customerName || "ללא שם"} · {{ student: "התלמיד", father: "אבא", mother: "אמא", other: "אחר — הגיע דרך התלמיד" }[link.payerType] || "התלמיד"} · {formatMoney(link.recordSnapshot?.amount)}{link.recordSnapshot?.status === "issues" ? ` · ${link.recordSnapshot?.errorText || "תקלה בחיוב"}` : ""}</div>) : <div className="muted">אין תשלומים משויכים לתלמיד.</div>}
+            {!hasMandate ? <ExternalMandateLink student={student} onSaved={(studentId) => setExternalStudentIds((previous) => new Set([...previous, studentId]))} /> : null}
             <Link className="quick-action-btn quick-action-outline" href={`/neon/students/${student.id}?payments=1#payments`}>פתח תשלומים בכרטיס התלמיד</Link>
           </div>
         </details>;
