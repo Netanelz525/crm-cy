@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentAppUser } from "../../../../../lib/rbac";
-import { deleteExternalMandate, listExternalMandates, upsertExternalMandate } from "../../../../../lib/external-mandates";
+import { getCurrentAppUser } from "../../../../lib/rbac";
+import { deleteExternalMandate, listExternalMandates, upsertExternalMandate } from "../../../../lib/external-mandates";
 
 async function manager() {
   const user = await getCurrentAppUser();
