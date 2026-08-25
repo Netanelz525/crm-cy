@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentAppUser } from "../../../../../lib/rbac";
-import { getPaymentDashboard, getPaymentMandatesDashboard, listPaymentConnections } from "../../../../../lib/payment-systems";
-import { deletePaymentRecordLink, upsertPaymentRecordLink } from "../../../../../lib/payment-links";
+import { getCurrentAppUser } from "../../../../lib/rbac";
+import { getPaymentDashboard, getPaymentMandatesDashboard, listPaymentConnections } from "../../../../lib/payment-systems";
+import { deletePaymentRecordLink, upsertPaymentRecordLink } from "../../../../lib/payment-links";
 
 function clean(value) { return String(value || "").trim(); }
 
