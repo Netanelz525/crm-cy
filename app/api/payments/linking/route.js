@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
 import { getPaymentDashboard, getPaymentMandatesDashboard, listPaymentConnections } from "../../../../lib/payment-systems";
 import { deletePaymentRecordLink, setPaymentContactRecommendation, upsertPaymentRecordLink } from "../../../../lib/payment-links";
-import { getCachedPaymentTransactions, upsertAndLinkPaymentRecord } from "../../../../lib/payment-student-links";
+import { getCachedPaymentTransactions, linkTransactionsFromMandates, upsertAndLinkPaymentRecord } from "../../../../lib/payment-student-links";
 
 function clean(value) { return String(value || "").trim(); }
 
@@ -64,6 +64,9 @@ export async function POST(request) {
     if (body.relatedMandate) {
       records.push(await save(body.relatedMandate, "mandate"));
       await upsertAndLinkPaymentRecord({ item: { ...body.relatedMandate.recordSnapshot, ...body.relatedMandate }, recordType: "mandate", studentId: body.studentId, userId: user.clerk_user_id });
+    }
+    if (body.recordType === "mandate" || body.relatedMandate) {
+      records.push(...await linkTransactionsFromMandates({ studentId: body.studentId }));
     }
     return NextResponse.json({ ok: true, links: records });
   } catch (error) {

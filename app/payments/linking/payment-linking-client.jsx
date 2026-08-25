@@ -211,7 +211,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     for (const type of ["transactions", "mandates"]) {
       fetch(`/api/payments/linking?type=${type}&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}${refreshCounter && type === "transactions" ? "&refresh=1" : ""}`)
         .then((response) => response.ok ? response.json() : Promise.reject(new Error("שליפת הנתונים נכשלה")))
-        .then((data) => { if (active) { setLiveRecords((previous) => ({ ...previous, [type]: data[type] || [] })); if (type === "transactions") setLastSyncedAt(data.lastSyncedAt || ""); } })
+        .then((data) => { if (active) { setLiveRecords((previous) => ({ ...previous, [type]: data[type] || [] })); if (type === "transactions") { setLastSyncedAt(data.lastSyncedAt || ""); if (data.inheritedLinks?.length) saveLinks(data.inheritedLinks); } } })
         .catch(() => {})
         .finally(() => { if (active) setLoadingRecords((previous) => ({ ...previous, [type]: false })); });
     }
