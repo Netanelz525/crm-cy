@@ -11,7 +11,7 @@ import PaymentsReportClient from "./payments-report-client";
 import PaymentMandatesReportClient from "./payment-mandates-report-client";
 import PaymentFilterFormClient from "./payment-filter-form-client";
 import { runPaymentStudentLinkingAction } from "./actions";
-import { listExternalMandates } from "../../lib/external-mandates";
+import { listExternalMandatesSafe } from "../../lib/external-mandates";
 
 function clean(value) {
   return String(value || "").trim();
@@ -66,7 +66,7 @@ export default async function PaymentsPage({ searchParams }) {
     : reportType === "mandates"
       ? { mandates: [], errors: [], connections: [], summary: { totalAmount: 0 } }
       : { transactions: [], errors: [], connections: [], summary: { totalAmount: 0, totalNetAmount: 0, totalFees: 0 } };
-  const externalMandates = reportType === "mandates" ? await listExternalMandates() : [];
+  const externalMandates = reportType === "mandates" ? await listExternalMandatesSafe() : [];
 
   return (
     <div style={{ display: "grid", gap: 20 }}>

@@ -21,7 +21,7 @@ import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { listTasks, taskStatusLabel } from "../../../../lib/tasks";
 import { listStudentPayments } from "../../../../lib/payment-student-links";
-import { listExternalMandates } from "../../../../lib/external-mandates";
+import { listExternalMandatesSafe } from "../../../../lib/external-mandates";
 import {
   deleteNeonStudentAction,
   generateStaffWhatsAppAgentLinkAction,
@@ -327,7 +327,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
     listStudentEvents(studentId, 12),
     canManageStudent ? listTasks({ studentId, limit: 20 }) : Promise.resolve([]),
     canManageStudent ? listStudentPayments(studentId, { limit: 100 }) : Promise.resolve([]),
-    canManageStudent ? listExternalMandates({ studentId }) : Promise.resolve([])
+    canManageStudent ? listExternalMandatesSafe({ studentId }) : Promise.resolve([])
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
