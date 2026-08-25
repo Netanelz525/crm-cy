@@ -11,6 +11,7 @@ import PaymentsReportClient from "./payments-report-client";
 import PaymentMandatesReportClient from "./payment-mandates-report-client";
 import PaymentFilterFormClient from "./payment-filter-form-client";
 import { runPaymentStudentLinkingAction } from "./actions";
+import { listExternalMandates } from "../../lib/external-mandates";
 
 function clean(value) {
   return String(value || "").trim();
@@ -27,7 +28,7 @@ export default async function PaymentsPage({ searchParams }) {
   const defaults = getDefaultPaymentDateRange();
   const reportType = clean(resolvedSearchParams?.reportType) === "mandates" ? "mandates" : "transactions";
   const mandateStatus = reportType === "mandates"
-    ? (["active", "issues", "completedNoRemaining", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
+    ? (["active", "ending_soon", "issues", "completedNoRemaining", "external", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
       ? clean(resolvedSearchParams?.mandateStatus)
       : "active")
     : "";
@@ -65,6 +66,7 @@ export default async function PaymentsPage({ searchParams }) {
     : reportType === "mandates"
       ? { mandates: [], errors: [], connections: [], summary: { totalAmount: 0 } }
       : { transactions: [], errors: [], connections: [], summary: { totalAmount: 0, totalNetAmount: 0, totalFees: 0 } };
+  const externalMandates = reportType === "mandates" ? await listExternalMandates() : [];
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -141,6 +143,7 @@ export default async function PaymentsPage({ searchParams }) {
               providerOptions={activeProviders}
               initialSelectedConnectionIds={selectedConnectionIds}
               defaultReplyTo={defaultReplyTo}
+              externalMandates={externalMandates}
             />
           ) : (
             <PaymentsReportClient

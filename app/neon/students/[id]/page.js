@@ -21,6 +21,7 @@ import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { listTasks, taskStatusLabel } from "../../../../lib/tasks";
 import { listStudentPayments } from "../../../../lib/payment-student-links";
+import { listExternalMandates } from "../../../../lib/external-mandates";
 import {
   deleteNeonStudentAction,
   generateStaffWhatsAppAgentLinkAction,
@@ -318,14 +319,15 @@ export default async function NeonStudentPage({ params, searchParams }) {
     : null;
   const studentWhatsAppCanPrint = Boolean(studentWhatsAppAgentUser?.is_print_only || studentWhatsAppAgentUser?.can_use_print_queue);
   const emailDeliveries = canViewEmailRecords ? await listStudentEmailDeliveries(studentId, 8) : [];
-  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks, studentPayments] = await Promise.all([
+  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks, studentPayments, externalMandates] = await Promise.all([
     canViewAttendanceHistory ? getAttendanceSummaryForStudent(studentId) : Promise.resolve(null),
     canViewAttendanceHistory ? listAttendanceHistoryForStudent(studentId, { limit: 8 }) : Promise.resolve([]),
     listOpenAttendanceSessionsForStudent(studentId, { limit: 8 }),
     canViewContactRecords ? listStudentContactLogs(studentId, 8) : Promise.resolve([]),
     listStudentEvents(studentId, 12),
     canManageStudent ? listTasks({ studentId, limit: 20 }) : Promise.resolve([]),
-    canManageStudent ? listStudentPayments(studentId, { limit: 100 }) : Promise.resolve([])
+    canManageStudent ? listStudentPayments(studentId, { limit: 100 }) : Promise.resolve([]),
+    canManageStudent ? listExternalMandates({ studentId }) : Promise.resolve([])
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
@@ -553,6 +555,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             </div>
             <div className="linked-records-summary">
               <span className="linked-record-pill">משויכים: {studentPayments.length}</span>
+              <span className="linked-record-pill">חיצוניות: {externalMandates.length}</span>
             </div>
           </summary>
           <div className="linked-record-group-body">
@@ -566,6 +569,14 @@ export default async function NeonStudentPage({ params, searchParams }) {
                 })}
               </div>
             ) : <div className="muted">לא נמצאו תשלומים משויכים לתלמיד.</div>}
+            {externalMandates.length ? (
+              <div className="linked-record-group" style={{ marginTop: 16 }}>
+                <div className="linked-record-group-summary"><div><b>הוראות קבע ממערכת חיצונית</b><div className="linked-record-meta">קשרים חיצוניים שסומנו ידנית.</div></div><span className="linked-record-pill">{externalMandates.length}</span></div>
+                <div className="linked-records-grid">
+                  {externalMandates.map((mandate) => <div key={mandate.id} className="linked-record-card"><b>{mandate.customerName || mandate.externalKey}</b><div className="linked-record-meta">{mandate.statusLabel}</div><div className="linked-record-meta">{mandate.contactEmail || "-"} · {mandate.contactPhone || "-"}</div><div className="linked-record-meta">{mandate.notes || ""}</div></div>)}
+                </div>
+              </div>
+            ) : null}
 
           </div>
         </details>

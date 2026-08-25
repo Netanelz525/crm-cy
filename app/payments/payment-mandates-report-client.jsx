@@ -46,6 +46,14 @@ function isNoRemainingPaymentsMandate(item) {
     || (issueText.includes("לא פעיל") && issueText.includes("אין יתרת תשלומים"));
 }
 
+function statusChipClass(status) {
+  if (status === "issues") return "meta-chip-issue";
+  if (status === "completed") return "meta-chip-completed";
+  if (status === "external") return "meta-chip-external";
+  if (status === "ending_soon") return "meta-chip-ending";
+  return "meta-chip-active";
+}
+
 function MandateIssueLabel({ item, fallbackText = "" }) {
   const issueText = clean(item?.errorText || fallbackText);
   if (isNoRemainingPaymentsMandate({ ...item, errorText: issueText })) {
@@ -218,6 +226,7 @@ function mandateTaskHref(item) {
 
 export default function PaymentMandatesReportClient({
   mandates,
+  externalMandates = [],
   connections,
   providerOptions,
   initialSelectedConnectionIds = [],
@@ -233,6 +242,8 @@ export default function PaymentMandatesReportClient({
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [detailsByMandate, setDetailsByMandate] = useState({});
+  const [externalForm, setExternalForm] = useState({ externalKey: "", studentId: "", contactName: "", contactPhone: "", contactEmail: "", notes: "", status: "active" });
+  const [externalItems, setExternalItems] = useState(externalMandates);
 
   const visibleConnections = useMemo(
     () => connections.filter((connection) => selectedProviders.includes(connection.provider)),
@@ -255,6 +266,19 @@ export default function PaymentMandatesReportClient({
     }),
     [mandates, selectedProviders, effectiveConnectionIds, mandateStatus, searchTerm, sortBy, sortDir]
   );
+
+  const visibleExternalMandates = useMemo(() => {
+    if (!["all", "external", "ending_soon"].includes(mandateStatus)) return [];
+    const query = clean(searchTerm).toLowerCase();
+    return externalItems.filter((item) => (mandateStatus === "all" || mandateStatus === "external" || item.status === mandateStatus) && (!query || JSON.stringify(item).toLowerCase().includes(query)));
+  }, [externalItems, mandateStatus, searchTerm]);
+
+  async function saveExternalMandate(event) {
+    event.preventDefault();
+    const response = await fetch("/api/payments/external-mandates", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(externalForm) });
+    const payload = await response.json();
+    if (response.ok) { setExternalItems((items) => [payload.mandate, ...items.filter((item) => item.id !== payload.mandate.id)]); setExternalForm({ externalKey: "", studentId: "", contactName: "", contactPhone: "", contactEmail: "", notes: "", status: "active" }); }
+  }
 
   const summary = useMemo(
     () => summarizePaymentTransactions(visibleMandates),
@@ -372,6 +396,20 @@ export default function PaymentMandatesReportClient({
         ) : null}
       </section>
 
+      <details className="card">
+        <summary><b>הוספת הוראת קבע ממערכת אחרת</b></summary>
+        <form onSubmit={saveExternalMandate} className="grid" style={{ marginTop: 14 }}>
+          <input placeholder="מזהה או שם הוראת הקבע" value={externalForm.externalKey} onChange={(e) => setExternalForm({ ...externalForm, externalKey: e.target.value })} required />
+          <input placeholder="מזהה תלמיד (אופציונלי)" value={externalForm.studentId} onChange={(e) => setExternalForm({ ...externalForm, studentId: e.target.value })} />
+          <input placeholder="איש קשר" value={externalForm.contactName} onChange={(e) => setExternalForm({ ...externalForm, contactName: e.target.value })} />
+          <input placeholder="טלפון" value={externalForm.contactPhone} onChange={(e) => setExternalForm({ ...externalForm, contactPhone: e.target.value })} />
+          <input placeholder="דוא״ל" type="email" value={externalForm.contactEmail} onChange={(e) => setExternalForm({ ...externalForm, contactEmail: e.target.value })} />
+          <select value={externalForm.status} onChange={(e) => setExternalForm({ ...externalForm, status: e.target.value })}><option value="active">פעילה ותקינה</option><option value="ending_soon">לקראת סיום</option><option value="completed">הסתיימה</option><option value="issues">תקלה בגבייה</option></select>
+          <textarea placeholder="הערות" value={externalForm.notes} onChange={(e) => setExternalForm({ ...externalForm, notes: e.target.value })} />
+          <button type="submit">שמור הוראת קבע חיצונית</button>
+        </form>
+      </details>
+
       <section className="card">
         <h2 style={{ marginTop: 0 }}>תצוגה חיה של הדוח</h2>
         <div className="grid">
@@ -383,8 +421,10 @@ export default function PaymentMandatesReportClient({
           />
           <select value={mandateStatus} onChange={(event) => setMandateStatus(clean(event.target.value) || "active")}>
             <option value="active">הצג הוראות קבע פעילות</option>
+            <option value="ending_soon">הצג הוראות קבע לקראת סיום</option>
             <option value="issues">הצג הוראות קבע עם תקלות</option>
             <option value="completedNoRemaining">הצג הוראות שהסתיימו התשלומים שלהן</option>
+            <option value="external">הצג הוראות קבע ממערכת חיצונית</option>
             <option value="all">הצג את כל הוראות הקבע</option>
           </select>
           <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
@@ -444,6 +484,7 @@ export default function PaymentMandatesReportClient({
           </div>
         </div>
       </section>
+      {visibleExternalMandates.length ? <section className="card"><h2>הוראות קבע ממערכת חיצונית</h2><div className="payments-report-list">{visibleExternalMandates.map((item) => <div key={item.id} className="payments-report-item"><div className="payments-report-summary"><div className="payments-report-summary-main"><strong>{item.customerName || item.externalKey}</strong><span>{item.contactEmail || "-"} · {item.contactPhone || "-"}</span></div><span className={`meta-chip ${statusChipClass(item.status)}`}>{item.statusLabel}</span></div><div className="payments-report-body"><div className="payments-report-grid"><div><b>איש קשר:</b> {item.contactName || "-"}</div><div><b>מזהה:</b> {item.externalKey}</div><div className="payments-report-grid-wide"><b>הערות:</b> {item.notes || "-"}</div></div></div></div>)}</div></section> : null}
 
       <section className="card">
         <h2 style={{ marginTop: 0 }}>דוח הוראות קבע</h2>
@@ -469,7 +510,7 @@ export default function PaymentMandatesReportClient({
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{item.connectionLabel}</span>
                     <span className="meta-chip">{item.providerLabel}</span>
-                    <span className={`meta-chip${item.status === "issues" ? " meta-chip-issue" : ""}${item.status === "completed" ? " meta-chip-completed" : ""}`}>
+                    <span className={`meta-chip ${statusChipClass(item.status)}`}>
                       {item.statusLabel || item.status || "-"}
                     </span>
                     {isNoRemainingPaymentsMandate(item) ? (

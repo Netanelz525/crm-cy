@@ -642,6 +642,27 @@ button[aria-disabled="true"] {
   font-weight: 800;
 }
 
+.meta-chip-active {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+  font-weight: 800;
+}
+
+.meta-chip-ending {
+  background: #ffedd5;
+  border-color: #fdba74;
+  color: #9a3412;
+  font-weight: 800;
+}
+
+.meta-chip-external {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
 .meta-chip-no-remaining,
 .payment-mandate-finished-label {
   background: rgba(5, 150, 105, 0.12);
