@@ -150,11 +150,12 @@ function ExternalMandateLink({ student, onSaved }) {
   );
 }
 
-export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, mandates, students, links, notice, error }) {
+export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, mandates, students, links, contactRecommendations = [], notice, error }) {
   const [liveRecords, setLiveRecords] = useState({ transactions, mandates });
   const [loadingRecords, setLoadingRecords] = useState({ transactions: true, mandates: true });
   const [localLinks, setLocalLinks] = useState(links);
   const [externalStudentIds, setExternalStudentIds] = useState(() => new Set());
+  const [contactRecommendationIds, setContactRecommendationIds] = useState(() => new Set(contactRecommendations));
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [studentFilter, setStudentFilter] = useState("all");
@@ -177,9 +178,14 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     const matchesInstitution = selectedInstitutions.has(institutionCode(student.institution));
     const hasTransactions = linkedStudentIds.has(student.id);
     const hasMandate = activeMandateStudentIds.has(student.id);
-    const matchesType = studentFilter === "all" || (studentFilter === "transactions" && hasTransactions) || (studentFilter === "mandates" && hasMandate) || (studentFilter === "none" && !hasTransactions && !hasMandate);
+    const matchesType = studentFilter === "all" || (studentFilter === "transactions" && hasTransactions) || (studentFilter === "mandates" && hasMandate) || (studentFilter === "none" && !hasTransactions && !hasMandate) || (studentFilter === "recommended" && contactRecommendationIds.has(student.id));
     return matchesInstitution && matchesType && (!query || normalize(`${student.label} ${student.tznum} ${student.className} ${student.institution}`).includes(normalize(query)));
-  }).sort((a, b) => sort === "count" ? (Number(linkedStudentIds.has(b.id)) - Number(linkedStudentIds.has(a.id))) : a.label.localeCompare(b.label, "he")), [students, selectedInstitutions, studentFilter, query, sort, linkedStudentIds, activeMandateStudentIds]);
+  }).sort((a, b) => sort === "count" ? (Number(linkedStudentIds.has(b.id)) - Number(linkedStudentIds.has(a.id))) : a.label.localeCompare(b.label, "he")), [students, selectedInstitutions, studentFilter, query, sort, linkedStudentIds, activeMandateStudentIds, contactRecommendationIds]);
+  async function toggleContactRecommendation(studentId, recommended) {
+    setContactRecommendationIds((previous) => { const next = new Set(previous); if (recommended) next.add(studentId); else next.delete(studentId); return next; });
+    const response = await fetch("/api/payments/linking", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "contact-recommendation", studentId, recommended }) });
+    if (!response.ok) setContactRecommendationIds((previous) => { const next = new Set(previous); if (recommended) next.delete(studentId); else next.add(studentId); return next; });
+  }
   const records = useMemo(() => [
     ...liveRecords.transactions.map((item) => ({ ...item, recordType: "transaction" })),
     ...liveRecords.mandates.map((item) => ({ ...item, recordType: "mandate", id: item.mandateId || item.id }))
@@ -232,7 +238,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
       <h2 style={{ marginTop: 0 }}>מצב תלמידים</h2>
       <div className="grid">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="חיפוש תלמיד" />
-        <select value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}><option value="all">כל התלמידים</option><option value="transactions">עם עסקאות משויכות</option><option value="mandates">עם הוראת קבע פעילה משויכת</option><option value="none">ללא עסקה וללא הוראת קבע</option></select>
+        <select value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}><option value="all">כל התלמידים</option><option value="transactions">עם עסקאות משויכות</option><option value="mandates">עם הוראת קבע פעילה משויכת</option><option value="none">ללא עסקה וללא הוראת קבע</option><option value="recommended">מומלצים ליצירת קשר</option></select>
         <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="name">מיון לפי שם</option><option value="count">מיון לפי שיוך</option></select>
       </div>
       <fieldset className="payment-institution-filter">
@@ -251,6 +257,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
         return <details className={`payment-student-expandable${hasIssue ? " payment-student-issue" : ""}`} key={student.id}>
           <summary className="payment-student-row"><b>{student.label}</b><span>{student.institution || "-"}</span><span>{student.className || "-"}</span><span>{linkedStudentIds.has(student.id) ? "עסקה ✓" : "עסקה -"}</span><span className={hasIssue ? "payment-mandate-issue-label" : ""}>{hasIssue ? "הו״ק עם תקלה" : activeMandateStudentIds.has(student.id) ? "הו״ק פעילה ✓" : "הו״ק -"}</span></summary>
           <div className="payment-student-linked-preview">
+            <label className="checkbox-label"><input type="checkbox" checked={contactRecommendationIds.has(student.id)} onChange={(event) => toggleContactRecommendation(student.id, event.target.checked)} />מומלץ ליצירת קשר להקמת הוראת קבע</label>
             {studentLinks.length ? studentLinks.map((link) => <div key={link.id} className={link.recordSnapshot?.status === "issues" ? "payment-mandate-issue-label" : ""}><b>{link.recordType === "mandate" ? "הוראת קבע" : "עסקה"}</b> · {link.payerName || link.recordSnapshot?.customerName || "ללא שם"} · {{ student: "התלמיד", father: "אבא", mother: "אמא", other: "אחר — הגיע דרך התלמיד" }[link.payerType] || "התלמיד"} · {formatMoney(link.recordSnapshot?.amount)}{link.recordSnapshot?.status === "issues" ? ` · ${link.recordSnapshot?.errorText || "תקלה בחיוב"}` : ""}</div>) : <div className="muted">אין תשלומים משויכים לתלמיד.</div>}
             {!hasMandate ? <ExternalMandateLink student={student} onSaved={(studentId) => setExternalStudentIds((previous) => new Set([...previous, studentId]))} /> : null}
             <Link className="quick-action-btn quick-action-outline" href={`/neon/students/${student.id}?payments=1#payments`}>פתח תשלומים בכרטיס התלמיד</Link>

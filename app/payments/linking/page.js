@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getDefaultPaymentDateRange, listPaymentConnections } from "../../../lib/payment-systems";
 import { listAllNeonStudents } from "../../../lib/neon-students";
-import { listPaymentRecordLinks } from "../../../lib/payment-links";
+import { listPaymentContactRecommendations, listPaymentRecordLinks } from "../../../lib/payment-links";
 import { getCurrentAppUser } from "../../../lib/rbac";
 import PaymentLinkingClient from "./payment-linking-client";
 
@@ -17,7 +17,7 @@ export default async function PaymentLinkingPage({ searchParams }) {
   const dateFrom = clean(params?.dateFrom) || defaults.dateFrom;
   const dateTo = clean(params?.dateTo) || defaults.dateTo;
   const connections = await listPaymentConnections({ activeOnly: true });
-  const [students, links] = await Promise.all([listAllNeonStudents(), listPaymentRecordLinks()]);
+  const [students, links, contactRecommendations] = await Promise.all([listAllNeonStudents(), listPaymentRecordLinks(), listPaymentContactRecommendations()]);
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -47,6 +47,7 @@ export default async function PaymentLinkingPage({ searchParams }) {
           institution: student.currentInstitution || ""
         }))}
         links={links}
+        contactRecommendations={contactRecommendations}
         connections={connections}
         notice={clean(params?.notice)}
         error={clean(params?.error)}

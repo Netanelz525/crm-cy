@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
 import { getPaymentDashboard, getPaymentMandatesDashboard, listPaymentConnections } from "../../../../lib/payment-systems";
-import { deletePaymentRecordLink, upsertPaymentRecordLink } from "../../../../lib/payment-links";
+import { deletePaymentRecordLink, setPaymentContactRecommendation, upsertPaymentRecordLink } from "../../../../lib/payment-links";
 import { getCachedPaymentTransactions, upsertAndLinkPaymentRecord } from "../../../../lib/payment-student-links";
 
 function clean(value) { return String(value || "").trim(); }
@@ -42,6 +42,9 @@ export async function POST(request) {
   if (!user) return NextResponse.json({ error: "אין הרשאה." }, { status: 403 });
   try {
     const body = await request.json();
+    if (body.kind === "contact-recommendation") {
+      return NextResponse.json(await setPaymentContactRecommendation({ studentId: body.studentId, recommended: body.recommended, userId: user.clerk_user_id }));
+    }
     const save = (item, recordType) => upsertPaymentRecordLink({
       recordType,
       provider: item.provider,
