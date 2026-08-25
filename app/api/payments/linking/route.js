@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../lib/rbac";
 import { getPaymentDashboard, getPaymentMandatesDashboard, listPaymentConnections } from "../../../../lib/payment-systems";
 import { deletePaymentRecordLink, upsertPaymentRecordLink } from "../../../../lib/payment-links";
+import { upsertAndLinkPaymentRecord } from "../../../../lib/payment-student-links";
 
 function clean(value) { return String(value || "").trim(); }
 
@@ -43,7 +44,11 @@ export async function POST(request) {
       linkedByUserId: user.clerk_user_id
     });
     const records = [await save(body.record, body.recordType)];
-    if (body.relatedMandate) records.push(await save(body.relatedMandate, "mandate"));
+    await upsertAndLinkPaymentRecord({ item: { ...body.record.recordSnapshot, ...body.record }, recordType: body.recordType, studentId: body.studentId, userId: user.clerk_user_id });
+    if (body.relatedMandate) {
+      records.push(await save(body.relatedMandate, "mandate"));
+      await upsertAndLinkPaymentRecord({ item: { ...body.relatedMandate.recordSnapshot, ...body.relatedMandate }, recordType: "mandate", studentId: body.studentId, userId: user.clerk_user_id });
+    }
     return NextResponse.json({ ok: true, links: records });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "שמירת השיוך נכשלה." }, { status: 400 });

@@ -20,7 +20,7 @@ import { listStudentContactLogs } from "../../../../lib/student-contact-logs";
 import { ageOf } from "../../../../lib/student-view";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { listTasks, taskStatusLabel } from "../../../../lib/tasks";
-import { listStudentPayments, listUnlinkedPayments } from "../../../../lib/payment-student-links";
+import { listStudentPayments } from "../../../../lib/payment-student-links";
 import {
   deleteNeonStudentAction,
   generateStaffWhatsAppAgentLinkAction,
@@ -30,7 +30,6 @@ import {
   uploadStudentDocumentAction,
   updateStudentDocumentNameAction,
   updateStudentOpenAttendanceAction,
-  linkStudentPaymentAction,
   unlinkStudentPaymentAction
 } from "./actions";
 import StudentContactLiveClient from "./student-contact-live-client";
@@ -318,15 +317,14 @@ export default async function NeonStudentPage({ params, searchParams }) {
     : null;
   const studentWhatsAppCanPrint = Boolean(studentWhatsAppAgentUser?.is_print_only || studentWhatsAppAgentUser?.can_use_print_queue);
   const emailDeliveries = canViewEmailRecords ? await listStudentEmailDeliveries(studentId, 8) : [];
-  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks, studentPayments, unlinkedPayments] = await Promise.all([
+  const [attendanceSummary, attendanceHistory, openAttendanceSessions, contactLogs, studentEvents, studentTasks, studentPayments] = await Promise.all([
     canViewAttendanceHistory ? getAttendanceSummaryForStudent(studentId) : Promise.resolve(null),
     canViewAttendanceHistory ? listAttendanceHistoryForStudent(studentId, { limit: 8 }) : Promise.resolve([]),
     listOpenAttendanceSessionsForStudent(studentId, { limit: 8 }),
     canViewContactRecords ? listStudentContactLogs(studentId, 8) : Promise.resolve([]),
     listStudentEvents(studentId, 12),
     canManageStudent ? listTasks({ studentId, limit: 20 }) : Promise.resolve([]),
-    canManageStudent ? listStudentPayments(studentId, { limit: 100 }) : Promise.resolve([]),
-    canManageStudent ? listUnlinkedPayments({ limit: 40 }) : Promise.resolve([])
+    canManageStudent ? listStudentPayments(studentId, { limit: 100 }) : Promise.resolve([])
   ]);
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
@@ -554,7 +552,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
             </div>
             <div className="linked-records-summary">
               <span className="linked-record-pill">משויכים: {studentPayments.length}</span>
-              <span className="linked-record-pill">ממתינים לשיוך: {unlinkedPayments.length}</span>
             </div>
           </summary>
           <div className="linked-record-group-body">
@@ -576,25 +573,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
               </div>
             ) : <div className="muted">לא נמצאו תשלומים משויכים לתלמיד.</div>}
 
-            <details className="linked-record-group" style={{ marginTop: 16 }}>
-              <summary className="linked-record-group-summary">
-                <div><b>שיוך ידני</b><div className="linked-record-meta">רשומות שלא נמצאה להן התאמה של שני מזהים חזקים.</div></div>
-                <span className="linked-record-pill">{unlinkedPayments.length}</span>
-              </summary>
-              <div className="linked-record-group-body">
-                {unlinkedPayments.map((payment) => (
-                  <form key={payment.id} action={linkStudentPaymentAction} className="linked-record-card" style={{ marginBottom: 10 }}>
-                    <input type="hidden" name="studentId" value={studentId} />
-                    <input type="hidden" name="paymentRecordId" value={payment.id} />
-                    <b>{payment.type === "mandate" ? "הוראת קבע" : "עסקה"} · {payment.customerName || "ללא שם"}</b>
-                    <div className="linked-record-meta">{formatPaymentAmount(payment.amount, payment.currency)} · {payment.periodMonth}</div>
-                    <div className="linked-record-meta">ת״ז: {payment.donorId || "-"} · מייל: {payment.email || "-"} · טלפון: {payment.phone || "-"}</div>
-                    <button type="submit" className="quick-action-btn quick-action-primary" style={{ marginTop: 8 }}>שייך לתלמיד זה</button>
-                  </form>
-                ))}
-                {!unlinkedPayments.length ? <div className="muted">אין כרגע רשומות שממתינות לשיוך.</div> : null}
-              </div>
-            </details>
           </div>
         </details>
       ) : null}

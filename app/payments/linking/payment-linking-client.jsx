@@ -24,7 +24,24 @@ function StudentPicker({ students, value, onChange }) {
 }
 
 function toLinkRecord(item) {
-  return { provider: item.provider, connectionId: item.connectionId, externalRecordId: item.id || item.mandateId, recordSnapshot: { id: item.id || item.mandateId, customerName: item.customerName, amount: item.amount, createdAt: item.createdAt, status: item.status, connectionLabel: item.connectionLabel } };
+  return {
+    provider: item.provider,
+    connectionId: item.connectionId,
+    externalRecordId: item.id || item.mandateId,
+    id: item.id || item.mandateId,
+    mandateId: item.mandateId,
+    transactionNumber: item.transactionNumber,
+    customerName: item.customerName,
+    donorId: item.donorId,
+    email: item.email,
+    phone: item.phone,
+    amount: item.amount,
+    currency: item.currency,
+    createdAt: item.createdAt,
+    periodMonth: item.periodMonth,
+    status: item.status,
+    recordSnapshot: { ...item }
+  };
 }
 
 function LinkForm({ item, recordType, students, existing, relatedMandate, onSaved, onDeleted }) {
