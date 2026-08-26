@@ -945,6 +945,41 @@ button[aria-disabled="true"] {
   pointer-events: none;
 }
 
+.call-lead-card {
+  border-color: #c7dff3;
+  background: linear-gradient(145deg, #ffffff 0%, #f4faff 100%);
+}
+
+.call-lead-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.call-lead-avatar {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  border-radius: 18px;
+  background: #1769aa;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.call-lead-header h2 { margin: 0 0 8px; }
+.call-lead-badges, .call-lead-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.call-lead-badges span { padding: 5px 10px; border-radius: 999px; background: #e8f2fc; color: #175384; font-size: .88rem; font-weight: 700; }
+.call-lead-badges .call-lead-status { background: #fff1cc; color: #8a5a00; }
+.call-lead-details { margin-bottom: 16px; }
+.call-lead-actions { margin-bottom: 16px; }
+.call-whatsapp-btn { color: #087f45; border-color: #8ed8b2; background: #effcf4; }
+.call-whatsapp-btn svg { display: block; }
+.call-lead-save-actions { margin-top: 12px; }
+
 .attendance-contact-details {
   position: relative;
 }
