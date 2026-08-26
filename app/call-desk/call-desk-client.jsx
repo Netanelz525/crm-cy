@@ -26,6 +26,14 @@ function phoneHref(value) {
   return number ? `tel:${number}` : "";
 }
 
+function emailText(value) {
+  if (value && typeof value === "object") {
+    return emailText(value.primaryEmail || value.emailAddress || value.address || value.value);
+  }
+  const email = clean(value);
+  return email.includes("@") ? email : "";
+}
+
 function whatsappHref(value) {
   const raw = phoneText(value).replace(/[^\d]/g, "");
   if (!raw || raw === "-") return "";
@@ -50,7 +58,7 @@ export default function CallDeskClient({ students }) {
   const phone = phoneText(student.phone || student.studentPhone);
   const phoneLink = phoneHref(student.phone || student.studentPhone);
   const whatsappLink = whatsappHref(student.phone || student.studentPhone);
-  const email = clean(student.email?.primaryEmail || student.email || student.primaryEmail);
+  const email = emailText(student.email || student.primaryEmail);
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("");
   async function save(completed) { setBusy(true); const response=await fetch("/api/call-desk",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({studentId:student.id,contactDate:new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Jerusalem"}),noteText:note,completed})}); setBusy(false); if(response.ok){setNote(""); if(completed)setIndex((value)=>Math.min(value+1,students.length-1));} }
   return <section className="card call-desk"><div className="summary-row"><div><h1>אזור השיחות שלי</h1><span className="muted">{index+1} מתוך {students.length} לידים</span></div><div className="quick-actions"><button onClick={()=>setIndex(Math.max(0,index-1))}>הקודם</button><button onClick={()=>setIndex(Math.min(students.length-1,index+1))}>הבא</button></div></div>
