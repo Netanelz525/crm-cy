@@ -186,6 +186,17 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     const response = await fetch("/api/payments/linking", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "contact-recommendation", studentId, recommended }) });
     if (!response.ok) setContactRecommendationIds((previous) => { const next = new Set(previous); if (recommended) next.delete(studentId); else next.add(studentId); return next; });
   }
+  async function exportDisplayedStudents() {
+    const response = await fetch("/api/payments/linking/students-export", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ students: filteredStudents.map((student) => ({ name: student.label, institution: student.institution, className: student.className, tznum: student.tznum, hasTransaction: linkedStudentIds.has(student.id), mandateStatus: issueMandateStudentIds.has(student.id) ? "תקלה" : activeMandateStudentIds.has(student.id) ? "פעילה" : "לא", recommended: contactRecommendationIds.has(student.id) })) }) });
+    if (!response.ok) return;
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "students-payment-linking.xlsx";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
   const records = useMemo(() => [
     ...liveRecords.transactions.map((item) => ({ ...item, recordType: "transaction" })),
     ...liveRecords.mandates.map((item) => ({ ...item, recordType: "mandate", id: item.mandateId || item.id }))
@@ -249,7 +260,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
           <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setSelectedInstitutions(new Set(["BOGER"]))}>BOGER בלבד</button>
         </div>
       </fieldset>
-      <div className="payment-student-summary"><b>{filteredStudents.length}</b> תלמידים בתצוגה</div>
+      <div className="quick-actions"><div className="payment-student-summary"><b>{filteredStudents.length}</b> תלמידים בתצוגה</div><button type="button" className="quick-action-btn quick-action-outline" onClick={exportDisplayedStudents} disabled={!filteredStudents.length}>ייצא תלמידים ל־Excel</button></div>
       <div className="payment-student-table">{filteredStudents.slice(0, 200).map((student) => {
         const studentLinks = localLinks.filter((link) => link.studentId === student.id);
         const hasIssue = issueMandateStudentIds.has(student.id);
