@@ -50,7 +50,8 @@ export default async function PaymentLinkingPage({ searchParams }) {
         links={links}
         contactRecommendations={contactRecommendations}
         users={users.filter((item) => item.access_status === "approved").map((item) => ({ id: item.clerk_user_id, label: item.display_name || item.email }))}
-        callAssignments={callAssignments.map((item) => ({ studentId: item.student_id, assigneeUserId: item.assignee_user_id }))}
+        responsibleStudents={students.filter(Boolean).map((student) => ({ id: student.id, label: student.label || student.name || "ללא שם", tznum: student.tznum || "" }))}
+        callAssignments={callAssignments.map((item) => ({ studentId: item.student_id, assigneeKey: item.assignee_student_id ? `student:${item.assignee_student_id}` : item.assignee_user_id ? `user:${item.assignee_user_id}` : "" }))}
         connections={connections}
         notice={clean(params?.notice)}
         error={clean(params?.error)}
