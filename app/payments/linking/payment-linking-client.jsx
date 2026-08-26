@@ -30,6 +30,13 @@ function StudentPicker({ students, value, onChange }) {
   );
 }
 
+function ResponsiblePicker({ users, students, value, onChange }) {
+  const [query, setQuery] = useState("");
+  const selectedLabel = value.startsWith("user:") ? users.find((item) => `user:${item.id}` === value)?.label : students.find((item) => `student:${item.id}` === value)?.label;
+  const results = useMemo(() => students.filter((item) => normalize(`${item.label} ${item.tznum}`).includes(normalize(query))).slice(0, 20), [students, query]);
+  return <div className="payment-student-picker"><input value={selectedLabel || query} placeholder="חיפוש אחראי לפי שם או ת״ז" onChange={(event)=>{setQuery(event.target.value);onChange("");}} />{query&&!selectedLabel?<div className="payment-student-results">{users.filter((item)=>normalize(item.label).includes(normalize(query))).slice(0,10).map((item)=><button type="button" key={item.id} onClick={()=>{onChange(`user:${item.id}`);setQuery("");}}>צוות · {item.label}</button>)}{results.map((item)=><button type="button" key={item.id} onClick={()=>{onChange(`student:${item.id}`);setQuery("");}}>תלמיד · {item.label}{item.tznum?` · ${item.tznum}`:""}</button>)}</div>:null}{value?<button type="button" className="quick-action-btn quick-action-outline" onClick={()=>{onChange("");setQuery("");}}>נקה אחראי</button>:null}</div>;
+}
+
 function toLinkRecord(item) {
   return {
     provider: item.provider,
@@ -167,6 +174,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
   const [mandateIssueFilter, setMandateIssueFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("name");
+  const [visibleStudentCount, setVisibleStudentCount] = useState(50);
   const byKey = useMemo(() => new Map(localLinks.map((link) => [`${link.recordType}:${link.provider}:${link.connectionId}:${link.externalRecordId}`, link])), [localLinks]);
   const linkedStudentIds = useMemo(() => new Set(localLinks.filter((link) => link.recordType === "transaction").map((link) => link.studentId)), [localLinks]);
   const activeMandateStudentIds = useMemo(() => new Set([
@@ -182,6 +190,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     const matchesType = studentFilter === "all" || (studentFilter === "transactions" && hasTransactions) || (studentFilter === "mandates" && hasMandate) || (studentFilter === "none" && !hasTransactions && !hasMandate) || (studentFilter === "recommended" && contactRecommendationIds.has(student.id));
     return matchesInstitution && matchesType && (!query || normalize(`${student.label} ${student.tznum} ${student.className} ${student.institution}`).includes(normalize(query)));
   }).sort((a, b) => sort === "count" ? (Number(linkedStudentIds.has(b.id)) - Number(linkedStudentIds.has(a.id))) : a.label.localeCompare(b.label, "he")), [students, selectedInstitutions, studentFilter, query, sort, linkedStudentIds, activeMandateStudentIds, contactRecommendationIds]);
+  useEffect(() => { setVisibleStudentCount(50); }, [query, studentFilter, sort, selectedInstitutions]);
   async function toggleContactRecommendation(studentId, recommended) {
     setContactRecommendationIds((previous) => { const next = new Set(previous); if (recommended) next.add(studentId); else next.delete(studentId); return next; });
     const response = await fetch("/api/payments/linking", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "contact-recommendation", studentId, recommended }) });
@@ -263,7 +272,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
         </div>
       </fieldset>
       <div className="quick-actions"><div className="payment-student-summary"><b>{filteredStudents.length}</b> תלמידים בתצוגה</div><button type="button" className="quick-action-btn quick-action-outline" onClick={exportDisplayedStudents} disabled={!filteredStudents.length}>ייצא תלמידים ל־Excel</button></div>
-      <div className="payment-student-table">{filteredStudents.slice(0, 200).map((student) => {
+      <div className="payment-student-table">{filteredStudents.slice(0, visibleStudentCount).map((student) => {
         const studentLinks = localLinks.filter((link) => link.studentId === student.id);
         const hasIssue = issueMandateStudentIds.has(student.id);
         const hasMandate = activeMandateStudentIds.has(student.id);
@@ -271,13 +280,13 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
           <summary className="payment-student-row"><b>{student.label}</b><span>{student.institution || "-"}</span><span>{student.className || "-"}</span><span>{linkedStudentIds.has(student.id) ? "עסקה ✓" : "עסקה -"}</span><span className={hasIssue ? "payment-mandate-issue-label" : ""}>{hasIssue ? "הו״ק עם תקלה" : activeMandateStudentIds.has(student.id) ? "הו״ק פעילה ✓" : "הו״ק -"}</span></summary>
           <div className="payment-student-linked-preview">
             <label className="checkbox-label"><input type="checkbox" checked={contactRecommendationIds.has(student.id)} onChange={(event) => toggleContactRecommendation(student.id, event.target.checked)} />מומלץ ליצירת קשר להקמת הוראת קבע</label>
-            <label>אחראי ליצירת קשר<select value={assignees.get(student.id)||""} onChange={(event)=>assignCaller(student.id,event.target.value)}><option value="">ללא אחראי</option><optgroup label="אנשי צוות">{users.map((user)=><option key={user.id} value={`user:${user.id}`}>{user.label}</option>)}</optgroup><optgroup label="תלמידים">{responsibleStudents.map((person)=><option key={person.id} value={`student:${person.id}`}>{person.label}{person.tznum?` · ${person.tznum}`:""}</option>)}</optgroup></select></label>
+            <label>אחראי ליצירת קשר<ResponsiblePicker users={users} students={responsibleStudents} value={assignees.get(student.id)||""} onChange={(value)=>assignCaller(student.id,value)} /></label>
             {studentLinks.length ? studentLinks.map((link) => <div key={link.id} className={link.recordSnapshot?.status === "issues" ? "payment-mandate-issue-label" : ""}><b>{link.recordType === "mandate" ? "הוראת קבע" : "עסקה"}</b> · {link.payerName || link.recordSnapshot?.customerName || "ללא שם"} · {{ student: "התלמיד", father: "אבא", mother: "אמא", other: "אחר — הגיע דרך התלמיד" }[link.payerType] || "התלמיד"} · {formatMoney(link.recordSnapshot?.amount)}{link.recordSnapshot?.status === "issues" ? ` · ${link.recordSnapshot?.errorText || "תקלה בחיוב"}` : ""}</div>) : <div className="muted">אין תשלומים משויכים לתלמיד.</div>}
             {!hasMandate ? <ExternalMandateLink student={student} onSaved={(studentId) => setExternalStudentIds((previous) => new Set([...previous, studentId]))} /> : null}
             <Link className="quick-action-btn quick-action-outline" href={`/neon/students/${student.id}?payments=1#payments`}>פתח תשלומים בכרטיס התלמיד</Link>
           </div>
         </details>;
-      })}</div>
+      })}{visibleStudentCount<filteredStudents.length?<button type="button" className="quick-action-btn quick-action-outline" onClick={()=>setVisibleStudentCount((value)=>value+50)}>טען 50 תלמידים נוספים ({filteredStudents.length-visibleStudentCount} נותרו)</button>:null}</div>
     </section>
     <section className="card">
       <h2 style={{ marginTop: 0 }}>רשומות תשלום לשיוך</h2>
