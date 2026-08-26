@@ -13,8 +13,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const currentUser = await getCurrentAppUser();
   const canUseAiChat = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
   const canUsePrintQueue = Boolean(currentUser?.can_use_print_queue);
-  const canShowTopbar = Boolean(currentUser?.is_manager || currentUser?.is_super_admin || canUsePrintQueue);
-  const primaryNavItems = currentUser?.is_print_only ? [
+  const canShowTopbar = Boolean(currentUser);
+  const isStudentPortalUser = Boolean(currentUser && !currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin && !currentUser.is_print_only && !currentUser.is_marei_mekomot);
+  const primaryNavItems = isStudentPortalUser ? [
+    { href: "/call-desk", label: "אזור השיחות שלי" },
+    { href: "/account", label: "אזור אישי" }
+  ] : currentUser?.is_print_only ? [
     { href: "/print", label: "הדפסה" }
   ] : currentUser?.is_marei_mekomot ? [
     { href: "/announcements", label: "מראה מקומות" },
@@ -24,11 +28,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     { href: "/email", label: "מיילים" },
     { href: "/announcements", label: "הודעות" },
     { href: "/attendance", label: "נוכחות" },
+    { href: "/call-desk", label: "אזור השיחות שלי" },
     { href: "/print", label: "הדפסה" }
   ];
-  const secondaryNavItems = [
+  const secondaryNavItems = isStudentPortalUser ? [] : [
     { href: "/tasks", label: "משימות" },
     { href: "/payments", label: "מערכות תשלום" },
+    ...(currentUser?.is_manager || currentUser?.is_super_admin ? [{ href: "/call-desk/manage", label: "ניהול שיחות" }] : []),
     ...(currentUser?.is_super_admin ? [{ href: "/admin", label: "ניהול" }] : []),
     ...(currentUser ? [{ href: "/account", label: "אזור אישי" }] : [])
   ];
