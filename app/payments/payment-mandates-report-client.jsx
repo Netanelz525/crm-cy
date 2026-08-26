@@ -14,6 +14,15 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function displayPhone(value) {
+  if (value && typeof value === "object") {
+    const number = clean(value.primaryPhoneNumber);
+    const callingCode = clean(value.primaryPhoneCallingCode);
+    return [callingCode, number].filter(Boolean).join(" ") || "-";
+  }
+  return clean(value) || "-";
+}
+
 function formatMoney(amount, currency = "ILS") {
   const numeric = Number(amount || 0);
   const safeCurrency = clean(currency || "ILS").toUpperCase();
@@ -531,7 +540,7 @@ export default function PaymentMandatesReportClient({
                   <div className="payments-report-grid">
                     <div><b>שם:</b> {item.customerName || "-"}</div>
                     <div><b>מייל:</b> {item.email || "-"}</div>
-                    <div><b>טלפון:</b> {item.phone || "-"}</div>
+                    <div><b>טלפון:</b> {displayPhone(item.phone)}</div>
                     <div><b>תעודת זהות:</b> {item.donorId || "-"}</div>
                     <div><b>סטטוס:</b> {item.statusLabel || item.status || "-"}</div>
                     <div><b>מקור:</b> {item.connectionLabel || "-"}</div>

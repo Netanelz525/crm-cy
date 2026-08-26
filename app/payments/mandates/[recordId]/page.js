@@ -5,6 +5,14 @@ import { getStudentPaymentRecord, listStudentPayments } from "../../../../lib/pa
 import { getCurrentAppUser, signInRedirectUrl } from "../../../../lib/rbac";
 
 function clean(value) { return String(value || "").trim(); }
+function displayPhone(value) {
+  if (value && typeof value === "object") {
+    const number = clean(value.primaryPhoneNumber);
+    const callingCode = clean(value.primaryPhoneCallingCode);
+    return [callingCode, number].filter(Boolean).join(" ") || "-";
+  }
+  return clean(value) || "-";
+}
 function money(value, currency = "ILS") { return new Intl.NumberFormat("he-IL", { style: "currency", currency: clean(currency) || "ILS" }).format(Number(value || 0)); }
 function dateText(value) { const date = new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("he-IL") : clean(value) || "-"; }
 
@@ -34,7 +42,7 @@ export default async function StudentMandateDetailsPage({ params, searchParams }
         <div><b>חיוב הבא:</b> {dateText(details.nextChargeDate)}</div>
         <div><b>תדירות:</b> {details.recurringCode || "-"}</div>
         <div><b>מייל:</b> {details.email || payment.email || "-"}</div>
-        <div><b>טלפון:</b> {details.phone || payment.phone || "-"}</div>
+        <div><b>טלפון:</b> {displayPhone(details.phone || payment.phone)}</div>
         <div><b>ת״ז:</b> {details.donorId || payment.donorId || "-"}</div>
         <div><b>אמצעי תשלום:</b> {details.paymentMethodLast4 ? `****${details.paymentMethodLast4}` : "-"}</div>
         <div><b>תוקף:</b> {details.paymentMethodExpiry || "-"}</div>

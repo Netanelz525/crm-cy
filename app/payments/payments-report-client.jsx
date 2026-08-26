@@ -12,6 +12,15 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function displayPhone(value) {
+  if (value && typeof value === "object") {
+    const number = clean(value.primaryPhoneNumber);
+    const callingCode = clean(value.primaryPhoneCallingCode);
+    return [callingCode, number].filter(Boolean).join(" ") || "-";
+  }
+  return clean(value) || "-";
+}
+
 function formatMoney(amount, currency = "ILS") {
   const numeric = Number(amount || 0);
   const safeCurrency = clean(currency || "ILS").toUpperCase();
@@ -273,7 +282,7 @@ export default function PaymentsReportClient({
                   <div className="payments-report-grid">
                     <div><b>שם:</b> {transaction.customerName || "-"}</div>
                     <div><b>מייל:</b> {transaction.email || "-"}</div>
-                    <div><b>טלפון:</b> {transaction.phone || "-"}</div>
+                    <div><b>טלפון:</b> {displayPhone(transaction.phone)}</div>
                     <div><b>סוג:</b> {transaction.type || "-"}</div>
                     <div><b>סטטוס:</b> {transaction.status || "-"}</div>
                     <div><b>אסמכתא:</b> {transaction.reference || "-"}</div>

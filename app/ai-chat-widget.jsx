@@ -19,6 +19,15 @@ function splitMessageContent(content) {
   return String(content || "").split("\n");
 }
 
+function displayPhone(value) {
+  if (value && typeof value === "object") {
+    const number = String(value.primaryPhoneNumber || "").trim();
+    const callingCode = String(value.primaryPhoneCallingCode || "").trim();
+    return [callingCode, number].filter(Boolean).join(" ") || "-";
+  }
+  return String(value || "").trim() || "-";
+}
+
 function isLongMessage(content) {
   const lines = splitMessageContent(content);
   return lines.length > 8 || String(content || "").length > 420;
@@ -192,9 +201,9 @@ function MessageCard({ message, onDecision, onFeedback, deciding }) {
                 Number.isFinite(Number(student.age)) ? `גיל ${Number(student.age)}` : "",
                 student.tznum ? `ת"ז ${student.tznum}` : ""
               ].filter(Boolean).join(" | ") || "ללא פרטי זיהוי"}</span>
-              <span>{student.studentPhone ? `טלפון תלמיד: ${student.studentPhone}` : "טלפון תלמיד: -"}</span>
-              <span>{student.dadPhone ? `טלפון אב: ${student.dadPhone}` : "טלפון אב: -"}</span>
-              <span>{student.momPhone ? `טלפון אם: ${student.momPhone}` : "טלפון אם: -"}</span>
+              <span>טלפון תלמיד: {displayPhone(student.studentPhone)}</span>
+              <span>טלפון אב: {displayPhone(student.dadPhone)}</span>
+              <span>טלפון אם: {displayPhone(student.momPhone)}</span>
               <span className="ai-chat-student-link">פתח כרטיס תלמיד</span>
             </a>
           ))}
