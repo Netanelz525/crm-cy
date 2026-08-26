@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getDefaultPaymentDateRange, listPaymentConnections } from "../../../lib/payment-systems";
 import { listAllNeonStudents } from "../../../lib/neon-students";
 import { listPaymentContactRecommendations, listPaymentRecordLinks } from "../../../lib/payment-links";
-import { getCurrentAppUser } from "../../../lib/rbac";
+import { getCurrentAppUser, listAppUsers } from "../../../lib/rbac";
+import { listCallAssignments } from "../../../lib/student-call-assignments";
 import PaymentLinkingClient from "./payment-linking-client";
 
 function clean(value) { return String(value || "").trim(); }
@@ -17,7 +18,7 @@ export default async function PaymentLinkingPage({ searchParams }) {
   const dateFrom = clean(params?.dateFrom) || defaults.dateFrom;
   const dateTo = clean(params?.dateTo) || defaults.dateTo;
   const connections = await listPaymentConnections({ activeOnly: true });
-  const [students, links, contactRecommendations] = await Promise.all([listAllNeonStudents(), listPaymentRecordLinks(), listPaymentContactRecommendations()]);
+  const [students, links, contactRecommendations, users, callAssignments] = await Promise.all([listAllNeonStudents(), listPaymentRecordLinks(), listPaymentContactRecommendations(), listAppUsers(), listCallAssignments()]);
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -48,6 +49,8 @@ export default async function PaymentLinkingPage({ searchParams }) {
         }))}
         links={links}
         contactRecommendations={contactRecommendations}
+        users={users.filter((item) => item.access_status === "approved").map((item) => ({ id: item.clerk_user_id, label: item.display_name || item.email }))}
+        callAssignments={callAssignments.map((item) => ({ studentId: item.student_id, assigneeUserId: item.assignee_user_id }))}
         connections={connections}
         notice={clean(params?.notice)}
         error={clean(params?.error)}

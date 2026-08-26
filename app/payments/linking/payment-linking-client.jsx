@@ -150,12 +150,13 @@ function ExternalMandateLink({ student, onSaved }) {
   );
 }
 
-export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, mandates, students, links, contactRecommendations = [], notice, error }) {
+export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, mandates, students, links, contactRecommendations = [], users = [], callAssignments = [], notice, error }) {
   const [liveRecords, setLiveRecords] = useState({ transactions, mandates });
   const [loadingRecords, setLoadingRecords] = useState({ transactions: true, mandates: true });
   const [localLinks, setLocalLinks] = useState(links);
   const [externalStudentIds, setExternalStudentIds] = useState(() => new Set());
   const [contactRecommendationIds, setContactRecommendationIds] = useState(() => new Set(contactRecommendations));
+  const [assignees, setAssignees] = useState(() => new Map(callAssignments.map((item) => [item.studentId, item.assigneeUserId])));
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [studentFilter, setStudentFilter] = useState("all");
@@ -197,6 +198,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
     anchor.click();
     URL.revokeObjectURL(url);
   }
+  async function assignCaller(studentId, assigneeUserId) { setAssignees((current)=>new Map(current).set(studentId,assigneeUserId)); await fetch("/api/call-desk",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind:"assign",studentId,assigneeUserId})}); }
   const records = useMemo(() => [
     ...liveRecords.transactions.map((item) => ({ ...item, recordType: "transaction" })),
     ...liveRecords.mandates.map((item) => ({ ...item, recordType: "mandate", id: item.mandateId || item.id }))
@@ -269,6 +271,7 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
           <summary className="payment-student-row"><b>{student.label}</b><span>{student.institution || "-"}</span><span>{student.className || "-"}</span><span>{linkedStudentIds.has(student.id) ? "עסקה ✓" : "עסקה -"}</span><span className={hasIssue ? "payment-mandate-issue-label" : ""}>{hasIssue ? "הו״ק עם תקלה" : activeMandateStudentIds.has(student.id) ? "הו״ק פעילה ✓" : "הו״ק -"}</span></summary>
           <div className="payment-student-linked-preview">
             <label className="checkbox-label"><input type="checkbox" checked={contactRecommendationIds.has(student.id)} onChange={(event) => toggleContactRecommendation(student.id, event.target.checked)} />מומלץ ליצירת קשר להקמת הוראת קבע</label>
+            <label>אחראי ליצירת קשר<select value={assignees.get(student.id)||""} onChange={(event)=>assignCaller(student.id,event.target.value)}><option value="">ללא אחראי</option>{users.map((user)=><option key={user.id} value={user.id}>{user.label}</option>)}</select></label>
             {studentLinks.length ? studentLinks.map((link) => <div key={link.id} className={link.recordSnapshot?.status === "issues" ? "payment-mandate-issue-label" : ""}><b>{link.recordType === "mandate" ? "הוראת קבע" : "עסקה"}</b> · {link.payerName || link.recordSnapshot?.customerName || "ללא שם"} · {{ student: "התלמיד", father: "אבא", mother: "אמא", other: "אחר — הגיע דרך התלמיד" }[link.payerType] || "התלמיד"} · {formatMoney(link.recordSnapshot?.amount)}{link.recordSnapshot?.status === "issues" ? ` · ${link.recordSnapshot?.errorText || "תקלה בחיוב"}` : ""}</div>) : <div className="muted">אין תשלומים משויכים לתלמיד.</div>}
             {!hasMandate ? <ExternalMandateLink student={student} onSaved={(studentId) => setExternalStudentIds((previous) => new Set([...previous, studentId]))} /> : null}
             <Link className="quick-action-btn quick-action-outline" href={`/neon/students/${student.id}?payments=1#payments`}>פתח תשלומים בכרטיס התלמיד</Link>
