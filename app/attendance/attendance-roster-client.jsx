@@ -91,6 +91,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const [locked, setLocked] = useState(Boolean(isLocked));
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
   const [query, setQuery] = useState("");
+  const [copyNotice, setCopyNotice] = useState("");
   const [flashRowIds, setFlashRowIds] = useState([]);
   const [exitingRows, setExitingRows] = useState([]);
   const [externalNotices, setExternalNotices] = useState([]);
@@ -237,6 +238,33 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     ));
   }
 
+  async function copyFilteredNames() {
+    const text = filteredRows
+      .map((student, index) => `${index + 1}. ${clean(student?.label) || "ללא שם"}`)
+      .join("\n");
+    if (!text) {
+      setCopyNotice("אין שמות להעתקה במסנן הנוכחי");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+
+    setCopyNotice(`${filteredRows.length} שמות הועתקו`);
+    window.setTimeout(() => setCopyNotice(""), 3000);
+  }
+
   function flashRow(studentId) {
     setFlashRowIds((current) => (current.includes(studentId) ? current : [...current, studentId]));
     const existing = flashTimersRef.current.get(studentId);
@@ -372,10 +400,21 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
             onChange={(event) => setQuery(event.target.value)}
             placeholder="חיפוש לפי שם תלמיד, שיעור או מספר טלפון"
           />
-          <div className="muted attendance-toolbar-count">
-            מוצגים כרגע {filteredRows.length} מתוך {rows.length}
+          <div className="quick-actions" style={{ marginTop: 0 }}>
+            <div className="muted attendance-toolbar-count">
+              מוצגים כרגע {filteredRows.length} מתוך {rows.length}
+            </div>
+            <button
+              type="button"
+              className="quick-action-btn quick-action-outline"
+              onClick={copyFilteredNames}
+              disabled={!filteredRows.length}
+            >
+              העתק שמות ({filteredRows.length})
+            </button>
           </div>
         </div>
+        {copyNotice ? <div className="ok" role="status" aria-live="polite">{copyNotice}</div> : null}
         <div className="attendance-filter-toolbar">
           <button
             type="button"
