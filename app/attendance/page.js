@@ -15,6 +15,7 @@ import { listStudentTags } from "../../lib/student-tags";
 import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction, setAttendanceSessionsBulkLockAction } from "./actions";
 import ResponsibleUserPicker from "./responsible-user-picker";
+import CreateSessionForm from "./create-session-form";
 
 function clean(value) {
   return String(value || "").trim();
@@ -431,7 +432,7 @@ export default async function AttendancePage({ searchParams }) {
             </div>
             <span className="attendance-collapsible-action">פתח יצירה</span>
           </summary>
-          <form action={createAttendanceSessionAction} className="grid attendance-collapsible-body">
+          <CreateSessionForm action={createAttendanceSessionAction}>
             <input type="hidden" name="institution" value="" />
             <label style={{ gridColumn: "1 / -1" }}>
               <span className="muted">מבנה ממפגש קודם</span>
@@ -474,8 +475,7 @@ export default async function AttendancePage({ searchParams }) {
                 </div>
               </>
             ) : null}
-            <button type="submit">צור מפגש והתחל להזין</button>
-          </form>
+          </CreateSessionForm>
         </details>
 
         <aside className="card glass">

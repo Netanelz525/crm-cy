@@ -7,6 +7,7 @@ import {
   createAttendanceSession,
   deleteAttendanceSession,
   getAttendanceSessionById,
+  normalizeAttendanceSessionType,
   parseAttendanceCustomStatusesText,
   saveAttendanceRecord,
   setAttendanceSessionLocked,
@@ -35,6 +36,13 @@ export async function createAttendanceSessionAction(formData) {
   const templateSession = templateSessionId ? await getAttendanceSessionById(templateSessionId) : null;
   const title = clean(formData.get("title"));
   const sessionDate = clean(formData.get("sessionDate"));
+  if (!normalizeAttendanceSessionType(sessionType || templateSession?.sessionType)) {
+    return { error: "בחר סוג מפגש או מבנה ממפגש קודם לפני יצירת מפגש." };
+  }
+  const parsedDate = new Date(`${sessionDate}T12:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== sessionDate) {
+    return { error: "בחר תאריך תקין למפגש." };
+  }
   const sourceNote = clean(formData.get("sourceNote"));
   const institutionFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("institutionFilter")) : [];
   const classFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("classFilter")) : [];
