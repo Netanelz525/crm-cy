@@ -87,6 +87,7 @@ export default async function EmailPage({ searchParams }) {
   const draftRecord = draftId ? await getEmailCampaignDraft(draftId) : null;
   const draft = draftRecord?.draft_json || null;
   const composeMode = clean(resolvedSearchParams?.compose) === "1" || Boolean(draftId);
+  const filtersSet = clean(resolvedSearchParams?.filtersSet) === "1";
   const hasInstitutionParam = hasSearchParam(resolvedSearchParams, "institution");
   const hasClassParam = hasSearchParam(resolvedSearchParams, "class");
   const hasRegistrationParam = hasSearchParam(resolvedSearchParams, "registration");
@@ -102,18 +103,20 @@ export default async function EmailPage({ searchParams }) {
   const searchQuery = clean(resolvedSearchParams?.q);
   const searchRecipientRoles = getSearchParamList(resolvedSearchParams?.recipientRoles);
   const filters = {
-    institution: hasInstitutionParam ? searchInstitution : Array.isArray(draft?.institution) ? draft.institution.map(clean).filter(Boolean) : clean(draft?.institution) ? [clean(draft.institution)] : [],
-    class: hasClassParam ? searchClass : Array.isArray(draft?.class) ? draft.class.map(clean).filter(Boolean) : clean(draft?.class) ? [clean(draft.class)] : [],
-    registration: hasRegistrationParam ? searchRegistration : Array.isArray(draft?.registration) ? draft.registration.map(clean).filter(Boolean) : clean(draft?.registration) ? [clean(draft.registration)] : [],
-    familystatus: hasFamilyStatusParam ? searchFamilyStatus : Array.isArray(draft?.familystatus) ? draft.familystatus.map(clean).filter(Boolean) : clean(draft?.familystatus) ? [clean(draft.familystatus)] : [],
-    tagIds: hasTagIdsParam
+    institution: filtersSet || hasInstitutionParam ? searchInstitution : Array.isArray(draft?.institution) ? draft.institution.map(clean).filter(Boolean) : clean(draft?.institution) ? [clean(draft.institution)] : [],
+    class: filtersSet || hasClassParam ? searchClass : Array.isArray(draft?.class) ? draft.class.map(clean).filter(Boolean) : clean(draft?.class) ? [clean(draft.class)] : [],
+    registration: filtersSet || hasRegistrationParam ? searchRegistration : Array.isArray(draft?.registration) ? draft.registration.map(clean).filter(Boolean) : clean(draft?.registration) ? [clean(draft.registration)] : [],
+    familystatus: filtersSet || hasFamilyStatusParam ? searchFamilyStatus : Array.isArray(draft?.familystatus) ? draft.familystatus.map(clean).filter(Boolean) : clean(draft?.familystatus) ? [clean(draft.familystatus)] : [],
+    tagIds: filtersSet || hasTagIdsParam
       ? searchTagIds
       : Array.isArray(draft?.tagIds) ? draft.tagIds.map(clean).filter(Boolean) : [],
-    q: hasQueryParam ? searchQuery : clean(draft?.q),
-    recipientRoles: hasRecipientRolesParam
+    q: filtersSet || hasQueryParam ? searchQuery : clean(draft?.q),
+    recipientRoles: filtersSet || hasRecipientRolesParam
       ? normalizeRecipientRoles(searchRecipientRoles)
       : normalizeRecipientRoles(draft?.recipientRoles || draft?.recipientMode),
-    selectedStudentIds: Array.isArray(draft?.selectedStudentIds)
+    selectedStudentIds: filtersSet
+      ? []
+      : Array.isArray(draft?.selectedStudentIds)
       ? draft.selectedStudentIds.map(clean).filter(Boolean)
       : Array.isArray(resolvedSearchParams?.studentIds)
         ? resolvedSearchParams.studentIds.map(clean).filter(Boolean)

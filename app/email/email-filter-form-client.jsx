@@ -110,6 +110,7 @@ export default function EmailFilterFormClient({
   function buildHref(nextState) {
     const params = new URLSearchParams();
     params.set("compose", "1");
+    params.set("filtersSet", "1");
     if (draftId) params.set("draft", draftId);
     nextState.institution.forEach((value) => params.append("institution", value));
     nextState.class.forEach((value) => params.append("class", value));
@@ -194,20 +195,18 @@ export default function EmailFilterFormClient({
             </div>
           ) : null}
         </div>
-        {hasActiveFilterValues ? (
-          <button
-            type="button"
-            className="email-clear-link email-clear-button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              clearAll();
-            }}
-            disabled={isPending}
-          >
-            נקה הכול
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="email-clear-link email-clear-button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            clearAll();
+          }}
+          disabled={isPending || !hasActiveFilterValues}
+        >
+          אפס את כל המסננים
+        </button>
       </summary>
       <div aria-busy={isPending} className="email-filter-body">
         <div className="email-form-grid">
