@@ -174,6 +174,10 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
   const [mandateIssueFilter, setMandateIssueFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("name");
+  const assigneeLabels = useMemo(() => new Map([
+    ...users.map((item) => [`user:${item.id}`, item.label]),
+    ...responsibleStudents.map((item) => [`student:${item.id}`, item.label])
+  ]), [users, responsibleStudents]);
   const [visibleStudentCount, setVisibleStudentCount] = useState(50);
   const byKey = useMemo(() => new Map(localLinks.map((link) => [`${link.recordType}:${link.provider}:${link.connectionId}:${link.externalRecordId}`, link])), [localLinks]);
   const linkedStudentIds = useMemo(() => new Set(localLinks.filter((link) => link.recordType === "transaction").map((link) => link.studentId)), [localLinks]);
@@ -276,8 +280,10 @@ export default function PaymentLinkingClient({ dateFrom, dateTo, transactions, m
         const studentLinks = localLinks.filter((link) => link.studentId === student.id);
         const hasIssue = issueMandateStudentIds.has(student.id);
         const hasMandate = activeMandateStudentIds.has(student.id);
+        const assigneeKey = assignees.get(student.id) || "";
+        const assigneeLabel = assigneeLabels.get(assigneeKey) || "";
         return <details className={`payment-student-expandable${hasIssue ? " payment-student-issue" : ""}`} key={student.id}>
-          <summary className="payment-student-row"><b>{student.label}</b><span>{student.institution || "-"}</span><span>{student.className || "-"}</span><span>{linkedStudentIds.has(student.id) ? "עסקה ✓" : "עסקה -"}</span><span className={hasIssue ? "payment-mandate-issue-label" : ""}>{hasIssue ? "הו״ק עם תקלה" : activeMandateStudentIds.has(student.id) ? "הו״ק פעילה ✓" : "הו״ק -"}</span></summary>
+          <summary className="payment-student-row"><b>{student.label}</b><span>{student.institution || "-"}</span><span>{student.className || "-"}</span><span>{linkedStudentIds.has(student.id) ? "עסקה ✓" : "עסקה -"}</span><span className={hasIssue ? "payment-mandate-issue-label" : ""}>{hasIssue ? "הו״ק עם תקלה" : activeMandateStudentIds.has(student.id) ? "הו״ק פעילה ✓" : "הו״ק -"}</span><span className={assigneeLabel ? "payment-call-assigned" : "payment-call-unassigned"}>{assigneeLabel ? `שיחה: ${assigneeLabel} ✓` : "לא משויך לשיחה"}</span></summary>
           <div className="payment-student-linked-preview">
             <label className="checkbox-label"><input type="checkbox" checked={contactRecommendationIds.has(student.id)} onChange={(event) => toggleContactRecommendation(student.id, event.target.checked)} />מומלץ ליצירת קשר להקמת הוראת קבע</label>
             <label>אחראי ליצירת קשר<ResponsiblePicker users={users} students={responsibleStudents} value={assignees.get(student.id)||""} onChange={(value)=>assignCaller(student.id,value)} /></label>
