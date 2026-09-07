@@ -7,6 +7,7 @@ import {
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
   sendAttendanceSessionEmailsAction,
+  sendAttendanceSessionWhatsAppAction,
   setAttendanceSessionLockAction,
   syncAttendanceSessionStudentsAction
 } from "../actions";
@@ -302,6 +303,18 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             </div>
           </div>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+            <b>שני סטטוסים לעדכון דרך WhatsApp</b>
+            <span className="muted">יש לבחור בדיוק שניים. משמעות הכפתורים תופיע בגוף ההודעה.</span>
+            <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
+              {statusOptions.map(([value, label]) => (
+                <label key={`whatsapp-response-${value}`} className="attendance-filter-chip">
+                  <input type="checkbox" name="whatsappResponseStatuses" value={value} style={{ marginInlineEnd: 6 }} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
             <b>למי שולחים</b>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
               {Object.entries(ATTENDANCE_EMAIL_RECIPIENT_LABELS).map(([value, label]) => (
@@ -338,6 +351,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <div className="quick-actions">
             <button formAction={saveAttendanceSessionMessagingAction} className="quick-action-btn quick-action-outline">שמור הודעה</button>
             <AttendanceEmailSendSubmit formAction={sendAttendanceSessionEmailsAction} />
+            <button formAction={sendAttendanceSessionWhatsAppAction} className="quick-action-btn">שלח WhatsApp למפגש</button>
           </div>
         </form>
       </details>

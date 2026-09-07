@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { saveWhatsAppCoexistenceEvent } from "../../../../../lib/whatsapp-coexistence-events";
+import { applyAttendanceWhatsAppResponse } from "../../../../../lib/attendance-whatsapp";
 
 export const runtime = "nodejs";
 
@@ -95,11 +96,16 @@ export async function POST(request) {
     const body = JSON.parse(rawBody);
     const events = extractEvents(body, rawBody);
     const results = [];
-    for (const event of events) results.push(await saveWhatsAppCoexistenceEvent(event));
+    for (const event of events) {
+      results.push(await saveWhatsAppCoexistenceEvent(event));
+      const payload = clean(event?.payload?.message?.button?.payload || event?.payload?.message?.interactive?.button_reply?.id);
+      if (payload.startsWith("attendance:")) {
+        await applyAttendanceWhatsAppResponse(payload, event.waId);
+      }
+    }
     return NextResponse.json({ ok: true, received: events.length, stored: results.filter((item) => !item.duplicate).length });
   } catch (error) {
     console.error("WhatsApp coexistence webhook failed:", error?.message || error);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }
-

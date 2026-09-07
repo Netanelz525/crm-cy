@@ -17,6 +17,7 @@ import {
   updateAttendanceSessionMessaging
 } from "../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
+import { sendAttendanceSessionWhatsApp } from "../../lib/attendance-whatsapp";
 import { requireAttendanceUser, requireEmailSender } from "../../lib/rbac";
 
 function clean(value) {
@@ -285,4 +286,31 @@ export async function sendAttendanceSessionEmailsAction(formData) {
   });
 
   redirect(`/attendance/${sessionId}?mailQueued=1`);
+}
+
+export async function sendAttendanceSessionWhatsAppAction(formData) {
+  const user = await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  const responseStatuses = cleanList(formData.getAll("whatsappResponseStatuses"));
+  const targetStatuses = cleanList(formData.getAll("targetStatuses"));
+  const recipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+  if (responseStatuses.length !== 2) {
+    redirect(`/attendance/${sessionId}?whatsappError=${encodeURIComponent("יש לבחור בדיוק שני סטטוסים לעדכון דרך WhatsApp")}`);
+  }
+  after(async () => {
+    try {
+      await sendAttendanceSessionWhatsApp({
+        sessionId,
+        personalMessage: clean(formData.get("personalMessage")),
+        responseStatuses,
+        targetStatuses,
+        recipientRoles,
+        createdByUserId: user.clerk_user_id
+      });
+    } catch (error) {
+      console.error("Attendance WhatsApp batch failed", { sessionId, error: clean(error?.message) });
+    }
+  });
+  redirect(`/attendance/${sessionId}?whatsappQueued=1`);
 }
