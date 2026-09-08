@@ -22,6 +22,8 @@ import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/a
 import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
 import { getResendConfigStatus } from "../../../lib/resend";
 import ResponsibleUserPicker from "../responsible-user-picker";
+import AttendanceCallTeam from "../attendance-call-team";
+import { getCallTeam } from "../../../lib/attendance-calls";
 
 function clean(value) {
   return String(value || "").trim();
@@ -96,6 +98,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   }
 
   const sessionAudienceSummary = formatSessionAudience(roster.session);
+  const callTeam = canManageSessionSettings ? await getCallTeam(sessionId, currentUser) : null;
   const sessionSummary = [
     roster.session.institutionLabel,
     roster.session.displayTitle || roster.session.title || roster.session.sessionTypeLabel || "ללא סוג",
@@ -131,6 +134,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       </div>
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
+      {callTeam ? <AttendanceCallTeam sessionId={sessionId} team={callTeam} rosterIds={roster.students.map(s => s.id)} /> : null}
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
       {detailsSaved ? <div className="ok">פרטי המפגש נשמרו.</div> : null}
       {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
