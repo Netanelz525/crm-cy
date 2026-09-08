@@ -9,7 +9,8 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const db = new PGlite();
  t.after(() => db.close());
  await db.exec(`CREATE TABLE app_users(clerk_user_id text primary key, linked_student_id text, access_status text, role text, display_name text);
- CREATE TABLE attendance_sessions(id text primary key,title text,session_type text,session_date date,created_at timestamptz default now(),updated_at timestamptz default '2026-09-08T00:00:00.123456Z',is_locked boolean default false);
+ CREATE TABLE attendance_sessions(id text primary key,title text,session_type text,session_date date,responsible_user_ids text[],responsible_user_id text,created_at timestamptz default now(),updated_at timestamptz default '2026-09-08T00:00:00.123456Z',is_locked boolean default false);
+ CREATE TABLE neon_students(student_id text primary key,full_name text,first_name text,last_name text,tznum text,class text,current_institution text,registration text,primary_email text,father_email text,mother_email text,student_phone text,father_phone text,mother_phone text,age_years int,children_count int,payload jsonb,synced_at timestamptz default now());
  CREATE TABLE attendance_records(session_id text,student_id text,student_name text,student_class text,status text,note_text text,marked_by_user_id text,marked_at timestamptz,updated_at timestamptz,primary key(session_id,student_id));
  CREATE TABLE student_contact_logs(id text primary key,student_id text,contact_date date,note_text text,created_by_user_id text,created_at timestamptz default now());
  INSERT INTO attendance_sessions(id,title) VALUES ('meeting','test');
@@ -22,7 +23,13 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  let students=[1,2,3,4,5].map(n=>({id:`lead-${n}`,label:`Lead ${n}`,class:'A',classLabel:'A',phone:'0501234567',status:'missing'}));
  const roster=()=>({session:{id:'meeting',title:'test',updatedAt:new Date('2026-09-08T00:00:00.123Z'),statusOptions:[['found','נמצא'],['missing','לא נמצא']],isLocked:false},students});
  const source=fs.readFileSync(path.join(__dirname,'../../lib/attendance-calls.js'),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
- const api=new Function('sql','initDb','getAttendanceRoster','listAllNeonStudents','randomUUID',source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions};')(sql,async()=>{},async()=>roster(),async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID);
+ const fieldSource=fs.readFileSync(path.join(__dirname,'../../lib/student-fields.js'),'utf8').replace(/export /g,'');
+ const fieldHelpers=new Function(fieldSource+';return {FIELD_SECTIONS,ENUM_LABELS,studentToFormValues,normalizeStudentInput,getByPath};')();
+ const neonSource=fs.readFileSync(path.join(__dirname,'../../lib/neon-students.js'),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
+ const mirror=new Function('sql','initDb','randomUUID',neonSource+';return buildStudentMirrorRecord;')(sql,async()=>{},randomUUID);
+ const getStudent=async id=>{const row=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',[id])).rows[0];return row?{...row.payload,id,childrenCount:row.children_count}:null;};
+ const deps={sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
+ const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
  const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved'};
  const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved'};
  const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved'};
@@ -78,4 +85,42 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
    assert.equal((await api.claimAttendanceCall('meeting',a)).lead.token,fresh.lead.token);
  }
 
+ // Manual selection includes completed invitees, preserves an existing lease if busy.
+ await api.saveCallTeam('meeting',['caller-a','caller-b'],manager);
+ const manual=await api.claimAttendanceCall('meeting',a,'lead-1');
+ assert.equal(manual.lead.studentId,'lead-1');
+ const other=await api.claimAttendanceCall('meeting',b);
+ assert.ok(other.lead);
+ await assert.rejects(api.claimAttendanceCall('meeting',a,other.lead.studentId),e=>e.status===409);
+ assert.equal((await api.claimAttendanceCall('meeting',a)).lead.token,manual.lead.token);
+ await assert.rejects(api.claimAttendanceCall('meeting',a,'not-in-roster'),e=>e.status===403);
+ assert.ok((await api.searchAttendanceCalls('meeting','Lead',a)).students.some(s=>s.id===other.lead.studentId&&s.busy));
+ const student={id:'lead-1',fullName:{firstName:'First',lastName:'Last'},class:'A',phone:{primaryPhoneNumber:'0501111111',primaryPhoneCallingCode:'+972'},email:{primaryEmail:'test@example.invalid'},note:'unchanged'};
+ await db.query('INSERT INTO neon_students(student_id,payload,class) VALUES ($1,$2::jsonb,$3)',['lead-1',JSON.stringify(student),'A']);
+ const identity={studentId:'lead-1',token:manual.lead.token};
+ const detail=await api.getAttendanceCallStudent('meeting',identity,a);
+ assert.equal(detail.values['fullName.lastName'],'Last');
+ await assert.rejects(api.getAttendanceCallStudent('meeting',identity,b),e=>e.status===409);
+ await assert.rejects(api.updateAttendanceCallStudent('meeting',{...identity,version:detail.version,fields:{role:'admin'}},a),e=>e.status===400);
+ await assert.rejects(api.updateAttendanceCallStudent('meeting',{...identity,version:detail.version,fields:{class:'TEAM'}},a),e=>e.status===403);
+ await assert.rejects(api.updateAttendanceCallStudent('meeting',{...identity,version:detail.version,fields:{dateofbirth:'2026-02-30'}},a),e=>e.status===400);
+ await api.updateAttendanceCallStudent('meeting',{...identity,version:detail.version,fields:{'fullName.firstName':'Changed','phone.primaryPhoneNumber':'0502222222',note:''}},a);
+ const updated=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',['lead-1'])).rows[0];
+ assert.equal(updated.full_name,'Changed Last');
+ assert.equal(updated.student_phone,'0502222222');
+ assert.equal(updated.payload.fullName.lastName,'Last');
+ assert.equal(updated.payload.email.primaryEmail,'test@example.invalid');
+ assert.equal(updated.payload.note,'');
+ await assert.rejects(api.updateAttendanceCallStudent('meeting',{...identity,version:detail.version,fields:{note:'stale overwrite'}},a),e=>e.status===409);
+ const latest=await api.getAttendanceCallStudent('meeting',identity,a);
+ await db.query('UPDATE attendance_sessions SET is_locked=true');
+ await assert.rejects(api.updateAttendanceCallStudent('meeting',{...identity,version:latest.version,fields:{note:'locked'}},a),e=>e.status===403);
+ await db.query('UPDATE attendance_sessions SET is_locked=false');
+ await db.query("UPDATE attendance_call_leads SET lease_until=now()-interval '1 second' WHERE student_id='lead-1'");
+ await assert.rejects(api.updateAttendanceCallStudent('meeting',{...identity,version:latest.version,fields:{note:'expired'}},a),e=>e.status===409);
+ // Existing session responsible users can join without being a student call-team member.
+ await db.query("UPDATE attendance_sessions SET responsible_user_ids=ARRAY['outsider']");
+ const responsible={clerk_user_id:'outsider',linked_student_id:'caller-x',access_status:'approved'};
+ assert.equal((await api.listMyCallSessions(responsible)).length,1);
+ assert.ok((await api.claimAttendanceCall('meeting',responsible,'lead-1')).lead);
 });

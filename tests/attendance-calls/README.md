@@ -19,3 +19,9 @@ Three additive tables are initialized on first use. Schema setup uses a transact
 Run `npm install --prefix tests/attendance-calls`, then `npm test --prefix tests/attendance-calls`.
 
 These tests execute the production SQL in PGlite (embedded PostgreSQL) with isolated synthetic users and rosters. They cover concurrent requests, lease reuse/expiry, caller identity, authorization, team removal, session locks, roster removal, status validation, retry delays, idempotency and rollback. PGlite serializes transactions; multi-connection lock scheduling on hosted Neon is not a load test in this suite.
+
+## Manual lookup and student information
+
+Responsible users already listed on a session also have access while it is unlocked. The caller can search only the current session's invitees by name or telephone and claim a specific student, including a previously completed/deferred lead. A live lease held by someone else cannot be overridden. A successful manual switch releases the caller's previous lease; a failed switch retains it.
+
+The **עדכון פרטי תלמיד** panel uses the system's FIELD_SECTIONS and enum definitions. It loads values only for the current lease, accepts only known fields, and writes the student payload plus its search/index columns atomically with a contact audit entry. An exact database revision prevents overwriting a card changed since opening it. Expiry, locking or loss of membership prevents saving. The TEAM class value controls staff access and may only be assigned or changed by a manager.
