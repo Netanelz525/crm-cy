@@ -9,7 +9,7 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const db = new PGlite();
  t.after(() => db.close());
  await db.exec(`CREATE TABLE app_users(clerk_user_id text primary key, linked_student_id text, access_status text, role text, display_name text);
- CREATE TABLE attendance_sessions(id text primary key,title text,session_type text,session_date date,created_at timestamptz default now(),updated_at timestamptz default '2026-09-08T00:00:00Z',is_locked boolean default false);
+ CREATE TABLE attendance_sessions(id text primary key,title text,session_type text,session_date date,created_at timestamptz default now(),updated_at timestamptz default '2026-09-08T00:00:00.123456Z',is_locked boolean default false);
  CREATE TABLE attendance_records(session_id text,student_id text,student_name text,student_class text,status text,note_text text,marked_by_user_id text,marked_at timestamptz,updated_at timestamptz,primary key(session_id,student_id));
  CREATE TABLE student_contact_logs(id text primary key,student_id text,contact_date date,note_text text,created_by_user_id text,created_at timestamptz default now());
  INSERT INTO attendance_sessions(id,title) VALUES ('meeting','test');
@@ -20,7 +20,7 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  }
  sql.transaction=queries=>db.transaction(async tx=>{const results=[];for(const q of queries)results.push((await tx.query(q.text,q.values)).rows);return results;});
  let students=[1,2,3,4,5].map(n=>({id:`lead-${n}`,label:`Lead ${n}`,class:'A',classLabel:'A',phone:'0501234567',status:'missing'}));
- const roster=()=>({session:{id:'meeting',title:'test',updatedAt:'2026-09-08T00:00:00Z',statusOptions:[['found','נמצא'],['missing','לא נמצא']],isLocked:false},students});
+ const roster=()=>({session:{id:'meeting',title:'test',updatedAt:new Date('2026-09-08T00:00:00.123Z'),statusOptions:[['found','נמצא'],['missing','לא נמצא']],isLocked:false},students});
  const source=fs.readFileSync(path.join(__dirname,'../../lib/attendance-calls.js'),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
  const api=new Function('sql','initDb','getAttendanceRoster','listAllNeonStudents','randomUUID',source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions};')(sql,async()=>{},async()=>roster(),async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID);
  const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved'};
