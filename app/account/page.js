@@ -38,6 +38,11 @@ export default async function AccountPage() {
           כאן מנהלים את החיבור האישי לסוכן, מעתיקים קישורי כניסה ישירים ל־Telegram ול־WhatsApp,
           ומנתקים ערוצים אם צריך.
         </p>
+        {user.access_status === "approved" ? (
+          <div className="quick-actions" style={{ marginTop: 14 }}>
+            <Link className="quick-action-btn quick-action-primary" href="/call-desk">אזור השיחות שלי — מפגשים ותלמידים משויכים</Link>
+          </div>
+        ) : null}
         {canSendPrintJobs ? (
           <div className="quick-actions" style={{ marginTop: 14 }}>
             <Link className="quick-action-btn quick-action-primary" href="/print">שליחה להדפסה</Link>

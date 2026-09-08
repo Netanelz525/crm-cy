@@ -1,4 +1,4 @@
-﻿import { ClerkProvider, UserButton } from "@clerk/nextjs";
+import { ClerkProvider, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import AiChatWidget from "./ai-chat-widget";
 import { getCurrentAppUser } from "../lib/rbac";
@@ -15,8 +15,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const canUsePrintQueue = Boolean(currentUser?.can_use_print_queue);
   const canShowTopbar = Boolean(currentUser);
   const isStudentPortalUser = Boolean(currentUser && !currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin && !currentUser.is_print_only && !currentUser.is_marei_mekomot);
-  const primaryNavItems = isStudentPortalUser ? [
-    { href: "/call-desk", label: "אזור השיחות שלי" },
+  const roleNavItems = isStudentPortalUser ? [
     { href: "/account", label: "אזור אישי" }
   ] : currentUser?.is_print_only ? [
     { href: "/print", label: "הדפסה" }
@@ -28,8 +27,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     { href: "/email", label: "מיילים" },
     { href: "/announcements", label: "הודעות" },
     { href: "/attendance", label: "נוכחות" },
-    { href: "/call-desk", label: "אזור השיחות שלי" },
     { href: "/print", label: "הדפסה" }
+  ];
+  const primaryNavItems = [
+    ...roleNavItems,
+    ...(currentUser ? [{ href: "/call-desk", label: "אזור השיחות שלי" }] : [])
   ];
   const secondaryNavItems = isStudentPortalUser ? [] : [
     { href: "/tasks", label: "משימות" },
