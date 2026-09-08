@@ -4,8 +4,26 @@ import { useEffect, useRef, useState } from "react";
 import CallStudentEditor from "./call-student-editor";
 
 function phoneNumber(value) {
-  if (value && typeof value === "object") return `${value.primaryPhoneCallingCode || ""}${value.primaryPhoneNumber || ""}`.replace(/[^\d+]/g, "");
-  return String(value || "").replace(/[^\d+]/g, "");
+  const raw = String(typeof value === "object" && value ? value.primaryPhoneNumber || "" : value || "").replace(/[^\d+]/g, "");
+  if (!raw) return "";
+  let number = raw.replace(/^00/, "+");
+  if (number.startsWith("+")) return number;
+  const code = String(value?.primaryPhoneCallingCode || "972").replace(/\D/g, "");
+  if (number.startsWith(code)) return `+${number}`;
+  return `+${code}${number.replace(/^0/, "")}`;
+}
+function ContactDetails({ label, name, phone, email, active }) {
+  const number = phoneNumber(phone);
+  const address = String(typeof email === "object" && email ? email.primaryEmail || "" : email || "").trim();
+  return <section style={{border:"1px solid #d5e1ef",borderRadius:12,padding:14,minWidth:0}}>
+    <h3 style={{marginTop:0}}>{label}{name ? ` — ${name}` : ""}</h3>
+    {number ? <p dir="ltr" style={{textAlign:"right"}}>{number}</p> : <p className="muted">לא הוזן טלפון</p>}
+    {address ? <p style={{overflowWrap:"anywhere"}} dir="ltr">{address}</p> : null}
+    {active ? <div className="quick-actions">
+      {number ? <><a className="quick-action-btn" href={`tel:${number}`}>חיוג ל{label}</a><a className="quick-action-btn" href={`https://wa.me/${number.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">WhatsApp ל{label}</a></> : null}
+      {address.includes("@") ? <a className="quick-action-btn" href={`mailto:${address}`}>מייל ל{label}</a> : null}
+    </div> : null}
+  </section>;
 }
 const labels = { completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
 export default function AttendanceCallClient({ sessionId, title, locked }) {
@@ -47,7 +65,6 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
     try { const result=await request({kind:"search",query});setMatches(result.students); }
     catch(failure){setError(failure.message);}finally{inFlight.current=false;setBusy(false);}
   }
-  const phone = phoneNumber(lead?.phone);
   return <section className="card call-desk">
     <Link href="/call-desk">חזרה לאזור השיחות שלי</Link>
     <h1>{data?.session?.title || title}</h1>
@@ -68,7 +85,11 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
     </> : <div className="linked-record-card call-lead-card">
       <h2>{lead.name}</h2><p>{lead.classLabel}</p>
       <p role="status">{remaining ? `הקצאה בלעדית: ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}` : "זמן ההקצאה הסתיים. אין להתקשר או לשמור על סמך ההקצאה הישנה."}</p>
-      {phone && remaining>0 ? <a className="quick-action-btn" href={`tel:${phone}`}>חיוג: {phone}</a> : <p>{phone ? "החיוג זמין רק בהקצאה פעילה." : "לא הוזן טלפון לתלמיד."}</p>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:12}}>
+        <ContactDetails label="תלמיד" phone={lead.phone} email={lead.email} active={remaining>0} />
+        <ContactDetails label="אב" {...lead.father} active={remaining>0} />
+        <ContactDetails label="אם" {...lead.mother} active={remaining>0} />
+      </div>
       <button disabled={busy || !remaining} onClick={()=>setEditing(!editing)}>עדכון פרטי תלמיד</button>
       {editing ? <CallStudentEditor key={lead.token} lead={lead} request={request} disabled={busy || !remaining} onBusy={setBusy} onClose={()=>setEditing(false)} onSaved={async()=>{setNotice("פרטי התלמיד נשמרו במערכת.");await next();}} /> : null}
       <fieldset disabled={busy || !remaining} style={{border:0,padding:0}}>
