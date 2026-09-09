@@ -447,6 +447,13 @@ export default async function AttendancePage({ searchParams }) {
               </select>
             </label>
             <SessionTypeFieldset options={selectableSessionTypes} defaultValue={defaultSessionType} />
+            <label>
+              <span className="muted">קהל המפגש</span>
+              <select name="communicationAudience" defaultValue="student" required>
+                <option value="student">המפגש מיועד לתלמידים</option>
+                <option value="parents">המפגש מיועד להורים</option>
+              </select>
+            </label>
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />

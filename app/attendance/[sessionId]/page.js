@@ -208,6 +208,13 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <input name="title" defaultValue={roster.session.title} placeholder="למשל: ביקורת ערב" />
           </label>
           <label>
+            <span className="muted">קהל המפגש</span>
+            <select name="communicationAudience" defaultValue={roster.session.communicationAudience || "student"} required>
+              <option value="student">המפגש מיועד לתלמידים</option>
+              <option value="parents">המפגש מיועד להורים</option>
+            </select>
+          </label>
+          <label>
             <span className="muted">תאריך</span>
             <input name="sessionDate" type="date" defaultValue={roster.session.sessionDate} required />
           </label>
@@ -319,7 +326,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             </div>
           </div>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
-            <b>למי שולחים</b>
+            <b>למי שולחים במייל</b>
+            <span className="muted">
+              ב-WhatsApp הנמענים נקבעים לפי קהל המפגש: {roster.session.communicationAudience === "parents" ? "אב ואם" : "התלמיד"}.
+            </span>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
               {Object.entries(ATTENDANCE_EMAIL_RECIPIENT_LABELS).map(([value, label]) => (
                 <label key={`recipient-${value}`} className={`attendance-filter-chip${roster.session.emailRecipientRoles.includes(value) ? " active" : ""}`}>

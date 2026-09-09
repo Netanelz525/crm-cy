@@ -59,6 +59,7 @@ export async function createAttendanceSessionAction(formData) {
     title: title || (templateSession ? `${templateSession.displayTitle || templateSession.title || templateSession.sessionTypeLabel} - חדש` : ""),
     sessionDate,
     sourceNote: sourceNote || templateSession?.sourceNote || "",
+    communicationAudience: clean(formData.get("communicationAudience")) || templateSession?.communicationAudience || "student",
     emailSubject: templateSession?.emailSubject || "",
     personalMessage: templateSession?.personalMessage || "",
     customStatuses: templateSession?.customStatuses || [],
@@ -90,6 +91,7 @@ export async function saveAttendanceSessionDetailsAction(formData) {
     sessionType: clean(formData.get("sessionType")),
     sessionDate: clean(formData.get("sessionDate")),
     sourceNote: clean(formData.get("sourceNote")),
+    communicationAudience: clean(formData.get("communicationAudience")),
     ...(canManageSessionSettings ? {
       responsibleUserIds: cleanList(formData.getAll("responsibleUserIds")),
       visibleToStudents: clean(formData.get("visibleToStudents")) === "1"
