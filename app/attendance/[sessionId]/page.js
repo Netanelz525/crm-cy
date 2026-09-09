@@ -326,6 +326,12 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
               ))}
             </div>
           </div>
+          {roster.session.communicationAudience === "parent_meeting" ? (
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span className="muted">תמונה להודעת WhatsApp (אופציונלי, JPG או PNG עד 5MB)</span>
+              <input type="file" name="whatsappImage" accept="image/jpeg,image/png" />
+            </label>
+          ) : null}
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
             <b>למי שולחים במייל</b>
             <span className="muted">

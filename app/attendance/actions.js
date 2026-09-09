@@ -17,7 +17,7 @@ import {
   updateAttendanceSessionMessaging
 } from "../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
-import { sendAttendanceSessionWhatsApp } from "../../lib/attendance-whatsapp";
+import { sendAttendanceSessionWhatsApp, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
 import { requireAttendanceUser, requireEmailSender } from "../../lib/rbac";
 
 function clean(value) {
@@ -296,18 +296,23 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
   const responseStatuses = cleanList(formData.getAll("whatsappResponseStatuses"));
   const targetStatuses = cleanList(formData.getAll("targetStatuses"));
   const recipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
+  const imageFile = formData.get("whatsappImage");
   if (!sessionId) throw new Error("Missing attendance session id.");
   if (responseStatuses.length !== 2) {
     redirect(`/attendance/${sessionId}?whatsappError=${encodeURIComponent("יש לבחור בדיוק שני סטטוסים לעדכון דרך WhatsApp")}`);
   }
   after(async () => {
     try {
+      const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
+        ? await uploadAttendanceWhatsAppImage(imageFile)
+        : "";
       await sendAttendanceSessionWhatsApp({
         sessionId,
         personalMessage: clean(formData.get("personalMessage")),
         responseStatuses,
         targetStatuses,
         recipientRoles,
+        imageId,
         createdByUserId: user.clerk_user_id
       });
     } catch (error) {
