@@ -297,13 +297,14 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
   const targetStatuses = cleanList(formData.getAll("targetStatuses"));
   const recipientRoles = cleanList(formData.getAll("emailRecipientRoles"));
   const imageFile = formData.get("whatsappImage");
+  const useGenericTemplate = clean(formData.get("useGenericWhatsAppTemplate")) === "1";
   if (!sessionId) throw new Error("Missing attendance session id.");
   if (responseStatuses.length !== 2) {
     redirect(`/attendance/${sessionId}?whatsappError=${encodeURIComponent("יש לבחור בדיוק שני סטטוסים לעדכון דרך WhatsApp")}`);
   }
   after(async () => {
     try {
-      const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
+      const imageId = !useGenericTemplate && imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
         ? await uploadAttendanceWhatsAppImage(imageFile)
         : "";
       await sendAttendanceSessionWhatsApp({
@@ -313,6 +314,7 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
         targetStatuses,
         recipientRoles,
         imageId,
+        useGenericTemplate,
         createdByUserId: user.clerk_user_id
       });
     } catch (error) {

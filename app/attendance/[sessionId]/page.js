@@ -326,6 +326,14 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
               ))}
             </div>
           </div>
+          <label className="attendance-visibility-toggle" style={{ gridColumn: "1 / -1" }}>
+            <input type="checkbox" name="useGenericWhatsAppTemplate" value="1" />
+            <span className="attendance-visibility-box" aria-hidden="true" />
+            <span>
+              <strong>השתמש בתבנית פנייה כללית</strong>
+              <small>פנייה קצרה ללא הסבר על סוג המפגש; מתאימה לכל תלמיד או הורה.</small>
+            </span>
+          </label>
           {roster.session.communicationAudience === "parent_meeting" ? (
             <label style={{ gridColumn: "1 / -1" }}>
               <span className="muted">תמונה להודעת WhatsApp (אופציונלי, JPG או PNG עד 5MB)</span>
