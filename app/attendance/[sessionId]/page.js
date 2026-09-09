@@ -211,7 +211,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <span className="muted">קהל המפגש</span>
             <select name="communicationAudience" defaultValue={roster.session.communicationAudience || "student"} required>
               <option value="student">המפגש מיועד לתלמידים</option>
-              <option value="parents">המפגש מיועד להורים</option>
+              <option value="parents">פנייה להורים בנוגע לתלמיד</option>
+              <option value="parent_meeting">פגישה ישירה עם ההורים</option>
             </select>
           </label>
           <label>
@@ -328,7 +329,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
             <b>למי שולחים במייל</b>
             <span className="muted">
-              ב-WhatsApp הנמענים נקבעים לפי קהל המפגש: {roster.session.communicationAudience === "parents" ? "אב ואם" : "התלמיד"}.
+              ב-WhatsApp הנמענים נקבעים לפי קהל המפגש: {roster.session.communicationAudience === "student" ? "התלמיד" : "אב ואם"}.
             </span>
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
               {Object.entries(ATTENDANCE_EMAIL_RECIPIENT_LABELS).map(([value, label]) => (

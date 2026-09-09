@@ -451,7 +451,8 @@ export default async function AttendancePage({ searchParams }) {
               <span className="muted">קהל המפגש</span>
               <select name="communicationAudience" defaultValue="student" required>
                 <option value="student">המפגש מיועד לתלמידים</option>
-                <option value="parents">המפגש מיועד להורים</option>
+                <option value="parents">פנייה להורים בנוגע לתלמיד</option>
+                <option value="parent_meeting">פגישה ישירה עם ההורים</option>
               </select>
             </label>
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
