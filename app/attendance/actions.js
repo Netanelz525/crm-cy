@@ -304,7 +304,7 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
   }
   after(async () => {
     try {
-      const imageId = !useGenericTemplate && imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
+      const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
         ? await uploadAttendanceWhatsAppImage(imageFile)
         : "";
       await sendAttendanceSessionWhatsApp({

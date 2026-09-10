@@ -334,12 +334,11 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
               <small>פנייה קצרה ללא הסבר על סוג המפגש; מתאימה לכל תלמיד או הורה.</small>
             </span>
           </label>
-          {roster.session.communicationAudience === "parent_meeting" ? (
-            <label style={{ gridColumn: "1 / -1" }}>
-              <span className="muted">תמונה להודעת WhatsApp (אופציונלי, JPG או PNG עד 5MB)</span>
-              <input type="file" name="whatsappImage" accept="image/jpeg,image/png" />
-            </label>
-          ) : null}
+          <label style={{ gridColumn: "1 / -1" }}>
+            <span className="muted">תמונה להודעת WhatsApp (אופציונלי, JPG או PNG עד 5MB)</span>
+            <input type="file" name="whatsappImage" accept="image/jpeg,image/png" />
+            <small className="muted">מתאים לתבנית הפנייה הכללית או לפגישה ישירה עם ההורים.</small>
+          </label>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
             <b>למי שולחים במייל</b>
             <span className="muted">
