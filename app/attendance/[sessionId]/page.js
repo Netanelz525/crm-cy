@@ -2,12 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
 import AttendanceEmailSendSubmit from "../attendance-email-send-submit";
+import AttendanceMessageComposer from "../attendance-message-composer";
 import {
   saveAttendanceSessionDetailsAction,
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
   sendAttendanceSessionEmailsAction,
   sendAttendanceSessionWhatsAppAction,
+  sendAttendanceSessionWhatsAppApprovedTemplateAction,
   setAttendanceSessionLockAction,
   syncAttendanceSessionStudentsAction
 } from "../actions";
@@ -21,6 +23,7 @@ import {
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
 import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
 import { getResendConfigStatus } from "../../../lib/resend";
+import { listWhatsAppApprovedTemplates } from "../../../lib/whatsapp";
 import ResponsibleUserPicker from "../responsible-user-picker";
 import AttendanceCallTeam from "../attendance-call-team";
 import { getCallTeam } from "../../../lib/attendance-calls";
@@ -72,6 +75,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const mailError = clean(resolvedSearchParams?.mailError);
   const quickEmailSent = clean(resolvedSearchParams?.quickEmailSent) === "1";
   const quickEmailError = clean(resolvedSearchParams?.quickEmailError);
+  const whatsappTemplateSent = clean(resolvedSearchParams?.whatsappTemplateSent) === "1";
+  const whatsappTemplateError = clean(resolvedSearchParams?.whatsappTemplateError);
   const activeStatusFilters = clean(resolvedSearchParams?.statusFilter)
     .split(",")
     .map((value) => clean(value).toLowerCase())
@@ -82,6 +87,12 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
   const canManageSessionSettings = currentUser.is_manager || currentUser.is_super_admin;
   const responsibleUsers = canManageSessionSettings ? await listAttendanceResponsibleUsers() : [];
+  let whatsappTemplates = [];
+  try {
+    whatsappTemplates = await listWhatsAppApprovedTemplates();
+  } catch (error) {
+    console.error("WhatsApp template list failed", error?.message || error);
+  }
 
   if (!roster) {
     return (
@@ -146,6 +157,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {mailError ? <div className="error">{mailError}</div> : null}
       {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
       {quickEmailError ? <div className="error">{quickEmailError}</div> : null}
+      {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
+      {whatsappTemplateError ? <div className="error">{whatsappTemplateError}</div> : null}
 
       <details className="card attendance-message-panel">
         <summary className="attendance-message-summary">
@@ -177,6 +190,26 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             </a>
           </div>
         </form>
+      </details>
+
+      <details className="card attendance-message-panel" open={whatsappTemplateSent || Boolean(whatsappTemplateError)}>
+        <summary className="attendance-message-summary">
+          <div>
+            <h3>שליחה נפרדת ב־WhatsApp</h3>
+            <span className="muted">בחירת תלמידים או הורים לפי תבנית WhatsApp מאושרת בלבד.</span>
+          </div>
+          <span className="attendance-message-summary-action">פתח שליחה</span>
+        </summary>
+        <AttendanceMessageComposer
+          sessionId={roster.session.id}
+          session={roster.session}
+          statusOptions={statusOptions}
+          templates={whatsappTemplates}
+          saveAction={saveAttendanceSessionMessagingAction}
+          emailAction={sendAttendanceSessionEmailsAction}
+          whatsappAction={sendAttendanceSessionWhatsAppApprovedTemplateAction}
+          whatsappOnly
+        />
       </details>
 
       {roster.session.isLocked ? (

@@ -17,7 +17,8 @@ import {
   updateAttendanceSessionMessaging
 } from "../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
-import { sendAttendanceSessionWhatsApp, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
+import { sendAttendanceSessionWhatsApp, sendAttendanceSessionWhatsAppApprovedTemplate, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
+import { listWhatsAppApprovedTemplates } from "../../lib/whatsapp";
 import { requireAttendanceUser, requireEmailSender } from "../../lib/rbac";
 
 function clean(value) {
@@ -322,4 +323,35 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
     }
   });
   redirect(`/attendance/${sessionId}?whatsappQueued=1`);
+}
+
+export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  const templateName = clean(formData.get("whatsappTemplateName"));
+  const templateLanguage = clean(formData.get("whatsappTemplateLanguage")) || "he";
+  const recipientRoles = cleanList(formData.getAll("whatsappRecipientRoles"));
+  const targetStatuses = cleanList(formData.getAll("whatsappTargetStatuses"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+  try {
+    if (!templateName) throw new Error("יש לבחור תבנית WhatsApp מאושרת.");
+    if (!recipientRoles.length) throw new Error("יש לבחור לפחות סוג נמען אחד לשליחת WhatsApp.");
+    const templates = await listWhatsAppApprovedTemplates();
+    const result = await sendAttendanceSessionWhatsAppApprovedTemplate({
+      sessionId,
+      templateName,
+      templateLanguage,
+      recipientRoles,
+      targetStatuses,
+      templates
+    });
+    if (!result.sentMessages && result.failedMessages) {
+      throw new Error("שליחת WhatsApp נכשלה לכל הנמענים. בדוק את התבנית, המספרים והחיבור.");
+    }
+  } catch (error) {
+    revalidatePath(`/attendance/${sessionId}`);
+    redirect(`/attendance/${sessionId}?whatsappTemplateError=${encodeURIComponent(clean(error?.message) || "שליחת WhatsApp נכשלה")}`);
+  }
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?whatsappTemplateSent=1`);
 }
