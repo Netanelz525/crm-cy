@@ -38,3 +38,14 @@ test("coexistence never falls back to operational credentials", () => {
   }), /WHATSAPP_COEX_ACCESS_TOKEN/);
   assert.equal(isCoexistenceWhatsAppConfigured({ ...env, WHATSAPP_COEX_ACCESS_TOKEN: "" }), false);
 });
+
+test("dedicated Dualhook aliases remain isolated from the operational bot", () => {
+  const config = coexistenceWhatsAppConfig({
+    WHATSAPP_ACCESS_TOKEN: "operational-token-must-not-be-used",
+    DUALHOOK_API_KEY: "new-broadcast-token",
+    DUALHOOK_PHONE_NUMBER_ID: "new-broadcast-phone",
+    DUALHOOK_WABA_ID: "new-broadcast-waba"
+  });
+  assert.equal(config.accessToken, "new-broadcast-token");
+  assert.equal(config.messagesUrl, "https://api.dualhook.com/v25.0/new-broadcast-phone/messages");
+});

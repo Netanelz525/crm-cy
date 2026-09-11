@@ -337,13 +337,26 @@ export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formDa
     if (!templateName) throw new Error("יש לבחור תבנית WhatsApp מאושרת.");
     if (!recipientRoles.length) throw new Error("יש לבחור לפחות סוג נמען אחד לשליחת WhatsApp.");
     const templates = await listWhatsAppApprovedTemplates();
+    const selectedTemplate = templates.find((template) => clean(template?.name) === templateName && clean(template?.language) === templateLanguage)
+      || templates.find((template) => clean(template?.name) === templateName);
+    if (!selectedTemplate) throw new Error("התבנית שנבחרה אינה מאושרת או אינה זמינה.");
+    const parameterMappings = Array.from({ length: Number(selectedTemplate.parameterCount) || 0 }, (_, offset) => ({
+      source: clean(formData.get(`whatsappVariableSource_${offset + 1}`)) || "free_text",
+      value: clean(formData.get(`whatsappVariableValue_${offset + 1}`))
+    }));
+    const imageFile = formData.get("whatsappTemplateImage");
+    const imageId = selectedTemplate.requiresImage
+      ? await uploadAttendanceWhatsAppImage(imageFile)
+      : "";
     const result = await sendAttendanceSessionWhatsAppApprovedTemplate({
       sessionId,
       templateName,
       templateLanguage,
       recipientRoles,
       targetStatuses,
-      templates
+      templates,
+      parameterMappings,
+      imageId
     });
     if (!result.sentMessages && result.failedMessages) {
       throw new Error("שליחת WhatsApp נכשלה לכל הנמענים. בדוק את התבנית, המספרים והחיבור.");
