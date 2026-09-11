@@ -11,7 +11,7 @@ import { buildStudentCardLines } from "../../../../lib/student-agent";
 import { getNeonStudentById } from "../../../../lib/neon-students";
 import { buildResendFromAddress, sendResendEmail } from "../../../../lib/resend";
 import { createTask, listOfficeTaskEmailUsers } from "../../../../lib/tasks";
-import { createWhatsAppInboundEvent, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
+import { createWhatsAppInboundEvent, recordWhatsAppDeliveryStatuses, updateWhatsAppInboundEvent } from "../../../../lib/whatsapp-events";
 import {
   consumeWhatsAppLinkCode,
   downloadWhatsAppMediaAsAttachment,
@@ -931,6 +931,13 @@ export async function POST(request) {
 
     const { message, contact, metadata } = extractIncomingMessage(body);
     if (!message) {
+      const deliveryStatuses = await recordWhatsAppDeliveryStatuses(body, { channel: "operational" });
+      for (const delivery of deliveryStatuses) {
+        const details = [delivery.errorCode, delivery.errorTitle, delivery.errorMessage].filter(Boolean).join(" | ");
+        const summary = `Operational WhatsApp delivery ${delivery.status}: ${delivery.messageId || "unknown message"}${details ? ` | ${details}` : ""}`;
+        if (delivery.status === "failed") console.error(summary);
+        else console.info(summary);
+      }
       return NextResponse.json({ ok: true });
     }
 
