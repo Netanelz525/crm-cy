@@ -73,6 +73,14 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function payloadPhoneNumberIds(payload) {
+  return (Array.isArray(payload?.entry) ? payload.entry : []).flatMap((entry) =>
+    (Array.isArray(entry?.changes) ? entry.changes : [])
+      .map((change) => clean(change?.value?.metadata?.phone_number_id))
+      .filter(Boolean)
+  );
+}
+
 function normalizeDigits(value) {
   return clean(value).replace(/[^\d]/g, "");
 }
@@ -886,6 +894,12 @@ export async function POST(request) {
     const rawBody = await request.text();
     const signatureHeader = request.headers.get("x-hub-signature-256");
     const parsedBody = rawBody ? JSON.parse(rawBody) : null;
+    const expectedPhoneNumberId = clean(process.env.WHATSAPP_PHONE_NUMBER_ID);
+    const receivedPhoneNumberIds = payloadPhoneNumberIds(parsedBody || {});
+    if (expectedPhoneNumberId && receivedPhoneNumberIds.length && receivedPhoneNumberIds.some((id) => id !== expectedPhoneNumberId)) {
+      console.warn("Operational WhatsApp webhook ignored an event for another phone number.");
+      return NextResponse.json({ ok: true, ignored: "phone_number_mismatch" });
+    }
 
     if (!isWebhookSignatureValid(rawBody, signatureHeader)) {
       const { message, contact, metadata } = extractIncomingMessage(parsedBody || {});

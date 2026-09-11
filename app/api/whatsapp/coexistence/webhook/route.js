@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { saveWhatsAppCoexistenceEvent } from "../../../../../lib/whatsapp-coexistence-events";
 import { applyAttendanceWhatsAppResponse } from "../../../../../lib/attendance-whatsapp";
@@ -7,6 +7,27 @@ export const runtime = "nodejs";
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(clean(left));
+  const rightBuffer = Buffer.from(clean(right));
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function isSignatureValid(rawBody, signatureHeader) {
+  const secret = clean(process.env.WHATSAPP_COEX_APP_SECRET);
+  if (!secret) return true;
+  const expected = `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
+  return safeEqual(expected, signatureHeader);
+}
+
+function payloadPhoneNumberIds(payload) {
+  return (Array.isArray(payload?.entry) ? payload.entry : []).flatMap((entry) =>
+    (Array.isArray(entry?.changes) ? entry.changes : [])
+      .map((change) => clean(change?.value?.metadata?.phone_number_id))
+      .filter(Boolean)
+  );
 }
 
 function textFromMessage(message) {
@@ -93,7 +114,16 @@ export async function POST(request) {
     if (!rawBody || rawBody.length > 2_000_000) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
+    if (!isSignatureValid(rawBody, request.headers.get("x-hub-signature-256"))) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
     const body = JSON.parse(rawBody);
+    const expectedPhoneNumberId = clean(process.env.WHATSAPP_COEX_PHONE_NUMBER_ID);
+    const receivedPhoneNumberIds = payloadPhoneNumberIds(body);
+    if (expectedPhoneNumberId && receivedPhoneNumberIds.length && receivedPhoneNumberIds.some((id) => id !== expectedPhoneNumberId)) {
+      console.warn("Coexistence WhatsApp webhook ignored an event for another phone number.");
+      return NextResponse.json({ ok: true, ignored: "phone_number_mismatch" });
+    }
     const events = extractEvents(body, rawBody);
     const results = [];
     for (const event of events) {
