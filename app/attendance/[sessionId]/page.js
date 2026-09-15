@@ -34,7 +34,7 @@ function clean(value) {
 
 function serializeCustomStatuses(customStatuses = []) {
   return (customStatuses || [])
-    .map((item) => `${item.value}|${item.label}`)
+    .map((item) => `${item.value}, ${item.label}`)
     .join("\n");
 }
 
@@ -298,11 +298,12 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <input type="hidden" name="sessionId" value={roster.session.id} />
             <label style={{ gridColumn: "1 / -1" }}>
               <span className="muted">סטטוסים ייחודיים למפגש</span>
+              <small className="muted">בכל שורה: ערך פנימי, שם להצגה. ירידת שורה מוסיפה סטטוס נוסף.</small>
               <textarea
                 name="customStatusesText"
                 rows={4}
                 defaultValue={serializeCustomStatuses(roster.session.customStatuses)}
-                placeholder={"דוגמה:\nneeds_call|צריך שיחה\nchecked_by_office|נבדק במשרד"}
+                placeholder={"דוגמה:\nneeds_call, צריך שיחה\nchecked_by_office, נבדק במשרד"}
               />
             </label>
             <div className="quick-actions">
