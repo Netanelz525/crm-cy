@@ -103,6 +103,8 @@ export default function AttendanceMessageComposer({
   const valueFor = (variable) => variableSettings[variable.index]?.value || variable.example || "";
   const defaultRecipients = session?.emailRecipientRoles?.length ? session.emailRecipientRoles : ["father", "mother", "student"];
   const responseStatusLabels = responseStatuses.map((value) => statusOptions.find(([status]) => status === value)?.[1] || value);
+  const templateVariables = selectedTemplate?.bodyVariables || [];
+  const editableVariables = templateVariables.filter((variable) => sourceFor(variable.index) === "free_text");
   return (
     <form className="grid attendance-message-grid">
       <input type="hidden" name="sessionId" value={sessionId} />
@@ -146,16 +148,14 @@ export default function AttendanceMessageComposer({
             {selectedTemplate.buttons?.length ? <div className="quick-actions">{selectedTemplate.buttons.map((button, index) => <span className="attendance-filter-chip" key={`${button.text}-${index}`}>{button.text}</span>)}</div> : null}
           </div> : null}
           <input type="hidden" name="whatsappTemplateLanguage" value={selectedTemplate?.language || "he"} />
-          {selectedTemplate?.bodyVariables?.length ? <div style={{ gridColumn: "1 / -1", display: "grid", gap: 12 }}>
-            <b>שדות התבנית</b>
-            <span className="muted">לכל שדה אפשר לבחור מידע אוטומטי מהרשומה או להזין טקסט חופשי שאינו מגיע מהתלמיד.</span>
-            {selectedTemplate.bodyVariables.map((variable) => {
-              const source = sourceFor(variable.index);
-              return <div className="card" key={`wa-variable-${variable.index}`} style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) minmax(220px, 2fr)", gap: 10, alignItems: "end" }}>
-                <label><span className="muted">שדה {`{{${variable.index}}}`}</span><select name={`whatsappVariableSource_${variable.index}`} value={source} onChange={(event) => setVariableSettings((current) => ({ ...current, [variable.index]: { ...current[variable.index], source: event.target.value } }))}>{VARIABLE_SOURCES.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-                <label><span className="muted">ערך חופשי {variable.example ? `(דוגמה: ${variable.example})` : ""}</span><input name={`whatsappVariableValue_${variable.index}`} value={valueFor(variable)} disabled={source !== "free_text"} required={source === "free_text"} onChange={(event) => setVariableSettings((current) => ({ ...current, [variable.index]: { ...current[variable.index], value: event.target.value } }))} /></label>
-              </div>;
-            })}
+          {templateVariables.map((variable) => <input type="hidden" name={`whatsappVariableSource_${variable.index}`} value={sourceFor(variable.index)} key={`wa-source-${variable.index}`} />)}
+          {editableVariables.length ? <div style={{ gridColumn: "1 / -1", display: "grid", gap: 12 }}>
+            <b>טקסטים חופשיים בתבנית</b>
+            <span className="muted">מוצגים כאן רק הטקסטים שניתן לערוך. שאר הפרטים מוזנים אוטומטית מהמערכת.</span>
+            {editableVariables.map((variable) => <label className="card" key={`wa-variable-${variable.index}`} style={{ display: "grid", gap: 7 }}>
+              <span className="muted">טקסט חופשי {variable.example ? `(דוגמה: ${variable.example})` : ""}</span>
+              <input name={`whatsappVariableValue_${variable.index}`} value={valueFor(variable)} required onChange={(event) => setVariableSettings((current) => ({ ...current, [variable.index]: { ...current[variable.index], value: event.target.value } }))} />
+            </label>)}
           </div> : null}
           {selectedTemplate?.requiresImage ? <label style={{ gridColumn: "1 / -1" }}><span className="muted">תמונה לתבנית (JPG או PNG, עד 5MB)</span><input type="file" name="whatsappTemplateImage" accept="image/jpeg,image/png" required /></label> : null}
           <RecipientRoles defaultValues={defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
