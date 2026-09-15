@@ -6,10 +6,11 @@ import { useFormStatus } from "react-dom";
 const VARIABLE_SOURCES = [
   ["recipient_name", "שם הנמען והתואר"],
   ["student_name", "שם התלמיד והתואר"],
-  ["class", "שיעור/כיתה"],
   ["meeting_title", "שם המפגש"],
   ["meeting_date", "תאריך המפגש"],
   ["attendance_status", "הסטטוס הנוכחי"],
+  ["response_status_1", "סטטוס תשובה ראשון"],
+  ["response_status_2", "סטטוס תשובה שני"],
   ["institution", "שם המוסד"],
   ["free_text", "טקסט חופשי" ]
 ];
@@ -17,10 +18,13 @@ const VARIABLE_SOURCES = [
 function initialSource(template, index) {
   const name = String(template?.name || "");
   if (name.startsWith("general_person")) return index === 1 ? "recipient_name" : "free_text";
-  if (name.startsWith("attendance_status") || name.startsWith("attendance_parent")) {
-    return ["recipient_name", "meeting_title", "free_text", "student_name", "free_text", "free_text"][index - 1] || "free_text";
+  if (name.startsWith("parent_meeting")) {
+    return ["recipient_name", "meeting_title", "free_text", "response_status_1", "response_status_2"][index - 1] || "free_text";
   }
-  return ["student_name", "class", "meeting_title", "meeting_date", "attendance_status", "institution"][index - 1] || "free_text";
+  if (name.startsWith("attendance_status") || name.startsWith("attendance_parent")) {
+    return ["recipient_name", "meeting_title", "free_text", "student_name", "response_status_1", "response_status_2"][index - 1] || "free_text";
+  }
+  return ["recipient_name", "meeting_title", "free_text", "response_status_1", "response_status_2"][index - 1] || "free_text";
 }
 
 const PREVIEW_VALUES = {
@@ -30,12 +34,14 @@ const PREVIEW_VALUES = {
   meeting_title: "[שם המפגש]",
   meeting_date: "[תאריך]",
   attendance_status: "[סטטוס]",
+  response_status_1: "[סטטוס תשובה ראשון]",
+  response_status_2: "[סטטוס תשובה שני]",
   institution: "[מוסד]"
 };
 
 const VARIABLE_SOURCE_LABELS = Object.fromEntries(VARIABLE_SOURCES);
 
-function TemplatePreview({ template, sourceFor, variableSettings }) {
+function TemplatePreview({ template, sourceFor, variableSettings, responseStatusLabels }) {
   const bodyVariables = new Map((template?.bodyVariables || []).map((item) => [Number(item.index), item]));
   const parts = String(template?.bodyText || "").split(/(\{\{\d+\}\})/g);
   return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.9 }}>
@@ -48,6 +54,8 @@ function TemplatePreview({ template, sourceFor, variableSettings }) {
       const variable = bodyVariables.get(index);
       const value = isFreeText
         ? (variableSettings[index]?.value || variable?.example || `[טקסט ${index}]`)
+        : source === "response_status_1" ? (responseStatusLabels[0] || PREVIEW_VALUES[source])
+        : source === "response_status_2" ? (responseStatusLabels[1] || PREVIEW_VALUES[source])
         : PREVIEW_VALUES[source] || `[שדה ${index}]`;
       return <span
         key={`variable-${index}-${partIndex}`}
@@ -89,10 +97,12 @@ export default function AttendanceMessageComposer({
   const [channel, setChannel] = useState(whatsappOnly ? "whatsapp" : "email");
   const [templateName, setTemplateName] = useState(templates?.[0]?.name || "");
   const [variableSettings, setVariableSettings] = useState({});
+  const [responseStatuses, setResponseStatuses] = useState([]);
   const selectedTemplate = templates?.find((item) => item.name === templateName);
   const sourceFor = (index) => variableSettings[index]?.source || initialSource(selectedTemplate, index);
   const valueFor = (variable) => variableSettings[variable.index]?.value || variable.example || "";
   const defaultRecipients = session?.emailRecipientRoles?.length ? session.emailRecipientRoles : ["father", "mother", "student"];
+  const responseStatusLabels = responseStatuses.map((value) => statusOptions.find(([status]) => status === value)?.[1] || value);
   return (
     <form className="grid attendance-message-grid">
       <input type="hidden" name="sessionId" value={sessionId} />
@@ -131,7 +141,7 @@ export default function AttendanceMessageComposer({
               <span style={{ color: "#7c2d12", background: "#ffedd5", border: "1px solid #fdba74", borderRadius: 999, padding: "4px 10px" }}>כתום — טקסט חופשי שניתן לשנות</span>
             </div>
             {selectedTemplate.requiresImage ? <div className="muted">🖼️ תמונה תוצג בראש ההודעה</div> : null}
-            <TemplatePreview template={selectedTemplate} sourceFor={sourceFor} variableSettings={variableSettings} />
+            <TemplatePreview template={selectedTemplate} sourceFor={sourceFor} variableSettings={variableSettings} responseStatusLabels={responseStatusLabels} />
             {selectedTemplate.footerText ? <small className="muted">{selectedTemplate.footerText}</small> : null}
             {selectedTemplate.buttons?.length ? <div className="quick-actions">{selectedTemplate.buttons.map((button, index) => <span className="attendance-filter-chip" key={`${button.text}-${index}`}>{button.text}</span>)}</div> : null}
           </div> : null}
@@ -149,7 +159,7 @@ export default function AttendanceMessageComposer({
           </div> : null}
           {selectedTemplate?.requiresImage ? <label style={{ gridColumn: "1 / -1" }}><span className="muted">תמונה לתבנית (JPG או PNG, עד 5MB)</span><input type="file" name="whatsappTemplateImage" accept="image/jpeg,image/png" required /></label> : null}
           <RecipientRoles defaultValues={defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
-          <ResponseStatuses statusOptions={statusOptions} template={selectedTemplate} />
+          <ResponseStatuses statusOptions={statusOptions} template={selectedTemplate} selected={responseStatuses} setSelected={setResponseStatuses} />
           <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" />
           <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">השליחה מתבצעת רק במסלול התפוצה האנושי ובאמצעות תבנית שאושרה ב־Dualhook/Meta.</div>
           <div className="quick-actions"><SubmitButton formAction={whatsappAction} primary>שלח WhatsApp לפי התבנית</SubmitButton></div>
@@ -159,8 +169,7 @@ export default function AttendanceMessageComposer({
   );
 }
 
-function ResponseStatuses({ statusOptions, template }) {
-  const [selected, setSelected] = useState([]);
+function ResponseStatuses({ statusOptions, template, selected, setSelected }) {
   const quickReplyCount = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").length;
   const buttons = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").slice(0, 2);
   const toggle = (value) => setSelected((current) => current.includes(value)
