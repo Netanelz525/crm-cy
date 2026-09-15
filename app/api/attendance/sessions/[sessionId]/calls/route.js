@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../../../lib/rbac";
-import { CallQueueError, claimAttendanceCall, finishAttendanceCall, saveCallTeam, searchAttendanceCalls, getAttendanceCallStudent, updateAttendanceCallStudent } from "../../../../../../lib/attendance-calls";
+import { CallQueueError, claimAttendanceCall, finishAttendanceCall, saveCallTeam, searchAttendanceCalls, getAttendanceCallStudent, updateAttendanceCallStudent, manageAttendanceCall } from "../../../../../../lib/attendance-calls";
 
 export async function POST(request, { params }) {
   try {
@@ -13,6 +13,7 @@ export async function POST(request, { params }) {
       await saveCallTeam(sessionId, body.studentIds, user);
       return NextResponse.json({ ok:true });
     }
+    if (body.kind === "manage_attempt" || body.kind === "requeue") return NextResponse.json(await manageAttendanceCall(sessionId, body, user));
     if (body.kind === "claim") return NextResponse.json(await claimAttendanceCall(sessionId, user, body.studentId));
     if (body.kind === "search") return NextResponse.json(await searchAttendanceCalls(sessionId, body.query, user));
     if (body.kind === "details") return NextResponse.json(await getAttendanceCallStudent(sessionId, body, user));
