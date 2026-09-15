@@ -326,16 +326,18 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
 }
 
 export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formData) {
-  await requireAttendanceUser();
+  const user = await requireAttendanceUser();
   const sessionId = clean(formData.get("sessionId"));
   const templateName = clean(formData.get("whatsappTemplateName"));
   const templateLanguage = clean(formData.get("whatsappTemplateLanguage")) || "he";
   const recipientRoles = cleanList(formData.getAll("whatsappRecipientRoles"));
+  const responseStatuses = cleanList(formData.getAll("whatsappResponseStatuses"));
   const targetStatuses = cleanList(formData.getAll("whatsappTargetStatuses"));
   if (!sessionId) throw new Error("Missing attendance session id.");
   try {
     if (!templateName) throw new Error("יש לבחור תבנית WhatsApp מאושרת.");
     if (!recipientRoles.length) throw new Error("יש לבחור לפחות סוג נמען אחד לשליחת WhatsApp.");
+    if (responseStatuses.length !== 2) throw new Error("יש לבחור בדיוק שני סטטוסים לעדכון מצב הנוכחות מתוך WhatsApp.");
     const templates = await listWhatsAppApprovedTemplates();
     const selectedTemplate = templates.find((template) => clean(template?.name) === templateName && clean(template?.language) === templateLanguage)
       || templates.find((template) => clean(template?.name) === templateName);
@@ -353,10 +355,12 @@ export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formDa
       templateName,
       templateLanguage,
       recipientRoles,
+      responseStatuses,
       targetStatuses,
       templates,
       parameterMappings,
-      imageId
+      imageId,
+      createdByUserId: user.clerk_user_id
     });
     if (!result.sentMessages && result.failedMessages) {
       throw new Error("שליחת WhatsApp נכשלה לכל הנמענים. בדוק את התבנית, המספרים והחיבור.");

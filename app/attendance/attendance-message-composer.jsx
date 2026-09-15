@@ -33,6 +33,40 @@ const PREVIEW_VALUES = {
   institution: "[מוסד]"
 };
 
+const VARIABLE_SOURCE_LABELS = Object.fromEntries(VARIABLE_SOURCES);
+
+function TemplatePreview({ template, sourceFor, variableSettings }) {
+  const bodyVariables = new Map((template?.bodyVariables || []).map((item) => [Number(item.index), item]));
+  const parts = String(template?.bodyText || "").split(/(\{\{\d+\}\})/g);
+  return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.9 }}>
+    {parts.map((part, partIndex) => {
+      const match = part.match(/^\{\{(\d+)\}\}$/);
+      if (!match) return <span key={`text-${partIndex}`}>{part}</span>;
+      const index = Number(match[1]);
+      const source = sourceFor(index);
+      const isFreeText = source === "free_text";
+      const variable = bodyVariables.get(index);
+      const value = isFreeText
+        ? (variableSettings[index]?.value || variable?.example || `[טקסט ${index}]`)
+        : PREVIEW_VALUES[source] || `[שדה ${index}]`;
+      return <span
+        key={`variable-${index}-${partIndex}`}
+        title={`${VARIABLE_SOURCE_LABELS[source] || "שדה"} · ${isFreeText ? "ניתן לעריכה כללית" : "מוזן אוטומטית מהמערכת"}`}
+        style={{
+          display: "inline-block",
+          padding: "1px 7px",
+          margin: "0 2px",
+          borderRadius: 7,
+          fontWeight: 700,
+          color: isFreeText ? "#7c2d12" : "#075985",
+          background: isFreeText ? "#ffedd5" : "#e0f2fe",
+          border: `1px solid ${isFreeText ? "#fdba74" : "#7dd3fc"}`
+        }}
+      >{value}</span>;
+    })}
+  </div>;
+}
+
 function SubmitButton({ children, formAction, primary = false }) {
   const { pending } = useFormStatus();
   return (
@@ -58,13 +92,6 @@ export default function AttendanceMessageComposer({
   const selectedTemplate = templates?.find((item) => item.name === templateName);
   const sourceFor = (index) => variableSettings[index]?.source || initialSource(selectedTemplate, index);
   const valueFor = (variable) => variableSettings[variable.index]?.value || variable.example || "";
-  const previewText = String(selectedTemplate?.bodyText || "").replace(/\{\{(\d+)\}\}/g, (_, rawIndex) => {
-    const index = Number(rawIndex);
-    const source = sourceFor(index);
-    return source === "free_text"
-      ? (variableSettings[index]?.value || selectedTemplate?.bodyVariables?.find((item) => item.index === index)?.example || `[טקסט ${index}]`)
-      : PREVIEW_VALUES[source] || `[שדה ${index}]`;
-  });
   const defaultRecipients = session?.emailRecipientRoles?.length ? session.emailRecipientRoles : ["father", "mother", "student"];
   return (
     <form className="grid attendance-message-grid">
@@ -99,8 +126,12 @@ export default function AttendanceMessageComposer({
           {!templates?.length ? <div className="error" style={{ gridColumn: "1 / -1" }}>לא נמצאו תבניות WhatsApp מאושרות. יש לחבר את Dualhook ולוודא שלתבניות יש סטטוס מאושר.</div> : null}
           {selectedTemplate ? <div className="card" style={{ gridColumn: "1 / -1", display: "grid", gap: 10 }}>
             <b>תצוגה מקדימה</b>
+            <div className="quick-actions" style={{ justifyContent: "flex-start" }}>
+              <span style={{ color: "#075985", background: "#e0f2fe", border: "1px solid #7dd3fc", borderRadius: 999, padding: "4px 10px" }}>כחול — מוזן אוטומטית מהמערכת</span>
+              <span style={{ color: "#7c2d12", background: "#ffedd5", border: "1px solid #fdba74", borderRadius: 999, padding: "4px 10px" }}>כתום — טקסט חופשי שניתן לשנות</span>
+            </div>
             {selectedTemplate.requiresImage ? <div className="muted">🖼️ תמונה תוצג בראש ההודעה</div> : null}
-            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{previewText}</div>
+            <TemplatePreview template={selectedTemplate} sourceFor={sourceFor} variableSettings={variableSettings} />
             {selectedTemplate.footerText ? <small className="muted">{selectedTemplate.footerText}</small> : null}
             {selectedTemplate.buttons?.length ? <div className="quick-actions">{selectedTemplate.buttons.map((button, index) => <span className="attendance-filter-chip" key={`${button.text}-${index}`}>{button.text}</span>)}</div> : null}
           </div> : null}
@@ -118,6 +149,7 @@ export default function AttendanceMessageComposer({
           </div> : null}
           {selectedTemplate?.requiresImage ? <label style={{ gridColumn: "1 / -1" }}><span className="muted">תמונה לתבנית (JPG או PNG, עד 5MB)</span><input type="file" name="whatsappTemplateImage" accept="image/jpeg,image/png" required /></label> : null}
           <RecipientRoles defaultValues={defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
+          <ResponseStatuses statusOptions={statusOptions} template={selectedTemplate} />
           <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" />
           <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">השליחה מתבצעת רק במסלול התפוצה האנושי ובאמצעות תבנית שאושרה ב־Dualhook/Meta.</div>
           <div className="quick-actions"><SubmitButton formAction={whatsappAction} primary>שלח WhatsApp לפי התבנית</SubmitButton></div>
@@ -125,6 +157,26 @@ export default function AttendanceMessageComposer({
       )}
     </form>
   );
+}
+
+function ResponseStatuses({ statusOptions, template }) {
+  const [selected, setSelected] = useState([]);
+  const quickReplyCount = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").length;
+  const buttons = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").slice(0, 2);
+  const toggle = (value) => setSelected((current) => current.includes(value)
+    ? current.filter((item) => item !== value)
+    : current.length < 2 ? [...current, value] : current);
+  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+    <b>שני סטטוסים לעדכון מצב הנוכחות מתוך WhatsApp</b>
+    <span className="muted">לחיצה על אחד משני כפתורי התבנית תעדכן מיד את הסטטוס של התלמיד ברשומת המפגש.</span>
+    {template && quickReplyCount < 2 ? <div className="error">לתבנית הזו אין שני כפתורי תשובה מהירה. יש לבחור תבנית עם שני כפתורים כדי לאפשר עדכון נוכחות.</div> : null}
+    {selected.map((value) => <input type="hidden" name="whatsappResponseStatuses" value={value} key={`selected-response-${value}`} />)}
+    <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`whatsapp-response-${value}`} className={`attendance-filter-chip${selected.includes(value) ? " active" : ""}`}><input type="checkbox" checked={selected.includes(value)} onChange={() => toggle(value)} />{label}</label>)}</div>
+    {selected.length ? <div className="card" style={{ display: "grid", gap: 6 }}>
+      {selected.map((value, index) => <div key={`button-map-${value}`}><b>{buttons[index]?.text || `כפתור ${index + 1}`}</b> ← יעדכן את מצב הנוכחות ל־<b>{statusOptions.find(([status]) => status === value)?.[1] || value}</b></div>)}
+      {selected.length < 2 ? <small className="muted">יש לבחור עוד סטטוס אחד.</small> : null}
+    </div> : null}
+  </div>;
 }
 
 function RecipientRoles({ defaultValues, name, whatsappOnly = false }) {
