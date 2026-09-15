@@ -977,6 +977,46 @@ button[aria-disabled="true"] {
 .call-lead-badges span { padding: 5px 10px; border-radius: 999px; background: #e8f2fc; color: #175384; font-size: .88rem; font-weight: 700; }
 .call-lead-badges .call-lead-status { background: #fff1cc; color: #8a5a00; }
 .call-lead-details { margin-bottom: 16px; }
+
+.call-edit-toggle {
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 38px 1fr 28px;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 11px 14px;
+  border: 2px solid #2c79bd;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0b4f8c, #1769aa);
+  color: #fff;
+  text-align: right;
+  box-shadow: 0 8px 20px rgba(11, 79, 140, .25);
+  cursor: pointer;
+}
+.call-edit-toggle > span:nth-child(2) { display: grid; gap: 3px; }
+.call-edit-toggle strong { font-size: 1.05rem; }
+.call-edit-toggle small { color: #dceeff; font-size: .8rem; }
+.call-edit-toggle-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.18); font-size: 1.15rem; font-weight: 900; }
+.call-edit-toggle-arrow { font-size: 1.7rem; transition: transform .2s ease; }
+.call-edit-toggle.is-open { border-color: #f0b74c; background: linear-gradient(135deg, #6b4510, #9a6819); }
+.call-edit-toggle.is-open .call-edit-toggle-arrow { transform: rotate(180deg); }
+
+.call-edit-section { margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.call-edit-section > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px; background: #eef6ff; color: var(--primary); font-weight: 800; cursor: pointer; }
+.call-edit-section > summary::-webkit-details-marker { display: none; }
+.call-edit-section > summary::before { content: "＋"; font-size: 1.2rem; }
+.call-edit-section[open] > summary { background: #dceeff; border-bottom: 1px solid var(--line); }
+.call-edit-section[open] > summary::before { content: "−"; }
+.call-edit-section > summary small { color: var(--muted); font-weight: 500; }
+.call-edit-section > .grid { padding: 14px; }
+
+@media (max-width: 640px) {
+  .call-edit-toggle { position: relative; min-height: 72px; font-size: 1rem; }
+  .call-edit-section > summary { min-height: 56px; }
+  .call-edit-section > summary small { display: block; }
+}
 .call-lead-actions { margin-bottom: 16px; }
 .call-whatsapp-btn { color: #087f45; border-color: #8ed8b2; background: #effcf4; }
 .call-whatsapp-btn svg { display: block; }

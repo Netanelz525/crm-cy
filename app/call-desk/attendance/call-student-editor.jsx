@@ -29,7 +29,7 @@ export default function CallStudentEditor({lead,request,disabled,onSaved,onClose
         {FIELD_SECTIONS.map(section=>{
           const fields=section.fields.filter(field=>!query || field.label.includes(query.trim()));
           if(!fields.length)return null;
-          return <details key={section.title} open={Boolean(query)||undefined}><summary>{section.title}</summary><div className="grid">
+          return <details className="call-edit-section" key={section.title} open={Boolean(query)||undefined}><summary><span>{section.title}</span><small>לחץ לפתיחת השדות</small></summary><div className="grid">
             {fields.map(field=><label key={field.key}>{field.label}
               {field.enum?<select value={values[field.key]||""} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))}>
                 <option value="">ללא ערך</option>{Object.entries(ENUM_LABELS[field.enum] || {}).map(([value,label])=><option key={value} value={value}>{label}</option>)}

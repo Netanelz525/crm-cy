@@ -90,7 +90,11 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
         <ContactDetails label="אב" {...lead.father} active={remaining>0} />
         <ContactDetails label="אם" {...lead.mother} active={remaining>0} />
       </div>
-      <button disabled={busy || !remaining} onClick={()=>setEditing(!editing)}>עדכון פרטי תלמיד</button>
+      <button className={`call-edit-toggle${editing ? " is-open" : ""}`} type="button" aria-expanded={editing} disabled={busy || !remaining} onClick={()=>setEditing(!editing)}>
+        <span className="call-edit-toggle-icon" aria-hidden="true">{editing ? "×" : "✎"}</span>
+        <span><strong>{editing ? "סגור את אזור העריכה" : "פתח עדכון פרטי תלמיד"}</strong><small>{editing ? "הטופס פתוח כעת" : "לחץ כדי לפתוח את שדות התלמיד"}</small></span>
+        <span className="call-edit-toggle-arrow" aria-hidden="true">⌄</span>
+      </button>
       {editing ? <CallStudentEditor key={lead.token} lead={lead} request={request} disabled={busy || !remaining} onBusy={setBusy} onClose={()=>setEditing(false)} onSaved={async()=>{setNotice("פרטי התלמיד נשמרו במערכת.");await next();}} /> : null}
       <fieldset disabled={busy || !remaining} style={{border:0,padding:0}}>
         <label>סטטוס נוכחות לאחר השיחה<select value={status} onChange={e=>setStatus(e.target.value)}>
