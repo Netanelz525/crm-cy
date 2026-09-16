@@ -17,6 +17,12 @@ const VARIABLE_SOURCES = [
 
 function initialSource(template, index) {
   const name = String(template?.name || "");
+  const parameterCount = Math.max(0, Number(template?.parameterCount) || 0);
+  const quickReplyCount = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").length;
+  if (quickReplyCount >= 2 && parameterCount >= 2) {
+    if (index === parameterCount - 1) return "response_status_1";
+    if (index === parameterCount) return "response_status_2";
+  }
   if (name.startsWith("general_person")) return index === 1 ? "recipient_name" : "free_text";
   if (name.startsWith("parent_meeting")) {
     return ["recipient_name", "meeting_title", "free_text", "response_status_1", "response_status_2"][index - 1] || "free_text";
