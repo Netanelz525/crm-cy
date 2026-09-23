@@ -177,19 +177,24 @@ export default function AttendanceMessageComposer({
 
 function ResponseStatuses({ statusOptions, template, selected, setSelected }) {
   const quickReplyCount = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").length;
-  const buttons = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").slice(0, 2);
+  const buttons = (template?.buttons || []).filter((button) => String(button?.type || "").toUpperCase() === "QUICK_REPLY").slice(0, quickReplyCount);
   const toggle = (value) => setSelected((current) => current.includes(value)
     ? current.filter((item) => item !== value)
-    : current.length < 2 ? [...current, value] : current);
+    : current.length < quickReplyCount ? [...current, value] : current);
+  if (!template || quickReplyCount === 0) {
+    return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+      <b>עדכון מצב הנוכחות מתוך WhatsApp</b>
+      <span className="muted">לתבנית הזו אין כפתורי עדכון סטטוס. ההודעה תישלח ללא עדכון מצב במערכת.</span>
+    </div>;
+  }
   return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
-    <b>שני סטטוסים לעדכון מצב הנוכחות מתוך WhatsApp</b>
-    <span className="muted">לחיצה על אחד משני כפתורי התבנית תעדכן מיד את הסטטוס של התלמיד ברשומת המפגש.</span>
-    {template && quickReplyCount < 2 ? <div className="error">לתבנית הזו אין שני כפתורי תשובה מהירה. יש לבחור תבנית עם שני כפתורים כדי לאפשר עדכון נוכחות.</div> : null}
+    <b>{quickReplyCount === 1 ? "סטטוס לעדכון מצב הנוכחות מתוך WhatsApp" : "שני סטטוסים לעדכון מצב הנוכחות מתוך WhatsApp"}</b>
+    <span className="muted">לחיצה על כפתור התבנית תעדכן מיד את הסטטוס של התלמיד ברשומת המפגש.</span>
     {selected.map((value) => <input type="hidden" name="whatsappResponseStatuses" value={value} key={`selected-response-${value}`} />)}
     <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`whatsapp-response-${value}`} className={`attendance-filter-chip${selected.includes(value) ? " active" : ""}`}><input type="checkbox" checked={selected.includes(value)} onChange={() => toggle(value)} />{label}</label>)}</div>
     {selected.length ? <div className="card" style={{ display: "grid", gap: 6 }}>
       {selected.map((value, index) => <div key={`button-map-${value}`}><b>{buttons[index]?.text || `כפתור ${index + 1}`}</b> ← יעדכן את מצב הנוכחות ל־<b>{statusOptions.find(([status]) => status === value)?.[1] || value}</b></div>)}
-      {selected.length < 2 ? <small className="muted">יש לבחור עוד סטטוס אחד.</small> : null}
+      {selected.length < quickReplyCount ? <small className="muted">יש לבחור עוד סטטוס אחד.</small> : null}
     </div> : null}
   </div>;
 }

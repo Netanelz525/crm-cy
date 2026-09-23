@@ -337,11 +337,17 @@ export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formDa
   try {
     if (!templateName) throw new Error("יש לבחור תבנית WhatsApp מאושרת.");
     if (!recipientRoles.length) throw new Error("יש לבחור לפחות סוג נמען אחד לשליחת WhatsApp.");
-    if (responseStatuses.length !== 2) throw new Error("יש לבחור בדיוק שני סטטוסים לעדכון מצב הנוכחות מתוך WhatsApp.");
     const templates = await listWhatsAppApprovedTemplates();
     const selectedTemplate = templates.find((template) => clean(template?.name) === templateName && clean(template?.language) === templateLanguage)
       || templates.find((template) => clean(template?.name) === templateName);
     if (!selectedTemplate) throw new Error("התבנית שנבחרה אינה מאושרת או אינה זמינה.");
+    const quickReplyCount = (selectedTemplate.buttons || [])
+      .filter((button) => clean(button?.type).toUpperCase() === "QUICK_REPLY").length;
+    if (responseStatuses.length !== quickReplyCount) {
+      throw new Error(quickReplyCount
+        ? `יש לבחור בדיוק ${quickReplyCount} סטטוסים לעדכון מצב הנוכחות מתוך WhatsApp.`
+        : "לתבנית שנבחרה אין כפתורי עדכון סטטוס; אין לבחור סטטוסים.");
+    }
     const parameterMappings = Array.from({ length: Number(selectedTemplate.parameterCount) || 0 }, (_, offset) => ({
       source: clean(formData.get(`whatsappVariableSource_${offset + 1}`)) || "free_text",
       value: clean(formData.get(`whatsappVariableValue_${offset + 1}`))
