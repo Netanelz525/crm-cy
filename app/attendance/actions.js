@@ -8,17 +8,22 @@ import {
   deleteAttendanceSession,
   getAttendanceSessionById,
   normalizeAttendanceSessionType,
+  parseAttendanceCustomStatusesFields,
   parseAttendanceCustomStatusesText,
   saveAttendanceRecord,
+  setAttendanceSessionManualStudent,
   setAttendanceSessionLocked,
   syncAttendanceSessionStudents,
+  updateAttendanceSessionManualStudents,
   updateAttendanceSessionCustomStatuses,
   updateAttendanceSessionDetails,
+  updateAttendanceSessionInvitation,
   updateAttendanceSessionMessaging
 } from "../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
-import { sendAttendanceSessionWhatsApp, sendAttendanceSessionWhatsAppApprovedTemplate, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
-import { listWhatsAppApprovedTemplates } from "../../lib/whatsapp";
+import { sendAttendanceInvitation } from "../../lib/attendance-invitations";
+import { uploadBufferToR2 } from "../../lib/r2";
+import { listWhatsAppCoexistenceApprovedTemplates, sendAttendanceSessionWhatsApp, sendAttendanceSessionWhatsAppApprovedTemplate, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
 import { requireAttendanceUser, requireEmailSender } from "../../lib/rbac";
 
 function clean(value) {
@@ -27,6 +32,10 @@ function clean(value) {
 
 function cleanList(values) {
   return (Array.isArray(values) ? values : [values]).map(clean).filter(Boolean);
+}
+
+function safeFileName(value) {
+  return clean(value).replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "attachment";
 }
 
 export async function createAttendanceSessionAction(formData) {
@@ -51,6 +60,8 @@ export async function createAttendanceSessionAction(formData) {
   const registrationFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("registrationFilter")) : [];
   const familyStatusFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("familyStatusFilter")) : [];
   const tagFilter = canUseSessionAudienceFilters ? cleanList(formData.getAll("tagFilter")) : [];
+  const manualStudentIds = canUseSessionAudienceFilters ? cleanList(formData.getAll("manualStudentIds")) : [];
+  const requestedRosterMode = clean(formData.get("rosterMode"));
   const responsibleUserIds = cleanList(formData.getAll("responsibleUserIds"));
 
   const session = await createAttendanceSession({
@@ -66,11 +77,23 @@ export async function createAttendanceSessionAction(formData) {
     customStatuses: templateSession?.customStatuses || [],
     emailResponseStatuses: templateSession?.emailResponseStatuses || [],
     emailRecipientRoles: templateSession?.emailRecipientRoles || [],
+    invitationEmailSubject: templateSession?.invitationEmailSubject || "",
+    invitationEmailBody: templateSession?.invitationEmailBody || "",
+    invitationEmailRecipientRoles: templateSession?.invitationEmailRecipientRoles || [],
+    invitationWhatsAppTemplateName: templateSession?.invitationWhatsAppTemplateName || "",
+    invitationWhatsAppTemplateLanguage: templateSession?.invitationWhatsAppTemplateLanguage || "he",
+    invitationWhatsAppRecipientRoles: templateSession?.invitationWhatsAppRecipientRoles || ["student"],
+    invitationAttachmentObjectKey: templateSession?.invitationAttachment?.objectKey || "",
+    invitationAttachmentFileName: templateSession?.invitationAttachment?.fileName || "",
+    invitationAttachmentContentType: templateSession?.invitationAttachment?.contentType || "",
+    invitationAttachmentSizeBytes: templateSession?.invitationAttachment?.sizeBytes || 0,
     institutionFilter: institutionFilter.length ? institutionFilter : (templateSession?.institutionFilter || []),
     classFilter: classFilter.length ? classFilter : (templateSession?.classFilter || []),
     registrationFilter: registrationFilter.length ? registrationFilter : (templateSession?.registrationFilter || []),
     familyStatusFilter: familyStatusFilter.length ? familyStatusFilter : (templateSession?.familyStatusFilter || []),
     tagFilter: tagFilter.length ? tagFilter : (templateSession?.tagFilter || []),
+    manualStudentIds: manualStudentIds.length ? manualStudentIds : (templateSession?.manualStudentIds || []),
+    rosterMode: requestedRosterMode || templateSession?.rosterMode || (institutionFilter.length || classFilter.length || registrationFilter.length || familyStatusFilter.length ? "filters" : "manual"),
     responsibleUserIds: responsibleUserIds.length ? responsibleUserIds : (templateSession?.responsibleUserIds?.length ? templateSession.responsibleUserIds : [user.clerk_user_id]),
     visibleToStudents: templateSession ? Boolean(templateSession.visibleToStudents) : (canUseSessionAudienceFilters && clean(formData.get("visibleToStudents")) === "1"),
     createdByUserId: user.clerk_user_id
@@ -209,7 +232,9 @@ export async function syncAttendanceSessionStudentsAction(formData) {
 export async function saveAttendanceSessionStatusesAction(formData) {
   await requireAttendanceUser();
   const sessionId = clean(formData.get("sessionId"));
-  const customStatuses = parseAttendanceCustomStatusesText(formData.get("customStatusesText"));
+  const customStatuses = formData.has("customStatusApi")
+    ? parseAttendanceCustomStatusesFields(formData.getAll("customStatusApi"), formData.getAll("customStatusLabel"))
+    : parseAttendanceCustomStatusesText(formData.get("customStatusesText"));
   if (!sessionId) throw new Error("Missing attendance session id.");
 
   await updateAttendanceSessionCustomStatuses(sessionId, {
@@ -238,6 +263,57 @@ export async function saveAttendanceSessionMessagingAction(formData) {
 
   revalidatePath(`/attendance/${sessionId}`);
   redirect(`/attendance/${sessionId}?messageSaved=1`);
+}
+
+export async function saveAttendanceSessionInvitationAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+  const file = formData.get("invitationAttachment");
+  let attachment = null;
+  if (file && typeof file.arrayBuffer === "function" && file.size) {
+    const contentType = clean(file.type).toLowerCase();
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(contentType)) {
+      redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent("אפשר לצרף JPG, PNG או PDF בלבד")}`);
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent("גודל הקובץ המרבי הוא 30MB")}`);
+    }
+    const fileName = safeFileName(file.name);
+    const key = `attendance-invitations/${sessionId}/${crypto.randomUUID()}-${fileName}`;
+    await uploadBufferToR2({ key, buffer: Buffer.from(await file.arrayBuffer()), contentType });
+    attachment = { objectKey: key, fileName, contentType, sizeBytes: file.size };
+  }
+  await updateAttendanceSessionInvitation(sessionId, {
+    emailSubject: clean(formData.get("invitationEmailSubject")),
+    emailBody: clean(formData.get("invitationEmailBody")),
+    emailRecipientRoles: cleanList(formData.getAll("invitationEmailRecipientRoles")),
+    whatsappTemplateName: clean(formData.get("invitationWhatsAppTemplateName")),
+    whatsappTemplateLanguage: clean(formData.get("invitationWhatsAppTemplateLanguage")) || "he",
+    whatsappRecipientRoles: cleanList(formData.getAll("invitationWhatsAppRecipientRoles")),
+    attachment,
+    removeAttachment: clean(formData.get("removeInvitationAttachment")) === "1"
+  });
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?invitationSaved=1`);
+}
+
+export async function sendAttendanceInvitationAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  const channels = cleanList(formData.getAll("invitationChannels"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+  if (!channels.length) redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent("בחר ערוץ שליחה")}`);
+  after(async () => {
+    try {
+      await sendAttendanceInvitation({ sessionId, channels });
+    } catch (error) {
+      console.error("Attendance invitation send failed", { sessionId, error: error?.message || error });
+    } finally {
+      revalidatePath(`/attendance/${sessionId}`);
+    }
+  });
+  redirect(`/attendance/${sessionId}?invitationQueued=1`);
 }
 
 export async function sendAttendanceSessionEmailsAction(formData) {
@@ -291,6 +367,30 @@ export async function sendAttendanceSessionEmailsAction(formData) {
   redirect(`/attendance/${sessionId}?mailQueued=1`);
 }
 
+export async function saveAttendanceSessionStudentsAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+  const manualStudentIds = cleanList(formData.getAll("manualStudentIds"));
+
+  const roster = await updateAttendanceSessionManualStudents(sessionId, manualStudentIds);
+
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?studentsSaved=1&studentsSavedCount=${roster?.students?.length || 0}`);
+}
+
+export async function setAttendanceSessionManualStudentAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  const studentId = clean(formData.get("studentId"));
+  const selected = clean(formData.get("selected")) === "1";
+  if (!sessionId || !studentId) throw new Error("Missing attendance student selection.");
+
+  await setAttendanceSessionManualStudent(sessionId, studentId, selected);
+  revalidatePath(`/attendance/${sessionId}`);
+  return { ok: true, studentId, selected };
+}
+
 export async function sendAttendanceSessionWhatsAppAction(formData) {
   const user = await requireAttendanceUser();
   const sessionId = clean(formData.get("sessionId"));
@@ -331,29 +431,18 @@ export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formDa
   const templateName = clean(formData.get("whatsappTemplateName"));
   const templateLanguage = clean(formData.get("whatsappTemplateLanguage")) || "he";
   const recipientRoles = cleanList(formData.getAll("whatsappRecipientRoles"));
-  const responseStatuses = cleanList(formData.getAll("whatsappResponseStatuses"));
   const targetStatuses = cleanList(formData.getAll("whatsappTargetStatuses"));
+  const responseStatuses = cleanList(formData.getAll("whatsappResponseStatuses"));
+  const templateValues = Object.fromEntries(
+    Array.from({ length: 20 }, (_, index) => [String(index + 1), clean(formData.get(`whatsappTemplateValue_${index + 1}`))]).filter(([, value]) => value)
+  );
+  const imageFile = formData.get("whatsappTemplateImage");
   if (!sessionId) throw new Error("Missing attendance session id.");
   try {
     if (!templateName) throw new Error("יש לבחור תבנית WhatsApp מאושרת.");
     if (!recipientRoles.length) throw new Error("יש לבחור לפחות סוג נמען אחד לשליחת WhatsApp.");
-    const templates = await listWhatsAppApprovedTemplates();
-    const selectedTemplate = templates.find((template) => clean(template?.name) === templateName && clean(template?.language) === templateLanguage)
-      || templates.find((template) => clean(template?.name) === templateName);
-    if (!selectedTemplate) throw new Error("התבנית שנבחרה אינה מאושרת או אינה זמינה.");
-    const quickReplyCount = (selectedTemplate.buttons || [])
-      .filter((button) => clean(button?.type).toUpperCase() === "QUICK_REPLY").length;
-    if (responseStatuses.length !== quickReplyCount) {
-      throw new Error(quickReplyCount
-        ? `יש לבחור בדיוק ${quickReplyCount} סטטוסים לעדכון מצב הנוכחות מתוך WhatsApp.`
-        : "לתבנית שנבחרה אין כפתורי עדכון סטטוס; אין לבחור סטטוסים.");
-    }
-    const parameterMappings = Array.from({ length: Number(selectedTemplate.parameterCount) || 0 }, (_, offset) => ({
-      source: clean(formData.get(`whatsappVariableSource_${offset + 1}`)) || "free_text",
-      value: clean(formData.get(`whatsappVariableValue_${offset + 1}`))
-    }));
-    const imageFile = formData.get("whatsappTemplateImage");
-    const imageId = selectedTemplate.requiresImage
+    const templates = await listWhatsAppCoexistenceApprovedTemplates();
+    const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
       ? await uploadAttendanceWhatsAppImage(imageFile)
       : "";
     const result = await sendAttendanceSessionWhatsAppApprovedTemplate({
@@ -361,11 +450,11 @@ export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formDa
       templateName,
       templateLanguage,
       recipientRoles,
-      responseStatuses,
       targetStatuses,
+      responseStatuses,
       templates,
-      parameterMappings,
       imageId,
+      parameterOverrides: templateValues,
       createdByUserId: user.clerk_user_id
     });
     if (!result.sentMessages && result.failedMessages) {

@@ -12,14 +12,37 @@ function userLabel(user) {
   return [name, email].filter(Boolean).join(" | ") || clean(user?.id) || "איש צוות";
 }
 
-export default function ResponsibleUserPicker({ users = [], defaultValue = "", defaultValues = [], name = "responsibleUserIds" }) {
+export default function ResponsibleUserPicker({
+  users = [],
+  students = [],
+  defaultValue = "",
+  defaultValues = [],
+  name = "responsibleUserIds"
+}) {
   const [query, setQuery] = useState("");
+  const [institutionFilter, setInstitutionFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState(() => {
     const values = Array.isArray(defaultValues) && defaultValues.length ? defaultValues : [defaultValue];
     return values.map(clean).filter(Boolean);
   });
   const normalizedQuery = clean(query).toLowerCase();
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const studentById = useMemo(() => new Map(
+    (Array.isArray(students) ? students : [])
+      .map((student) => [clean(student?.id), student])
+      .filter(([id]) => id)
+  ), [students]);
+  const institutionOptions = useMemo(() => Array.from(new Set(
+    (Array.isArray(students) ? students : [])
+      .map((student) => clean(student?.institutionLabel))
+      .filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, "he")), [students]);
+  const classOptions = useMemo(() => Array.from(new Set(
+    (Array.isArray(students) ? students : [])
+      .map((student) => clean(student?.classLabel))
+      .filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, "he")), [students]);
   const canSearch = normalizedQuery.length >= 2;
   const selectedUsers = useMemo(() => {
     const list = Array.isArray(users) ? users : [];
@@ -40,6 +63,15 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "", d
       return text.includes(normalizedQuery);
     });
   }, [users, normalizedQuery, canSearch]);
+  const filteredResponsibleUsers = useMemo(() => {
+    if (!institutionFilter && !classFilter) return [];
+    return (Array.isArray(users) ? users : []).filter((user) => {
+      const student = studentById.get(clean(user?.linkedStudentId));
+      if (!student) return false;
+      return (!institutionFilter || clean(student?.institutionLabel) === institutionFilter)
+        && (!classFilter || clean(student?.classLabel) === classFilter);
+    });
+  }, [users, studentById, institutionFilter, classFilter]);
 
   function toggleUser(userId) {
     const normalizedUserId = clean(userId);
@@ -49,6 +81,12 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "", d
         ? current.filter((item) => item !== normalizedUserId)
         : [...current, normalizedUserId]
     ));
+  }
+
+  function addFilteredUsers() {
+    const ids = filteredResponsibleUsers.map((user) => clean(user?.id)).filter(Boolean);
+    if (!ids.length) return;
+    setSelectedIds((current) => Array.from(new Set([...current, ...ids])));
   }
 
   return (
@@ -71,6 +109,57 @@ export default function ResponsibleUserPicker({ users = [], defaultValue = "", d
           ))}
         </div>
       ) : null}
+      <div className="attendance-responsible-filter-box">
+        <div className="attendance-responsible-filter-head">
+          <strong>הוספה מהירה לפי תלמידים</strong>
+          <span className="muted">סנן לפי מוסד ושיעור כדי להוסיף בבת אחת אנשי צוות המקושרים לתלמידים התואמים.</span>
+        </div>
+        <div className="attendance-responsible-filter-grid">
+          <label>
+            <span className="muted">מוסד</span>
+            <select value={institutionFilter} onChange={(event) => setInstitutionFilter(event.target.value)}>
+              <option value="">כל המוסדות</option>
+              {institutionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+          <label>
+            <span className="muted">שיעור</span>
+            <select value={classFilter} onChange={(event) => setClassFilter(event.target.value)}>
+              <option value="">כל השיעורים</option>
+              {classOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+        </div>
+        {institutionFilter || classFilter ? (
+          <>
+            <div className="attendance-responsible-filter-actions">
+              <span className="muted">נמצאו {filteredResponsibleUsers.length} אנשי צוות</span>
+              <button type="button" className="quick-action-btn" onClick={addFilteredUsers} disabled={!filteredResponsibleUsers.length}>
+                הוסף את כל התוצאות
+              </button>
+            </div>
+            {filteredResponsibleUsers.length ? (
+              <div className="attendance-responsible-list">
+                {filteredResponsibleUsers.map((user) => {
+                  const student = studentById.get(clean(user?.linkedStudentId));
+                  return (
+                    <label key={`filtered-${user.id}`} className={`attendance-responsible-option${selectedSet.has(user.id) ? " active" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedSet.has(user.id)}
+                        onChange={() => toggleUser(user.id)}
+                      />
+                      <span>{userLabel(user)}{student?.label ? ` · ${student.label}` : ""}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <span className="attendance-responsible-empty">בחר מוסד או שיעור כדי להציג את אנשי הצוות הרלוונטיים.</span>
+        )}
+      </div>
       {!canSearch ? (
         <span className="attendance-responsible-empty">הקלד לפחות שתי אותיות כדי להציג אנשי צוות לבחירה.</span>
       ) : (

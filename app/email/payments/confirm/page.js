@@ -13,6 +13,8 @@ import { getResendConfigStatus } from "../../../../lib/resend";
 import { requireEmailSender, signInRedirectUrl } from "../../../../lib/rbac";
 import { sendPaymentEmailCampaignAction } from "../../actions";
 
+export const dynamic = "force-dynamic";
+
 function clean(value) {
   return String(value || "").trim();
 }

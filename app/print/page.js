@@ -38,12 +38,24 @@ function statusLabel(status) {
   switch (clean(status)) {
     case "completed":
       return "הושלם ונשמר לרישום";
+    case "failed":
+      return "נכשל";
     case "claimed":
       return "נאסף על ידי שרת מקומי";
     case "pending":
     default:
       return "ממתין לאיסוף";
   }
+}
+
+function printJobSourceLabel(job) {
+  const metadata = job?.sourceMetadata && typeof job.sourceMetadata === "object" ? job.sourceMetadata : {};
+  const template = metadata.template && typeof metadata.template === "object" ? metadata.template : null;
+  if (clean(job?.sourceType) === "announcement" && template) {
+    return `תבנית: ${clean(template.name) || clean(template.templateKey) || "מודעה"}`;
+  }
+  if (clean(job?.sourceType) === "announcement") return "מודעה";
+  return "העלאת קובץ";
 }
 
 function phoneText(phone) {
@@ -76,7 +88,7 @@ export default async function PrintPage({ searchParams }) {
   const linkedStudentId = clean(user.linked_student_id);
   const [linkedStudent, jobs, usageByUser, creditBalance, creditTransactions] = await Promise.all([
     linkedStudentId ? getStudentById(linkedStudentId).catch(() => null) : Promise.resolve(null),
-    isSuperAdmin ? listPrintJobs({ limit: 50 }) : Promise.resolve([]),
+    isSuperAdmin ? listPrintJobs({ limit: 200 }) : Promise.resolve([]),
     isSuperAdmin ? listPrintUsageByUser({ limit: 30 }) : Promise.resolve([]),
     unlimitedPrintCredit ? Promise.resolve(null) : getPrintCreditBalance(user.clerk_user_id),
     unlimitedPrintCredit ? Promise.resolve([]) : listPrintCreditTransactions(user.clerk_user_id, { limit: 8 })
@@ -185,6 +197,7 @@ export default async function PrintPage({ searchParams }) {
                 <thead>
                   <tr>
                     <th>קובץ</th>
+                    <th>מקור</th>
                     <th>גודל</th>
                     <th>עותקים</th>
                     <th>סוג הדפסה</th>
@@ -201,6 +214,11 @@ export default async function PrintPage({ searchParams }) {
                   {jobs.map((job) => (
                     <tr key={job.id}>
                       <td>{job.fileName}</td>
+                      <td>
+                        {clean(job.sourceType) === "announcement" && job.sourceId ? (
+                          <Link href={`/announcements/${job.sourceId}`}>{printJobSourceLabel(job)}</Link>
+                        ) : printJobSourceLabel(job)}
+                      </td>
                       <td>{formatSize(job.fileSizeBytes)}</td>
                       <td>{job.copies}</td>
                       <td>{job.printPlanLabel}</td>

@@ -294,6 +294,16 @@ function templateFieldDefinitions(template) {
   }));
 }
 
+function printJobUserMetadata(user) {
+  return {
+    id: clean(user?.clerk_user_id),
+    email: clean(user?.email),
+    displayName: clean(user?.display_name),
+    role: clean(user?.role),
+    isSuperAdmin: Boolean(user?.is_super_admin)
+  };
+}
+
 function fieldValuesByTemplateId(template, values) {
   const result = {};
   for (const field of template.fields || []) {
@@ -597,7 +607,8 @@ export async function createQueuedAnnouncementAction(formData) {
         },
         fields: values,
         fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
-        fieldDefinitions: templateFieldDefinitions(template)
+        fieldDefinitions: templateFieldDefinitions(template),
+        user: printJobUserMetadata(user)
       },
       copies,
       printPlan,
@@ -734,7 +745,8 @@ export async function updateQueuedAnnouncementAction(formData) {
           },
           fields: values,
           fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
-          fieldDefinitions: templateFieldDefinitions(template)
+          fieldDefinitions: templateFieldDefinitions(template),
+          user: printJobUserMetadata(user)
         },
         copies,
         printPlan,
@@ -775,7 +787,34 @@ export async function printAnnouncementAction(formData) {
       buffer: pdf,
       fileName: `${recordNameFromForm(formData, announcement.title)}.pdf`,
       contentType: "application/pdf",
+      sourceType: "announcement",
+      sourceId: announcement.id,
+      sourceMetadata: {
+        announcement: {
+          id: announcement.id,
+          title: announcement.title,
+          date: announcement.announcementDate,
+          bodyText: announcement.bodyText
+        },
+        template: {
+          id: template.id,
+          templateKey: template.templateKey,
+          name: template.name,
+          generatorName: template.generatorName,
+          googleDocsUrl: template.googleDocsUrl,
+          googleDocsId: template.googleDocsId,
+          category: template.category,
+          version: template.version,
+          engine: template.engine,
+          allowedRoles: template.allowedRoles
+        },
+        fields: announcement.templateFields || {},
+        fieldValuesByTemplateId: fieldValuesByTemplateId(template, announcement.templateFields || {}),
+        fieldDefinitions: templateFieldDefinitions(template),
+        user: printJobUserMetadata(user)
+      },
       copies,
+      printPlan: normalizePrintPlan(formData.get("printPlan")),
       uploadedByUserId: user.clerk_user_id
     });
   } catch (error) {

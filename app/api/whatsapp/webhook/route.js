@@ -184,6 +184,19 @@ function extractInteractiveActionId(message) {
   );
 }
 
+// Attendance broadcast replies are owned by the coexistence webhook. The
+// operational bot must record them without trying to interpret them as CRM commands.
+function extractBroadcastReplyPayload(message) {
+  if (message?.type === "button") return clean(message?.button?.payload);
+  if (message?.type === "interactive") {
+    return clean(
+      message?.interactive?.button_reply?.id
+      || message?.interactive?.list_reply?.id
+    );
+  }
+  return "";
+}
+
 function resolveAttachmentMeta(message) {
   if (message?.type === "document" && message?.document?.id) {
     return {
@@ -946,6 +959,7 @@ export async function POST(request) {
     const profileName = clean(contact?.profile?.name);
     const text = extractText(message);
     const interactiveActionId = extractInteractiveActionId(message);
+    const broadcastReplyPayload = extractBroadcastReplyPayload(message);
     const attachmentMeta = resolveAttachmentMeta(message);
     const messageType = clean(message?.type) || (attachmentMeta ? "attachment" : "unknown");
     const inboundEvent = await createWhatsAppInboundEvent({
@@ -964,6 +978,14 @@ export async function POST(request) {
     inboundEventId = inboundEvent.id;
     if (!waId) {
       return NextResponse.json({ ok: true });
+    }
+
+    if (broadcastReplyPayload.startsWith("attendance:")) {
+      await updateWhatsAppInboundEvent(inboundEvent.id, {
+        processingStatus: "broadcast_reply_deferred_to_coexistence",
+        responseText: "תגובת תפוצה נשמרה ומטופלת בנתיב WhatsApp האנושי."
+      });
+      return NextResponse.json({ ok: true, handledBy: "coexistence" });
     }
 
     if (interactiveActionId) {

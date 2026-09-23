@@ -977,50 +977,113 @@ button[aria-disabled="true"] {
 .call-lead-badges span { padding: 5px 10px; border-radius: 999px; background: #e8f2fc; color: #175384; font-size: .88rem; font-weight: 700; }
 .call-lead-badges .call-lead-status { background: #fff1cc; color: #8a5a00; }
 .call-lead-details { margin-bottom: 16px; }
-
-.call-edit-toggle {
-  width: 100%;
-  min-height: 64px;
-  display: grid;
-  grid-template-columns: 38px 1fr 28px;
-  align-items: center;
-  gap: 10px;
-  margin: 14px 0;
-  padding: 11px 14px;
-  border: 2px solid #2c79bd;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #0b4f8c, #1769aa);
-  color: #fff;
-  text-align: right;
-  box-shadow: 0 8px 20px rgba(11, 79, 140, .25);
-  cursor: pointer;
-}
-.call-edit-toggle > span:nth-child(2) { display: grid; gap: 3px; }
-.call-edit-toggle strong { font-size: 1.05rem; }
-.call-edit-toggle small { color: #dceeff; font-size: .8rem; }
-.call-edit-toggle-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.18); font-size: 1.15rem; font-weight: 900; }
-.call-edit-toggle-arrow { font-size: 1.7rem; transition: transform .2s ease; }
-.call-edit-toggle.is-open { border-color: #f0b74c; background: linear-gradient(135deg, #6b4510, #9a6819); }
-.call-edit-toggle.is-open .call-edit-toggle-arrow { transform: rotate(180deg); }
-
-.call-edit-section { margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
-.call-edit-section > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px; background: #eef6ff; color: var(--primary); font-weight: 800; cursor: pointer; }
-.call-edit-section > summary::-webkit-details-marker { display: none; }
-.call-edit-section > summary::before { content: "＋"; font-size: 1.2rem; }
-.call-edit-section[open] > summary { background: #dceeff; border-bottom: 1px solid var(--line); }
-.call-edit-section[open] > summary::before { content: "−"; }
-.call-edit-section > summary small { color: var(--muted); font-weight: 500; }
-.call-edit-section > .grid { padding: 14px; }
-
-@media (max-width: 640px) {
-  .call-edit-toggle { position: relative; min-height: 72px; font-size: 1rem; }
-  .call-edit-section > summary { min-height: 56px; }
-  .call-edit-section > summary small { display: block; }
-}
 .call-lead-actions { margin-bottom: 16px; }
 .call-whatsapp-btn { color: #087f45; border-color: #8ed8b2; background: #effcf4; }
 .call-whatsapp-btn svg { display: block; }
 .call-lead-save-actions { margin-top: 12px; }
+
+.attendance-call-team-panel {
+  display: grid;
+  gap: 18px;
+  border-color: #c7dff3;
+  background: linear-gradient(145deg, #ffffff 0%, #f5faff 100%);
+}
+
+.attendance-call-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.attendance-call-dashboard-header h2 { margin: 4px 0 6px; }
+.attendance-call-dashboard-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.attendance-call-dashboard-actions .quick-action-btn { width: auto; }
+
+.attendance-call-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.attendance-call-stat {
+  display: grid;
+  gap: 3px;
+  min-height: 82px;
+  padding: 14px;
+  border: 1px solid #c9dced;
+  border-radius: 14px;
+  background: #fff;
+  color: #17456b;
+}
+
+.attendance-call-stat b { font-size: 1.7rem; line-height: 1; }
+.attendance-call-stat span { color: #5f7893; font-size: .9rem; font-weight: 700; }
+.attendance-call-stat-success { border-color: #a9dfbd; background: #f0fbf4; color: #16753d; }
+.attendance-call-stat-warning { border-color: #f1d18a; background: #fffaf0; color: #92640b; }
+.attendance-call-stat-danger { border-color: #efb5b5; background: #fff5f5; color: #a72f2f; }
+.attendance-call-stat-neutral { border-color: #cfd8e5; background: #f7f9fc; }
+
+.attendance-call-team-settings,
+.attendance-call-results {
+  border: 1px solid #d1e1ef;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .82);
+  overflow: hidden;
+}
+
+.attendance-call-team-settings > summary,
+.attendance-call-results > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  color: #173b5d;
+  font-weight: 800;
+}
+
+.attendance-call-team-settings > :not(summary),
+.attendance-call-results > :not(summary) { margin-inline: 16px; }
+.attendance-call-team-settings > p { margin-top: 0; }
+.attendance-call-team-settings fieldset { display: grid; gap: 10px; padding-bottom: 14px !important; }
+.attendance-call-assignee-list { display: grid; max-height: 220px; overflow: auto; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.attendance-call-assignee-list label { display: flex; align-items: center; gap: 8px; padding: 6px; }
+.attendance-call-feedback { margin: 0; padding: 10px 12px; border-radius: 10px; background: #eef8f1; color: #17653a; font-weight: 700; }
+
+.attendance-call-results { padding-bottom: 14px; }
+.attendance-call-results .call-attempt-list { margin-top: 0; }
+.call-result-card { border: 1px solid #d5e2ee; border-radius: 12px; background: #fff; overflow: hidden; }
+.call-result-card + .call-result-card { margin-top: 8px; }
+.call-result-card.is-editing { border-color: #77a9d3; box-shadow: 0 4px 14px rgba(23, 105, 170, .1); }
+.call-result-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.call-result-summary::-webkit-details-marker { display: none; }
+.call-result-person { display: grid; gap: 3px; min-width: 0; }
+.call-result-person b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #173b5d; }
+.call-result-person small { color: #72869a; }
+.call-result-status { padding: 5px 10px; border-radius: 999px; font-size: .88rem; font-weight: 800; white-space: nowrap; }
+.call-result-status-success { background: #e8f8ee; color: #16753d; }
+.call-result-status-warning { background: #fff4cf; color: #8a5d00; }
+.call-result-status-danger { background: #ffe5e5; color: #a72f2f; }
+.call-result-status-neutral { background: #edf2f7; color: #536b82; }
+.call-result-edit-button { width: auto; min-width: 108px; padding: 8px 12px; border: 1px solid #bad1e6; border-radius: 999px; background: #f7fbff; color: #15588f; font-weight: 800; }
+.call-result-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 14px 14px; border-top: 1px solid #e2ebf3; }
+.call-result-editor .call-result-note { grid-column: 1 / -1; }
+.call-result-editor .quick-actions { grid-column: 1 / -1; margin-top: 0; }
+.call-result-editor .quick-actions button { width: auto; }
+
+@media (max-width: 720px) {
+  .attendance-call-dashboard-header { display: grid; }
+  .attendance-call-dashboard-actions { justify-content: flex-start; }
+  .attendance-call-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .attendance-call-stat:first-child { grid-column: 1 / -1; }
+  .call-result-summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .call-result-status { grid-column: 2; grid-row: 1; }
+  .call-result-edit-button { grid-column: 1 / -1; width: 100%; }
+  .call-result-editor { grid-template-columns: 1fr; }
+  .call-result-editor .call-result-note { grid-column: auto; }
+}
 
 .attendance-contact-details {
   position: relative;
@@ -1155,6 +1218,31 @@ button[aria-disabled="true"] {
   color: #fff;
 }
 
+.attendance-manual-roster-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.attendance-manual-roster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.attendance-manual-roster-row .quick-action-btn {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 0.85rem;
+}
+
 .attendance-responsible-picker {
   display: grid;
   gap: 6px;
@@ -1186,6 +1274,40 @@ button[aria-disabled="true"] {
   color: #0f2e52;
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.attendance-responsible-filter-box {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d6e6f4;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.attendance-responsible-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.attendance-responsible-filter-grid label {
+  display: grid;
+  gap: 4px;
+}
+
+.attendance-responsible-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.attendance-responsible-filter-actions .quick-action-btn {
+  width: auto;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
 }
 
 .attendance-responsible-list {
@@ -1226,6 +1348,17 @@ button[aria-disabled="true"] {
 .attendance-responsible-option:has(input:focus-visible) {
   outline: 2px solid rgba(11, 79, 140, 0.28);
   outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .attendance-responsible-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-responsible-filter-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 .attendance-responsible-filter {
@@ -1469,6 +1602,166 @@ button[aria-disabled="true"] {
 
 .attendance-message-grid {
   margin-top: 14px;
+}
+
+.whatsapp-template-preview {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #cfe1f4;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef8f4 100%);
+}
+
+.whatsapp-template-preview-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.whatsapp-template-preview-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.whatsapp-template-status {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.whatsapp-message-bubble {
+  display: grid;
+  gap: 8px;
+  max-width: 620px;
+  padding: 14px 16px;
+  border: 1px solid #cfe8d7;
+  border-radius: 6px 16px 16px 16px;
+  background: #e9fbe9;
+  color: #173b2a;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.whatsapp-message-header {
+  font-size: 1rem;
+}
+
+.whatsapp-message-footer {
+  color: #5b7464;
+}
+
+.whatsapp-message-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(22, 101, 52, 0.13);
+}
+
+.whatsapp-message-buttons span,
+.whatsapp-template-capability-list span {
+  padding: 6px 10px;
+  border: 1px solid #b9d8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #145b91;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.whatsapp-template-capabilities {
+  display: grid;
+  gap: 8px;
+}
+
+.whatsapp-template-capability-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.whatsapp-template-capabilities p {
+  margin: 0;
+}
+
+.whatsapp-template-inputs {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #cfe1f4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.whatsapp-template-inputs > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.whatsapp-template-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.whatsapp-template-input-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.whatsapp-template-input-grid label > span {
+  color: #315d82;
+  font-size: .86rem;
+  font-weight: 700;
+}
+
+.whatsapp-template-input-grid input {
+  width: 100%;
+  min-width: 0;
+}
+
+.whatsapp-template-input-grid .whatsapp-template-auto-field {
+  padding: 10px;
+  border: 1px solid #c8d8e8;
+  border-radius: 10px;
+  background: #f3f7fb;
+}
+
+.whatsapp-template-auto-field small {
+  display: block;
+  margin-top: 2px;
+}
+
+.whatsapp-template-button-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #17395c;
+  font-size: .92rem;
+}
+
+.whatsapp-template-button-map span {
+  padding: 8px 12px;
+  border: 1px solid #c8d8e8;
+  border-radius: 999px;
+  background: #f7fbff;
+}
+
+@media (max-width: 680px) {
+  .whatsapp-template-input-grid { grid-template-columns: 1fr; }
+}
+
+.whatsapp-template-parameter-list {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 .attendance-status-option:has(input:checked) {
@@ -6935,8 +7228,128 @@ td {
 .student-payment-history-row > div { display: grid; gap: 3px; }
 .student-payment-actions { margin-top: 4px; }
 .payment-back-to-top:hover { filter: brightness(1.08); }
-.call-attempt-list { display:grid; gap:12px; margin-top:12px; }
-.call-attempt-edit { display:grid; grid-template-columns:1.2fr repeat(3,minmax(150px,1fr)) auto; gap:10px; align-items:end; padding:12px; border:1px solid var(--line); border-radius:12px; background:#fbfdff; }
-.call-attempt-edit label,.call-attempt-title { display:grid; gap:5px; }
-.call-attempt-title span { color:var(--muted); font-size:.85rem; }
-@media (max-width:800px){.call-attempt-edit{grid-template-columns:1fr}.call-attempt-edit .quick-actions button{width:100%}}
+
+.attendance-manual-student-picker {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cfe0f2;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.attendance-manual-student-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attendance-manual-student-picker-head div,
+.attendance-manual-student-option span { display: grid; gap: 3px; }
+
+.attendance-manual-student-picker small,
+.attendance-manual-student-option small { color: var(--muted, #64748b); }
+
+.attendance-manual-student-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 8px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.attendance-manual-student-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d8e5f3;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.attendance-manual-student-option:has(input:checked) {
+  border-color: #1877c9;
+  background: #eef7ff;
+}
+
+.knowledge-article-editor > summary,
+.knowledge-article-admin-card > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.knowledge-article-editor > summary::-webkit-details-marker,
+.knowledge-article-admin-card > summary::-webkit-details-marker { display: none; }
+.knowledge-article-editor > summary small,
+.knowledge-article-admin-card > summary small { display: block; color: var(--muted, #64748b); margin-top: 5px; }
+.knowledge-article-editor[open] > summary,
+.knowledge-article-admin-card[open] > summary { margin-bottom: 16px; }
+.knowledge-article-upload,
+.knowledge-article-status { display: grid; gap: 7px; }
+.knowledge-article-admin-list { display: grid; gap: 10px; }
+.knowledge-article-admin-card { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.55); }
+.knowledge-article-thumbnails { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.knowledge-article-thumbnails img { width: 90px; height: 70px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.public-article-hero { padding: clamp(26px, 6vw, 72px) 0 24px; }
+.public-article-hero .eyebrow { color: #1769aa; font-weight: 700; }
+.public-article-hero h1 { margin: 8px 0; font-size: clamp(2rem, 5vw, 4rem); }
+.public-article-hero p { color: var(--muted, #64748b); font-size: 1.1rem; }
+.public-article-toolbar { display: grid; gap: 12px; margin-bottom: 24px; }
+.public-article-toolbar form { display: flex; gap: 8px; }
+.public-article-toolbar input { flex: 1; }
+.public-article-tags, .public-article-card-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.public-article-tags a, .public-article-card-tags span { border: 1px solid #cfe0f2; border-radius: 999px; padding: 6px 11px; color: #23567f; font-size: .9rem; }
+.public-article-tags a.active { background: #1769aa; color: white; }
+.public-article-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.public-article-card { display: grid; grid-template-rows: 150px 1fr; overflow: hidden; border: 1px solid #d8e5f3; border-radius: 14px; background: white; color: inherit; text-decoration: none; box-shadow: 0 8px 25px rgba(40,80,120,.08); }
+.public-article-card > img { width: 100%; height: 150px; object-fit: cover; background: #eef5fb; }
+.public-article-card > div { padding: 17px; }
+.public-article-card h2 { margin: 12px 0 7px; font-size: 1.25rem; }
+.public-article-card p { color: var(--muted, #64748b); line-height: 1.6; }
+.public-article-read { color: #1769aa; font-weight: 700; }
+.public-article-page { max-width: 880px; margin: 30px auto 80px; }
+.public-article-page header { margin: 24px 0; }
+.public-article-page h1 { font-size: clamp(2rem, 5vw, 3.5rem); margin: 12px 0; }
+.public-article-lead { color: var(--muted, #64748b); font-size: 1.15rem; line-height: 1.7; }
+.public-article-image { display: block; max-width: 100%; max-height: 560px; margin: 20px auto; border-radius: 12px; object-fit: contain; }
+.public-article-body { font-size: 1.1rem; line-height: 1.9; white-space: normal; }
+.public-article-body p { margin: 0 0 1.35em; }
+.knowledge-article-slug-field { display: grid; gap: 7px; }
+.knowledge-article-slug-row { display: flex; align-items: stretch; gap: 8px; }
+.knowledge-article-slug-row input { flex: 1; min-width: 0; }
+.knowledge-article-slug-row button { white-space: nowrap; }
+@media (max-width: 640px) {
+  .knowledge-article-slug-row { display: grid; }
+}
+.attendance-contact-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #d9e6f4;
+}
+
+.attendance-contact-filter-label {
+  color: #526b86;
+  font-weight: 700;
+  margin-inline-end: 4px;
+}
+
+@media (max-width: 640px) {
+  .attendance-contact-filter {
+    align-items: stretch;
+  }
+
+  .attendance-contact-filter-label {
+    flex-basis: 100%;
+  }
+}

@@ -13,9 +13,11 @@ import { ENUM_LABELS } from "../../lib/student-fields";
 import { getCurrentAppUser, signInRedirectUrl } from "../../lib/rbac";
 import { listStudentTags } from "../../lib/student-tags";
 import { CLASS_LABELS, INSTITUTIONS } from "../../lib/student-view";
+import { listNeonStudentsByFilters } from "../../lib/neon-students";
 import { createAttendanceSessionAction, deleteAttendanceSessionAction, setAttendanceSessionLockAction, setAttendanceSessionsBulkLockAction } from "./actions";
 import ResponsibleUserPicker from "./responsible-user-picker";
 import CreateSessionForm from "./create-session-form";
+import AttendanceStudentPicker from "./attendance-student-picker";
 
 function clean(value) {
   return String(value || "").trim();
@@ -275,7 +277,17 @@ export default async function AttendancePage({ searchParams }) {
           limit: 1000
         }
   );
-  const [responsibleUsers, availableTags] = await Promise.all([listAttendanceResponsibleUsers(), listStudentTags()]);
+  const [responsibleUsers, availableTags, allStudents] = await Promise.all([
+    listAttendanceResponsibleUsers(),
+    listStudentTags(),
+    listNeonStudentsByFilters({ limit: 3000 })
+  ]);
+  const manualStudentOptions = allStudents.map((student) => ({
+    id: clean(student?.id),
+    label: clean(student?.label) || clean(student?.name) || "ללא שם",
+    classLabel: clean(CLASS_LABELS[clean(student?.class).toUpperCase()] || student?.class),
+    institutionLabel: clean(INSTITUTIONS[clean(student?.currentInstitution).toUpperCase()] || student?.currentInstitution)
+  })).filter((student) => student.id);
   const summaryReport = reportFilters.institution
     ? await getAttendanceSummaryReport({
         institution: reportFilters.institution,
@@ -455,12 +467,22 @@ export default async function AttendancePage({ searchParams }) {
                 <option value="parent_meeting">פגישה ישירה עם ההורים</option>
               </select>
             </label>
+            <div className="attendance-filter-toolbar" style={{ gridColumn: "1 / -1" }}>
+              <span className="muted">אופן בניית הרשימה</span>
+              <label className="attendance-filter-chip active"><input type="radio" name="rosterMode" value="filters" defaultChecked /> לפי המסננים</label>
+              <label className="attendance-filter-chip"><input type="radio" name="rosterMode" value="manual" /> מפגש חופשי</label>
+              <label className="attendance-filter-chip"><input type="radio" name="rosterMode" value="filters_editable" /> לפי מסננים עם עריכה ידנית</label>
+            </div>
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
             {canUseSessionAudienceFilters ? (
               <>
-                <ResponsibleUserPicker users={responsibleUsers} defaultValues={[currentUser.clerk_user_id]} />
+                <ResponsibleUserPicker
+                  users={responsibleUsers}
+                  students={manualStudentOptions}
+                  defaultValues={[currentUser.clerk_user_id]}
+                />
                 <label className="attendance-visibility-toggle">
                   <input type="checkbox" name="visibleToStudents" value="1" />
                   <span className="attendance-visibility-box" aria-hidden="true" />
@@ -471,7 +493,7 @@ export default async function AttendancePage({ searchParams }) {
                 </label>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <div className="muted" style={{ marginBottom: 10 }}>
-                    אפשר ליצור מפגש לפי קהל יעד מסונן. אם לא תבחר מסננים, ייכללו כל תלמידי המוסד. לסופר אדמין בלי מוסד ובלי מסנן מוסדות, המפגש יחול על כל המוסדות.
+                    אפשר ליצור מפגש לפי מסננים, או ליצור מפגש ריק ולהוסיף תלמידים ידנית בחיפוש. אם נבחר מוסד ללא מסננים, ייכללו תלמידי המוסד; בלי מוסד ובלי מסננים המפגש ייפתח ללא תלמידים.
                   </div>
                   <div className="email-form-grid">
                     <FilterCheckboxFieldset legend="מוסדות" name="institutionFilter" options={institutionOptions} helperText="אם לא נבחר מוסד, המפגש יחול על כל המוסדות." />
@@ -481,6 +503,7 @@ export default async function AttendancePage({ searchParams }) {
                     <FilterCheckboxFieldset legend="תוויות" name="tagFilter" options={tagOptions} helperText="הוסף למפגש רק תלמידים עם אחת מהתוויות שנבחרו" />
                   </div>
                 </div>
+                <AttendanceStudentPicker students={manualStudentOptions} />
               </>
             ) : null}
           </CreateSessionForm>

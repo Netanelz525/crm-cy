@@ -69,11 +69,15 @@ function buildLiveStats(rows, statusOptions) {
   };
 }
 
-function rowMatchesFilters(row, selectedFilters, query) {
+function rowMatchesFilters(row, selectedFilters, query, contactFilter = "all") {
   const normalizedQuery = clean(query).toLowerCase();
   const matchesStatus = !selectedFilters.length
     || selectedFilters.includes(String(row?.status || "").trim().toLowerCase());
   if (!matchesStatus) return false;
+  const studentContactMissing = !hasPhone(row?.phone);
+  const parentContactMissing = !hasPhone(row?.dadPhone) || !hasPhone(row?.momPhone);
+  if (contactFilter === "student_missing" && !studentContactMissing) return false;
+  if (contactFilter === "parents_missing" && !parentContactMissing) return false;
   if (!normalizedQuery) return true;
 
   return [
@@ -90,6 +94,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const [rows, setRows] = useState(students);
   const [locked, setLocked] = useState(Boolean(isLocked));
   const [selectedFilters, setSelectedFilters] = useState(activeStatusFilters);
+  const [contactFilter, setContactFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
   const [flashRowIds, setFlashRowIds] = useState([]);
@@ -112,6 +117,35 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }, [isLocked]);
 
   useEffect(() => {
+    function handleManualStudentChanged(event) {
+      const detail = event?.detail || {};
+      const studentId = clean(detail.studentId);
+      const student = detail.student;
+      if (!studentId || !student) return;
+      setRows((current) => {
+        const exists = current.some((row) => clean(row?.id) === studentId);
+        if (detail.selected && !exists) {
+          const missingStatus = statusOptions.find(([value]) => value === "missing") || statusOptions[0] || ["missing", "לא נמצא"];
+          return [...current, {
+            ...student,
+            status: missingStatus[0],
+            statusLabel: missingStatus[1],
+            noteText: "",
+            hasSavedRecord: false
+          }];
+        }
+        if (!detail.selected && exists && (detail.removeFromRoster || !students.some((row) => clean(row?.id) === studentId))) {
+          return current.filter((row) => clean(row?.id) !== studentId);
+        }
+        return current;
+      });
+    }
+
+    window.addEventListener("attendance-manual-student-changed", handleManualStudentChanged);
+    return () => window.removeEventListener("attendance-manual-student-changed", handleManualStudentChanged);
+  }, [statusOptions, students]);
+
+  useEffect(() => {
     for (const timer of noteTimersRef.current.values()) clearTimeout(timer);
     noteTimersRef.current.clear();
     if (typeof window === "undefined") return;
@@ -120,6 +154,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
       if (!raw) {
         setSelectedFilters(activeStatusFilters);
         setQuery("");
+        setContactFilter("all");
         return;
       }
       const parsed = JSON.parse(raw);
@@ -127,11 +162,16 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         ? parsed.selectedFilters.map((value) => clean(value).toLowerCase()).filter(Boolean)
         : activeStatusFilters;
       const nextQuery = clean(parsed?.query);
+      const nextContactFilter = ["all", "student_missing", "parents_missing"].includes(parsed?.contactFilter)
+        ? parsed.contactFilter
+        : "all";
       setSelectedFilters(nextFilters);
       setQuery(nextQuery);
+      setContactFilter(nextContactFilter);
     } catch {
       setSelectedFilters(activeStatusFilters);
       setQuery("");
+      setContactFilter("all");
     }
   }, [sessionId]);
 
@@ -139,9 +179,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     if (typeof window === "undefined") return;
     window.sessionStorage.setItem(storageKey(sessionId), JSON.stringify({
       selectedFilters,
-      query
+      query,
+      contactFilter
     }));
-  }, [sessionId, selectedFilters, query]);
+  }, [sessionId, selectedFilters, query, contactFilter]);
 
   useEffect(() => {
     rowsRef.current = rows;
@@ -156,8 +197,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }, []);
 
   const filteredRows = useMemo(() => {
-    return rows.filter((row) => rowMatchesFilters(row, selectedFilters, query));
-  }, [rows, selectedFilters, query]);
+    return rows.filter((row) => rowMatchesFilters(row, selectedFilters, query, contactFilter));
+  }, [rows, selectedFilters, query, contactFilter]);
 
   const liveStats = useMemo(() => buildLiveStats(rows, statusOptions), [rows, statusOptions]);
 
@@ -345,8 +386,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
 
         const nextVisible = [];
         for (const change of changedRows) {
-          const wasVisible = rowMatchesFilters(change.previous, selectedFilters, query);
-          const isVisible = rowMatchesFilters(change.next, selectedFilters, query);
+          const wasVisible = rowMatchesFilters(change.previous, selectedFilters, query, contactFilter);
+          const isVisible = rowMatchesFilters(change.next, selectedFilters, query, contactFilter);
           if (wasVisible && !isVisible) {
             queueExitingRow(change.next);
             pushExternalNotice(`${change.next.label} עודכן על ידי API וירד מהסינון הנוכחי`);
@@ -372,7 +413,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
       clearInterval(intervalId);
       if (pollAbortRef.current) pollAbortRef.current.abort();
     };
-  }, [sessionId, selectedFilters, query]);
+  }, [sessionId, selectedFilters, query, contactFilter]);
 
   return (
     <>
@@ -429,6 +470,23 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               type="button"
               className={`attendance-filter-chip${selectedFilters.includes(value) ? " active" : ""}`}
               onClick={() => toggleFilter(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="attendance-contact-filter" role="group" aria-label="סינון לפי פרטי קשר">
+          <span className="attendance-contact-filter-label">סינון לפי פרטי קשר:</span>
+          {[
+            ["all", "כל התלמידים"],
+            ["student_missing", "חסר מספר לתלמיד"],
+            ["parents_missing", "חסר מספר אצל הורה"]
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`attendance-filter-chip${contactFilter === value ? " active" : ""}`}
+              onClick={() => setContactFilter(value)}
             >
               {label}
             </button>

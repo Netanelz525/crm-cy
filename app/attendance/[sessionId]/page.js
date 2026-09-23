@@ -5,11 +5,15 @@ import AttendanceEmailSendSubmit from "../attendance-email-send-submit";
 import AttendanceMessageComposer from "../attendance-message-composer";
 import {
   saveAttendanceSessionDetailsAction,
+  saveAttendanceSessionInvitationAction,
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
+  saveAttendanceSessionStudentsAction,
+  setAttendanceSessionManualStudentAction,
   sendAttendanceSessionEmailsAction,
   sendAttendanceSessionWhatsAppAction,
   sendAttendanceSessionWhatsAppApprovedTemplateAction,
+  sendAttendanceInvitationAction,
   setAttendanceSessionLockAction,
   syncAttendanceSessionStudentsAction
 } from "../actions";
@@ -23,19 +27,18 @@ import {
 import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/attendance-exports";
 import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
 import { getResendConfigStatus } from "../../../lib/resend";
-import { listWhatsAppApprovedTemplates } from "../../../lib/whatsapp";
+import { listWhatsAppCoexistenceApprovedTemplates } from "../../../lib/attendance-whatsapp";
 import ResponsibleUserPicker from "../responsible-user-picker";
 import AttendanceCallTeam from "../attendance-call-team";
+import AttendanceInvitationConfig from "../attendance-invitation-config";
 import { getCallTeam } from "../../../lib/attendance-calls";
+import AttendanceStudentPicker from "../attendance-student-picker";
+import CustomStatusEditor from "../custom-status-editor";
+import { listNeonStudentsByFilters } from "../../../lib/neon-students";
+import { CLASS_LABELS, INSTITUTIONS } from "../../../lib/student-view";
 
 function clean(value) {
   return String(value || "").trim();
-}
-
-function serializeCustomStatuses(customStatuses = []) {
-  return (customStatuses || [])
-    .map((item) => `${item.value}, ${item.label}`)
-    .join("\n");
 }
 
 function formatSessionAudience(session) {
@@ -53,6 +56,9 @@ function formatSessionAudience(session) {
   return parts.join(" | ");
 }
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AttendanceSessionPage({ params, searchParams }) {
   const currentUser = await getCurrentAppUser();
   if (!currentUser) redirect(await signInRedirectUrl());
@@ -65,6 +71,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const created = clean(resolvedSearchParams?.created) === "1";
   const synced = clean(resolvedSearchParams?.synced) === "1";
   const detailsSaved = clean(resolvedSearchParams?.detailsSaved) === "1";
+  const studentsSaved = clean(resolvedSearchParams?.studentsSaved) === "1";
+  const studentsSavedCount = clean(resolvedSearchParams?.studentsSavedCount);
   const statusesSaved = clean(resolvedSearchParams?.statusesSaved) === "1";
   const messageSaved = clean(resolvedSearchParams?.messageSaved) === "1";
   const lockSaved = clean(resolvedSearchParams?.lockSaved);
@@ -77,6 +85,9 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const quickEmailError = clean(resolvedSearchParams?.quickEmailError);
   const whatsappTemplateSent = clean(resolvedSearchParams?.whatsappTemplateSent) === "1";
   const whatsappTemplateError = clean(resolvedSearchParams?.whatsappTemplateError);
+  const invitationSaved = clean(resolvedSearchParams?.invitationSaved) === "1";
+  const invitationQueued = clean(resolvedSearchParams?.invitationQueued) === "1";
+  const invitationError = clean(resolvedSearchParams?.invitationError);
   const activeStatusFilters = clean(resolvedSearchParams?.statusFilter)
     .split(",")
     .map((value) => clean(value).toLowerCase())
@@ -87,12 +98,27 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
   const canManageSessionSettings = currentUser.is_manager || currentUser.is_super_admin;
   const responsibleUsers = canManageSessionSettings ? await listAttendanceResponsibleUsers() : [];
+  const allStudents = await listNeonStudentsByFilters({ limit: 3000 });
+  const manualStudentOptions = allStudents.map((student) => ({
+    id: clean(student?.id),
+    label: clean(student?.label) || clean(student?.name) || "ללא שם",
+    classLabel: clean(CLASS_LABELS[clean(student?.class).toUpperCase()] || student?.class),
+    institutionLabel: clean(INSTITUTIONS[clean(student?.currentInstitution).toUpperCase()] || student?.currentInstitution),
+    class: clean(student?.class),
+    phone: student?.phone || null,
+    dadPhone: student?.dadPhone || null,
+    momPhone: student?.momPhone || null,
+    email: student?.email || null,
+    fatherEmail: student?.fatherEmail || null,
+    motherEmail: student?.motherEmail || null
+  })).filter((student) => student.id);
   let whatsappTemplates = [];
   try {
-    whatsappTemplates = await listWhatsAppApprovedTemplates();
+    whatsappTemplates = await listWhatsAppCoexistenceApprovedTemplates();
   } catch (error) {
     console.error("WhatsApp template list failed", error?.message || error);
   }
+  const invitationTemplates = whatsappTemplates.filter((template) => clean(template.name).startsWith("general_meeting_invitation"));
 
   if (!roster) {
     return (
@@ -148,6 +174,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {callTeam ? <AttendanceCallTeam sessionId={sessionId} team={callTeam} rosterIds={roster.students.map(s => s.id)} /> : null}
       {synced ? <div className="ok">רשימת תלמידי המפגש סונכרנה מחדש לפי מסנני המפגש.</div> : null}
       {detailsSaved ? <div className="ok">פרטי המפגש נשמרו.</div> : null}
+      {studentsSaved ? <div className="ok">רשימת התלמידים הידנית נשמרה. במפגש יש עכשיו {studentsSavedCount || roster?.students?.length || 0} תלמידים.</div> : null}
       {statusesSaved ? <div className="ok">סטטוסי המפגש נשמרו.</div> : null}
       {messageSaved ? <div className="ok">הודעת המפגש נשמרה.</div> : null}
       {lockSaved === "locked" ? <div className="ok">המפגש ננעל. לא ניתן לעדכן סטטוסים עד פתיחת הנעילה.</div> : null}
@@ -159,6 +186,9 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {quickEmailError ? <div className="error">{quickEmailError}</div> : null}
       {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
       {whatsappTemplateError ? <div className="error">{whatsappTemplateError}</div> : null}
+      {invitationSaved ? <div className="ok">הגדרות ההזמנה נשמרו.</div> : null}
+      {invitationQueued ? <div className="ok">שליחת ההזמנות התחילה ברקע.</div> : null}
+      {invitationError ? <div className="error">{invitationError}</div> : null}
 
       <details className="card attendance-message-panel">
         <summary className="attendance-message-summary">
@@ -192,11 +222,35 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </form>
       </details>
 
+      <details className="card attendance-message-panel" open={studentsSaved || roster.students.length === 0}>
+        <summary className="attendance-message-summary">
+          <div>
+            <h3>ניהול תלמידי המפגש</h3>
+            <span className="muted">אפשר להוסיף תלמידים אחד־אחד בחיפוש, גם במפגש ללא מסנן. הסנכרון משאיר גם תלמידים שנבחרו ידנית.</span>
+          </div>
+          <span className="attendance-message-summary-action">פתח ניהול תלמידים</span>
+        </summary>
+        <form action={saveAttendanceSessionStudentsAction}>
+          <input type="hidden" name="sessionId" value={roster.session.id} />
+          <AttendanceStudentPicker
+            students={manualStudentOptions}
+            rosterStudents={roster.students}
+            defaultValues={roster.session.manualStudentIds || []}
+            sessionId={roster.session.id}
+            saveAction={setAttendanceSessionManualStudentAction}
+          />
+          <div className="quick-actions">
+            <button type="submit" className="quick-action-btn quick-action-primary">שמור תלמידים ידניים</button>
+            <span className="muted">מסנני המפגש הקיימים ממשיכים לעבוד בנוסף לבחירה הידנית.</span>
+          </div>
+        </form>
+      </details>
+
       <details className="card attendance-message-panel" open={whatsappTemplateSent || Boolean(whatsappTemplateError)}>
         <summary className="attendance-message-summary">
           <div>
             <h3>שליחה נפרדת ב־WhatsApp</h3>
-            <span className="muted">בחירת תלמידים או הורים לפי תבנית WhatsApp מאושרת בלבד.</span>
+            <span className="muted">בוט התפוצה של Dualhook: בחירת תלמידים או הורים לפי תבנית WhatsApp מאושרת בלבד.</span>
           </div>
           <span className="attendance-message-summary-action">פתח שליחה</span>
         </summary>
@@ -211,6 +265,13 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           whatsappOnly
         />
       </details>
+
+      <AttendanceInvitationConfig
+        session={roster.session}
+        templates={invitationTemplates}
+        saveAction={saveAttendanceSessionInvitationAction}
+        sendAction={sendAttendanceInvitationAction}
+      />
 
       {roster.session.isLocked ? (
         <div className="attendance-lock-banner">
@@ -258,7 +319,11 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </label>
           {canManageSessionSettings ? (
             <>
-              <ResponsibleUserPicker users={responsibleUsers} defaultValues={roster.session.responsibleUserIds || []} />
+              <ResponsibleUserPicker
+                users={responsibleUsers}
+                students={manualStudentOptions}
+                defaultValues={roster.session.responsibleUserIds || []}
+              />
               <label className="attendance-visibility-toggle">
                 <input
                   type="checkbox"
@@ -296,16 +361,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <p className="muted">הסטטוסים הייחודיים שייכים למפגש עצמו, ומופיעים מיד בכפתורי הנוכחות, בסינון, בדוחות וגם בשליחת המיילים.</p>
           <form className="grid" action={saveAttendanceSessionStatusesAction}>
             <input type="hidden" name="sessionId" value={roster.session.id} />
-            <label style={{ gridColumn: "1 / -1" }}>
-              <span className="muted">סטטוסים ייחודיים למפגש</span>
-              <small className="muted">בכל שורה: ערך פנימי, שם להצגה. ירידת שורה מוסיפה סטטוס נוסף.</small>
-              <textarea
-                name="customStatusesText"
-                rows={4}
-                defaultValue={serializeCustomStatuses(roster.session.customStatuses)}
-                placeholder={"דוגמה:\nneeds_call, צריך שיחה\nchecked_by_office, נבדק במשרד"}
-              />
-            </label>
+            <CustomStatusEditor statuses={roster.session.customStatuses} />
             <div className="quick-actions">
               <button type="submit" className="quick-action-btn quick-action-outline">שמור סטטוסים</button>
             </div>

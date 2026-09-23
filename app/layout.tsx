@@ -4,6 +4,8 @@ import AiChatWidget from "./ai-chat-widget";
 import { getCurrentAppUser } from "../lib/rbac";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "CRM Management",
   description: "CRM admin and student management"
@@ -16,7 +18,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const canShowTopbar = Boolean(currentUser);
   const isStudentPortalUser = Boolean(currentUser && !currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin && !currentUser.is_print_only && !currentUser.is_marei_mekomot);
   const roleNavItems = isStudentPortalUser ? [
-    { href: "/account", label: "אזור אישי" }
+    { href: "/account", label: "אזור אישי" },
+    { href: "/articles", label: "מרכז מידע" }
   ] : currentUser?.is_print_only ? [
     { href: "/print", label: "הדפסה" }
   ] : currentUser?.is_marei_mekomot ? [
@@ -34,6 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...(currentUser ? [{ href: "/call-desk", label: "אזור השיחות שלי" }] : [])
   ];
   const secondaryNavItems = isStudentPortalUser ? [] : [
+    ...(currentUser?.is_manager || currentUser?.is_super_admin ? [{ href: "/admin/articles", label: "מאמרי מידע" }] : []),
     { href: "/tasks", label: "משימות" },
     { href: "/payments", label: "מערכות תשלום" },
     ...(currentUser?.is_manager || currentUser?.is_super_admin ? [{ href: "/call-desk/manage", label: "ניהול שיחות" }] : []),

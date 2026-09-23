@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withTemporaryAnnouncementSignatureLinks } from "../../../../lib/announcement-signature-links";
 import { authenticateApiToken, readBearerToken } from "../../../../lib/api-tokens";
-import { claimPrintJobById, completePrintJob, sendPrintJobReceiptEmail } from "../../../../lib/print-jobs";
+import { claimPrintJobById, completePrintJob, failPrintJob, sendPrintJobReceiptEmail } from "../../../../lib/print-jobs";
 
 function clean(value) {
   return String(value || "").trim();
@@ -61,5 +61,32 @@ export async function DELETE(request, { params }) {
     });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Print job delete failed" }, { status: 400 });
+  }
+}
+
+export async function PATCH(request, { params }) {
+  const token = readBearerToken(request);
+  const auth = await authenticateApiToken(token, "print:delete");
+  if (!auth) return unauthorized();
+
+  try {
+    const resolvedParams = await params;
+    const jobId = clean(resolvedParams?.jobId);
+    const body = await request.json().catch(() => null);
+    const status = clean(body?.status).toLowerCase();
+    if (status !== "failed") {
+      return NextResponse.json({ error: "Unsupported print job status update" }, { status: 400 });
+    }
+    await failPrintJob(jobId, {
+      errorMessage: body?.errorMessage || body?.error || body?.message
+    });
+
+    return NextResponse.json({
+      resource: "printJob",
+      failed: true,
+      id: jobId
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error?.message || "Print job status update failed" }, { status: 400 });
   }
 }

@@ -75,6 +75,13 @@ export default async function AdminPage() {
           cta="פתח אזור מחיקה זמני"
           badge="למנהלים"
         />
+        <AdminAreaLinkCard
+          title="מאמרי מידע לתלמידים"
+          description="יצירת מאמרים ציבוריים, תגיות ותמונות שימושיות לתלמידים ולמשפחות."
+          href="/admin/articles"
+          cta="ניהול מאמרי מידע"
+          badge="למנהלים"
+        />
       </section>
     </>
   );

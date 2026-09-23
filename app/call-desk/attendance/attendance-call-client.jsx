@@ -31,6 +31,7 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
   const [busy,setBusy] = useState(false), [error,setError] = useState(""), [now,setNow] = useState(Date.now());
   const [query,setQuery] = useState(""), [matches,setMatches] = useState(null), [editing,setEditing] = useState(false);
   const [notice,setNotice] = useState("");
+  const [invitationBusy,setInvitationBusy] = useState(false);
   const inFlight = useRef(false), offset = useRef(0);
   const lead = data?.lead;
   const remaining = lead ? Math.max(0, Math.ceil((new Date(lead.expiresAt).getTime()-now)/1000)) : 0;
@@ -65,6 +66,18 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
     try { const result=await request({kind:"search",query});setMatches(result.students); }
     catch(failure){setError(failure.message);}finally{inFlight.current=false;setBusy(false);}
   }
+  async function sendInvitation() {
+    if (!lead || invitationBusy || !remaining) return;
+    setInvitationBusy(true); setError("");
+    try {
+      const result = await request({ kind: "invitation", studentId: lead.studentId });
+      const emailCount = result?.email?.sentEmails || 0;
+      const whatsappCount = result?.whatsapp?.sentMessages || 0;
+      setNotice(`ההזמנה נשלחה: ${emailCount} במייל ו-${whatsappCount} ב-WhatsApp.`);
+    } catch (failure) {
+      setError(failure.message || "שליחת ההזמנה נכשלה.");
+    } finally { setInvitationBusy(false); }
+  }
   return <section className="card call-desk">
     <Link href="/call-desk">חזרה לאזור השיחות שלי</Link>
     <h1>{data?.session?.title || title}</h1>
@@ -85,6 +98,7 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
     </> : <div className="linked-record-card call-lead-card">
       <h2>{lead.name}</h2><p>{lead.classLabel}</p>
       <p role="status">{remaining ? `הקצאה בלעדית: ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}` : "זמן ההקצאה הסתיים. אין להתקשר או לשמור על סמך ההקצאה הישנה."}</p>
+      <button type="button" className="quick-action-btn quick-action-primary" disabled={invitationBusy || !remaining} onClick={sendInvitation}>{invitationBusy ? "שולח הזמנה…" : "שלח הזמנה לפי הגדרות המפגש"}</button>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:12}}>
         <ContactDetails label="תלמיד" phone={lead.phone} email={lead.email} active={remaining>0} />
         <ContactDetails label="אב" {...lead.father} active={remaining>0} />
