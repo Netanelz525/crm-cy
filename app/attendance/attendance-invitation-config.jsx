@@ -40,7 +40,11 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
           <span className="muted">תבנית WhatsApp מאושרת של בוט התפוצה</span>
           <select name="invitationWhatsAppTemplateName" defaultValue={session.invitationWhatsAppTemplateName || ""}>
             <option value="">ללא שליחת WhatsApp</option>
-            {templates.map((template) => <option key={template.name} value={template.name}>{template.name}</option>)}
+            {templates.map((template) => {
+              const format = String(template.headerFormat || "").toUpperCase();
+              const suffix = format === "IMAGE" ? " · דורשת תמונה" : format === "DOCUMENT" ? " · דורשת PDF" : " · ללא קובץ בכותרת";
+              return <option key={`${template.name}-${template.language || "he"}`} value={template.name}>{template.name}{suffix}</option>;
+            })}
           </select>
           {templateError ? <small className="error">{templateError}</small> : null}
           {!templateError && !templates.length ? <small className="muted">לא נמצאה כרגע תבנית הזמנה מאושרת של בוט התפוצה.</small> : null}
