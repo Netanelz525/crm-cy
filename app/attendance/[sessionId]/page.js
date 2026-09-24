@@ -42,6 +42,11 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function isInvitationTemplateName(value) {
+  const name = clean(value).toLowerCase();
+  return name.startsWith("general_meeting_invitation") || name.includes("meeting_invitation");
+}
+
 function formatSessionAudience(session) {
   const institutionLabels = (session?.institutionFilterOptions || []).map((item) => item.label);
   const classLabels = (session?.classFilterOptions || []).map((item) => item.label);
@@ -121,8 +126,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     whatsappTemplateLoadError = clean(error?.message) || "לא ניתן לטעון את תבניות WhatsApp המאושרות.";
     console.error("WhatsApp template list failed", whatsappTemplateLoadError);
   }
-  const invitationTemplates = whatsappTemplates.filter((template) => clean(template.name).startsWith("general_meeting_invitation"));
-  const attendanceStatusTemplates = whatsappTemplates.filter((template) => !clean(template.name).startsWith("general_meeting_invitation"));
+  const invitationTemplates = whatsappTemplates.filter((template) => isInvitationTemplateName(template.name));
+  const attendanceStatusTemplates = whatsappTemplates.filter((template) => !isInvitationTemplateName(template.name));
 
   if (!roster) {
     return (
