@@ -82,6 +82,13 @@ export default async function AdminPage() {
           cta="ניהול מאמרי מידע"
           badge="למנהלים"
         />
+        <AdminAreaLinkCard
+          title="תבניות WhatsApp לתפוצה"
+          description="צפייה בתבניות המאושרות של Dualhook והגדרת מיפוי שדות, נמענים, מדיה וכפתורים ב-CRM."
+          href="/admin/whatsapp-templates"
+          cta="פתח ניהול תבניות WhatsApp"
+          badge="למנהלים"
+        />
       </section>
     </>
   );
