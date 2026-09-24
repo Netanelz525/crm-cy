@@ -17,7 +17,7 @@ function userKindLabel(user) {
   if (role === "admin" || role === "editor" || role === "super_admin" || clean(user?.linkedStudentClass).toUpperCase() === "TEAM") {
     return "צוות";
   }
-  return "תלמיד מורשה";
+  return user?.canCallAttendance === false ? "תלמיד · ללא הרשאת מוקד" : "תלמיד";
 }
 
 export default function ResponsibleUserPicker({
@@ -120,7 +120,7 @@ export default function ResponsibleUserPicker({
       <div className="attendance-responsible-filter-box">
         <div className="attendance-responsible-filter-head">
           <strong>הוספה מהירה לפי מוסד ושיעור</strong>
-          <span className="muted">הסינון כולל אנשי צוות ותלמידים שקיבלו הרשאה לבצע שיחות במוקד.</span>
+          <span className="muted">הסינון כולל צוות וכל תלמיד עם משתמש מקושר. ביצוע שיחות בפועל דורש הרשאת מוקד נפרדת.</span>
         </div>
         <div className="attendance-responsible-filter-grid">
           <label>
@@ -141,7 +141,7 @@ export default function ResponsibleUserPicker({
         {institutionFilter || classFilter ? (
           <>
             <div className="attendance-responsible-filter-actions">
-              <span className="muted">נמצאו {filteredResponsibleUsers.length} משתמשים מורשים</span>
+              <span className="muted">נמצאו {filteredResponsibleUsers.length} תלמידים ומשתמשים</span>
               <button type="button" className="quick-action-btn" onClick={addFilteredUsers} disabled={!filteredResponsibleUsers.length}>
                 הוסף את כל התוצאות
               </button>
@@ -165,11 +165,11 @@ export default function ResponsibleUserPicker({
             ) : null}
           </>
         ) : (
-          <span className="attendance-responsible-empty">בחר מוסד או שיעור כדי להציג משתמשים מורשים רלוונטיים.</span>
+          <span className="attendance-responsible-empty">בחר מוסד או שיעור כדי להציג תלמידים ומשתמשים רלוונטיים.</span>
         )}
       </div>
       {!canSearch ? (
-        <span className="attendance-responsible-empty">הקלד לפחות שתי אותיות כדי להציג משתמשים מורשים לבחירה.</span>
+        <span className="attendance-responsible-empty">הקלד לפחות שתי אותיות כדי להציג תלמידים ומשתמשים לבחירה.</span>
       ) : (
         <div className="attendance-responsible-list">
           {filteredUsers.map((user) => (
@@ -185,7 +185,7 @@ export default function ResponsibleUserPicker({
         </div>
       )}
       {canSearch && !filteredUsers.length ? (
-        <span className="attendance-responsible-empty">לא נמצאו משתמשים מורשים תואמים.</span>
+        <span className="attendance-responsible-empty">לא נמצאו תלמידים או משתמשים תואמים.</span>
       ) : null}
     </div>
   );
