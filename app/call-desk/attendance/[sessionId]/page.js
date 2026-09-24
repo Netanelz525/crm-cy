@@ -6,7 +6,7 @@ import AttendanceCallClient from "../attendance-call-client";
 export default async function Page({ params }) {
   const user = await getCurrentAppUser();
   if (!user) redirect("/sign-in?redirect_url=/call-desk");
-  if (user.access_status !== "approved") redirect("/unauthorized");
+  if (user.access_status !== "approved" || !user.can_call_attendance) redirect("/unauthorized");
   const { sessionId } = await params;
   const sessions = await listMyCallSessions(user);
   const session = sessions.find(s => s.id === sessionId);

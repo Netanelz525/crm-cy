@@ -252,7 +252,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <summary className="attendance-message-summary">
             <div>
               <h3>אחראי מפגש וחשיפה לתלמידים</h3>
-              <span className="muted">אפשר לבחור אנשי צוות ידנית או להוסיף בבת אחת לפי מוסד ושיעור של התלמידים המקושרים אליהם.</span>
+              <span className="muted">אפשר לבחור משתמשים מורשים ידנית או להוסיף בבת אחת לפי מוסד ושיעור של התלמידים המקושרים אליהם.</span>
             </div>
             <span className="attendance-message-summary-action">פתח ניהול אחראים</span>
           </summary>

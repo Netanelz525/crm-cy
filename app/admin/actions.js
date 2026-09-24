@@ -13,6 +13,7 @@ import {
   setOwnCardEditPermission,
   setUserAgentChannelPreferences,
   setUserPrintColorPermission,
+  setUserCallAttendancePermission,
   setUserWeeklyBackupPreferences
 } from "../../lib/rbac";
 import {
@@ -124,6 +125,14 @@ export async function updateUserPrintColorPermissionAction(formData) {
   const targetUserId = clean(formData.get("targetUserId"));
   if (!targetUserId) return;
   await setUserPrintColorPermission(targetUserId, clean(formData.get("printColorEnabled")) === "1");
+  revalidatePath("/admin");
+}
+
+export async function updateUserCallAttendancePermissionAction(formData) {
+  await requireSuperAdmin();
+  const targetUserId = clean(formData.get("targetUserId"));
+  if (!targetUserId) return;
+  await setUserCallAttendancePermission(targetUserId, clean(formData.get("callAttendanceEnabled")) === "1");
   revalidatePath("/admin");
 }
 

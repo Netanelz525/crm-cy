@@ -67,6 +67,7 @@ export default function UserSettingsClient({
   onSaveRole,
   onSavePreferences,
   onSavePrintColorPermission,
+  onSaveCallAttendancePermission,
   onSaveWeeklyBackupPreferences,
   onDeleteUser
 }) {
@@ -154,6 +155,16 @@ export default function UserSettingsClient({
     return runAction("print-color", async () => {
       await onSavePrintColorPermission(formData);
       setMessage("הרשאת הדפסה בצבע נשמרה.");
+    });
+  }
+
+  function handleCallAttendanceSave() {
+    const formData = new FormData();
+    formData.set("targetUserId", user.clerk_user_id);
+    formData.set("callAttendanceEnabled", document.getElementById("call-attendance-enabled")?.checked ? "1" : "0");
+    return runAction("call-attendance", async () => {
+      await onSaveCallAttendancePermission(formData);
+      setMessage("הרשאת מוקד השיחות נשמרה.");
     });
   }
 
@@ -259,6 +270,18 @@ export default function UserSettingsClient({
         <p className="muted" style={{ margin: "8px 0" }}>הדפסה רגילה בשחור־לבן זמינה לפי הרשאת ההדפסה הרגילה. סופר־אדמין מורשה אוטומטית גם לצבע.</p>
         <button style={{ width: "auto" }} type="button" disabled={user.is_super_admin || busyKey === "print-color"} onClick={handlePrintColorSave}>
           שמור הרשאת צבע
+        </button>
+      </div>
+
+      <div className="card">
+        <h3>הרשאת מוקד שיחות</h3>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto" }}>
+          <input id="call-attendance-enabled" type="checkbox" defaultChecked={user.can_call_attendance === true} disabled={user.is_super_admin || user.is_manager || user.is_team_member} style={{ width: "auto" }} />
+          מורשה לבצע שיחות במפגשים
+        </label>
+        <p className="muted" style={{ margin: "8px 0" }}>מאפשר גם לתלמיד או למשתמש שאינו צוות להיכנס למוקד ולטפל בתלמידים שהוקצו לו.</p>
+        <button style={{ width: "auto" }} type="button" disabled={user.is_super_admin || user.is_manager || user.is_team_member || busyKey === "call-attendance"} onClick={handleCallAttendanceSave}>
+          שמור הרשאת מוקד
         </button>
       </div>
 

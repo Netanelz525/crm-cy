@@ -9,7 +9,15 @@ function clean(value) {
 function userLabel(user) {
   const name = clean(user?.displayName);
   const email = clean(user?.email);
-  return [name, email].filter(Boolean).join(" | ") || clean(user?.id) || "איש צוות";
+  return [name, email].filter(Boolean).join(" | ") || clean(user?.id) || "משתמש";
+}
+
+function userKindLabel(user) {
+  const role = clean(user?.role).toLowerCase();
+  if (role === "admin" || role === "editor" || role === "super_admin" || clean(user?.linkedStudentClass).toUpperCase() === "TEAM") {
+    return "צוות";
+  }
+  return "תלמיד מורשה";
 }
 
 export default function ResponsibleUserPicker({
@@ -91,7 +99,7 @@ export default function ResponsibleUserPicker({
 
   return (
     <div className="attendance-responsible-picker">
-      <span className="muted">אנשי צוות אחראים</span>
+      <span className="muted">אחראים להתקשרות</span>
       <input
         type="search"
         value={query}
@@ -111,8 +119,8 @@ export default function ResponsibleUserPicker({
       ) : null}
       <div className="attendance-responsible-filter-box">
         <div className="attendance-responsible-filter-head">
-          <strong>הוספה מהירה לפי תלמידים</strong>
-          <span className="muted">סנן לפי מוסד ושיעור כדי להוסיף בבת אחת אנשי צוות המקושרים לתלמידים התואמים.</span>
+          <strong>הוספה מהירה לפי מוסד ושיעור</strong>
+          <span className="muted">הסינון כולל אנשי צוות ותלמידים שקיבלו הרשאה לבצע שיחות במוקד.</span>
         </div>
         <div className="attendance-responsible-filter-grid">
           <label>
@@ -133,7 +141,7 @@ export default function ResponsibleUserPicker({
         {institutionFilter || classFilter ? (
           <>
             <div className="attendance-responsible-filter-actions">
-              <span className="muted">נמצאו {filteredResponsibleUsers.length} אנשי צוות</span>
+              <span className="muted">נמצאו {filteredResponsibleUsers.length} משתמשים מורשים</span>
               <button type="button" className="quick-action-btn" onClick={addFilteredUsers} disabled={!filteredResponsibleUsers.length}>
                 הוסף את כל התוצאות
               </button>
@@ -149,7 +157,7 @@ export default function ResponsibleUserPicker({
                         checked={selectedSet.has(user.id)}
                         onChange={() => toggleUser(user.id)}
                       />
-                      <span>{userLabel(user)}{student?.label ? ` · ${student.label}` : ""}</span>
+                      <span>{userLabel(user)}{student?.label ? ` · ${student.label}` : ""} · {userKindLabel(user)}</span>
                     </label>
                   );
                 })}
@@ -157,11 +165,11 @@ export default function ResponsibleUserPicker({
             ) : null}
           </>
         ) : (
-          <span className="attendance-responsible-empty">בחר מוסד או שיעור כדי להציג את אנשי הצוות הרלוונטיים.</span>
+          <span className="attendance-responsible-empty">בחר מוסד או שיעור כדי להציג משתמשים מורשים רלוונטיים.</span>
         )}
       </div>
       {!canSearch ? (
-        <span className="attendance-responsible-empty">הקלד לפחות שתי אותיות כדי להציג אנשי צוות לבחירה.</span>
+        <span className="attendance-responsible-empty">הקלד לפחות שתי אותיות כדי להציג משתמשים מורשים לבחירה.</span>
       ) : (
         <div className="attendance-responsible-list">
           {filteredUsers.map((user) => (
@@ -171,13 +179,13 @@ export default function ResponsibleUserPicker({
                 checked={selectedSet.has(user.id)}
                 onChange={() => toggleUser(user.id)}
               />
-              <span>{userLabel(user)}</span>
+              <span>{userLabel(user)} · {userKindLabel(user)}</span>
             </label>
           ))}
         </div>
       )}
       {canSearch && !filteredUsers.length ? (
-        <span className="attendance-responsible-empty">לא נמצאו אנשי צוות תואמים.</span>
+        <span className="attendance-responsible-empty">לא נמצאו משתמשים מורשים תואמים.</span>
       ) : null}
     </div>
   );

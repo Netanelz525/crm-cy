@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   email TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'viewer',
+  can_call_attendance BOOLEAN NOT NULL DEFAULT FALSE,
   weekly_backup_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   weekly_backup_delivery TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

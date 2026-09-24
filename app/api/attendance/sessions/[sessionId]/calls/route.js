@@ -8,6 +8,9 @@ export async function POST(request, { params }) {
     const origin = request.headers.get("origin");
     if (origin && origin !== new URL(request.url).origin) return NextResponse.json({error:"אין הרשאה."}, {status:403});
     const user = await getCurrentAppUser();
+    if (!user || user.access_status !== "approved" || !user.can_call_attendance) {
+      return NextResponse.json({ error: "אין הרשאה למוקד השיחות" }, { status: 403 });
+    }
     const { sessionId } = await params;
     const body = await request.json();
     if (body.kind === "team") {

@@ -5,7 +5,7 @@ import { assignStudentCall, completeStudentCall } from "../../../lib/student-cal
 
 export async function POST(request) {
   const user = await getCurrentAppUser();
-  if (!user) return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
+  if (!user || user.access_status !== "approved" || !user.can_call_attendance) return NextResponse.json({ error: "אין הרשאה למוקד השיחות" }, { status: 403 });
   try {
     const body = await request.json();
     if (body.kind === "assign") {

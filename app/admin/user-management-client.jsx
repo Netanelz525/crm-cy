@@ -31,6 +31,7 @@ function accessSummary(user) {
     user.is_manager && !user.is_super_admin ? "מנהל CRM" : null,
     user.is_print_only ? "הדפסה בלבד" : null,
     user.is_marei_mekomot ? "מראה מקומות" : null,
+    user.can_call_attendance ? "מורשה למוקד שיחות" : null,
     user.can_edit_own_card ? "עריכת כרטיס עצמי" : null
   ].filter(Boolean).join(" | ") || "צפייה בלבד";
 }
@@ -112,6 +113,7 @@ export default function UserManagementClient({ users }) {
               <div><b>גיבוי שבועי:</b> {weeklyBackupLabel(user)}</div>
               <div><b>Telegram:</b> {user.telegram_chat_id ? "מחובר" : "לא מחובר"}</div>
               <div><b>WhatsApp:</b> {user.whatsapp_wa_id ? "מחובר" : "לא מחובר"}</div>
+              <div><b>מוקד שיחות:</b> {user.can_call_attendance ? "מורשה" : "לא מורשה"}</div>
             </div>
 
             <div className="quick-actions">

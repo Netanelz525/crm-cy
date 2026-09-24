@@ -10,7 +10,8 @@ import {
   updateUserAgentPreferencesAction,
   updateUserWeeklyBackupPreferencesAction,
   updateUserRoleAction,
-  updateUserPrintColorPermissionAction
+  updateUserPrintColorPermissionAction,
+  updateUserCallAttendancePermissionAction
 } from "../../actions";
 import UserSettingsClient from "../../user-settings-client";
 import { getAppUserByClerkUserId, requireSuperAdmin } from "../../../../lib/rbac";
@@ -20,7 +21,7 @@ export default async function AdminUserSettingsPage({ params }) {
   const user = await getAppUserByClerkUserId(decodeURIComponent((await params).userId || ""));
   if (!user) notFound();
 
-  const callSessions = user.access_status === "approved" ? await listMyCallSessions(user) : [];
+  const callSessions = user.access_status === "approved" && user.can_call_attendance ? await listMyCallSessions(user) : [];
 
   return (
     <>
@@ -38,6 +39,7 @@ export default async function AdminUserSettingsPage({ params }) {
       onSaveRole={updateUserRoleAction}
       onSavePreferences={updateUserAgentPreferencesAction}
       onSavePrintColorPermission={updateUserPrintColorPermissionAction}
+      onSaveCallAttendancePermission={updateUserCallAttendancePermissionAction}
       onSaveWeeklyBackupPreferences={updateUserWeeklyBackupPreferencesAction}
       onDeleteUser={deleteUserAction}
     />

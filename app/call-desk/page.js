@@ -25,7 +25,7 @@ function hasCallContact(student) {
 export default async function CallDeskPage() {
   const user = await getCurrentAppUser();
   if (!user) redirect("/sign-in?redirect_url=/call-desk");
-  if (user.access_status !== "approved") redirect("/unauthorized");
+  if (user.access_status !== "approved" || !user.can_call_attendance) redirect("/unauthorized");
   const sessions = await listMyCallSessions(user);
   const [students, assignments] = await Promise.all([listAllNeonStudents(), listCallAssignments()]);
   const mine = assignments.filter((item) => (item.assignee_user_id === user.clerk_user_id || (user.linked_student_id && item.assignee_student_id === user.linked_student_id)) && item.status === "pending");
