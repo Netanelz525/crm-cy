@@ -4,6 +4,7 @@ import { CallQueueError, claimAttendanceCall, finishAttendanceCall, saveCallTeam
 import { sendAttendanceInvitation } from "../../../../../../lib/attendance-invitations";
 
 export async function POST(request, { params }) {
+  let requestKind = "";
   try {
     const origin = request.headers.get("origin");
     if (origin && origin !== new URL(request.url).origin) return NextResponse.json({error:"אין הרשאה."}, {status:403});
@@ -13,6 +14,7 @@ export async function POST(request, { params }) {
     }
     const { sessionId } = await params;
     const body = await request.json();
+    requestKind = body?.kind || "";
     if (body.kind === "team") {
       await saveCallTeam(sessionId, body.studentIds, user);
       return NextResponse.json({ ok:true });
@@ -34,6 +36,9 @@ export async function POST(request, { params }) {
   } catch (error) {
     if (error instanceof CallQueueError) return NextResponse.json({ error:error.message }, {status:error.status});
     console.error("Attendance call queue failed", error);
+    if (requestKind === "invitation") {
+      return NextResponse.json({ error: error?.message || "שליחת ההזמנה נכשלה." }, { status: 502 });
+    }
     return NextResponse.json({error:"לא ניתן להשלים את הפעולה כרגע. נסה שוב."}, {status:500});
   }
 }
