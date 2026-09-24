@@ -114,10 +114,12 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     motherEmail: student?.motherEmail || null
   })).filter((student) => student.id);
   let whatsappTemplates = [];
+  let whatsappTemplateLoadError = "";
   try {
     whatsappTemplates = await listWhatsAppCoexistenceApprovedTemplates();
   } catch (error) {
-    console.error("WhatsApp template list failed", error?.message || error);
+    whatsappTemplateLoadError = clean(error?.message) || "לא ניתן לטעון את תבניות WhatsApp המאושרות.";
+    console.error("WhatsApp template list failed", whatsappTemplateLoadError);
   }
   const invitationTemplates = whatsappTemplates.filter((template) => clean(template.name).startsWith("general_meeting_invitation"));
 
@@ -310,6 +312,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       <AttendanceInvitationConfig
         session={roster.session}
         templates={invitationTemplates}
+        templateError={whatsappTemplateLoadError}
         saveAction={saveAttendanceSessionInvitationAction}
         sendAction={sendAttendanceInvitationAction}
       />

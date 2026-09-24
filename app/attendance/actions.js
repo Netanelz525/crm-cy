@@ -320,6 +320,21 @@ export async function sendAttendanceInvitationAction(formData) {
   const channels = cleanList(formData.getAll("invitationChannels"));
   if (!sessionId) throw new Error("Missing attendance session id.");
   if (!channels.length) redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent("בחר ערוץ שליחה")}`);
+  if (channels.includes("whatsapp")) {
+    const session = await getAttendanceSessionById(sessionId);
+    const templateName = clean(session?.invitationWhatsAppTemplateName);
+    if (!templateName) {
+      redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent("לא הוגדרה תבנית WhatsApp מאושרת להזמנה")}`);
+    }
+    try {
+      const templates = await listWhatsAppCoexistenceApprovedTemplates();
+      if (!templates.some((template) => clean(template?.name) === templateName && clean(template?.name).startsWith("general_meeting_invitation"))) {
+        redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent("תבנית WhatsApp שנבחרה אינה מאושרת או אינה זמינה ב-Dualhook")}`);
+      }
+    } catch (error) {
+      redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent(clean(error?.message) || "לא ניתן להתחבר ל-Dualhook")}`);
+    }
+  }
   after(async () => {
     try {
       await sendAttendanceInvitation({ sessionId, channels });

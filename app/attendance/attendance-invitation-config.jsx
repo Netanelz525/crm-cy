@@ -6,7 +6,7 @@ const roles = [
   ["mother", "אם"]
 ];
 
-export default function AttendanceInvitationConfig({ session, templates = [], saveAction, sendAction }) {
+export default function AttendanceInvitationConfig({ session, templates = [], templateError = "", saveAction, sendAction }) {
   const emailRoles = session?.invitationEmailRecipientRoles || ["student", "father", "mother"];
   const whatsappRoles = session?.invitationWhatsAppRecipientRoles || ["student"];
   const canSendEmail = Boolean(session?.invitationEmailBody);
@@ -42,6 +42,8 @@ export default function AttendanceInvitationConfig({ session, templates = [], sa
             <option value="">ללא שליחת WhatsApp</option>
             {templates.map((template) => <option key={template.name} value={template.name}>{template.name}</option>)}
           </select>
+          {templateError ? <small className="error">{templateError}</small> : null}
+          {!templateError && !templates.length ? <small className="muted">לא נמצאה כרגע תבנית הזמנה מאושרת של בוט התפוצה.</small> : null}
         </label>
         <input type="hidden" name="invitationWhatsAppTemplateLanguage" value={session.invitationWhatsAppTemplateLanguage || "he"} />
         <fieldset style={{ border: 0, padding: 0 }}>
