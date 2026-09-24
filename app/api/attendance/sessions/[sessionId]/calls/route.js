@@ -21,7 +21,13 @@ export async function POST(request, { params }) {
     if (body.kind === "claim") return NextResponse.json(await claimAttendanceCall(sessionId, user, body.studentId));
     if (body.kind === "search") return NextResponse.json(await searchAttendanceCalls(sessionId, body.query, user));
     if (body.kind === "details") return NextResponse.json(await getAttendanceCallStudent(sessionId, body, user));
-    if (body.kind === "invitation") return NextResponse.json(await sendAttendanceInvitation({ sessionId, studentId: body.studentId }));
+    if (body.kind === "invitation") {
+      return NextResponse.json(await sendAttendanceInvitation({
+        sessionId,
+        studentId: body.studentId,
+        channels: ["email", "whatsapp"]
+      }));
+    }
     if (body.kind === "update_student") return NextResponse.json(await updateAttendanceCallStudent(sessionId, body, user));
     if (body.kind === "finish") return NextResponse.json(await finishAttendanceCall(sessionId, body, user));
     return NextResponse.json({error:"פעולה לא מוכרת."}, {status:400});
