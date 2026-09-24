@@ -122,6 +122,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     console.error("WhatsApp template list failed", whatsappTemplateLoadError);
   }
   const invitationTemplates = whatsappTemplates.filter((template) => clean(template.name).startsWith("general_meeting_invitation"));
+  const attendanceStatusTemplates = whatsappTemplates.filter((template) => !clean(template.name).startsWith("general_meeting_invitation"));
 
   if (!roster) {
     return (
@@ -301,7 +302,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           sessionId={roster.session.id}
           session={roster.session}
           statusOptions={statusOptions}
-          templates={whatsappTemplates}
+          templates={attendanceStatusTemplates}
           saveAction={saveAttendanceSessionMessagingAction}
           emailAction={sendAttendanceSessionEmailsAction}
           whatsappAction={sendAttendanceSessionWhatsAppApprovedTemplateAction}
