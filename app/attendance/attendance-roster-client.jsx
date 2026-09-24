@@ -513,7 +513,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                   <td className="attendance-status-cell">
                     <div className="attendance-row-exit-text">עודכן מבחוץ ולכן ירד מהסינון הנוכחי</div>
                   </td>
-                  <td className="attendance-note-cell">{student.noteText || ""}</td>
+                  <td className="attendance-note-cell">
+                    {student.firstResponseText ? <div className="attendance-first-response"><strong>תגובה ראשונית ב-WhatsApp:</strong> {student.firstResponseText}</div> : null}
+                    {student.noteText || ""}
+                  </td>
                   {canSendEmails ? <td /> : null}
                 </tr>
               ))}
@@ -556,6 +559,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                     </div>
                   </td>
                   <td className="attendance-note-cell">
+                    {student.firstResponseText ? <div className="attendance-first-response"><strong>תגובה ראשונית ב-WhatsApp:</strong> {student.firstResponseText}</div> : null}
                     <input
                       value={student.noteText || ""}
                       onChange={(event) => handleNoteChange(student.id, event.target.value)}

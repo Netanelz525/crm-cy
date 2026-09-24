@@ -2267,6 +2267,17 @@ button[aria-disabled="true"] {
     border-radius: 12px;
   }
 
+  .attendance-first-response {
+    margin-bottom: 7px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #eef8f1;
+    color: #245b38;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    text-align: right;
+  }
+
   .attendance-contact-actions {
     gap: 6px;
     margin-top: 7px;
