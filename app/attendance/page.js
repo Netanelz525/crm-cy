@@ -475,7 +475,9 @@ export default async function AttendancePage({ searchParams }) {
             </div>
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
-            <textarea name="sourceNote" placeholder="הערת מקור או תיעוד חופשי מהדף" />
+            <label htmlFor="attendance-source-note">פרטי המפגש ותוכן ההודעה</label>
+            <textarea id="attendance-source-note" name="sourceNote" rows={5} placeholder="הטקסט שיופיע גם במייל וגם ב־WhatsApp" />
+            <small className="muted">הטקסט נשמר פעם אחת ומשמש את שני ערוצי ההזמנה.</small>
             {canUseSessionAudienceFilters ? (
               <>
                 <ResponsibleUserPicker

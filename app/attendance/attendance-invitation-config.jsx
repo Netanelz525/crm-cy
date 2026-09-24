@@ -8,26 +8,28 @@ const roles = [
 
 export default function AttendanceInvitationConfig({ session, templates = [], templateError = "", saveAction, sendAction }) {
   const emailRoles = session?.invitationEmailRecipientRoles || ["student", "father", "mother"];
-  const canSendEmail = Boolean(session?.invitationEmailBody);
+  const invitationTitle = session?.title || session?.displayTitle || "";
+  const invitationMessage = session?.invitationMessage || session?.invitationEmailBody || session?.sourceNote || "";
+  const canSendEmail = Boolean(invitationMessage);
   const hasWhatsAppTemplates = templates.length > 0;
   return (
     <details className="card attendance-message-panel">
       <summary className="attendance-message-summary">
         <div>
           <h3>הזמנה לאירוע</h3>
-          <span className="muted">הגדר את ההודעה פעם אחת. אותו קובץ ישמש למייל ול־WhatsApp; השליחה ל־WhatsApp מופעלת בנפרד.</span>
+          <span className="muted">הגדר את שם המפגש ואת תוכן ההודעה פעם אחת. אותם נתונים ישמשו למייל ול־WhatsApp; השליחה ל־WhatsApp מופעלת בנפרד.</span>
         </div>
         <span className="attendance-message-summary-action">פתח הגדרות הזמנה</span>
       </summary>
       <form action={saveAction} encType="multipart/form-data" className="grid attendance-message-grid">
         <input type="hidden" name="sessionId" value={session.id} />
         <label>
-          <span className="muted">נושא מייל להזמנה</span>
-          <input name="invitationEmailSubject" defaultValue={session.invitationEmailSubject || ""} placeholder="הזמנה לאירוע" />
+          <span className="muted">שם המפגש / שם הרשומה</span>
+          <input name="invitationTitle" defaultValue={invitationTitle} placeholder="לדוגמה: הזמנה למפגש הורים" required />
         </label>
         <label style={{ gridColumn: "1 / -1" }}>
-          <span className="muted">תוכן מייל להזמנה</span>
-          <textarea name="invitationEmailBody" defaultValue={session.invitationEmailBody || ""} rows={5} placeholder="שלום, נשמח להזמינכם..." />
+          <span className="muted">תוכן ההודעה למייל ול־WhatsApp</span>
+          <textarea name="invitationMessage" defaultValue={invitationMessage} rows={5} placeholder="שלום, נשמח להזמינכם..." required />
         </label>
         <fieldset style={{ border: 0, padding: 0, gridColumn: "1 / -1" }}>
           <legend>נמענים במייל</legend>

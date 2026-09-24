@@ -364,8 +364,9 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <input name="sessionDate" type="date" defaultValue={roster.session.sessionDate} required />
           </label>
           <label style={{ gridColumn: "1 / -1" }}>
-            <span className="muted">הערת מקור</span>
-            <textarea name="sourceNote" rows={3} defaultValue={roster.session.sourceNote} />
+            <span className="muted">פרטי המפגש ותוכן ההודעה</span>
+            <textarea name="sourceNote" rows={5} defaultValue={roster.session.sourceNote} placeholder="הטקסט שיופיע גם במייל וגם ב־WhatsApp" />
+            <small className="muted">הטקסט נשמר פעם אחת ומשמש את שני ערוצי ההזמנה.</small>
           </label>
           <div className="quick-actions">
             <button type="submit" className="quick-action-btn quick-action-outline">שמור פרטי מפגש</button>

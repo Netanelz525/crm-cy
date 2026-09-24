@@ -78,7 +78,8 @@ export async function createAttendanceSessionAction(formData) {
     emailResponseStatuses: templateSession?.emailResponseStatuses || [],
     emailRecipientRoles: templateSession?.emailRecipientRoles || [],
     invitationEmailSubject: templateSession?.invitationEmailSubject || "",
-    invitationEmailBody: templateSession?.invitationEmailBody || "",
+    invitationEmailBody: templateSession?.invitationEmailBody || templateSession?.invitationMessage || templateSession?.sourceNote || "",
+    invitationMessage: templateSession?.invitationMessage || templateSession?.invitationEmailBody || templateSession?.sourceNote || "",
     invitationEmailRecipientRoles: templateSession?.invitationEmailRecipientRoles || [],
     invitationWhatsAppTemplateName: templateSession?.invitationWhatsAppTemplateName || "",
     invitationWhatsAppTemplateLanguage: templateSession?.invitationWhatsAppTemplateLanguage || "he",
@@ -301,8 +302,10 @@ export async function saveAttendanceSessionInvitationAction(formData) {
     attachment = { objectKey: key, fileName, contentType, sizeBytes: file.size };
   }
   await updateAttendanceSessionInvitation(sessionId, {
-    emailSubject: clean(formData.get("invitationEmailSubject")),
-    emailBody: clean(formData.get("invitationEmailBody")),
+    title: clean(formData.get("invitationTitle")),
+    invitationMessage: clean(formData.get("invitationMessage")),
+    emailSubject: clean(formData.get("invitationTitle")),
+    emailBody: clean(formData.get("invitationMessage")),
     emailRecipientRoles: cleanList(formData.getAll("invitationEmailRecipientRoles")),
     whatsappTemplateName: clean(formData.get("invitationWhatsAppTemplateName")),
     whatsappTemplateLanguage: clean(formData.get("invitationWhatsAppTemplateLanguage")) || "he",
