@@ -1095,6 +1095,7 @@ button[aria-disabled="true"] {
 .call-result-person { display: grid; gap: 3px; min-width: 0; }
 .call-result-person b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #173b5d; }
 .call-result-person small { color: #72869a; }
+.call-result-person .call-result-note-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #385f7f; }
 .call-result-status { padding: 5px 10px; border-radius: 999px; font-size: .88rem; font-weight: 800; white-space: nowrap; }
 .call-result-status-success { background: #e8f8ee; color: #16753d; }
 .call-result-status-warning { background: #fff4cf; color: #8a5d00; }
