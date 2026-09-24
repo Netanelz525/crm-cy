@@ -989,6 +989,39 @@ button[aria-disabled="true"] {
   background: linear-gradient(145deg, #ffffff 0%, #f5faff 100%);
 }
 
+.attendance-call-dashboard-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.attendance-call-dashboard-summary::-webkit-details-marker { display: none; }
+.attendance-call-dashboard-summary-main { min-width: 0; }
+.attendance-call-dashboard-summary-main h2 { margin: 4px 0 6px; }
+.attendance-call-dashboard-summary-main p { margin: 0; }
+.attendance-call-dashboard-summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  color: #17456b;
+  font-size: .88rem;
+  font-weight: 800;
+}
+.attendance-call-dashboard-summary-stats span,
+.attendance-call-dashboard-summary-stats b {
+  padding: 8px 11px;
+  border: 1px solid #c9dced;
+  border-radius: 999px;
+  background: #fff;
+  white-space: nowrap;
+}
+.attendance-call-dashboard-summary-stats b { color: #15588f; background: #eef7ff; }
+
 .attendance-call-dashboard-header {
   display: flex;
   align-items: flex-start;
@@ -1074,6 +1107,8 @@ button[aria-disabled="true"] {
 .call-result-editor .quick-actions button { width: auto; }
 
 @media (max-width: 720px) {
+  .attendance-call-dashboard-summary { display: grid; align-items: stretch; }
+  .attendance-call-dashboard-summary-stats { justify-content: flex-start; }
   .attendance-call-dashboard-header { display: grid; }
   .attendance-call-dashboard-actions { justify-content: flex-start; }
   .attendance-call-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

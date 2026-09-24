@@ -127,6 +127,22 @@ export async function saveAttendanceSessionDetailsAction(formData) {
   redirect(`/attendance/${sessionId}?detailsSaved=1`);
 }
 
+export async function saveAttendanceSessionResponsibilityAction(formData) {
+  const user = await requireAttendanceUser();
+  if (!user.is_manager && !user.is_super_admin) throw new Error("אין הרשאה לעדכן אחראי מפגש.");
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+
+  await updateAttendanceSessionDetails(sessionId, {
+    responsibleUserIds: cleanList(formData.getAll("responsibleUserIds")),
+    visibleToStudents: clean(formData.get("visibleToStudents")) === "1"
+  });
+
+  revalidatePath("/attendance");
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?detailsSaved=1`);
+}
+
 export async function saveAttendanceRecordAction(input) {
   const user = await requireAttendanceUser();
   const payload = input instanceof FormData

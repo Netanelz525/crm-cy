@@ -5,6 +5,7 @@ import AttendanceEmailSendSubmit from "../attendance-email-send-submit";
 import AttendanceMessageComposer from "../attendance-message-composer";
 import {
   saveAttendanceSessionDetailsAction,
+  saveAttendanceSessionResponsibilityAction,
   saveAttendanceSessionInvitationAction,
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
@@ -246,6 +247,46 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </form>
       </details>
 
+      {canManageSessionSettings ? (
+        <details className="card attendance-message-panel attendance-responsibility-panel" open>
+          <summary className="attendance-message-summary">
+            <div>
+              <h3>אחראי מפגש וחשיפה לתלמידים</h3>
+              <span className="muted">אפשר לבחור אנשי צוות ידנית או להוסיף בבת אחת לפי מוסד ושיעור של התלמידים המקושרים אליהם.</span>
+            </div>
+            <span className="attendance-message-summary-action">פתח ניהול אחראים</span>
+          </summary>
+          <form className="grid attendance-message-grid" action={saveAttendanceSessionResponsibilityAction}>
+            <input type="hidden" name="sessionId" value={roster.session.id} />
+            <ResponsibleUserPicker
+              users={responsibleUsers}
+              students={manualStudentOptions}
+              defaultValues={roster.session.responsibleUserIds || []}
+            />
+            <label className="attendance-visibility-toggle">
+              <input
+                type="checkbox"
+                name="visibleToStudents"
+                value="1"
+                defaultChecked={roster.session.visibleToStudents}
+              />
+              <span className="attendance-visibility-box" aria-hidden="true" />
+              <span>
+                <strong>גלוי לתלמידים</strong>
+                <small>
+                  {roster.session.visibleToStudents
+                    ? "מופעל עכשיו. תלמידים רלוונטיים יראו את המפגש כל עוד הוא פתוח."
+                    : "כבוי עכשיו. תלמידים לא יראו את המפגש עד סימון התיבה."}
+                </small>
+              </span>
+            </label>
+            <div className="quick-actions">
+              <button type="submit" className="quick-action-btn quick-action-primary">שמור אחראים והגדרה</button>
+            </div>
+          </form>
+        </details>
+      ) : null}
+
       <details className="card attendance-message-panel" open={whatsappTemplateSent || Boolean(whatsappTemplateError)}>
         <summary className="attendance-message-summary">
           <div>
@@ -317,32 +358,6 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <span className="muted">הערת מקור</span>
             <textarea name="sourceNote" rows={3} defaultValue={roster.session.sourceNote} />
           </label>
-          {canManageSessionSettings ? (
-            <>
-              <ResponsibleUserPicker
-                users={responsibleUsers}
-                students={manualStudentOptions}
-                defaultValues={roster.session.responsibleUserIds || []}
-              />
-              <label className="attendance-visibility-toggle">
-                <input
-                  type="checkbox"
-                  name="visibleToStudents"
-                  value="1"
-                  defaultChecked={roster.session.visibleToStudents}
-                />
-                <span className="attendance-visibility-box" aria-hidden="true" />
-                <span>
-                  <strong>גלוי לתלמידים</strong>
-                  <small>
-                    {roster.session.visibleToStudents
-                      ? "מופעל עכשיו. תלמידים רלוונטיים יראו את המפגש כל עוד הוא פתוח."
-                      : "כבוי עכשיו. תלמידים לא יראו את המפגש עד סימון התיבה."}
-                  </small>
-                </span>
-              </label>
-            </>
-          ) : null}
           <div className="quick-actions">
             <button type="submit" className="quick-action-btn quick-action-outline">שמור פרטי מפגש</button>
           </div>
