@@ -29,6 +29,7 @@ import { ATTENDANCE_EXPORT_SORT_LABELS as PDF_SORT_LABELS } from "../../../lib/a
 import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
 import { getResendConfigStatus } from "../../../lib/resend";
 import { listWhatsAppCoexistenceApprovedTemplates } from "../../../lib/attendance-whatsapp";
+import { getAttendanceInvitationRecipientCounts } from "../../../lib/attendance-invitations";
 import ResponsibleUserPicker from "../responsible-user-picker";
 import AttendanceCallTeam from "../attendance-call-team";
 import AttendanceInvitationConfig from "../attendance-invitation-config";
@@ -100,6 +101,9 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     .filter(Boolean);
   const exportSort = clean(resolvedSearchParams?.exportSort).toLowerCase() || "class_name";
   const roster = sessionId ? await getAttendanceRoster(sessionId) : null;
+  const invitationRecipientCounts = roster
+    ? await getAttendanceInvitationRecipientCounts({ sessionId, roster })
+    : { students: 0, email: 0, whatsapp: 0 };
   const statusOptions = Array.isArray(roster?.session?.statusOptions) ? roster.session.statusOptions : [];
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
   const canManageSessionSettings = currentUser.is_manager || currentUser.is_super_admin;
@@ -318,6 +322,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       <AttendanceInvitationConfig
         session={roster.session}
         templates={invitationTemplates}
+        recipientCounts={invitationRecipientCounts}
         templateError={whatsappTemplateLoadError}
         saveAction={saveAttendanceSessionInvitationAction}
         sendAction={sendAttendanceInvitationAction}

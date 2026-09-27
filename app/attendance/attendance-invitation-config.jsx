@@ -1,17 +1,38 @@
 "use client";
 
+import { useRef, useState } from "react";
+
 const roles = [
   ["student", "תלמיד"],
   ["father", "אב"],
   ["mother", "אם"]
 ];
 
-export default function AttendanceInvitationConfig({ session, templates = [], templateError = "", saveAction, sendAction }) {
+export default function AttendanceInvitationConfig({ session, templates = [], templateError = "", saveAction, sendAction, recipientCounts = {} }) {
   const emailRoles = session?.invitationEmailRecipientRoles || ["student", "father", "mother"];
   const invitationTitle = session?.title || session?.displayTitle || "";
   const invitationMessage = session?.invitationMessage || session?.invitationEmailBody || session?.sourceNote || "";
   const canSendEmail = Boolean(invitationMessage);
   const hasWhatsAppTemplates = templates.length > 0;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmRef = useRef(false);
+  const formRef = useRef(null);
+  const emailCount = Number(recipientCounts.email || 0);
+  const whatsappCount = Number(recipientCounts.whatsapp || 0);
+  const studentCount = Number(recipientCounts.students || 0);
+  function requestSend(event) {
+    if (confirmRef.current) {
+      confirmRef.current = false;
+      return;
+    }
+    event.preventDefault();
+    setConfirmOpen(true);
+  }
+  function confirmSend() {
+    confirmRef.current = true;
+    setConfirmOpen(false);
+    formRef.current?.requestSubmit();
+  }
   return (
     <details className="card attendance-message-panel">
       <summary className="attendance-message-summary">
@@ -55,11 +76,26 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
           <button type="submit" className="quick-action-btn quick-action-outline">שמור הגדרות הזמנה</button>
         </div>
       </form>
-      <form action={sendAction} className="quick-actions" style={{ marginTop: 12 }}>
+      <form ref={formRef} action={sendAction} onSubmit={requestSend} className="quick-actions" style={{ marginTop: 12 }}>
         <input type="hidden" name="sessionId" value={session.id} />
         {canSendEmail ? <input type="hidden" name="invitationChannels" value="email" /> : null}
         {canSendEmail ? <label className="attendance-filter-chip"><input type="checkbox" name="invitationChannels" value="whatsapp" disabled={!hasWhatsAppTemplates} />שלח גם ב־WhatsApp</label> : null}
         {canSendEmail ? <button type="submit" className="quick-action-btn quick-action-primary">שלח הזמנה</button> : <span className="muted">שמור תוכן מייל כדי לאפשר שליחה.</span>}
+        {confirmOpen ? <div className="bulk-modal-backdrop" role="presentation">
+          <section className="bulk-modal attendance-invitation-confirm" role="dialog" aria-modal="true" aria-labelledby="attendance-invitation-confirm-title">
+            <h3 id="attendance-invitation-confirm-title">אישור שליחת הזמנה</h3>
+            <p className="muted">במפגש יש {studentCount} תלמידים. לפי פרטי הקשר הקיימים, השליחה יכולה להגיע ל:</p>
+            <div className="attendance-invitation-count-grid">
+              <div><strong>{emailCount}</strong><span>כתובות מייל</span></div>
+              <div><strong>{whatsappCount}</strong><span>מספרי WhatsApp</span></div>
+            </div>
+            <p className="muted">המערכת תשלח רק לערוצים שסומנו בטופס ולפרטי קשר שקיימים בפועל.</p>
+            <div className="quick-actions">
+              <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setConfirmOpen(false)}>ביטול</button>
+              <button type="button" className="quick-action-btn quick-action-primary" onClick={confirmSend}>כן, שלח הזמנה</button>
+            </div>
+          </section>
+        </div> : null}
       </form>
     </details>
   );
