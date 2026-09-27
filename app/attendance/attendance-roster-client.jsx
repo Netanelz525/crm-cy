@@ -91,6 +91,10 @@ function rowMatchesFilters(row, selectedFilters, query, contactFilter = "all") {
   if (contactFilter === "parents_missing" && !parentContactMissing) return false;
   if (contactFilter === "student_email_missing" && !studentEmailMissing) return false;
   if (contactFilter === "parents_email_missing" && !parentEmailMissing) return false;
+  if (contactFilter === "student_present" && studentContactMissing) return false;
+  if (contactFilter === "parents_present" && parentContactMissing) return false;
+  if (contactFilter === "student_email_present" && studentEmailMissing) return false;
+  if (contactFilter === "parents_email_present" && parentEmailMissing) return false;
   if (!normalizedQuery) return true;
 
   return [
@@ -178,7 +182,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         ? parsed.selectedFilters.map((value) => clean(value).toLowerCase()).filter(Boolean)
         : activeStatusFilters;
       const nextQuery = clean(parsed?.query);
-      const nextContactFilter = ["all", "student_missing", "parents_missing"].includes(parsed?.contactFilter)
+      const nextContactFilter = ["all", "student_missing", "parents_missing", "student_email_missing", "parents_email_missing", "student_present", "parents_present", "student_email_present", "parents_email_present"].includes(parsed?.contactFilter)
         ? parsed.contactFilter
         : "all";
       setSelectedFilters(nextFilters);
@@ -498,7 +502,11 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
             ["student_missing", "חסר מספר לתלמיד"],
             ["parents_missing", "חסר מספר אצל הורה"],
             ["student_email_missing", "חסר מייל לתלמיד"],
-            ["parents_email_missing", "חסר מייל אצל הורה"]
+            ["parents_email_missing", "חסר מייל אצל הורה"],
+            ["student_present", "יש מספר לתלמיד"],
+            ["parents_present", "יש מספרים להורים"],
+            ["student_email_present", "יש מייל לתלמיד"],
+            ["parents_email_present", "יש מיילים להורים"]
           ].map(([value, label]) => (
             <button
               key={value}
