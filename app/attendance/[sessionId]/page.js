@@ -30,6 +30,7 @@ import { getCurrentAppUser, signInRedirectUrl } from "../../../lib/rbac";
 import { getResendConfigStatus } from "../../../lib/resend";
 import { listWhatsAppCoexistenceApprovedTemplates } from "../../../lib/attendance-whatsapp";
 import { getAttendanceInvitationRecipientCounts } from "../../../lib/attendance-invitations";
+import { listAttendanceInvitationSends } from "../../../lib/attendance-invitation-history";
 import ResponsibleUserPicker from "../responsible-user-picker";
 import AttendanceCallTeam from "../attendance-call-team";
 import AttendanceInvitationConfig from "../attendance-invitation-config";
@@ -46,6 +47,11 @@ function clean(value) {
 function isInvitationTemplateName(value) {
   const name = clean(value).toLowerCase();
   return name.startsWith("general_meeting_invitation") || name.includes("meeting_invitation");
+}
+
+function isInvitationEligibleTemplate(template) {
+  const buttons = Array.isArray(template?.buttons) ? template.buttons : [];
+  return !buttons.some((button) => ["QUICK_REPLY", "QUICK_REPLY_BUTTON"].includes(clean(button?.type || button?.subType).toUpperCase()));
 }
 
 function formatSessionAudience(session) {
@@ -104,6 +110,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const invitationRecipientCounts = roster
     ? await getAttendanceInvitationRecipientCounts({ sessionId, roster })
     : { students: 0, email: 0, whatsapp: 0 };
+  const invitationSendHistory = roster ? await listAttendanceInvitationSends(sessionId) : [];
   const statusOptions = Array.isArray(roster?.session?.statusOptions) ? roster.session.statusOptions : [];
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
   const canManageSessionSettings = currentUser.is_manager || currentUser.is_super_admin;
@@ -130,7 +137,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     whatsappTemplateLoadError = clean(error?.message) || "לא ניתן לטעון את תבניות WhatsApp המאושרות.";
     console.error("WhatsApp template list failed", whatsappTemplateLoadError);
   }
-  const invitationTemplates = whatsappTemplates.filter((template) => isInvitationTemplateName(template.name));
+  const invitationTemplates = whatsappTemplates.filter(isInvitationEligibleTemplate);
   const attendanceStatusTemplates = whatsappTemplates.filter((template) => !isInvitationTemplateName(template.name));
 
   if (!roster) {
@@ -323,6 +330,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         session={roster.session}
         templates={invitationTemplates}
         recipientCounts={invitationRecipientCounts}
+        sendHistory={invitationSendHistory}
         templateError={whatsappTemplateLoadError}
         saveAction={saveAttendanceSessionInvitationAction}
         sendAction={sendAttendanceInvitationAction}

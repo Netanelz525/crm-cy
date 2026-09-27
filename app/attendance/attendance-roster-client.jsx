@@ -23,6 +23,11 @@ function phoneText(phoneObj) {
   return [clean(phoneObj.primaryPhoneCallingCode), clean(phoneObj.primaryPhoneNumber)].filter(Boolean).join(" ");
 }
 
+function emailText(emailObj) {
+  if (typeof emailObj === "string") return clean(emailObj);
+  return clean(emailObj?.primaryEmail || emailObj?.email);
+}
+
 function phoneHref(phoneObj) {
   const number = normalizeDigits(phoneObj?.primaryPhoneNumber);
   if (!number) return "";
@@ -53,6 +58,10 @@ function hasPhone(phoneObj) {
   return Boolean(normalizeDigits(phoneObj?.primaryPhoneNumber));
 }
 
+function hasEmail(emailObj) {
+  return Boolean(emailText(emailObj));
+}
+
 function storageKey(sessionId) {
   return `attendance-roster-state:${clean(sessionId)}`;
 }
@@ -76,8 +85,12 @@ function rowMatchesFilters(row, selectedFilters, query, contactFilter = "all") {
   if (!matchesStatus) return false;
   const studentContactMissing = !hasPhone(row?.phone);
   const parentContactMissing = !hasPhone(row?.dadPhone) || !hasPhone(row?.momPhone);
+  const studentEmailMissing = !hasEmail(row?.email);
+  const parentEmailMissing = !hasEmail(row?.fatherEmail) || !hasEmail(row?.motherEmail);
   if (contactFilter === "student_missing" && !studentContactMissing) return false;
   if (contactFilter === "parents_missing" && !parentContactMissing) return false;
+  if (contactFilter === "student_email_missing" && !studentEmailMissing) return false;
+  if (contactFilter === "parents_email_missing" && !parentEmailMissing) return false;
   if (!normalizedQuery) return true;
 
   return [
@@ -86,7 +99,10 @@ function rowMatchesFilters(row, selectedFilters, query, contactFilter = "all") {
     row?.class,
     phoneText(row?.phone),
     phoneText(row?.dadPhone),
-    phoneText(row?.momPhone)
+    phoneText(row?.momPhone),
+    emailText(row?.email),
+    emailText(row?.fatherEmail),
+    emailText(row?.motherEmail)
   ].some((value) => clean(value).toLowerCase().includes(normalizedQuery));
 }
 
@@ -480,7 +496,9 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
           {[
             ["all", "כל התלמידים"],
             ["student_missing", "חסר מספר לתלמיד"],
-            ["parents_missing", "חסר מספר אצל הורה"]
+            ["parents_missing", "חסר מספר אצל הורה"],
+            ["student_email_missing", "חסר מייל לתלמיד"],
+            ["parents_email_missing", "חסר מייל אצל הורה"]
           ].map(([value, label]) => (
             <button
               key={value}
@@ -533,6 +551,9 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                           <ContactLine label="תלמיד" phoneObj={student.phone} />
                           <ContactLine label="אב" phoneObj={student.dadPhone} />
                           <ContactLine label="אם" phoneObj={student.momPhone} />
+                          <div className="attendance-contact-line"><div className="attendance-contact-line-top"><b>מייל תלמיד</b><span>{emailText(student.email) || "-"}</span></div></div>
+                          <div className="attendance-contact-line"><div className="attendance-contact-line-top"><b>מייל אב</b><span>{emailText(student.fatherEmail) || "-"}</span></div></div>
+                          <div className="attendance-contact-line"><div className="attendance-contact-line-top"><b>מייל אם</b><span>{emailText(student.motherEmail) || "-"}</span></div></div>
                         </div>
                       </details>
                     </div>

@@ -80,6 +80,7 @@ export async function createAttendanceSessionAction(formData) {
     invitationEmailSubject: templateSession?.invitationEmailSubject || "",
     invitationEmailBody: templateSession?.invitationEmailBody || templateSession?.invitationMessage || templateSession?.sourceNote || "",
     invitationMessage: templateSession?.invitationMessage || templateSession?.invitationEmailBody || templateSession?.sourceNote || "",
+    invitationWhatsAppMessage: templateSession?.invitationWhatsAppMessage || templateSession?.invitationMessage || templateSession?.invitationEmailBody || templateSession?.sourceNote || "",
     invitationEmailRecipientRoles: templateSession?.invitationEmailRecipientRoles || [],
     invitationWhatsAppTemplateName: templateSession?.invitationWhatsAppTemplateName || "",
     invitationWhatsAppTemplateLanguage: templateSession?.invitationWhatsAppTemplateLanguage || "he",
@@ -304,7 +305,8 @@ export async function saveAttendanceSessionInvitationAction(formData) {
   await updateAttendanceSessionInvitation(sessionId, {
     title: clean(formData.get("invitationTitle")),
     invitationMessage: clean(formData.get("invitationMessage")),
-    emailSubject: clean(formData.get("invitationTitle")),
+    invitationWhatsAppMessage: clean(formData.get("invitationWhatsAppMessage")),
+    emailSubject: clean(formData.get("invitationEmailSubject")),
     emailBody: clean(formData.get("invitationMessage")),
     emailRecipientRoles: cleanList(formData.getAll("invitationEmailRecipientRoles")),
     whatsappTemplateName: clean(formData.get("invitationWhatsAppTemplateName")),

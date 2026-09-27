@@ -15,11 +15,13 @@ function templateFormatLabel(template) {
   return "ללא קובץ";
 }
 
-export default function AttendanceInvitationConfig({ session, templates = [], templateError = "", saveAction, sendAction, recipientCounts = {} }) {
+export default function AttendanceInvitationConfig({ session, templates = [], templateError = "", saveAction, sendAction, recipientCounts = {}, sendHistory = [] }) {
   const emailRoles = session?.invitationEmailRecipientRoles || ["student", "father", "mother"];
   const invitationTitle = session?.title || session?.displayTitle || "";
-  const invitationMessage = session?.invitationMessage || session?.invitationEmailBody || session?.sourceNote || "";
-  const canSendEmail = Boolean(invitationMessage);
+  const emailSubject = session?.invitationEmailSubject || invitationTitle;
+  const emailMessage = session?.invitationEmailBody || session?.invitationMessage || session?.sourceNote || "";
+  const whatsappMessage = session?.invitationWhatsAppMessage || emailMessage;
+  const canSendEmail = Boolean(emailMessage);
   const hasWhatsAppTemplates = templates.length > 0;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const confirmRef = useRef(false);
@@ -55,10 +57,17 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
           <span className="muted">שם המפגש / שם הרשומה</span>
           <input name="invitationTitle" defaultValue={invitationTitle} placeholder="לדוגמה: הזמנה למפגש הורים" required />
         </label>
-        <label style={{ gridColumn: "1 / -1" }}>
-          <span className="muted">תוכן ההודעה למייל ול־WhatsApp</span>
-          <textarea name="invitationMessage" defaultValue={invitationMessage} rows={5} placeholder="שלום, נשמח להזמינכם..." required />
-        </label>
+        <fieldset className="attendance-invitation-channel-note" style={{ gridColumn: "1 / -1" }}>
+          <legend>הזמנת מייל</legend>
+          <label>
+            <span className="muted">נושא המייל</span>
+            <input name="invitationEmailSubject" defaultValue={emailSubject} placeholder="לדוגמה: הזמנה למפגש" required />
+          </label>
+          <label>
+            <span className="muted">תוכן המייל</span>
+            <textarea name="invitationMessage" defaultValue={emailMessage} rows={5} placeholder="שלום, נשמח להזמינכם..." required />
+          </label>
+        </fieldset>
         <fieldset style={{ border: 0, padding: 0, gridColumn: "1 / -1" }}>
           <legend>נמענים במייל</legend>
           <div className="attendance-filter-toolbar">
@@ -69,7 +78,11 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
         {!hasWhatsAppTemplates ? <input type="hidden" name="invitationWhatsAppTemplateName" value={session.invitationWhatsAppTemplateName || ""} /> : null}
         <div className="attendance-invitation-channel-note" style={{ gridColumn: "1 / -1" }}>
           <strong>שליחה ב־WhatsApp</strong>
-          <span className="muted">אפשר להישאר על ברירת מחדל: המערכת תבחר אוטומטית תבנית לפי הקובץ המצורף. אפשר גם לבחור תבנית הזמנה ייעודית, ואז השליחה תכבד את הוראות התבנית.</span>
+          <span className="muted">הטקסט כאן נפרד מהמייל. אפשר להישאר על ברירת מחדל: המערכת תבחר תבנית מאושרת לפי הקובץ המצורף.</span>
+          <label>
+            <span className="muted">תוכן WhatsApp חופשי לתבנית</span>
+            <textarea name="invitationWhatsAppMessage" defaultValue={whatsappMessage} rows={4} placeholder="הטקסט שיוזן בשדה החופשי של תבנית WhatsApp" />
+          </label>
           <label>
             <span className="muted">תבנית WhatsApp להזמנה</span>
             <select name="invitationWhatsAppTemplateName" defaultValue={session.invitationWhatsAppTemplateName || ""} disabled={!hasWhatsAppTemplates}>
@@ -99,7 +112,7 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
         <input type="hidden" name="sessionId" value={session.id} />
         {canSendEmail ? <input type="hidden" name="invitationChannels" value="email" /> : null}
         {canSendEmail ? <label className="attendance-filter-chip"><input type="checkbox" name="invitationChannels" value="whatsapp" disabled={!hasWhatsAppTemplates} />שלח גם ב־WhatsApp</label> : null}
-        {canSendEmail ? <button type="submit" className="quick-action-btn quick-action-primary">שלח הזמנה</button> : <span className="muted">שמור תוכן מייל כדי לאפשר שליחה.</span>}
+          {canSendEmail ? <button type="submit" className="quick-action-btn quick-action-primary">שלח הזמנה</button> : <span className="muted">שמור תוכן מייל כדי לאפשר שליחה.</span>}
         {confirmOpen ? <div className="bulk-modal-backdrop" role="presentation">
           <section className="bulk-modal attendance-invitation-confirm" role="dialog" aria-modal="true" aria-labelledby="attendance-invitation-confirm-title">
             <h3 id="attendance-invitation-confirm-title">אישור שליחת הזמנה</h3>
@@ -116,6 +129,20 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
           </section>
         </div> : null}
       </form>
+      {(
+        <section className="attendance-invitation-history" aria-label="היסטוריית שליחות">
+          <h4>היסטוריית שליחות במפגש</h4>
+          {sendHistory.length ? <div className="attendance-invitation-history-list">
+            {sendHistory.map((item) => (
+              <div className="attendance-invitation-history-row" key={item.id}>
+                <strong>{item.channel === "whatsapp" ? "WhatsApp" : "מייל"}</strong>
+                <span>{item.sentCount} נשלחו · {item.failedCount} נכשלו · {item.missingCount} ללא פרטי קשר</span>
+                <small>{item.templateName ? `תבנית: ${item.templateName} · ` : ""}{new Date(item.createdAt).toLocaleString("he-IL")}</small>
+              </div>
+            ))}
+          </div> : <p className="muted">עדיין לא בוצעו שליחות במפגש הזה.</p>}
+        </section>
+      )}
     </details>
   );
 }
