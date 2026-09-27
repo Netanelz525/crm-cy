@@ -10,7 +10,7 @@ import { createWhatsAppTemplate, recordWhatsAppTemplateActivity } from "../../..
 function clean(value) { return String(value ?? "").trim(); }
 
 function limitParameterValue(value) {
-  return clean(value).replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").split(" ").filter(Boolean).slice(0, 4).join(" ");
+  return clean(value).replace(/[\r\n]+/g, " ").replace(/ {5,}/g, "    ");
 }
 
 export async function saveWhatsAppTemplateConfigAction(formData) {

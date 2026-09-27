@@ -10,10 +10,8 @@ const mediaLabels = { none: "ללא קובץ", image: "תמונה", document: "�
 function copy(value) { return JSON.parse(JSON.stringify(value)); }
 
 function limitParameterValue(value) {
-  const raw = String(value || "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ");
-  const hasTrailingSpace = /\s$/.test(raw);
-  const words = raw.trim().split(" ").filter(Boolean).slice(0, 4);
-  return words.join(" ") + (hasTrailingSpace && words.length < 4 ? " " : "");
+  const raw = String(value || "").replace(/[\r\n]+/g, " ");
+  return raw.replace(/ {5,}/g, "    ");
 }
 
 export default function WhatsAppTemplateDetailClient({ template, saveAction, testAction, activity = [] }) {
@@ -52,19 +50,19 @@ export default function WhatsAppTemplateDetailClient({ template, saveAction, tes
           <div className="checkbox-row"><label><input type="checkbox" checked={config.enabled} onChange={(event) => set({ enabled: event.target.checked })} /> פעילה</label><label><input type="checkbox" checked={config.preferred} onChange={(event) => set({ preferred: event.target.checked })} /> מועדפת</label></div>
           <fieldset><legend>נמענים</legend><div className="checkbox-row">{Object.entries(roles).map(([value, label]) => <label key={value}><input type="checkbox" checked={config.recipientRoles.includes(value)} onChange={(event) => set({ recipientRoles: event.target.checked ? [...config.recipientRoles, value] : config.recipientRoles.filter((role) => role !== value) })} /> {label}</label>)}</div></fieldset>
           <label>סוג מדיה<select value={config.mediaType} onChange={(event) => set({ mediaType: event.target.value })}>{Object.entries(mediaLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <fieldset><legend>מיפוי פרמטרים</legend>{config.parameterMappings.map((mapping, index) => <div className="whatsapp-template-mapping-row" key={`${mapping.index}-${index}`}><span className="meta-chip">{mapping.parameterName || `פרמטר ${mapping.index}`}</span><select value={mapping.source || "free_text"} onChange={(event) => updateMapping(index, { source: event.target.value })}>{Object.entries(WHATSAPP_TEMPLATE_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{mapping.source === "free_text" ? <><input maxLength={80} value={mapping.value || ""} onChange={(event) => updateMapping(index, { value: limitParameterValue(event.target.value) })} placeholder="ערך ברירת מחדל" /><small className="muted">עד 4 מילים, בשורה אחת</small></> : null}</div>)}</fieldset>
+          <fieldset><legend>מיפוי פרמטרים</legend>{config.parameterMappings.map((mapping, index) => <div className="whatsapp-template-mapping-row" key={`${mapping.index}-${index}`}><span className="meta-chip">{mapping.parameterName || `פרמטר ${mapping.index}`}</span><select value={mapping.source || "free_text"} onChange={(event) => updateMapping(index, { source: event.target.value })}>{Object.entries(WHATSAPP_TEMPLATE_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{mapping.source === "free_text" ? <><input value={mapping.value || ""} onChange={(event) => updateMapping(index, { value: limitParameterValue(event.target.value) })} placeholder="ערך ברירת מחדל" /><small className="muted">אזהרת WhatsApp: עד 4 רווחים רצופים; ללא ירידת שורה</small></> : null}</div>)}</fieldset>
           <button className="primary-btn" type="submit">שמור הגדרות לתבנית</button>
         </form>
       </div>
 
       <section className="card glass whatsapp-template-test-panel">
         <h2>בדיקת שליחה לתבנית הזו</h2>
-        <p className="muted">השליחה מיועדת למספר בדיקה אחד בלבד ועוברת דרך בוט התפוצה של Dualhook.</p>
+        <p className="muted">השליחה מיועדת למספר בדיקה אחד בלבד ועוברת דרך בוט התפוצה של Dualhook. אזהרת מגבלת WhatsApp/Meta: אין ירידת שורה ועד 4 רווחים רצופים; המערכת תנקה חריגה לפני השליחה.</p>
         <form action={runTest} encType="multipart/form-data" className="grid">
           <input type="hidden" name="templateName" value={template.name} />
           <input type="hidden" name="language" value={template.language} />
           <label>מספר WhatsApp לבדיקה<input name="phone" placeholder="9725XXXXXXXX" required /></label>
-          {template.parameterDefinitions.map((item, index) => <label key={item.index}>ערך לפרמטר {item.index}{item.parameterName ? ` · ${item.parameterName}` : ""}<input maxLength={80} value={values[index] || ""} onChange={(event) => setValues((current) => current.map((value, valueIndex) => valueIndex === index ? limitParameterValue(event.target.value) : value))} placeholder="ערך שיישלח בבדיקה" /><small className="muted">עד 4 מילים, ללא ירידת שורה</small></label>)}
+          {template.parameterDefinitions.map((item, index) => <label key={item.index}>ערך לפרמטר {item.index}{item.parameterName ? ` · ${item.parameterName}` : ""}<input value={values[index] || ""} onChange={(event) => setValues((current) => current.map((value, valueIndex) => valueIndex === index ? limitParameterValue(event.target.value) : value))} placeholder="ערך שיישלח בבדיקה" /><small className="muted">אזהרת WhatsApp: עד 4 רווחים רצופים; ללא ירידת שורה</small></label>)}
           {template.headerFormat ? <label>קובץ לכותרת ({template.headerFormat})<input type="file" name="media" accept={template.headerFormat === "IMAGE" ? "image/jpeg,image/png" : "application/pdf,image/jpeg,image/png"} required /></label> : null}
           <input type="hidden" name="values" value={JSON.stringify(values)} readOnly />
           <button className="primary-btn" type="submit">שלח הודעת בדיקה</button>
