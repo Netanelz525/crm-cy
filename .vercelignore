@@ -1,3 +1,7 @@
-.codex
-.next.stale*
-backups
+.next
+.next.previous
+node_modules
+tsconfig.tsbuildinfo
+.env*
+.git
+.DS_Store
