@@ -8,7 +8,10 @@ const roles = { student: "תלמיד", father: "אבא", mother: "אמא" };
 const mediaLabels = { none: "ללא קובץ", image: "תמונה", document: "מסמך" };
 
 function limitParameterValue(value) {
-  return String(value || "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean).slice(0, 4).join(" ");
+  const raw = String(value || "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ");
+  const hasTrailingSpace = /\s$/.test(raw);
+  const words = raw.trim().split(" ").filter(Boolean).slice(0, 4);
+  return words.join(" ") + (hasTrailingSpace && words.length < 4 ? " " : "");
 }
 
 function safeConfig(config) {
