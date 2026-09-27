@@ -30,7 +30,7 @@ export default async function WhatsAppTemplateDetailPage({ params }) {
   const activity = await listWhatsAppTemplateActivity(name);
   return (
     <>
-      <AdminPageHeader title={`תבנית WhatsApp: ${name}`} description="עמוד עצמאי לתצוגת התבנית המאושרת, מיפוי שדות ה־CRM ובדיקת שליחה בטוחה למספר אחד." />
+      <AdminPageHeader title={`תבנית WhatsApp: ${template.displayName || name}`} description="עמוד עצמאי לתצוגת התבנית המאושרת, מיפוי שדות ה־CRM ובדיקת שליחה בטוחה למספר אחד." />
       {loadError ? <div className="notice error">{loadError}</div> : null}
       <WhatsAppTemplateDetailClient template={template} saveAction={saveWhatsAppTemplateConfigAction} testAction={testWhatsAppTemplateAction} activity={activity} />
     </>
