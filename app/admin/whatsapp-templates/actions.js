@@ -9,6 +9,10 @@ import { createWhatsAppTemplate, recordWhatsAppTemplateActivity } from "../../..
 
 function clean(value) { return String(value ?? "").trim(); }
 
+function limitParameterValue(value) {
+  return clean(value).replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").split(" ").filter(Boolean).slice(0, 4).join(" ");
+}
+
 export async function saveWhatsAppTemplateConfigAction(formData) {
   const user = await requireTeamUser();
   if (!user.is_manager) throw new Error("אין הרשאה לניהול תבניות WhatsApp.");
@@ -36,7 +40,8 @@ export async function testWhatsAppTemplateAction(previousState, formData) {
     const file = formData.get("media");
     const mediaId = file && typeof file.arrayBuffer === "function" && file.size ? await uploadAttendanceWhatsAppImage(file) : "";
     const parsedValues = JSON.parse(values || "[]");
-    const response = await sendWhatsAppTemplateTest({ template, phone, values: Array.isArray(parsedValues) ? parsedValues : [], mediaId });
+    const normalizedValues = Array.isArray(parsedValues) ? parsedValues.map(limitParameterValue) : [];
+    const response = await sendWhatsAppTemplateTest({ template, phone, values: normalizedValues, mediaId });
     await recordWhatsAppTemplateActivity({ id: activityId, templateName, language: template.language, action: "test", status: "SENT", recipientPhone: phone, providerResponse: response, createdByUserId: user.clerk_user_id });
     revalidatePath(`/admin/whatsapp-templates/${encodeURIComponent(templateName)}`);
     return { ok: true, message: "הודעת הבדיקה נשלחה בהצלחה." };

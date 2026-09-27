@@ -7,6 +7,10 @@ import { WHATSAPP_TEMPLATE_PURPOSES, WHATSAPP_TEMPLATE_SOURCES } from "../../../
 const roles = { student: "תלמיד", father: "אבא", mother: "אמא" };
 const mediaLabels = { none: "ללא קובץ", image: "תמונה", document: "מסמך" };
 
+function limitParameterValue(value) {
+  return String(value || "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean).slice(0, 4).join(" ");
+}
+
 function safeConfig(config) {
   return JSON.parse(JSON.stringify(config));
 }
@@ -18,7 +22,7 @@ function MappingRow({ mapping, onChange, onRemove }) {
       <select value={mapping.source || "free_text"} onChange={(event) => onChange({ ...mapping, source: event.target.value })}>
         {Object.entries(WHATSAPP_TEMPLATE_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
-      {mapping.source === "free_text" ? <input value={mapping.value || ""} onChange={(event) => onChange({ ...mapping, value: event.target.value })} placeholder="ערך ברירת מחדל (רשות)" /> : null}
+      {mapping.source === "free_text" ? <><input maxLength={80} value={mapping.value || ""} onChange={(event) => onChange({ ...mapping, value: limitParameterValue(event.target.value) })} placeholder="ערך ברירת מחדל (רשות)" /><small className="muted">עד 4 מילים, בשורה אחת</small></> : null}
       <button type="button" className="quick-action-btn quick-action-outline" onClick={onRemove}>הסר</button>
     </div>
   );
