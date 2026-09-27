@@ -8,6 +8,13 @@ const roles = [
   ["mother", "אם"]
 ];
 
+function templateFormatLabel(template) {
+  const format = String(template?.headerFormat || "").toUpperCase();
+  if (format === "IMAGE") return "תמונה";
+  if (format === "DOCUMENT") return "PDF";
+  return "ללא קובץ";
+}
+
 export default function AttendanceInvitationConfig({ session, templates = [], templateError = "", saveAction, sendAction, recipientCounts = {} }) {
   const emailRoles = session?.invitationEmailRecipientRoles || ["student", "father", "mother"];
   const invitationTitle = session?.title || session?.displayTitle || "";
@@ -38,7 +45,7 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
       <summary className="attendance-message-summary">
         <div>
           <h3>הזמנה לאירוע</h3>
-          <span className="muted">הגדר את שם המפגש ואת תוכן ההודעה פעם אחת. אותם נתונים ישמשו למייל ול־WhatsApp; השליחה ל־WhatsApp מופעלת בנפרד.</span>
+          <span className="muted">המייל וה־WhatsApp נשלחים במסלולים נפרדים. פרטי המפגש והתוכן מוזנים פעם אחת, וה־WhatsApp פועל לפי התבנית המאושרת שנבחרה.</span>
         </div>
         <span className="attendance-message-summary-action">פתח הגדרות הזמנה</span>
       </summary>
@@ -58,11 +65,23 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
             {roles.map(([value, label]) => <label className="attendance-filter-chip active" key={`email-${value}`}><input type="checkbox" name="invitationEmailRecipientRoles" value={value} defaultChecked={emailRoles.includes(value)} />{label}</label>)}
           </div>
         </fieldset>
-        <input type="hidden" name="invitationWhatsAppTemplateName" value={session.invitationWhatsAppTemplateName || ""} />
         <input type="hidden" name="invitationWhatsAppTemplateLanguage" value={session.invitationWhatsAppTemplateLanguage || "he"} />
+        {!hasWhatsAppTemplates ? <input type="hidden" name="invitationWhatsAppTemplateName" value={session.invitationWhatsAppTemplateName || ""} /> : null}
         <div className="attendance-invitation-channel-note" style={{ gridColumn: "1 / -1" }}>
           <strong>שליחה ב־WhatsApp</strong>
-          <span className="muted">התבנית המאושרת המתאימה תיבחר אוטומטית לפי הקובץ המצורף: תמונה, PDF או הודעה ללא קובץ.</span>
+          <span className="muted">אפשר להישאר על ברירת מחדל: המערכת תבחר אוטומטית תבנית לפי הקובץ המצורף. אפשר גם לבחור תבנית הזמנה ייעודית, ואז השליחה תכבד את הוראות התבנית.</span>
+          <label>
+            <span className="muted">תבנית WhatsApp להזמנה</span>
+            <select name="invitationWhatsAppTemplateName" defaultValue={session.invitationWhatsAppTemplateName || ""} disabled={!hasWhatsAppTemplates}>
+              <option value="">ברירת מחדל — בחירה אוטומטית לפי הקובץ</option>
+              {templates.map((template) => (
+                <option key={`${template.name}-${template.language || "he"}`} value={template.name}>
+                  {template.name} — {templateFormatLabel(template)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {session.invitationWhatsAppTemplateName ? <small className="muted">נבחרה תבנית ייעודית: {session.invitationWhatsAppTemplateName}. יש לצרף את סוג הקובץ שהתבנית דורשת.</small> : null}
           {templateError ? <small className="error">{templateError}</small> : null}
           {!templateError && !hasWhatsAppTemplates ? <small className="muted">לא נמצאה כרגע תבנית הזמנה מאושרת של בוט התפוצה.</small> : null}
         </div>
