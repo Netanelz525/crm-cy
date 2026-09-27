@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { WHATSAPP_TEMPLATE_PURPOSES, WHATSAPP_TEMPLATE_SOURCES } from "../../../lib/whatsapp-template-config-shared";
 
 const roles = { student: "תלמיד", father: "אבא", mother: "אמא" };
@@ -52,7 +53,7 @@ function TemplateCard({ template, saveAction }) {
     <details className="card whatsapp-template-card">
       <summary>
         <span><strong>{template.name}</strong><small>{template.language} · {template.status} · {template.category || "WhatsApp"}</small></span>
-        <span className="meta-chip">{template.requiresMedia ? `נדרש ${mediaLabels[config.mediaType] || "קובץ"}` : "ללא מדיה"}</span>
+        <span className="quick-actions"><span className="meta-chip">{template.requiresMedia ? `נדרש ${mediaLabels[config.mediaType] || "קובץ"}` : "ללא מדיה"}</span><Link className="quick-action-btn quick-action-outline" href={`/admin/whatsapp-templates/${encodeURIComponent(template.name)}`}>עמוד התבנית</Link></span>
       </summary>
       <div className="whatsapp-template-card-grid">
         <section className="whatsapp-template-provider">
