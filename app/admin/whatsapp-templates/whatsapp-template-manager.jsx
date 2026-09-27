@@ -52,7 +52,7 @@ function TemplateCard({ template, saveAction }) {
   return (
     <details className="card whatsapp-template-card">
       <summary>
-        <span><strong>{template.name}</strong><small>{template.language} · {template.status} · {template.category || "WhatsApp"}</small></span>
+        <span><strong>{template.displayName || template.name}</strong><small>Dualhook: {template.name} · {template.language} · {template.status} · {template.category || "WhatsApp"}</small></span>
         <span className="quick-actions"><span className="meta-chip">{template.requiresMedia ? `נדרש ${mediaLabels[config.mediaType] || "קובץ"}` : "ללא מדיה"}</span><Link className="quick-action-btn quick-action-outline" href={`/admin/whatsapp-templates/${encodeURIComponent(template.name)}`}>עמוד התבנית</Link></span>
       </summary>
       <div className="whatsapp-template-card-grid">
@@ -69,6 +69,7 @@ function TemplateCard({ template, saveAction }) {
         <form onSubmit={save} className="whatsapp-template-config">
           <h3>איך ה-CRM משתמש בתבנית</h3>
           <input type="hidden" name="config" value={JSON.stringify(config)} readOnly />
+          <label>כותרת תצוגה פנימית<input value={config.displayName || ""} onChange={(event) => set({ displayName: event.target.value })} placeholder="לדוגמה: הזמנה כללית למפגש" /><small className="muted">זו הכותרת שתופיע לצוות. שם Dualhook נשמר בנפרד ואינו משתנה.</small></label>
           <label>מטרת התבנית<select value={config.purpose} onChange={(event) => set({ purpose: event.target.value })}>{Object.entries(WHATSAPP_TEMPLATE_PURPOSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>תיאור פנימי<textarea value={config.internalDescription || ""} onChange={(event) => set({ internalDescription: event.target.value })} placeholder="מה התבנית עושה במערכת" /></label>
           <div className="checkbox-row"><label><input type="checkbox" checked={config.enabled} onChange={(event) => set({ enabled: event.target.checked })} /> פעילה</label><label><input type="checkbox" checked={config.preferred} onChange={(event) => set({ preferred: event.target.checked })} /> מועדפת</label></div>
