@@ -111,7 +111,7 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
       <form ref={formRef} action={sendAction} onSubmit={requestSend} className="quick-actions" style={{ marginTop: 12 }}>
         <input type="hidden" name="sessionId" value={session.id} />
         {canSendEmail ? <input type="hidden" name="invitationChannels" value="email" /> : null}
-        {canSendEmail ? <label className="attendance-filter-chip"><input type="checkbox" name="invitationChannels" value="whatsapp" disabled={!hasWhatsAppTemplates} />שלח גם ב־WhatsApp</label> : null}
+        {canSendEmail ? <label className="attendance-filter-chip"><input type="checkbox" name="invitationChannels" value="whatsapp" defaultChecked={hasWhatsAppTemplates} disabled={!hasWhatsAppTemplates} />שלח גם ב־WhatsApp {hasWhatsAppTemplates ? "(מסומן כברירת מחדל)" : ""}</label> : null}
           {canSendEmail ? <button type="submit" className="quick-action-btn quick-action-primary">שלח הזמנה</button> : <span className="muted">שמור תוכן מייל כדי לאפשר שליחה.</span>}
         {confirmOpen ? <div className="bulk-modal-backdrop" role="presentation">
           <section className="bulk-modal attendance-invitation-confirm" role="dialog" aria-modal="true" aria-labelledby="attendance-invitation-confirm-title">
