@@ -24,6 +24,9 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
   const canSendEmail = Boolean(emailMessage);
   const hasWhatsAppTemplates = templates.length > 0;
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [sendEmail, setSendEmail] = useState(canSendEmail);
+  const [sendWhatsApp, setSendWhatsApp] = useState(hasWhatsAppTemplates);
+  const [confirmError, setConfirmError] = useState("");
   const confirmRef = useRef(false);
   const formRef = useRef(null);
   const emailCount = Number(recipientCounts.email || 0);
@@ -35,9 +38,14 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
       return;
     }
     event.preventDefault();
+    setConfirmError("");
     setConfirmOpen(true);
   }
   function confirmSend() {
+    if (!sendEmail && !sendWhatsApp) {
+      setConfirmError("יש לבחור לפחות ערוץ שליחה אחד.");
+      return;
+    }
     confirmRef.current = true;
     setConfirmOpen(false);
     formRef.current?.requestSubmit();
@@ -110,18 +118,25 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
       </form>
       <form ref={formRef} action={sendAction} onSubmit={requestSend} className="quick-actions" style={{ marginTop: 12 }}>
         <input type="hidden" name="sessionId" value={session.id} />
-        {canSendEmail ? <input type="hidden" name="invitationChannels" value="email" /> : null}
-        {canSendEmail ? <label className="attendance-filter-chip"><input type="checkbox" name="invitationChannels" value="whatsapp" defaultChecked={hasWhatsAppTemplates} disabled={!hasWhatsAppTemplates} />שלח גם ב־WhatsApp {hasWhatsAppTemplates ? "(מסומן כברירת מחדל)" : ""}</label> : null}
-          {canSendEmail ? <button type="submit" className="quick-action-btn quick-action-primary">שלח הזמנה</button> : <span className="muted">שמור תוכן מייל כדי לאפשר שליחה.</span>}
+        {sendEmail ? <input type="hidden" name="invitationChannels" value="email" /> : null}
+        {sendWhatsApp ? <input type="hidden" name="invitationChannels" value="whatsapp" /> : null}
+          {canSendEmail || hasWhatsAppTemplates ? <button type="submit" className="quick-action-btn quick-action-primary">שלח הזמנה</button> : <span className="muted">שמור תוכן מייל או הגדר תבנית WhatsApp כדי לאפשר שליחה.</span>}
         {confirmOpen ? <div className="bulk-modal-backdrop" role="presentation">
           <section className="bulk-modal attendance-invitation-confirm" role="dialog" aria-modal="true" aria-labelledby="attendance-invitation-confirm-title">
             <h3 id="attendance-invitation-confirm-title">אישור שליחת הזמנה</h3>
             <p className="muted">במפגש יש {studentCount} תלמידים. לפי פרטי הקשר הקיימים, השליחה יכולה להגיע ל:</p>
+            <fieldset className="attendance-invitation-channel-choice">
+              <legend>ערוצי שליחה הפעם</legend>
+              {canSendEmail ? <label className="attendance-filter-chip"><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} />מייל</label> : null}
+              {hasWhatsAppTemplates ? <label className="attendance-filter-chip"><input type="checkbox" checked={sendWhatsApp} onChange={(event) => setSendWhatsApp(event.target.checked)} />WhatsApp</label> : null}
+              {!hasWhatsAppTemplates ? <small className="muted">אין כרגע תבנית WhatsApp מאושרת, ולכן ניתן לשלוח רק במייל.</small> : null}
+            </fieldset>
             <div className="attendance-invitation-count-grid">
-              <div><strong>{emailCount}</strong><span>כתובות מייל</span></div>
-              <div><strong>{whatsappCount}</strong><span>מספרי WhatsApp</span></div>
+              {sendEmail ? <div><strong>{emailCount}</strong><span>כתובות מייל</span></div> : null}
+              {sendWhatsApp ? <div><strong>{whatsappCount}</strong><span>מספרי WhatsApp</span></div> : null}
             </div>
-            <p className="muted">המערכת תשלח רק לערוצים שסומנו בטופס ולפרטי קשר שקיימים בפועל.</p>
+            <p className="muted">הבחירה הזו תקפה לשליחה הנוכחית בלבד. הגדרות ההזמנה והערוצים לא נמחקות.</p>
+            {confirmError ? <p className="error">{confirmError}</p> : null}
             <div className="quick-actions">
               <button type="button" className="quick-action-btn quick-action-outline" onClick={() => setConfirmOpen(false)}>ביטול</button>
               <button type="button" className="quick-action-btn quick-action-primary" onClick={confirmSend}>כן, שלח הזמנה</button>
