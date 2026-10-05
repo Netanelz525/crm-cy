@@ -9,11 +9,12 @@ function inlineNodes(value, keyPrefix = "inline") {
 
   while ((match = pattern.exec(text))) {
     if (match.index > cursor) nodes.push(text.slice(cursor, match.index));
-    if (match[1]) nodes.push(<strong key={`${keyPrefix}-bold-${match.index}`}>{match[2]}</strong>);
-    else if (match[3]) nodes.push(<del key={`${keyPrefix}-strike-${match.index}`}>{match[4]}</del>);
-    else if (match[5]) nodes.push(<code key={`${keyPrefix}-code-${match.index}`}>{match[6]}</code>);
-    else if (match[7]) nodes.push(<em key={`${keyPrefix}-italic-${match.index}`}>{match[8]}</em>);
-    else nodes.push(<Link key={`${keyPrefix}-link-${match.index}`} href={match[10]} target="_blank" rel="noreferrer">{match[9]}</Link>);
+    if (match[1] !== undefined) nodes.push(<strong key={`${keyPrefix}-bold-${match.index}`}>{match[2]}</strong>);
+    else if (match[3] !== undefined) nodes.push(<del key={`${keyPrefix}-strike-${match.index}`}>{match[4]}</del>);
+    else if (match[5] !== undefined) nodes.push(<code key={`${keyPrefix}-code-${match.index}`}>{match[6]}</code>);
+    else if (match[7] !== undefined) nodes.push(<em key={`${keyPrefix}-italic-${match.index}`}>{match[8]}</em>);
+    else if (match[9] !== undefined) nodes.push(<Link key={`${keyPrefix}-link-${match.index}`} href={match[10]} target="_blank" rel="noreferrer">{match[9]}</Link>);
+    else nodes.push(match[0]);
     cursor = match.index + match[0].length;
   }
 
@@ -65,7 +66,8 @@ function parseBlocks(value) {
         flushList();
         list = { type: nextType, items: [] };
       }
-      list.items.push({ text: (checkbox || ordered || unordered)[2] || (checkbox || unordered)[1], checked: checkbox ? checkbox[1].toLowerCase() === "x" : null });
+      const itemText = checkbox ? checkbox[2] : ordered ? ordered[1] : unordered[1];
+      list.items.push({ text: itemText, checked: checkbox ? checkbox[1].toLowerCase() === "x" : null });
       continue;
     }
     flushList();
