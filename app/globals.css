@@ -7394,6 +7394,20 @@ td {
 .public-article-image { display: block; max-width: 100%; max-height: 560px; margin: 20px auto; border-radius: 12px; object-fit: contain; }
 .public-article-body { font-size: 1.1rem; line-height: 1.9; white-space: normal; }
 .public-article-body p { margin: 0 0 1.35em; }
+.public-article-markdown { direction: rtl; text-align: right; }
+.public-article-markdown h1, .public-article-markdown h2, .public-article-markdown h3, .public-article-markdown h4, .public-article-markdown h5, .public-article-markdown h6 { margin: 1.35em 0 .45em; line-height: 1.35; }
+.public-article-markdown h1 { font-size: 2em; }
+.public-article-markdown h2 { font-size: 1.65em; }
+.public-article-markdown h3 { font-size: 1.35em; }
+.public-article-markdown ul, .public-article-markdown ol { margin: 0 0 1.35em; padding-inline-start: 1.7em; }
+.public-article-markdown li { padding-inline-start: .25em; margin: .25em 0; }
+.public-article-markdown li input { margin-inline-end: .5em; accent-color: #1769aa; }
+.public-article-markdown hr { border: 0; border-top: 1px solid #d8e5f3; margin: 1.7em 0; }
+.public-article-markdown strong { font-weight: 800; }
+.public-article-markdown em { font-style: italic; }
+.public-article-markdown del { color: #64748b; }
+.public-article-markdown code { border-radius: 5px; background: #eef5fb; padding: .1em .35em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; direction: ltr; unicode-bidi: plaintext; }
+.public-article-markdown a { color: #1769aa; text-decoration: underline; }
 .knowledge-article-slug-field { display: grid; gap: 7px; }
 .knowledge-article-slug-row { display: flex; align-items: stretch; gap: 8px; }
 .knowledge-article-slug-row input { flex: 1; min-width: 0; }

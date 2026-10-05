@@ -28,6 +28,9 @@ function buildQueryString(values = {}) {
 }
 
 function taskLinkLabel(task) {
+  if (task.linkedType === "general") {
+    return "פנייה כללית";
+  }
   if (task.linkedType === "student") {
     return task.studentName || task.studentId || "תלמיד";
   }

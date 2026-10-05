@@ -5,19 +5,11 @@ import { redirect } from "next/navigation";
 import { appendKnowledgeArticleAssets, createKnowledgeArticle, updateKnowledgeArticle } from "../../../lib/knowledge-articles";
 import { requireTeamUser } from "../../../lib/rbac";
 import { isR2Configured, uploadBufferToR2 } from "../../../lib/r2";
+import { normalizeArticleSlug } from "../../../lib/article-slug.js";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function clean(value) { return String(value || "").trim(); }
-
-function slugify(value) {
-  const raw = clean(value).toLowerCase()
-    .replace(/[^a-z0-9\u0590-\u05ff\s-]/g, "")
-    .replace(/[\s-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 90);
-  return raw || `article-${crypto.randomUUID().slice(0, 8)}`;
-}
 
 function tagsFromForm(formData) {
   return clean(formData.get("tags")).split(",").map((tag) => clean(tag)).filter(Boolean);
@@ -53,7 +45,7 @@ export async function createKnowledgeArticleAction(formData) {
   try {
     await createKnowledgeArticle({
       id,
-      slug: slugify(formData.get("slug") || title),
+      slug: normalizeArticleSlug(formData.get("slug") || title, title),
       title,
       excerpt: formData.get("excerpt"),
       bodyText: formData.get("bodyText"),
@@ -76,7 +68,7 @@ export async function updateKnowledgeArticleAction(formData) {
   try {
     await updateKnowledgeArticle({
       id,
-      slug: slugify(formData.get("slug") || formData.get("title")),
+      slug: normalizeArticleSlug(formData.get("slug") || formData.get("title"), formData.get("title")),
       title: formData.get("title"),
       excerpt: formData.get("excerpt"),
       bodyText: formData.get("bodyText"),
