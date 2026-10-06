@@ -154,7 +154,7 @@ export default async function AnnouncementsPage({ searchParams }) {
                       <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
                     </span>
                   </summary>
-                  <form action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-admin-form">
+                  <form action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-admin-form" encType="multipart/form-data">
                     <input type="hidden" name="templateId" value={template.id} />
 
                     <div className="announcement-template-docs-row">
@@ -173,6 +173,21 @@ export default async function AnnouncementsPage({ searchParams }) {
                       <div className="announcement-template-docs-meta">
                         {docsUrl ? <a className="btn btn-ghost" href={docsUrl} target="_blank" rel="noreferrer">ערוך תבנית מלאה</a> : null}
                         <span className="meta-chip">{fullGoogleDocsId(template.googleDocsId)}</span>
+                      </div>
+                    </div>
+
+                    <div className="announcement-template-docx-row">
+                      <div>
+                        <strong>קובץ Word לתבנית</strong>
+                        <div className="muted">הקובץ נשמר ב־R2. סימונים כפולים מנורמלים אוטומטית לפורמט Docxtemplater.</div>
+                      </div>
+                      <label>
+                        <span>החלפת קובץ DOCX</span>
+                        <input name="docxFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                      </label>
+                      <div className="announcement-template-docs-meta">
+                        {template.docxFileName ? <span className="meta-chip">פעיל: {template.docxFileName}</span> : <span className="meta-chip">טרם הועלה קובץ Word</span>}
+                        {template.docxUpdatedAt ? <span className="muted">עודכן: {formatDateTime(template.docxUpdatedAt)}</span> : null}
                       </div>
                     </div>
 

@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementSignature, createAnnouncementTemplate, getAnnouncementById, getAnnouncementSignatureById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateSettings } from "../../lib/announcements";
+import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementSignature, createAnnouncementTemplate, getAnnouncementById, getAnnouncementSignatureById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateDocx, updateAnnouncementTemplateSettings } from "../../lib/announcements";
 import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
+import { DOCX_CONTENT_TYPE, MAX_DOCX_TEMPLATE_BYTES, normalizeDocxTemplate } from "../../lib/docx-template";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { isR2Configured, uploadBufferToR2 } from "../../lib/r2";
 
@@ -338,6 +339,31 @@ async function uploadTemplateBlank(file, templateId) {
   return { key, contentType: contentType || "application/octet-stream" };
 }
 
+async function uploadTemplateDocx(file, templateId) {
+  if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) {
+    return { key: "", fileName: "", contentType: "" };
+  }
+  const fileName = clean(file.name).replace(/[^\x20-\x7E\u0590-\u05FF._ -]+/g, "_").slice(0, 160) || "template.docx";
+  const contentType = clean(file.type).toLowerCase();
+  if (!/\.docx$/i.test(fileName) && contentType !== DOCX_CONTENT_TYPE) {
+    throw new Error("יש להעלות קובץ Word מסוג DOCX בלבד.");
+  }
+  const size = Number(file.size || 0);
+  if (!size) throw new Error("קובץ ה־DOCX ריק.");
+  if (size > MAX_DOCX_TEMPLATE_BYTES) throw new Error("ניתן להעלות תבנית Word עד 15MB.");
+  if (!isR2Configured()) throw new Error("R2 לא מוגדר עדיין ב־ENV.");
+
+  const normalized = normalizeDocxTemplate(Buffer.from(await file.arrayBuffer()));
+  const key = `announcement-templates/${clean(templateId)}/template.docx`;
+  await uploadBufferToR2({
+    key,
+    buffer: normalized,
+    contentType: DOCX_CONTENT_TYPE,
+    contentDisposition: `inline; filename="${fileName.replace(/"/g, "_")}"`
+  });
+  return { key, fileName, contentType: DOCX_CONTENT_TYPE };
+}
+
 async function uploadSignatureImage(file, signatureId) {
   if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) {
     throw new Error("יש לבחור קובץ חתימה.");
@@ -476,14 +502,23 @@ export async function updateAnnouncementTemplateAction(formData) {
   }
 
   const blankFile = formData.get("blankFile");
+  const docxFile = formData.get("docxFile");
   let blankObjectKey = current.blankObjectKey;
   let blankContentType = current.blankContentType;
+  let docx = {
+    objectKey: current.docxObjectKey,
+    fileName: current.docxFileName,
+    contentType: current.docxContentType
+  };
 
   try {
     if (blankFile && typeof blankFile.arrayBuffer === "function" && clean(blankFile.name)) {
       const uploaded = await uploadTemplateBlank(blankFile, templateId);
       blankObjectKey = uploaded.key;
       blankContentType = uploaded.contentType;
+    }
+    if (docxFile && typeof docxFile.arrayBuffer === "function" && clean(docxFile.name)) {
+      docx = await uploadTemplateDocx(docxFile, templateId);
     }
 
     await updateAnnouncementTemplate(templateId, {
@@ -494,6 +529,9 @@ export async function updateAnnouncementTemplateAction(formData) {
       blankContentType,
       layout: layoutFromForm(formData)
     });
+    if (docx.objectKey) {
+      await updateAnnouncementTemplateDocx(templateId, docx);
+    }
   } catch (error) {
     redirect(`/announcements/templates/${templateId}?error=${encodeURIComponent(error?.message || "עדכון התבנית נכשל")}`);
   }
@@ -636,6 +674,7 @@ export async function createQueuedAnnouncementAction(formData) {
 export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
   await requireAnnouncementTemplateAdmin();
   const templateId = clean(formData.get("templateId"));
+  const docxFile = formData.get("docxFile");
 
   try {
     await updateAnnouncementTemplateSettings(templateId, {
@@ -645,6 +684,9 @@ export async function updateAnnouncementTemplateGoogleDocsAction(formData) {
       allowedRoles: allowedTemplateRolesFromForm(formData),
       isPreferred: clean(formData.get("isPreferred")) === "on"
     });
+    if (docxFile && typeof docxFile.arrayBuffer === "function" && clean(docxFile.name)) {
+      await updateAnnouncementTemplateDocx(templateId, await uploadTemplateDocx(docxFile, templateId));
+    }
   } catch (error) {
     redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "שמירת התבנית נכשלה")}`);
   }
