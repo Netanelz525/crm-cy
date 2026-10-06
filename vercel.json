@@ -22,6 +22,10 @@
       "schedule": "0 4 1 * *"
     },
     {
+      "path": "/api/cron/monthly-email-errors",
+      "schedule": "0 6 1 * *"
+    },
+    {
       "path": "/api/cron/automation-recovery",
       "schedule": "20 19 * * 4"
     }
