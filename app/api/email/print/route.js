@@ -68,11 +68,31 @@ async function showAction(token) {
   return page("בחירת הדפסה", `<div style="color:#64748b;font-size:13px">CRM · פעולה מאושרת מתוך מייל צוות</div><h1 style="margin:10px 0 8px;font-size:28px">הדפסת קובץ מצורף</h1><p style="font-size:18px;line-height:1.5"><strong>${escapeHtml(action.file_name)}</strong></p><h2 style="font-size:20px">בחר תוכנית הדפסה</h2><div>${planLinks}</div><h2 style="font-size:20px;margin-top:22px">הדפסה מהירה בחוברת שחור־לבן</h2><div>${copyLinks}</div><p style="color:#64748b;margin-top:22px">כל קישור ניתן לשימוש פעם אחת בלבד ותוקפו מוגבל.</p>`);
 }
 
+async function showConfirmation(token, printPlan, copies) {
+  const action = await getEmailPrintAction(token);
+  if (!action || action.status !== "pending" || new Date(action.expires_at).getTime() <= Date.now()) {
+    return page("קישור הדפסה פג", `<h1>קישור ההדפסה אינו פעיל</h1><p>יש לבקש מהבוט לשלוח קישור חדש.</p>`);
+  }
+  const user = await getAppUserByEmail(action.sender_email);
+  if (!user || !(user.is_team_member || user.is_manager || user.is_super_admin)) {
+    return page("אין הרשאה", `<h1>אין הרשאה לבצע הדפסה</h1><p>הקישור זמין רק למשתמש צוות מורשה.</p>`);
+  }
+  if (printPlan.endsWith("-color") && !canUseColorPrint(user)) {
+    return page("אין הרשאה", `<h1>אין הרשאה להדפסה בצבע</h1><p>בחר תוכנית שחור־לבן ושלח מחדש.</p>`);
+  }
+  const executeUrl = `/api/email/print?token=${encodeURIComponent(token)}&action=execute&printPlan=${encodeURIComponent(printPlan)}&copies=${copies}`;
+  return page("אישור הדפסה", `<div style="color:#64748b;font-size:13px">CRM · אישור סופי</div><h1 style="margin:10px 0 8px;font-size:28px">אישור שליחה להדפסה</h1><div style="border:1px solid #dbe5f1;border-radius:12px;padding:16px;background:#f8fbff;line-height:1.8"><strong>קובץ:</strong> ${escapeHtml(action.file_name)}<br><strong>תוכנית:</strong> ${escapeHtml(printPlanLabel(printPlan))}<br><strong>עותקים:</strong> ${copies}</div><p style="font-size:16px">בדוק שהפרטים נכונים. לאחר האישור הקובץ יישלח לתור ההדפסה.</p><div style="margin-top:20px">${link(executeUrl, "אישור סופי ושליחה להדפסה", true)}</div><p style="color:#64748b;font-size:13px">אין חיוב או שליחה לפני הלחיצה על הכפתור.</p>`);
+}
+
 export async function GET(request) {
   const params = new URL(request.url).searchParams;
   const token = clean(params.get("token"));
   if (!token) return page("קישור חסר", `<h1>חסר קישור פעולה</h1>`);
-  if (clean(params.get("action")) !== "print") return showAction(token);
+  const actionName = clean(params.get("action"));
+  const printPlan = normalizePrintPlan(params.get("printPlan"));
+  const copies = Math.max(1, Math.min(99, Number(params.get("copies")) || 1));
+  if (actionName === "print") return showConfirmation(token, printPlan, copies);
+  if (actionName !== "execute") return showAction(token);
 
   const action = await claimEmailPrintAction(token);
   if (!action) return showAction(token);
@@ -81,8 +101,6 @@ export async function GET(request) {
     await failEmailPrintAction(token);
     return page("אין הרשאה", `<h1>אין הרשאה לבצע הדפסה</h1><p>הקישור זמין רק למשתמש צוות מורשה.</p>`);
   }
-  const printPlan = normalizePrintPlan(params.get("printPlan"));
-  const copies = Math.max(1, Math.min(99, Number(params.get("copies")) || 1));
   if (printPlan.endsWith("-color") && !canUseColorPrint(user)) {
     await failEmailPrintAction(token);
     return page("אין הרשאה", `<h1>אין הרשאה להדפסה בצבע</h1><p>בחר תוכנית שחור־לבן ושלח מחדש.</p>`);
