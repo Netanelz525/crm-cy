@@ -4,6 +4,8 @@ import { getCurrentAppUser } from "../../../../../lib/rbac";
 import { renderAnnouncementPdf } from "../../../../../lib/announcement-pdf";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function clean(value) {
   return String(value || "").trim();
@@ -43,7 +45,10 @@ export async function GET(request, { params }) {
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `${download ? "attachment" : "inline"}; filename="${fileName(announcement.title)}.pdf"`
+        "content-disposition": `${download ? "attachment" : "inline"}; filename="${fileName(announcement.title)}.pdf"`,
+        "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        pragma: "no-cache",
+        expires: "0"
       }
     });
   } catch (error) {
