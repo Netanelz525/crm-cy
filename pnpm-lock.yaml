@@ -44,9 +44,15 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.21.0
         version: 3.27.1
+      docx-preview:
+        specifier: 0.4.1
+        version: 0.4.1
       docxtemplater:
         specifier: ^3.71.0
         version: 3.71.0
+      jszip:
+        specifier: 3.10.2
+        version: 3.10.2
       mammoth:
         specifier: ^1.13.0
         version: 1.13.0
@@ -864,6 +870,9 @@ packages:
 
   dingbat-to-unicode@1.0.2:
     resolution: {integrity: sha512-R0bRerYzy/EZP6QzD3Hkl6JjUDA1Mnn+pd928w0nWjPzihnbAR6dcjGJGiRyznj5E4S1duEKzWrTqw02DPcdzg==}
+
+  docx-preview@0.4.1:
+    resolution: {integrity: sha512-Dv4g+LeE0swHpPvNC0lAT0YsR5Zq5pAxw7d3vHQ8EChBLgIrqqe9VPL5nVt2HBJap8bEZbXUI0TJob7kBeNU9w==}
 
   docxtemplater@3.71.0:
     resolution: {integrity: sha512-4SyQzPVDrhsPb9vHNstxJpJWMLJvrbKEcXDRNBlb5Bnbjqm1T51PVt5r+iLVe1yAkmIvakk8M3KywO5m5LsUSA==}
@@ -2265,6 +2274,10 @@ snapshots:
   dfa@1.2.0: {}
 
   dingbat-to-unicode@1.0.2: {}
+
+  docx-preview@0.4.1:
+    dependencies:
+      jszip: 3.10.2
 
   docxtemplater@3.71.0:
     dependencies:
