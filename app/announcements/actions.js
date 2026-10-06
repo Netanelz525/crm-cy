@@ -730,6 +730,7 @@ export async function updateQueuedAnnouncementAction(formData) {
   const user = await requireAnnouncementEditor();
   const announcementId = clean(formData.get("announcementId"));
   const submitMode = clean(formData.get("submitMode"));
+  const shouldDownload = submitMode === "download";
   const shouldQueue = ["email", "print"].includes(submitMode);
   const outputMode = submitMode === "print" ? "print" : "email";
   const copies = submitMode === "print" ? numberFromForm(formData, "copies", 1) : 1;
@@ -812,6 +813,9 @@ export async function updateQueuedAnnouncementAction(formData) {
   revalidatePath("/announcements");
   revalidatePath(`/announcements/${announcementId}`);
   revalidatePath("/print");
+  if (shouldDownload) {
+    redirect(`/api/announcements/${encodeURIComponent(announcementId)}/pdf?download=1&v=${Date.now()}`);
+  }
   redirect(`${redirectTarget}?${redirectSuffix}`);
 }
 

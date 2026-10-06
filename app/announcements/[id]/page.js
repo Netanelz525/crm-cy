@@ -239,6 +239,7 @@ export default async function AnnouncementPage({ params, searchParams }) {
 
           <div className="announcement-edit-actions">
             <button type="submit" name="submitMode" value="save" className="btn btn-ghost">שמור בלבד</button>
+            <button type="submit" name="submitMode" value="download" className="btn btn-primary">שמור והורד PDF</button>
             <button type="submit" name="submitMode" value="email" className="btn">שלח במייל מחדש</button>
             <button type="submit" name="submitMode" value="print" className="btn btn-primary">הדפס מחדש</button>
           </div>
