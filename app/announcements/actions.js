@@ -566,10 +566,11 @@ export async function createAnnouncementAction(formData) {
 
 export async function createQueuedAnnouncementAction(formData) {
   const user = await requireAnnouncementEditor();
-  if (!canUsePrintQueue(user)) redirect("/unauthorized");
 
   const templateId = clean(formData.get("templateId"));
-  const outputMode = clean(formData.get("outputMode")) === "print" ? "print" : "email";
+  const requestedOutputMode = clean(formData.get("outputMode"));
+  const outputMode = ["download", "email", "print"].includes(requestedOutputMode) ? requestedOutputMode : "download";
+  if (outputMode !== "download" && !canUsePrintQueue(user)) redirect("/unauthorized");
   const copies = numberFromForm(formData, "copies", 1);
   const printPlan = normalizePrintPlan(formData.get("printPlan"));
   const announcementId = crypto.randomUUID();
@@ -613,6 +614,11 @@ export async function createQueuedAnnouncementAction(formData) {
       userId: clean(user?.clerk_user_id)
     });
     redirect(`/announcements?error=${encodeURIComponent(clean(error?.message) || "יצירת המודעה נכשלה")}`);
+  }
+
+  if (outputMode === "download") {
+    revalidatePath("/announcements");
+    redirect(`/api/announcements/${announcement.id}/pdf?download=1`);
   }
 
   try {

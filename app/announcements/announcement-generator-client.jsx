@@ -27,11 +27,11 @@ function categoryLabel(value) {
   return "מודעה";
 }
 
-function SubmitButton() {
+function SubmitButton({ outputMode }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn btn-primary announcement-submit-wide" disabled={pending}>
-      {pending ? "יוצר ושולח לתור..." : "צור מודעה ושלח לשרת המקומי"}
+      {pending ? "מכין קובץ..." : outputMode === "download" ? "צור והורד PDF" : outputMode === "print" ? "צור ושלח להדפסה" : "צור ושלח במייל"}
     </button>
   );
 }
@@ -42,7 +42,7 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
     ? initialTemplateId
     : templates[0]?.id || "";
   const [selectedId, setSelectedId] = useState(initialSelectedId);
-  const [outputMode, setOutputMode] = useState("email");
+  const [outputMode, setOutputMode] = useState("download");
   const [favoriteIds, setFavoriteIds] = useState([]);
 
   useEffect(() => {
@@ -236,6 +236,19 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
         </div>
 
         <div className="announcement-delivery-mode">
+          <label className={outputMode === "download" ? "active" : ""}>
+            <input
+              type="radio"
+              name="outputMode"
+              value="download"
+              checked={outputMode === "download"}
+              onChange={() => setOutputMode("download")}
+            />
+            <span>
+              <strong>הורדה ישירה</strong>
+              <small>המחשב יוריד מיד את ה־PDF שנוצר מהתבנית, בלי לשלוח לשרת המקומי.</small>
+            </span>
+          </label>
           <label className={outputMode === "email" ? "active" : ""}>
             <input
               type="radio"
@@ -246,7 +259,7 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
             />
             <span>
               <strong>שליחה במייל בלבד</strong>
-              <small>ברירת מחדל. השרת המקומי יוריד את ה־PDF וישלח אותו במייל.</small>
+              <small>ה־PDF יישלח לתור השרת המקומי, ומשם במייל.</small>
             </span>
           </label>
           <label className={outputMode === "print" ? "active" : ""}>
@@ -279,7 +292,7 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
           </label>
         </div>
 
-        <SubmitButton />
+        <SubmitButton outputMode={outputMode} />
       </div>
     </form>
   );

@@ -99,7 +99,7 @@ export default async function AnnouncementsPage({ searchParams }) {
         <div className="student-topbar">
           <div>
             <h1>יצירת מודעות</h1>
-            <p className="muted">בחר תבנית, מלא את השדות, והמערכת תשמור רשומת מודעה, תיצור PDF ותשלח אותו לתור Cloudflare להמשך טיפול בשרת המקומי.</p>
+            <p className="muted">בחר תבנית, מלא את השדות, ובחר אם להוריד PDF מיד או לשלוח אותו במייל/להדפסה דרך השרת המקומי.</p>
           </div>
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/">חזרה לתלמידים</Link>
@@ -111,7 +111,7 @@ export default async function AnnouncementsPage({ searchParams }) {
         </div>
       </div>
 
-      {created ? <div className="ok">המודעה נוצרה, נשמרה ונשלחה לתור השרת המקומי.</div> : null}
+      {created ? <div className="ok">המודעה נוצרה ונשמרה.</div> : null}
       {templateUpdated ? <div className="ok">התבנית נשמרה.</div> : null}
       {templateCreated ? <div className="ok">התבנית החדשה נוצרה.</div> : null}
       {signatureCreated ? <div className="ok">החתימה נשמרה במאגר.</div> : null}
