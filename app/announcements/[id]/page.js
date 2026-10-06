@@ -108,6 +108,8 @@ export default async function AnnouncementPage({ params, searchParams }) {
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/announcements">חזרה למודעות</Link>
             <Link className="btn btn-primary" href={`/api/announcements/${announcement.id}/pdf`} target="_blank">פתח PDF</Link>
+            <Link className="btn btn-ghost" href={`/api/announcements/${announcement.id}/pdf?download=1`}>הורד PDF</Link>
+            {template.docxObjectKey ? <Link className="btn btn-ghost" href={`/api/announcements/${announcement.id}/docx`}>הורד Word</Link> : null}
           </div>
         </div>
       </div>

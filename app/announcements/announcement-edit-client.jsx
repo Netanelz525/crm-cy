@@ -37,6 +37,8 @@ export default function AnnouncementEditClient({ announcement, templates, initia
           <div className="student-actions student-actions-wrap">
             <Link className="btn btn-ghost" href="/announcements">חזרה להודעות</Link>
             <Link className="btn btn-primary" href={`/api/announcements/${announcement.id}/pdf`} target="_blank">פתח PDF A4</Link>
+            <Link className="btn btn-ghost" href={`/api/announcements/${announcement.id}/pdf?download=1`}>הורד PDF</Link>
+            {initialTemplate?.docxObjectKey ? <Link className="btn btn-ghost" href={`/api/announcements/${announcement.id}/docx`}>הורד Word</Link> : null}
             <form action={printAnnouncementAction} className="announcement-print-direct-form">
               <input type="hidden" name="announcementId" value={announcement.id} />
               <label>

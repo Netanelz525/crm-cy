@@ -16,7 +16,7 @@ function fileName(value) {
     .slice(0, 80) || "announcement";
 }
 
-export async function GET(_request, { params }) {
+export async function GET(request, { params }) {
   const user = await getCurrentAppUser();
   if (!user || !user.can_use_announcement_templates) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,11 +38,12 @@ export async function GET(_request, { params }) {
 
   try {
     const pdf = await renderAnnouncementPdf({ announcement, template });
+    const download = new URL(request.url).searchParams.get("download") === "1";
     return new NextResponse(pdf, {
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `inline; filename="${fileName(announcement.title)}.pdf"`
+        "content-disposition": `${download ? "attachment" : "inline"}; filename="${fileName(announcement.title)}.pdf"`
       }
     });
   } catch (error) {

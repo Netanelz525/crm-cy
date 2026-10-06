@@ -1,0 +1,49 @@
+import { NextResponse } from "next/server";
+import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../../../lib/announcements";
+import { renderDocxTemplate } from "../../../../../lib/docx-template";
+import { getObjectBytesFromR2 } from "../../../../../lib/r2";
+import { getCurrentAppUser } from "../../../../../lib/rbac";
+
+export const runtime = "nodejs";
+
+function clean(value) {
+  return String(value || "").trim();
+}
+
+function fileName(value) {
+  return clean(value).replace(/[^A-Za-z0-9\-_ ]/g, "").replace(/\s+/g, "-").slice(0, 80) || "announcement";
+}
+
+function templateData(announcement) {
+  const fields = announcement?.templateFields && typeof announcement.templateFields === "object" ? announcement.templateFields : {};
+  const data = { ...fields, title: fields.title || announcement.title, name: fields.name || announcement.title };
+  for (const [key, value] of Object.entries(data)) {
+    if (value && typeof value === "object") data[key] = value.type === "image" ? "" : clean(value.value || value.text);
+  }
+  return data;
+}
+
+export async function GET(_request, { params }) {
+  const user = await getCurrentAppUser();
+  if (!user || !user.can_use_announcement_templates) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const resolvedParams = await params;
+  const announcement = await getAnnouncementById(resolvedParams?.id);
+  if (!announcement) return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
+  const template = await getAnnouncementTemplateById(announcement.templateId);
+  if (!template || !canUseAnnouncementTemplate(user, template)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!template.docxObjectKey) return NextResponse.json({ error: "No Word template is attached" }, { status: 404 });
+
+  try {
+    const object = await getObjectBytesFromR2(template.docxObjectKey);
+    const rendered = renderDocxTemplate(Buffer.from(object.bytes), templateData(announcement));
+    return new NextResponse(rendered, {
+      status: 200,
+      headers: {
+        "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "content-disposition": `attachment; filename="${fileName(announcement.title)}.docx"`
+      }
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error?.message || "DOCX generation failed" }, { status: 500 });
+  }
+}
