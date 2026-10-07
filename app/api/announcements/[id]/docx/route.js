@@ -14,9 +14,19 @@ function fileName(value) {
   return clean(value).replace(/[^A-Za-z0-9\-_ ]/g, "").replace(/\s+/g, "-").slice(0, 80) || "announcement";
 }
 
-function templateData(announcement) {
+function templateData(announcement, template) {
   const fields = announcement?.templateFields && typeof announcement.templateFields === "object" ? announcement.templateFields : {};
   const data = { ...fields, title: fields.title || announcement.title, name: fields.name || announcement.title };
+  for (const field of template?.fields || []) {
+    const key = clean(field?.key);
+    const templateFieldId = clean(field?.templateFieldId);
+    if (!key || !templateFieldId) continue;
+
+    // DOCX templates use their Word placeholder IDs (for example 1, 3, 4),
+    // while the announcement stores values under semantic field keys.
+    if (!(templateFieldId in data) && key in fields) data[templateFieldId] = fields[key];
+    if (!(key in data) && templateFieldId in fields) data[key] = fields[templateFieldId];
+  }
   for (const [key, value] of Object.entries(data)) {
     if (value && typeof value === "object") data[key] = value.type === "image" ? "" : clean(value.value || value.text);
   }
@@ -35,7 +45,7 @@ export async function GET(_request, { params }) {
 
   try {
     const object = await getObjectBytesFromR2(template.docxObjectKey);
-    const rendered = renderDocxTemplate(Buffer.from(object.bytes), templateData(announcement));
+    const rendered = renderDocxTemplate(Buffer.from(object.bytes), templateData(announcement, template));
     return new NextResponse(rendered, {
       status: 200,
       headers: {
