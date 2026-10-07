@@ -14,9 +14,15 @@ function clean(value) {
 
 function fileName(value) {
   return clean(value)
-    .replace(/[^A-Za-z0-9\-_ ]/g, "")
-    .replace(/\s+/g, "-")
-    .slice(0, 80) || "announcement";
+    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140) || "announcement";
+}
+
+function contentDisposition(disposition, filename) {
+  const fallback = "announcement.pdf";
+  return disposition + "; filename=\"" + fallback.replace(/\"/g, "_") + "\"; filename*=UTF-8''" + encodeURIComponent(filename);
 }
 
 export async function GET(request, { params }) {
@@ -56,7 +62,7 @@ export async function GET(request, { params }) {
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `${download ? "attachment" : "inline"}; filename="${fileName(announcement.title)}.pdf"`,
+        "content-disposition": contentDisposition(download ? "attachment" : "inline", fileName(announcement.title) + ".pdf"),
         "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         pragma: "no-cache",
         expires: "0",

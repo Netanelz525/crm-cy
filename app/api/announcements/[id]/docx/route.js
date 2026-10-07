@@ -11,7 +11,16 @@ function clean(value) {
 }
 
 function fileName(value) {
-  return clean(value).replace(/[^A-Za-z0-9\-_ ]/g, "").replace(/\s+/g, "-").slice(0, 80) || "announcement";
+  return clean(value)
+    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140) || "announcement";
+}
+
+function contentDisposition(filename) {
+  const fallback = "announcement.docx";
+  return "attachment; filename=\"" + fallback.replace(/"/g, "_") + "\"; filename*=UTF-8''" + encodeURIComponent(filename);
 }
 
 function templateData(announcement, template) {
@@ -50,7 +59,7 @@ export async function GET(_request, { params }) {
       status: 200,
       headers: {
         "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "content-disposition": `attachment; filename="${fileName(announcement.title)}.docx"`
+        "content-disposition": contentDisposition(fileName(announcement.title) + ".docx")
       }
     });
   } catch (error) {
