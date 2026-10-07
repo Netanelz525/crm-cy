@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../../../lib/announcements";
 import { getCurrentAppUser } from "../../../../../lib/rbac";
-import { getAnnouncementPdfRenderer, renderAnnouncementPdf } from "../../../../../lib/announcement-pdf";
+import { renderAnnouncementDocx } from "../../../../../lib/announcement-pdf";
+import { convertAnnouncementDocxToPdf } from "../../../../../lib/announcement-converter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,11 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const pdf = await renderAnnouncementPdf({ announcement, template });
+    const renderedDocx = await renderAnnouncementDocx({ announcement, template });
+    const pdf = await convertAnnouncementDocxToPdf(
+      renderedDocx,
+      `${fileName(announcement.title) || "announcement"}.docx`
+    );
     const download = new URL(request.url).searchParams.get("download") === "1";
     return new NextResponse(pdf, {
       status: 200,
@@ -56,7 +61,7 @@ export async function GET(request, { params }) {
         pragma: "no-cache",
         expires: "0",
         "x-announcement-pdf-source": template.docxObjectKey ? "docx" : "html",
-        "x-announcement-pdf-renderer": getAnnouncementPdfRenderer(template),
+        "x-announcement-pdf-renderer": "booklet-printer",
         "x-announcement-template-key": template.templateKey || template.id || ""
       }
     });
