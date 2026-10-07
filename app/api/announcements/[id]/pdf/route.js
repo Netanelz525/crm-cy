@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { canUseAnnouncementTemplate, getAnnouncementById, getAnnouncementTemplateById } from "../../../../../lib/announcements";
 import { getCurrentAppUser } from "../../../../../lib/rbac";
-import { renderAnnouncementPdf } from "../../../../../lib/announcement-pdf";
+import { getAnnouncementPdfRenderer, renderAnnouncementPdf } from "../../../../../lib/announcement-pdf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +37,12 @@ export async function GET(request, { params }) {
   if (!canUseAnnouncementTemplate(user, template)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // A DOCX template must never silently fall back to the legacy HTML renderer.
+  // Returning a visible configuration error is safer than producing a PDF that
+  // looks unrelated to the Word template.
+  if (template.engine === "docx-template" && !template.docxObjectKey) {
+    return NextResponse.json({ error: "תבנית Word מוגדרת ללא קובץ Word פעיל" }, { status: 409 });
+  }
 
   try {
     const pdf = await renderAnnouncementPdf({ announcement, template });
@@ -48,7 +54,10 @@ export async function GET(request, { params }) {
         "content-disposition": `${download ? "attachment" : "inline"}; filename="${fileName(announcement.title)}.pdf"`,
         "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         pragma: "no-cache",
-        expires: "0"
+        expires: "0",
+        "x-announcement-pdf-source": template.docxObjectKey ? "docx" : "html",
+        "x-announcement-pdf-renderer": getAnnouncementPdfRenderer(template),
+        "x-announcement-template-key": template.templateKey || template.id || ""
       }
     });
   } catch (error) {
