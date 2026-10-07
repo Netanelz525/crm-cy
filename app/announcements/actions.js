@@ -321,6 +321,8 @@ function legacyGoogleDocsMetadata({ template, values, outputMode }) {
   const parameters = fieldValuesByTemplateId(template, values);
   return {
     enabled: outputMode === "email",
+    route: "legacy-google-docs",
+    engine: "google-docs",
     templateKey: clean(template?.templateKey),
     templateId: clean(template?.id),
     googleDocsUrl: clean(template?.googleDocsUrl),
@@ -659,7 +661,7 @@ export async function createQueuedAnnouncementAction(formData) {
           googleDocsId: template.googleDocsId,
           category: template.category,
           version: template.version,
-          engine: template.engine,
+          engine: outputMode === "email" ? "google-docs" : template.engine,
           allowedRoles: template.allowedRoles
         },
         fields: values,
@@ -803,7 +805,7 @@ export async function updateQueuedAnnouncementAction(formData) {
             googleDocsId: template.googleDocsId,
             category: template.category,
             version: template.version,
-            engine: template.engine,
+            engine: outputMode === "email" ? "google-docs" : template.engine,
             allowedRoles: template.allowedRoles
           },
           fields: values,
