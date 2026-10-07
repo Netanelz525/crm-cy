@@ -317,6 +317,19 @@ function fieldValuesByTemplateId(template, values) {
   return result;
 }
 
+function legacyGoogleDocsMetadata({ template, values, outputMode }) {
+  const parameters = fieldValuesByTemplateId(template, values);
+  return {
+    enabled: outputMode === "email",
+    templateKey: clean(template?.templateKey),
+    templateId: clean(template?.id),
+    googleDocsUrl: clean(template?.googleDocsUrl),
+    googleDocsId: clean(template?.googleDocsId),
+    parameters,
+    fields: values
+  };
+}
+
 async function uploadTemplateBlank(file, templateId) {
   if (!file || typeof file.arrayBuffer !== "function" || !clean(file.name)) {
     return { key: "", contentType: "" };
@@ -650,6 +663,7 @@ export async function createQueuedAnnouncementAction(formData) {
           allowedRoles: template.allowedRoles
         },
         fields: values,
+        legacyGoogleDocs: legacyGoogleDocsMetadata({ template, values, outputMode }),
         fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
         fieldDefinitions: templateFieldDefinitions(template),
         user: printJobUserMetadata(user)
@@ -793,6 +807,7 @@ export async function updateQueuedAnnouncementAction(formData) {
             allowedRoles: template.allowedRoles
           },
           fields: values,
+          legacyGoogleDocs: legacyGoogleDocsMetadata({ template, values, outputMode }),
           fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
           fieldDefinitions: templateFieldDefinitions(template),
           user: printJobUserMetadata(user)
