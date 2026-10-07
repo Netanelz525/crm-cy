@@ -35,7 +35,6 @@
     "puppeteer-core": "^24.40.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "reamkit": "^1.33.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
