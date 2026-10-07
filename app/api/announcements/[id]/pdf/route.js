@@ -39,8 +39,10 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const pdf = await renderAnnouncementPdf({ announcement, template });
-    const download = new URL(request.url).searchParams.get("download") === "1";
+    const searchParams = new URL(request.url).searchParams;
+    const engine = searchParams.get("engine") === "officetopdf" ? "officetopdf" : "preview";
+    const pdf = await renderAnnouncementPdf({ announcement, template, engine });
+    const download = searchParams.get("download") === "1";
     return new NextResponse(pdf, {
       status: 200,
       headers: {
