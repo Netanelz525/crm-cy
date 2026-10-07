@@ -3,18 +3,67 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementSignature, createAnnouncementTemplate, getAnnouncementById, getAnnouncementSignatureById, getAnnouncementTemplateById, markAnnouncementPrintQueued, updateAnnouncement, updateAnnouncementTemplate, updateAnnouncementTemplateDocx, updateAnnouncementTemplateSettings } from "../../lib/announcements";
-import { renderAnnouncementPdf } from "../../lib/announcement-pdf";
+import { renderAnnouncementDocx, renderAnnouncementPdf } from "../../lib/announcement-pdf";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
 import { DOCX_CONTENT_TYPE, MAX_DOCX_TEMPLATE_BYTES, normalizeDocxTemplate } from "../../lib/docx-template";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import { isR2Configured, uploadBufferToR2 } from "../../lib/r2";
+import { buildResendFromAddress, sendResendEmail } from "../../lib/resend";
 
 const DEFAULT_IMAGE_FIELD_WIDTH = 180;
 const DEFAULT_IMAGE_FIELD_HEIGHT = 70;
 const MAX_ANNOUNCEMENT_IMAGE_BYTES = 2 * 1024 * 1024;
+const BOOKLET_PRINTER_CONVERT_URL = "https://unifi.kfilter.net/booklet-printer/api/convert/pdf";
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+async function convertAnnouncementDocxToPdf(docxBuffer, fileName) {
+  const apiKey = clean(process.env.BOOKLET_PRINTER_API_KEY);
+  if (!apiKey) throw new Error("חסר BOOKLET_PRINTER_API_KEY. יש להגדיר את מפתח שירות ההמרה ב־Vercel.");
+
+  const form = new FormData();
+  form.append("file", new Blob([docxBuffer], { type: DOCX_CONTENT_TYPE }), fileName);
+  const response = await fetch(clean(process.env.BOOKLET_PRINTER_CONVERT_URL) || BOOKLET_PRINTER_CONVERT_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+    cache: "no-store"
+  });
+  if (!response.ok) {
+    const message = clean(await response.text().catch(() => ""));
+    throw new Error(`שירות המרת Word נכשל (${response.status})${message ? `: ${message.slice(0, 240)}` : ""}`);
+  }
+  const pdf = Buffer.from(await response.arrayBuffer());
+  if (pdf.length < 5 || pdf.subarray(0, 5).toString() !== "%PDF-") {
+    const message = clean(pdf.toString("utf8"));
+    throw new Error(`שירות ההמרה לא החזיר PDF תקין${message ? `: ${message.slice(0, 240)}` : ""}`);
+  }
+  return pdf;
+}
+
+async function sendAnnouncementEmail({ announcement, template, user }) {
+  const docxFileName = `${sanitizeFileRecordName(announcement.title) || "announcement"}.docx`;
+  const pdfFileName = `${sanitizeFileRecordName(announcement.title) || "announcement"}.pdf`;
+  const docx = await renderAnnouncementDocx({ announcement, template });
+  const pdf = await convertAnnouncementDocxToPdf(docx, docxFileName);
+  const subject = announcement.title || "מסמך חדש";
+  const text = `מצורפים קובץ Word וקובץ PDF עבור: ${subject}`;
+  const html = `<div dir="rtl" lang="he" style="font-family:Arial,sans-serif;line-height:1.7"><h2>${escapeHtml(subject)}</h2><p>מצורפים קובץ Word וקובץ PDF שנוצר מקובץ ה־Word באמצעות שירות ההמרה.</p></div>`;
+
+  return sendResendEmail({
+    to: clean(user?.email),
+    from: buildResendFromAddress("מערכת המודעות"),
+    subject,
+    text,
+    html,
+    attachments: [
+      { filename: docxFileName, content: docx.toString("base64") },
+      { filename: pdfFileName, content: pdf.toString("base64") }
+    ],
+    idempotencyKey: `announcement-files-${announcement.id}`
+  });
 }
 
 function escapeHtml(value) {
@@ -636,6 +685,16 @@ export async function createQueuedAnnouncementAction(formData) {
     redirect(`/api/announcements/${announcement.id}/pdf?download=1`);
   }
 
+  if (outputMode === "email") {
+    try {
+      await sendAnnouncementEmail({ announcement, template, user });
+    } catch (error) {
+      redirect(`/announcements/${announcement.id}?created=1&error=${encodeURIComponent(clean(error?.message) || "שליחת הקבצים במייל נכשלה")}`);
+    }
+    revalidatePath("/announcements");
+    redirect("/announcements?created=1&emailed=1");
+  }
+
   try {
     const pdf = await renderAnnouncementPdf({ announcement, template });
     const printJob = await createPrintJobFromBuffer({
@@ -781,47 +840,52 @@ export async function updateQueuedAnnouncementAction(formData) {
     });
 
     if (shouldQueue) {
-      const pdf = await renderAnnouncementPdf({ announcement: updatedAnnouncement, template });
-      const printJob = await createPrintJobFromBuffer({
-        buffer: pdf,
-        fileName: `${title}.pdf`,
-        contentType: "application/pdf",
-        outputMode,
-        sourceType: "announcement",
-        sourceId: updatedAnnouncement.id,
-        sourceMetadata: {
-          announcement: {
-            id: updatedAnnouncement.id,
-            title: updatedAnnouncement.title,
-            date: updatedAnnouncement.announcementDate,
-            bodyText: updatedAnnouncement.bodyText
+      if (outputMode === "email") {
+        await sendAnnouncementEmail({ announcement: updatedAnnouncement, template, user });
+        redirectSuffix = "updated=1&emailed=1";
+      } else {
+        const pdf = await renderAnnouncementPdf({ announcement: updatedAnnouncement, template });
+        const printJob = await createPrintJobFromBuffer({
+          buffer: pdf,
+          fileName: `${title}.pdf`,
+          contentType: "application/pdf",
+          outputMode,
+          sourceType: "announcement",
+          sourceId: updatedAnnouncement.id,
+          sourceMetadata: {
+            announcement: {
+              id: updatedAnnouncement.id,
+              title: updatedAnnouncement.title,
+              date: updatedAnnouncement.announcementDate,
+              bodyText: updatedAnnouncement.bodyText
+            },
+            template: {
+              id: template.id,
+              templateKey: template.templateKey,
+              name: template.name,
+              generatorName: template.generatorName,
+              googleDocsUrl: template.googleDocsUrl,
+              googleDocsId: template.googleDocsId,
+              category: template.category,
+              version: template.version,
+              engine: outputMode === "email" ? "google-docs" : template.engine,
+              allowedRoles: template.allowedRoles
+            },
+            fields: values,
+            legacyGoogleDocs: legacyGoogleDocsMetadata({ template, values, outputMode }),
+            fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
+            fieldDefinitions: templateFieldDefinitions(template),
+            user: printJobUserMetadata(user)
           },
-          template: {
-            id: template.id,
-            templateKey: template.templateKey,
-            name: template.name,
-            generatorName: template.generatorName,
-            googleDocsUrl: template.googleDocsUrl,
-            googleDocsId: template.googleDocsId,
-            category: template.category,
-            version: template.version,
-            engine: outputMode === "email" ? "google-docs" : template.engine,
-            allowedRoles: template.allowedRoles
-          },
-          fields: values,
-          legacyGoogleDocs: legacyGoogleDocsMetadata({ template, values, outputMode }),
-          fieldValuesByTemplateId: fieldValuesByTemplateId(template, values),
-          fieldDefinitions: templateFieldDefinitions(template),
-          user: printJobUserMetadata(user)
-        },
-        copies,
-        printPlan,
-        uploadedByUserId: user.clerk_user_id,
-        user
-      });
+          copies,
+          printPlan,
+          uploadedByUserId: user.clerk_user_id,
+          user
+        });
 
-      await markAnnouncementPrintQueued(updatedAnnouncement.id, printJob.id);
-      redirectSuffix = `updated=1&queued=${outputMode}`;
+        await markAnnouncementPrintQueued(updatedAnnouncement.id, printJob.id);
+        redirectSuffix = `updated=1&queued=${outputMode}`;
+      }
     }
   } catch (error) {
     redirect(`${redirectTarget}?error=${encodeURIComponent(clean(error?.message) || "עדכון המודעה נכשל")}`);
