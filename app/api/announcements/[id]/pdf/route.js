@@ -42,6 +42,17 @@ export async function GET(request, { params }) {
     const searchParams = new URL(request.url).searchParams;
     const engine = searchParams.get("engine") === "officetopdf" ? "officetopdf" : "preview";
     const pdf = await renderAnnouncementPdf({ announcement, template, engine });
+    if (engine === "officetopdf" && searchParams.get("probe") === "1") {
+      const pdfText = Buffer.from(pdf).toString("latin1");
+      const pageCount = (pdfText.match(/\/Type\s*\/Page(?!s)/g) || []).length;
+      return NextResponse.json({
+        ok: true,
+        engine,
+        bytes: pdf.byteLength,
+        header: pdfText.slice(0, 8),
+        pageCount
+      }, { headers: { "cache-control": "no-store" } });
+    }
     const download = searchParams.get("download") === "1";
     return new NextResponse(pdf, {
       status: 200,
