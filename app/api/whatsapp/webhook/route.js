@@ -450,16 +450,32 @@ async function sendWhatsAppDocumentPrintPlans(waId, result, user = null, { color
       description: "חיפוש תלמיד ושיוך המסמך"
     });
   }
-  await sendWhatsAppListMessage(waId, {
-    bodyText: colorOnly
-      ? "בחר תוכנית הדפסה בצבע. מיד לאחר הבחירה יישלח עותק אחד."
-      : "בחר תוכנית הדפסה. מיד לאחר הבחירה יישלח עותק אחד, ואז תוכל לבחור אם להוסיף עוד עותקים.",
-    buttonText: colorOnly ? "תוכניות צבע" : "תוכנית הדפסה",
-    sections: [{
-      title: colorOnly ? "הדפסה בצבע" : "שחור לבן והמרה",
-      rows
-    }]
-  });
+  try {
+    await sendWhatsAppListMessage(waId, {
+      bodyText: colorOnly
+        ? "בחר תוכנית הדפסה בצבע. מיד לאחר הבחירה יישלח עותק אחד."
+        : "בחר תוכנית הדפסה. מיד לאחר הבחירה יישלח עותק אחד, ואז תוכל לבחור אם להוסיף עוד עותקים.",
+      buttonText: colorOnly ? "תוכניות צבע" : "תוכנית הדפסה",
+      sections: [{
+        title: colorOnly ? "הדפסה בצבע" : "שחור לבן והמרה",
+        rows
+      }]
+    });
+  } catch (error) {
+    // Keep the document workflow usable if Meta rejects an interactive list.
+    // The stored document remains available and the user can continue from the print screen.
+    console.error("WhatsApp document print menu failed:", error?.message || error);
+    const printUrl = toAbsoluteUrl("/print");
+    await sendWhatsAppTextMessages(
+      waId,
+      [
+        "המסמך נשמר בהצלחה, אבל תפריט הבחירה של WhatsApp לא נפתח.",
+        "אפשר להמשיך במסלול ההדפסה דרך הקישור:",
+        printUrl || "/print",
+        "שם ניתן לבחור המרה ל-PDF, סוג הדפסה ומספר עותקים."
+      ].join("\n")
+    );
+  }
   return true;
 }
 
@@ -1702,7 +1718,7 @@ export async function POST(request) {
     }
 
     if (!text) {
-      const responseText = "כרגע אפשר לשלוח ב-WhatsApp טקסט, תמונות ומסמכי PDF.";
+      const responseText = "כרגע אפשר לשלוח ב-WhatsApp טקסט, תמונות, PDF ומסמכי Word.";
       await sendWhatsAppTextMessages(waId, responseText);
       await updateWhatsAppInboundEvent(inboundEvent.id, {
         processingStatus: "unsupported_message",
