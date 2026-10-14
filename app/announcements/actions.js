@@ -37,7 +37,9 @@ async function sendAnnouncementEmail({ announcement, template, user }) {
       { filename: docxFileName, content: docx.toString("base64") },
       { filename: pdfFileName, content: pdf.toString("base64") }
     ],
-    idempotencyKey: `announcement-files-${announcement.id}`
+    // Each explicit send is a new delivery. Reusing the announcement id here
+    // makes Resend reject edited content as a mismatched idempotent request.
+    idempotencyKey: `announcement-files-${announcement.id}-${crypto.randomUUID()}`
   });
 }
 
