@@ -39,7 +39,7 @@ function statusLabel(status) {
     case "completed":
       return "הושלם ונשמר לרישום";
     case "failed":
-      return "נכשל";
+      return "נכשל — הקובץ נמחק, יש להעלות מחדש";
     case "claimed":
       return "נאסף על ידי שרת מקומי";
     case "pending":
