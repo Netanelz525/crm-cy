@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { runMonthlyEmailErrorReportJob } from "../../lib/monthly-email-error-report.js";
 import { createApiToken, revokeApiToken } from "../../lib/api-tokens";
 import { runStudentEventReminderJob } from "../../lib/event-reminders";
 import {
@@ -199,18 +201,24 @@ export async function unlinkUserWhatsAppAction(targetUserId) {
 export async function runSystemAutomationAction(formData) {
   await requireSuperAdmin();
   const jobName = clean(formData.get("jobName"));
+  let status = "completed";
 
   try {
     if (jobName === "weekly_backup_delivery") {
       await runWeeklyBackupJob({ force: true });
     } else if (jobName === "student-event-reminders") {
       await runStudentEventReminderJob({ force: true });
+    } else if (jobName === "monthly-email-error-report") {
+      const result = await runMonthlyEmailErrorReportJob({ force: true });
+      if (!result.ok) status = "failed";
     } else {
       throw new Error("התהליך המבוקש לא נמצא.");
     }
   } catch (error) {
+    status = "failed";
     console.error("Manual automation run failed:", error?.message || error);
   }
 
   revalidatePath("/admin/automations");
+  redirect(`/admin/automations?runStatus=${status}`);
 }
