@@ -65,7 +65,7 @@ export default async function EmailConfirmPage({ searchParams }) {
   const subject = clean(draft?.subject);
   const bodyHtml = clean(draft?.bodyHtml);
   const bodyText = clean(draft?.bodyText);
-  const includeGreeting = draft?.includeGreeting !== false;
+  const includeGreeting = draft?.includeGreeting === true;
   const savedAttachments = Array.isArray(draft?.attachments) ? draft.attachments : [];
   const error = clean(resolvedSearchParams?.error);
   const resendStatus = getResendConfigStatus();

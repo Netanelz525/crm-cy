@@ -96,7 +96,7 @@ export default function EmailComposerClient({
   initialHtml,
   initialSenderName,
   initialReplyTo,
-  initialIncludeGreeting = true,
+  initialIncludeGreeting = false,
   senderNameEditable,
   resendConfigured
 }) {

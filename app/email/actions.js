@@ -97,7 +97,7 @@ export async function createEmailCampaignConfirmAction(formData) {
     replyTo: clean(formData.get("replyTo")),
     bodyHtml: clean(formData.get("contentHtml")) || clean(formData.get("bodyHtml")),
     bodyText: clean(formData.get("bodyText")),
-    includeGreeting: clean(formData.get("includeGreeting")) !== "0",
+    includeGreeting: clean(formData.get("includeGreeting")) === "1",
     selectedStudentIds: formData.getAll("studentIds").map(clean).filter(Boolean),
     attachments: preservedAttachments
   };

@@ -125,7 +125,7 @@ export default async function EmailPage({ searchParams }) {
 
   const subject = clean(draft?.subject || resolvedSearchParams?.subject) || "עדכון חשוב ממערכת התלמידים";
   const initialHtml = clean(draft?.bodyHtml || resolvedSearchParams?.contentHtml || resolvedSearchParams?.bodyHtml) || "<p>שלום,</p><p>רצינו לעדכן אותך בנושא חשוב.</p><p>בברכה,<br>משרד הישיבה</p>";
-  const includeGreeting = draft ? draft.includeGreeting !== false : clean(resolvedSearchParams?.includeGreeting) !== "0";
+  const includeGreeting = draft ? draft.includeGreeting === true : clean(resolvedSearchParams?.includeGreeting) === "1";
   const sent = clean(resolvedSearchParams?.sent);
   const failed = clean(resolvedSearchParams?.failed);
   const skipped = clean(resolvedSearchParams?.skipped);
