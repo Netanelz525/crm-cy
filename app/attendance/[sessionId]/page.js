@@ -9,6 +9,7 @@ import {
   saveAttendanceSessionInvitationAction,
   saveAttendanceSessionStatusesAction,
   saveAttendanceSessionMessagingAction,
+  saveAttendanceSessionWhatsAppConfigAction,
   saveAttendanceSessionStudentsAction,
   setAttendanceSessionManualStudentAction,
   sendAttendanceSessionEmailsAction,
@@ -204,6 +205,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {mailError ? <div className="error">{mailError}</div> : null}
       {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
       {quickEmailError ? <div className="error">{quickEmailError}</div> : null}
+      {clean(resolvedSearchParams?.whatsappTemplateSaved) === "1" ? <div className="ok">תבנית WhatsApp קבועה נשמרה למפגש.</div> : null}
       {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
       {whatsappTemplateError ? <div className="error">{whatsappTemplateError}</div> : null}
       {invitationSaved ? <div className="ok">הגדרות ההזמנה נשמרו.</div> : null}
@@ -306,7 +308,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </details>
       ) : null}
 
-      <details className="card attendance-message-panel" open={whatsappTemplateSent || Boolean(whatsappTemplateError)}>
+      <details className="card attendance-message-panel" open={whatsappTemplateSent || Boolean(whatsappTemplateError) || clean(resolvedSearchParams?.whatsappTemplateSaved) === "1"}>
         <summary className="attendance-message-summary">
           <div>
             <h3>שליחה נפרדת ב־WhatsApp</h3>
@@ -321,6 +323,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           templates={attendanceStatusTemplates}
           saveAction={saveAttendanceSessionMessagingAction}
           emailAction={sendAttendanceSessionEmailsAction}
+          whatsappSaveAction={saveAttendanceSessionWhatsAppConfigAction}
           whatsappAction={sendAttendanceSessionWhatsAppApprovedTemplateAction}
           whatsappOnly
         />

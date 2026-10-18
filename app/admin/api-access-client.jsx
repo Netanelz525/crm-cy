@@ -381,6 +381,17 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           </FoldItem>
         </DocBlock>
 
+        <DocBlock title="WhatsApp למפגש">
+          <p>תבנית קבועה, תוכן אישי ומיפוי כפתורים לסטטוס נוכחות נשמרים בנפרד מהמייל.</p>
+          <code>{`${activeBaseUrl}/api/attendance/sessions/{sessionId}/whatsapp`}</code>
+          <p>GET מחזיר את התבנית השמורה (attendance:read). PATCH שומר הגדרות. POST שולח לפי ההגדרות השמורות (attendance:write).</p>
+          <p>כל הבקשות משתמשות בכותרת Authorization: Bearer. השליחה מתבצעת רק בקריאת POST מפורשת.</p>
+          <pre className="token-box">{JSON.stringify({ templateName: "attendance_status_update_v1", templateLanguage: "he", parameterOverrides: { "3": "נשמח לעדכון נוכחות" }, responseStatuses: ["found", "missing"], recipientRoles: ["student"], targetStatuses: ["missing"], imageId: "" }, null, 2)}</pre>
+          <p>responseStatuses מסודרים לפי סדר כפתורי התגובה בתבנית המאושרת. נדרש סטטוס שונה ותקין לכל כפתור. תבנית ללא כפתורים משתמשת ברשימה ריקה.</p>
+          <p>POST מקבל אובייקט ריק לשליחה לכל הנמענים שהוגדרו, או studentId לשליחה לתלמיד מסוים. אפשר לשנות recipientRoles ו־targetStatuses לשליחה בודדת בלי לשנות את התבנית. targetStatuses ריק פירושו כל הסטטוסים.</p>
+          <p>התשובה כוללת sentMessages, failedMessages, missingRecipients ו־errors. לחיצה על כפתור מעדכנת רק את התלמיד והמפגש המקושרים להודעה, לאחר אימות מספר השולח.</p>
+        </DocBlock>
+
         <DocBlock title="Query Params">
           <FoldItem title="q" subtitle="חיפוש משוער">
             <div className="api-param-list"><div>חיפוש משוער בשם פרטי/משפחה עם score.</div></div>

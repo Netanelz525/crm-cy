@@ -20,13 +20,15 @@ export default function AttendanceMessageComposer({
   saveAction,
   emailAction,
   whatsappAction,
+  whatsappSaveAction,
   whatsappOnly = false
 }) {
   const [channel, setChannel] = useState(whatsappOnly ? "whatsapp" : "email");
-  const [templateName, setTemplateName] = useState(templates?.[0]?.name || "");
-  const selectedTemplate = templates?.find((item) => item.name === templateName);
-  const [templateValues, setTemplateValues] = useState({});
-  const [responseStatusValues, setResponseStatusValues] = useState([]);
+  const savedWhatsApp = session?.whatsappMessageConfig;
+  const [templateName, setTemplateName] = useState(savedWhatsApp?.templateName ? `${savedWhatsApp.templateName}:${savedWhatsApp.templateLanguage}` : templates?.[0] ? `${templates[0].name}:${templates[0].language}` : "");
+  const selectedTemplate = templates?.find((item) => `${item.name}:${item.language}` === templateName);
+  const [templateValues, setTemplateValues] = useState(savedWhatsApp?.parameterOverrides || {});
+  const [responseStatusValues, setResponseStatusValues] = useState(savedWhatsApp?.responseStatuses || []);
   const defaultRecipients = session?.emailRecipientRoles?.length ? session.emailRecipientRoles : ["father", "mother", "student"];
 
   useEffect(() => {
@@ -35,7 +37,11 @@ export default function AttendanceMessageComposer({
       Array.from({ length: count }, (_, index) => [String(index + 1), current[String(index + 1)] || ""])
     ));
   }, [selectedTemplate?.name, selectedTemplate?.parameterCount]);
-  useEffect(() => setResponseStatusValues([]), [selectedTemplate?.name]);
+  useEffect(() => {
+    const isSaved = selectedTemplate?.name === savedWhatsApp?.templateName && selectedTemplate?.language === savedWhatsApp?.templateLanguage;
+    setResponseStatusValues(isSaved ? savedWhatsApp.responseStatuses || [] : []);
+    setTemplateValues(isSaved ? savedWhatsApp.parameterOverrides || {} : {});
+  }, [selectedTemplate?.name, selectedTemplate?.language, savedWhatsApp]);
   return (
     <form className="grid attendance-message-grid" encType="multipart/form-data">
       <input type="hidden" name="sessionId" value={sessionId} />
@@ -65,8 +71,10 @@ export default function AttendanceMessageComposer({
         </>
       ) : (
         <>
-          <label style={{ gridColumn: "1 / -1" }}><span className="muted">תבנית WhatsApp מאושרת של בוט התפוצה (Dualhook)</span><select name="whatsappTemplateName" value={templateName} onChange={(event) => setTemplateName(event.target.value)} required><option value="">בחר תבנית</option>{(templates || []).map((template) => <option key={`${template.name}:${template.language}`} value={template.name}>{template.name} ({template.language})</option>)}</select></label>
+          <label style={{ gridColumn: "1 / -1" }}><span className="muted">תבנית WhatsApp מאושרת של בוט התפוצה (Dualhook)</span><select aria-label="תבנית WhatsApp קבועה" value={templateName} onChange={(event) => setTemplateName(event.target.value)} required><option value="">בחר תבנית</option>{(templates || []).map((template) => <option key={`${template.name}:${template.language}`} value={`${template.name}:${template.language}`}>{template.name} ({template.language})</option>)}</select></label>
+          {savedWhatsApp && !selectedTemplate ? <div className="error">התבנית השמורה אינה זמינה. יש לבחור תבנית מאושרת מחדש.</div> : null}
           {!templates?.length ? <div className="error" style={{ gridColumn: "1 / -1" }}>לא נמצאו תבניות מאושרות של בוט התפוצה ב־Dualhook. ודא שהן מאושרות ושחיבור Dualhook מוגדר.</div> : null}
+          <p className="muted" style={{ gridColumn: "1 / -1" }}>שומרים כאן תבנית מאושרת לשימוש חוזר במפגש. <a href="/admin/whatsapp-templates/new">יצירת תבנית WhatsApp חדשה לאישור</a></p>
           {selectedTemplate ? <WhatsAppTemplatePreview template={selectedTemplate} values={templateValues} responseStatusLabels={responseStatusValues.map((value) => statusOptions.find(([candidate]) => candidate === value)?.[1]).filter(Boolean)} /> : null}
           {selectedTemplate?.parameterCount ? (
             <div className="whatsapp-template-inputs">
@@ -91,16 +99,18 @@ export default function AttendanceMessageComposer({
           {selectedTemplate?.headerFormat === "IMAGE" ? (
             <label style={{ gridColumn: "1 / -1" }}>
               <span className="muted">תמונה לצירוף לתבנית</span>
-              <input type="file" name="whatsappTemplateImage" accept="image/jpeg,image/png" required />
+              <input type="file" name="whatsappTemplateImage" accept="image/jpeg,image/png" />
               <small className="muted">התבנית מאושרת לקבלת תמונת JPG או PNG עד 5MB.</small>
             </label>
           ) : null}
+          {selectedTemplate?.requiresMedia ? <label style={{ gridColumn: "1 / -1" }}>מזהה קובץ WhatsApp<input name="whatsappImageId" defaultValue={savedWhatsApp?.imageId || ""} /></label> : null}
+          <input type="hidden" name="whatsappTemplateName" value={selectedTemplate?.name || ""} />
           <input type="hidden" name="whatsappTemplateLanguage" value={selectedTemplate?.language || "he"} />
-          <RecipientRoles defaultValues={defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
-          <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" />
+          <RecipientRoles defaultValues={savedWhatsApp?.recipientRoles || defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
+          <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" defaultValues={savedWhatsApp?.targetStatuses} />
           {selectedTemplate?.buttonLabels?.length ? <ResponseStatuses statusOptions={statusOptions} buttonLabels={selectedTemplate.buttonLabels} selectedValues={responseStatusValues} onChange={setResponseStatusValues} /> : <div className="muted" style={{ gridColumn: "1 / -1" }}>לתבנית הזו אין כפתורי תגובה.</div>}
           <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">השליחה מתבצעת דרך בוט התפוצה של Dualhook בלבד. הבוט התפעולי הוא מסלול נפרד; הטקסט והמשתנים נקבעים לפי תבנית WhatsApp שאושרה.</div>
-          <div className="quick-actions"><SubmitButton formAction={whatsappAction} primary>שלח WhatsApp לפי התבנית</SubmitButton></div>
+          <div className="quick-actions">{whatsappSaveAction ? <SubmitButton formAction={whatsappSaveAction}>שמור תבנית קבועה למפגש</SubmitButton> : null}<SubmitButton formAction={whatsappAction} primary>שלח WhatsApp לפי התבנית</SubmitButton></div>
         </>
       )}
     </form>
@@ -129,7 +139,7 @@ function WhatsAppTemplatePreview({ template, values = {}, responseStatusLabels =
   const headerText = headerFormat === "TEXT" ? header?.text : headerFormat ? `כותרת ${mediaLabels[headerFormat] || headerFormat.toLowerCase()}` : "";
   const buttonLabels = Array.isArray(buttons?.buttons)
     ? buttons.buttons.map((button) => button?.text || button?.type).filter(Boolean)
-    : [];
+    : template.buttonLabels || [];
 
   return (
     <section className="whatsapp-template-preview" aria-label="תצוגה מקדימה של תבנית WhatsApp">
@@ -175,19 +185,26 @@ function RecipientRoles({ defaultValues, name, whatsappOnly = false }) {
   return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>למי שולחים</b><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{roles.map(([value, label]) => <label key={`${name}-${value}`} className="attendance-filter-chip"><input type="checkbox" name={name} value={value} defaultChecked={defaultValues.includes(value)} />{label}</label>)}</div></div>;
 }
 
-function TargetStatuses({ statusOptions, name = "targetStatuses" }) {
-  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>שלח לסטטוסים</b><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`${name}-${value}`} className="attendance-filter-chip"><input type="checkbox" name={name} value={value} defaultChecked={value === "missing"} />{label}</label>)}</div></div>;
+function TargetStatuses({ statusOptions, name = "targetStatuses", defaultValues = ["missing"] }) {
+  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>שלח לסטטוסים</b><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`${name}-${value}`} className="attendance-filter-chip"><input type="checkbox" name={name} value={value} defaultChecked={defaultValues.includes(value)} />{label}</label>)}</div></div>;
 }
 
 function ResponseStatuses({ statusOptions, buttonLabels = [], selectedValues = [], onChange }) {
-  const limit = buttonLabels.length;
-  const toggle = (value) => {
-    const next = selectedValues.includes(value)
-      ? selectedValues.filter((item) => item !== value)
-      : selectedValues.length < limit ? [...selectedValues, value] : selectedValues;
-    onChange(next);
-  };
-  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>סטטוסים לעדכון באמצעות כפתורים</b><span className="muted">יש לבחור {limit} {limit === 1 ? "סטטוס" : "סטטוסים"}. אי אפשר לבחור יותר ממספר הכפתורים בתבנית.</span><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`whatsapp-response-${value}`} className={`attendance-filter-chip${selectedValues.includes(value) ? " active" : ""}`}><input type="checkbox" name="whatsappResponseStatuses" value={value} checked={selectedValues.includes(value)} onChange={() => toggle(value)} disabled={!selectedValues.includes(value) && selectedValues.length >= limit} />{label}</label>)}</div><div className="whatsapp-template-button-map">{buttonLabels.map((label, index) => <span key={`${label}-${index}`}>כפתור {index + 1}: {selectedValues[index] ? statusOptions.find(([value]) => value === selectedValues[index])?.[1] : "לא נבחר"} · {label}</span>)}</div></div>;
+  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+    <b>סטטוס הנוכחות שיעודכן מכל כפתור</b>
+    <span className="muted">לחיצה של הנמען תעדכן את התלמיד במפגש הזה לסטטוס שנבחר עבור הכפתור.</span>
+    {buttonLabels.map((label, index) => <label key={`${label}-${index}`}>
+      כפתור {index + 1}: {label}
+      <select name="whatsappResponseStatuses" value={selectedValues[index] || ""} required onChange={(event) => {
+        const next = Array.from({ length: buttonLabels.length }, (_, i) => selectedValues[i] || "");
+        next[index] = event.target.value;
+        onChange(next);
+      }}>
+        <option value="">בחר סטטוס</option>
+        {statusOptions.map(([value, title]) => <option key={value} value={value} disabled={selectedValues.some((selected, i) => i !== index && selected === value)}>{title}</option>)}
+      </select>
+    </label>)}
+  </div>;
 }
 
 function defaultParameterDefinitions(template) {
