@@ -397,6 +397,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
           if (
             clean(current.status) !== clean(incoming.status)
             || clean(current.noteText) !== clean(incoming.noteText)
+            || JSON.stringify(current.whatsappReplies || []) !== JSON.stringify(incoming.whatsappReplies || [])
           ) {
             changedRows.push({ previous: current, next: incoming });
           }
@@ -541,6 +542,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                   </td>
                   <td className="attendance-note-cell">
                     {student.firstResponseText ? <div className="attendance-first-response"><strong>תגובה ראשונית ב-WhatsApp:</strong> {student.firstResponseText}</div> : null}
+                    <WhatsAppReplyHistory replies={student.whatsappReplies} />
                     {student.noteText || ""}
                   </td>
                   {canSendEmails ? <td /> : null}
@@ -589,6 +591,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                   </td>
                   <td className="attendance-note-cell">
                     {student.firstResponseText ? <div className="attendance-first-response"><strong>תגובה ראשונית ב-WhatsApp:</strong> {student.firstResponseText}</div> : null}
+                    <WhatsAppReplyHistory replies={student.whatsappReplies} />
                     <input
                       value={student.noteText || ""}
                       onChange={(event) => handleNoteChange(student.id, event.target.value)}
@@ -646,4 +649,18 @@ function ContactLine({ label, phoneObj }) {
       </div>
     </div>
   );
+}
+
+
+function WhatsAppReplyHistory({ replies = [] }) {
+  if (!replies.length) return null;
+  return <details className="attendance-first-response">
+    <summary>תגובות WhatsApp ({replies.length} אחרונות)</summary>
+    <ul style={{ margin: "8px 0", paddingInlineStart: 20 }}>
+      {replies.map((reply, index) => <li key={`${reply.received_at}-${index}`} style={{ marginBottom: 8 }}>
+        <small className="muted">{new Date(reply.received_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })} · {reply.response_status ? "כפתור" : "טקסט"}</small>
+        <div style={{ whiteSpace: "pre-wrap" }}>{reply.response_text}</div>
+      </li>)}
+    </ul>
+  </details>;
 }

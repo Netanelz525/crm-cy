@@ -35,7 +35,9 @@ export default function AttendanceMessageComposer({
       Array.from({ length: count }, (_, index) => [String(index + 1), current[String(index + 1)] || ""])
     ));
   }, [selectedTemplate?.name, selectedTemplate?.parameterCount]);
-  useEffect(() => setResponseStatusValues([]), [selectedTemplate?.name]);
+  useEffect(() => {
+    setResponseStatusValues((selectedTemplate?.buttonLabels || []).map((label, index) => statusOptions.find(([, statusLabel]) => statusLabel === label)?.[0] || ""));
+  }, [selectedTemplate?.name]);
   return (
     <form className="grid attendance-message-grid" encType="multipart/form-data">
       <input type="hidden" name="sessionId" value={sessionId} />
@@ -99,7 +101,7 @@ export default function AttendanceMessageComposer({
           <RecipientRoles defaultValues={defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
           <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" />
           {selectedTemplate?.buttonLabels?.length ? <ResponseStatuses statusOptions={statusOptions} buttonLabels={selectedTemplate.buttonLabels} selectedValues={responseStatusValues} onChange={setResponseStatusValues} /> : <div className="muted" style={{ gridColumn: "1 / -1" }}>לתבנית הזו אין כפתורי תגובה.</div>}
-          <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">השליחה מתבצעת דרך בוט התפוצה של Dualhook בלבד. הבוט התפעולי הוא מסלול נפרד; הטקסט והמשתנים נקבעים לפי תבנית WhatsApp שאושרה.</div>
+          <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">כל כפתור מקושר אוטומטית למפגש הזה ולנמען, גם בתבנית ללא משתנים. התגובות מתקבלות עד סוף יום המפגש לפי שעון ישראל, או עד נעילתו. לפתיחת יום חדש השתמש בכפתור ״פתח מפגש להיום״; הודעות ישנות לא יעברו למפגש החדש.</div>
           <div className="quick-actions"><SubmitButton formAction={whatsappAction} primary>שלח WhatsApp לפי התבנית</SubmitButton></div>
         </>
       )}
@@ -175,19 +177,25 @@ function RecipientRoles({ defaultValues, name, whatsappOnly = false }) {
   return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>למי שולחים</b><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{roles.map(([value, label]) => <label key={`${name}-${value}`} className="attendance-filter-chip"><input type="checkbox" name={name} value={value} defaultChecked={defaultValues.includes(value)} />{label}</label>)}</div></div>;
 }
 
-function TargetStatuses({ statusOptions, name = "targetStatuses" }) {
-  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>שלח לסטטוסים</b><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`${name}-${value}`} className="attendance-filter-chip"><input type="checkbox" name={name} value={value} defaultChecked={value === "missing"} />{label}</label>)}</div></div>;
+function TargetStatuses({ statusOptions, name = "targetStatuses", defaultValues = ["missing"] }) {
+  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>שלח לסטטוסים</b><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`${name}-${value}`} className="attendance-filter-chip"><input type="checkbox" name={name} value={value} defaultChecked={defaultValues.includes(value)} />{label}</label>)}</div></div>;
 }
 
 function ResponseStatuses({ statusOptions, buttonLabels = [], selectedValues = [], onChange }) {
-  const limit = buttonLabels.length;
-  const toggle = (value) => {
-    const next = selectedValues.includes(value)
-      ? selectedValues.filter((item) => item !== value)
-      : selectedValues.length < limit ? [...selectedValues, value] : selectedValues;
-    onChange(next);
-  };
-  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}><b>סטטוסים לעדכון באמצעות כפתורים</b><span className="muted">יש לבחור {limit} {limit === 1 ? "סטטוס" : "סטטוסים"}. אי אפשר לבחור יותר ממספר הכפתורים בתבנית.</span><div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`whatsapp-response-${value}`} className={`attendance-filter-chip${selectedValues.includes(value) ? " active" : ""}`}><input type="checkbox" name="whatsappResponseStatuses" value={value} checked={selectedValues.includes(value)} onChange={() => toggle(value)} disabled={!selectedValues.includes(value) && selectedValues.length >= limit} />{label}</label>)}</div><div className="whatsapp-template-button-map">{buttonLabels.map((label, index) => <span key={`${label}-${index}`}>כפתור {index + 1}: {selectedValues[index] ? statusOptions.find(([value]) => value === selectedValues[index])?.[1] : "לא נבחר"} · {label}</span>)}</div></div>;
+  return <div style={{ gridColumn: "1 / -1", display: "grid", gap: 10 }}>
+    <b>מה יעדכן כל כפתור במפגש הזה?</b>
+    <span className="muted">הכיתוב בתבנית לא משתנה. בחר את הסטטוס שיירשם בלחיצה על כל כפתור.</span>
+    {buttonLabels.map((label, index) => <label key={`${label}-${index}`}>
+      <span>כפתור {index + 1}: {label}</span>
+      <select name="whatsappResponseStatuses" required value={selectedValues[index] || ""} onChange={(event) => {
+        const next = buttonLabels.map((_, i) => i === index ? event.target.value : selectedValues[i] || "");
+        onChange(next);
+      }}>
+        <option value="">בחר סטטוס</option>
+        {statusOptions.map(([value, text]) => <option key={value} value={value} disabled={selectedValues.some((selected, i) => i !== index && selected === value)}>{text}</option>)}
+      </select>
+    </label>)}
+  </div>;
 }
 
 function defaultParameterDefinitions(template) {

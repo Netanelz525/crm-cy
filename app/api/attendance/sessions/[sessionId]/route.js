@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withAttendanceWhatsAppReplies } from "../../../../../lib/attendance-whatsapp-replies.js";
 import { authenticateApiToken, readBearerToken } from "../../../../../lib/api-tokens";
 import {
   deleteAttendanceSession,
@@ -63,7 +64,7 @@ export async function GET(request, { params }) {
   try {
     const resolvedParams = await params;
     const sessionId = clean(resolvedParams?.sessionId);
-    const roster = await getAttendanceRoster(sessionId);
+    const roster = await withAttendanceWhatsAppReplies(await getAttendanceRoster(sessionId));
     if (!roster) {
       return NextResponse.json({ error: "Attendance session not found" }, { status: 404 });
     }

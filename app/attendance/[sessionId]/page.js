@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { withAttendanceWhatsAppReplies } from "../../../lib/attendance-whatsapp-replies.js";
 import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
 import AttendanceEmailSendSubmit from "../attendance-email-send-submit";
@@ -106,7 +107,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     .map((value) => clean(value).toLowerCase())
     .filter(Boolean);
   const exportSort = clean(resolvedSearchParams?.exportSort).toLowerCase() || "class_name";
-  const roster = sessionId ? await getAttendanceRoster(sessionId) : null;
+  const roster = sessionId ? await withAttendanceWhatsAppReplies(await getAttendanceRoster(sessionId)) : null;
   const invitationRecipientCounts = roster
     ? await getAttendanceInvitationRecipientCounts({ sessionId, roster })
     : { students: 0, email: 0, whatsapp: 0 };

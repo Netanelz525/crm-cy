@@ -129,10 +129,11 @@ export async function POST(request) {
     for (const event of events) {
       results.push(await saveWhatsAppCoexistenceEvent(event));
       const payload = clean(event?.payload?.message?.button?.payload || event?.payload?.message?.interactive?.button_reply?.id);
+      const contextMessageId = clean(event?.payload?.message?.context?.id);
       if (payload.startsWith("attendance:")) {
-        await applyAttendanceWhatsAppResponse(payload, event.waId, event.textPreview, event.occurredAt);
-      } else if (event.eventType === "message") {
-        await recordAttendanceWhatsAppTextResponse(event.waId, event.textPreview, event.occurredAt);
+        await applyAttendanceWhatsAppResponse(payload, event.waId, event.textPreview, event.occurredAt, contextMessageId, event.messageId);
+      } else if (event.eventType === "message" && event.messageType === "text") {
+        await recordAttendanceWhatsAppTextResponse(event.waId, event.textPreview, event.occurredAt, contextMessageId, event.messageId);
       }
     }
     return NextResponse.json({ ok: true, received: events.length, stored: results.filter((item) => !item.duplicate).length });
