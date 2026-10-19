@@ -136,6 +136,8 @@ export default function ApiAccessClient({ apiBaseUrl }) {
     const exportUrl = `${activeBaseUrl}/api/crm/export?resource=all`;
     const attendanceSessionsUrl = `${activeBaseUrl}/api/attendance/sessions?institution=CY&limit=10`;
     const attendanceSessionUrl = `${activeBaseUrl}/api/attendance/sessions/session_123`;
+    const whatsappUrl = `${attendanceSessionUrl}/whatsapp`;
+    const whatsappBody = JSON.stringify({ templateName: "bikoret_attendance_update_v1", recipientRoles: ["student"], targetStatuses: ["missing"] }, null, 2);
     const printNextUrl = `${activeBaseUrl}/api/print-jobs/next`;
     const printFileUrl = `${activeBaseUrl}/api/print-jobs/print_job_123/file?raw=1`;
     const printChunkFileUrl = `${activeBaseUrl}/api/print-jobs/print_job_123/file?offset=0&length=1000000`;
@@ -192,6 +194,10 @@ export default function ApiAccessClient({ apiBaseUrl }) {
         url: attendanceSessionUrl,
         body: attendancePatchBody,
         curl: `curl -X PATCH \\\n  -H "${authHeader}" \\\n  -H "Content-Type: application/json" \\\n  -d '${attendancePatchBody.replace(/\n/g, "\n  ")}' \\\n  "${attendanceSessionUrl}"`
+      },
+      attendanceWhatsApp: {
+        url: whatsappUrl, body: whatsappBody,
+        curl: `curl -X POST "${whatsappUrl}" -H "${authHeader}" -H "Content-Type: application/json" -d '${whatsappBody}'`
       },
       printNext: {
         url: printNextUrl,
@@ -379,6 +385,14 @@ export default function ApiAccessClient({ apiBaseUrl }) {
               <div><code>GET</code> <span>{`${baseUrl}/api/crm/export?resource=neon_students`}</span></div>
             </div>
           </FoldItem>
+        </DocBlock>
+
+        <DocBlock title="WhatsApp ממפגש דרך API">
+          <p>GET /api/attendance/sessions/{sessionIdPlaceholder}/whatsapp מחזיר תבניות מאושרות, כפתורים, סטטוסים ומיפוי מוצע. נדרשת הרשאת attendance:read.</p>
+          <p>POST באותה כתובת שולח באמצעות attendance:write. חובה templateName; ברירת המחדל היא תלמידים בסטטוס missing. targetStatuses: [] שולח לכל הסטטוסים. אפשר לצמצם לתלמיד יחיד באמצעות studentId.</p>
+          <p>responseStatuses הוא מערך מזהי הסטטוסים לפי סדר הכפתורים המוחזר ב־GET. כשהטקסט מתאים בדיוק לשם סטטוס, ניתן להשמיט אותו והמיפוי אוטומטי. parameterOverrides ממפה מספר משתנה לטקסט חופשי; imageId הוא מזהה מדיה קיים ב־WhatsApp.</p>
+          <p>התשובה מתקבלת לאחר השליחה: sentMessages, failedMessages, missingRecipients, matchedStudents ו־errors. כישלון כל ההודעות מחזיר 502; מפגש נעול מחזיר 409. אל תחזור אוטומטית על בקשה שהצליחה חלקית. תגובות ממשיכות להתעדכן במפגש המקורי; טקסט חופשי מוגבל לחמש שעות.</p>
+          <ExampleCard title="שליחת WhatsApp ממפגש" subtitle="POST /api/attendance/sessions/{sessionId}/whatsapp" url={examples.attendanceWhatsApp.url} curl={examples.attendanceWhatsApp.curl} body={examples.attendanceWhatsApp.body} />
         </DocBlock>
 
         <DocBlock title="Query Params">

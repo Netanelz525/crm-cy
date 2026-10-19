@@ -238,3 +238,5 @@ node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs --env /path/t
 - קובץ JSON מצורף עם כל טבלאות ה-CRM
 - ללא תמונות
 - עם מניעת הרצה כפולה לאותו יום כדי לצמצם כפילויות ב-cron
+
+שליחת WhatsApp ממפגש באמצעות מערכת חיצונית: [תיעוד ה־API](docs/attendance-whatsapp-api.md).
