@@ -16,9 +16,9 @@ function cleanBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
 }
 
-function DocBlock({ title, children }) {
+function DocBlock({ title, children, wide = false }) {
   return (
-    <details className="api-doc-block" open={title === "Request Builder" || title === "ENV"}>
+    <details className="api-doc-block" style={wide ? { gridColumn: "1 / -1" } : undefined} open={title === "Request Builder" || title === "ENV"}>
       <summary className="api-fold-summary">
         <span>{title}</span>
         <span className="api-fold-hint">פתח</span>
@@ -387,12 +387,12 @@ export default function ApiAccessClient({ apiBaseUrl }) {
           </FoldItem>
         </DocBlock>
 
-        <DocBlock title="WhatsApp ממפגש דרך API">
+        <DocBlock title="WhatsApp ממפגש דרך API" wide>
           <p>GET /api/attendance/sessions/{sessionIdPlaceholder}/whatsapp מחזיר תבניות מאושרות, כפתורים, סטטוסים ומיפוי מוצע. נדרשת הרשאת attendance:read.</p>
           <p>POST באותה כתובת שולח באמצעות attendance:write. חובה templateName; ברירת המחדל היא תלמידים בסטטוס missing. targetStatuses: [] שולח לכל הסטטוסים. אפשר לצמצם לתלמיד יחיד באמצעות studentId.</p>
           <p>responseStatuses הוא מערך מזהי הסטטוסים לפי סדר הכפתורים המוחזר ב־GET. כשהטקסט מתאים בדיוק לשם סטטוס, ניתן להשמיט אותו והמיפוי אוטומטי. parameterOverrides ממפה מספר משתנה לטקסט חופשי; imageId הוא מזהה מדיה קיים ב־WhatsApp.</p>
           <p>התשובה מתקבלת לאחר השליחה: sentMessages, failedMessages, missingRecipients, matchedStudents ו־errors. כישלון כל ההודעות מחזיר 502; מפגש נעול מחזיר 409. אל תחזור אוטומטית על בקשה שהצליחה חלקית. תגובות ממשיכות להתעדכן במפגש המקורי; טקסט חופשי מוגבל לחמש שעות.</p>
-          <ExampleCard title="שליחת WhatsApp ממפגש" subtitle="POST /api/attendance/sessions/{sessionId}/whatsapp" url={examples.attendanceWhatsApp.url} curl={examples.attendanceWhatsApp.curl} body={examples.attendanceWhatsApp.body} />
+          <div dir="ltr"><ExampleCard title="שליחת WhatsApp ממפגש" subtitle="POST /api/attendance/sessions/{sessionId}/whatsapp" url={examples.attendanceWhatsApp.url} curl={examples.attendanceWhatsApp.curl} body={examples.attendanceWhatsApp.body} /></div>
         </DocBlock>
 
         <DocBlock title="Query Params">
