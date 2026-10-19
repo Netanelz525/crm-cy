@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash,createHmac,timingSafeEqual} from 'node:crypto';
 
 async function load(file, stubs, globals={}) {
  const context=vm.createContext({Buffer,Date,console:{info(){},error(){},warn(){}},...globals});
@@ -141,4 +141,27 @@ test('legacy buttons cannot use unknown contexts, senders, labels, or overwrite 
  assert.equal(f.saved.length,0);
  const corrected=await sendingModule({recordUpdatedAt:'2030-01-01T00:00:00Z'});
  await corrected.module.applyAttendanceWhatsAppLegacyButton(legacyMessage,[template]); assert.equal(corrected.saved.length,0);
+});
+
+
+test('production coexistence webhook routes template payloads and legacy fixed-label buttons to attendance handlers',async()=>{
+ const calls=[];
+ const route=await load('../app/api/whatsapp/coexistence/webhook/route.js',{
+  crypto:{createHash,createHmac,timingSafeEqual},
+  'next/server':{NextResponse:{json:(body,options)=>({body,status:options?.status||200})}},
+  '../../../../../lib/whatsapp-coexistence-events':{saveWhatsAppCoexistenceEvent:async()=>({duplicate:false})},
+  '../../../../../lib/attendance-whatsapp':{
+   applyAttendanceWhatsAppLegacyButton:async m=>calls.push(['legacy',m]),
+   applyAttendanceWhatsAppResponse:async(...args)=>calls.push(['token',args]),
+   recordAttendanceWhatsAppTextResponse:async(...args)=>calls.push(['text',args])
+  }
+ },{process:{env:{}}});
+ for(const message of [legacyMessage,{...legacyMessage,id:'in-token',button:{payload:'attendance:unique',text:'לא זמין'}},{...legacyMessage,id:'in-text',type:'text',button:undefined,text:{body:'שלום'}}]){
+  const body={entry:[{changes:[{field:'messages',value:{messages:[message]}}]}]};
+  const response=await route.POST({text:async()=>JSON.stringify(body),headers:{get:()=>''}});
+  assert.equal(response.status,200);
+ }
+ assert.equal(calls[0][0],'legacy'); assert.equal(calls[0][1].context.id,'wamid.out');
+ assert.equal(calls[1][0],'token'); assert.equal(calls[1][1][4],'wamid.out');
+ assert.equal(calls[2][0],'text');
 });
