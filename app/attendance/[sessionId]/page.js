@@ -17,6 +17,7 @@ import {
   sendAttendanceSessionWhatsAppApprovedTemplateAction,
   sendAttendanceInvitationAction,
   setAttendanceSessionLockAction,
+  reconcileAttendanceWhatsAppRepliesAction,
   syncAttendanceSessionStudentsAction
 } from "../actions";
 import {
@@ -179,6 +180,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <input type="hidden" name="sessionId" value={roster.session.id} />
             <button type="submit" className="quick-action-btn quick-action-outline">סנכרן תלמידים</button>
           </form>
+          {canManageSessionLock ? <form action={reconcileAttendanceWhatsAppRepliesAction} className="quick-actions" style={{ marginTop: 0 }}>
+            <input type="hidden" name="sessionId" value={roster.session.id} />
+            <button type="submit" className="quick-action-btn quick-action-outline">סנכרן תגובות WhatsApp</button>
+          </form> : null}
           {canManageSessionLock ? (
             <form action={setAttendanceSessionLockAction} className="quick-actions" style={{ marginTop: 0 }}>
               <input type="hidden" name="sessionId" value={roster.session.id} />
@@ -205,6 +210,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {mailError ? <div className="error">{mailError}</div> : null}
       {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
       {quickEmailError ? <div className="error">{quickEmailError}</div> : null}
+      {resolvedSearchParams?.whatsappRepliesSynced != null ? <div className="ok">סנכרון תגובות WhatsApp הושלם. עודכנו {clean(resolvedSearchParams.whatsappRepliesSynced)} תגובות.</div> : null}
       {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
       {whatsappTemplateError ? <div className="error">{whatsappTemplateError}</div> : null}
       {invitationSaved ? <div className="ok">הגדרות ההזמנה נשמרו.</div> : null}

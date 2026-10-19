@@ -101,7 +101,7 @@ export default function AttendanceMessageComposer({
           <RecipientRoles defaultValues={defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
           <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" />
           {selectedTemplate?.buttonLabels?.length ? <ResponseStatuses statusOptions={statusOptions} buttonLabels={selectedTemplate.buttonLabels} selectedValues={responseStatusValues} onChange={setResponseStatusValues} /> : <div className="muted" style={{ gridColumn: "1 / -1" }}>לתבנית הזו אין כפתורי תגובה.</div>}
-          <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">כל כפתור מקושר אוטומטית למפגש הזה ולנמען, גם בתבנית ללא משתנים. התגובות מתקבלות עד סוף יום המפגש לפי שעון ישראל, או עד נעילתו. לפתיחת יום חדש השתמש בכפתור ״פתח מפגש להיום״; הודעות ישנות לא יעברו למפגש החדש.</div>
+          <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">כל כפתור מקושר אוטומטית למפגש הזה ולנמען, גם בתבנית ללא משתנים. כפתור מעדכן את סטטוס הנוכחות הקיים במפגש. תגובת טקסט משויכת להודעה שעליה ענו, או להודעה האחרונה, עד חמש שעות מהשליחה. מפגש נעול אינו משתנה.</div>
           <div className="quick-actions"><SubmitButton formAction={whatsappAction} primary>שלח WhatsApp לפי התבנית</SubmitButton></div>
         </>
       )}

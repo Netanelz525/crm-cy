@@ -48,14 +48,16 @@ test('quoted reply selects the original meeting; unquoted text selects the lates
  assert.equal((await module.resolveAttendanceWhatsAppText('972501234567','','2026-10-18T10:30:00Z')).session_id,'meeting-A');
 });
 
-async function sendingModule() {
+async function sendingModule(options = {}) {
  const sent=[],links=[],replies=[],saved=[],tokens=new Map();
  const student={id:'s1',label:'Student',phone:'0501234567'};
  const roster={session:{id:'meeting-A',isLocked:false,customStatuses:[]},students:[{id:'s1',status:'missing'}]};
  const sql=async(strings,...values)=>{
   const query=strings.join('?');
+  if(query.includes('FROM attendance_whatsapp_messages m')) return values[0] === 'wamid.out' && values[1] === '972501234567' ? [{session_id:'meeting-A',student_id:'s1',template_name:template.name,custom_statuses:[],record_updated_at:options.recordUpdatedAt}] : [];
+  if(query.includes('FROM attendance_whatsapp_replies')) return replies.some(r=>r.messageId===values[0])?[{}]:[];
   if(query.includes('INSERT INTO attendance_whatsapp_response_tokens'))tokens.set(values[0],{id:values[0],session_id:values[1],student_id:values[2],recipient_phone:values[3],status:values[5],dispatch_id:values[7],is_locked:false});
-  if(query.includes('SET message_id'))for(const token of tokens.values())if(token.dispatch_id===values[1])token.message_id=values[0];
+  if(query.includes('SET message_id'))for(const token of tokens.values())if(token.dispatch_id===values[1] || token.id===values[1])token.message_id=values[0];
   if(query.includes('FROM attendance_whatsapp_response_tokens t'))return tokens.has(values[0])?[tokens.get(values[0])]:[];
   if(query.startsWith('SELECT 1 FROM attendance_whatsapp_response_tokens'))return tokens.get(values[0])?.message_id===values[1]?[{}]:[];
   if(query.includes('SET used_at')){tokens.get(values[0]).used_at=new Date();return[];}
@@ -66,9 +68,9 @@ async function sendingModule() {
   'node:crypto':{randomUUID},'./db':{sql,initDb:async()=>{}},
   './attendance':{buildAttendanceStatusLabels:()=>({found:'נמצא',available:'זמין',unavailable:'לא זמין'}),getAttendanceRoster:async()=>roster,normalizeAttendanceStatus:v=>v,saveAttendanceRecord:async record=>saved.push(record)},
   './neon-students':{getNeonStudentById:async()=>student},
-  './whatsapp-channel-config.mjs':{coexistenceWhatsAppConfig:()=>({messagesUrl:'https://example.invalid/messages',accessToken:'test'})},
-  './attendance-whatsapp-replies.js':{linkAttendanceWhatsAppMessage:async link=>links.push(link),resolveAttendanceWhatsAppText:async()=>({message_id:'new',session_id:'meeting-B',student_id:'s2',is_locked:true}),saveAttendanceWhatsAppReply:async reply=>replies.push(reply)}
- },{fetch:async(url,options)=>{sent.push(JSON.parse(options.body));return{ok:true,json:async()=>({messages:[{id:'wamid.out'}]})};}});
+  './whatsapp-channel-config.mjs':{coexistenceWhatsAppConfig:()=>({templatesUrl:'https://example.invalid/templates',messagesUrl:'https://example.invalid/messages',accessToken:'test'})},
+  './attendance-whatsapp-replies.js':{attendanceReplyDate:v=>new Date(Number(v)*1000),linkAttendanceWhatsAppMessage:async link=>links.push(link),resolveAttendanceWhatsAppText:async()=>({message_id:'new',session_id:'meeting-B',student_id:'s2',is_locked:true}),saveAttendanceWhatsAppReply:async reply=>replies.push(reply)}
+ },{URL,fetch:async(url,options)=>{if(!options.body){sent.push(url);return{ok:true,json:async()=>({data:[{name:template.name,status:'APPROVED',language:'he',components:[{type:'BODY',text:template.bodyText},{type:'BUTTONS',buttons:template.buttons}]}]})};}sent.push(JSON.parse(options.body));return{ok:true,json:async()=>({messages:[{id:'wamid.out'}]})};}});
  return{module,sent,links,replies,saved,tokens};
 }
 const template={name:'fixed_buttons',language:'he',parameterCount:0,bodyText:'Fixed text without parameters',buttons:[{type:'QUICK_REPLY',index:0,text:'לא זמין'},{type:'QUICK_REPLY',index:1,text:'נמצא'},{type:'QUICK_REPLY',index:2,text:'זמין'}]};
@@ -114,4 +116,29 @@ test('every incoming reply has an idempotent history entry and does not replace 
  const inserts=queries.filter(q=>q.query.includes('INSERT INTO attendance_whatsapp_replies'));
  assert.equal(inserts.length,3);assert(inserts.every(q=>q.query.includes('ON CONFLICT (message_id) DO NOTHING')));
  assert.deepEqual(inserts.map(q=>q.values[0]),['in-1','in-2','in-1']);
+});
+
+
+test('template list explicitly requests components and retains fixed-label quick replies', async()=>{
+ const f=await sendingModule(); const templates=await f.module.listWhatsAppCoexistenceApprovedTemplates();
+ assert(new URL(f.sent[0]).searchParams.get('fields').split(',').includes('components'));
+ assert.equal(templates[0].buttons.length,3); assert.equal(templates[0].bodyParameterCount,0);
+ assert.equal(templates[0].buttons[0].text,'לא זמין');
+ const variable=f.module.normalizeCoexistenceTemplate({name:'variable',components:[{type:'BODY',text:'{{1}} {{2}} {{3}} {{4}} {{5}}'}]});
+ assert.equal(variable.bodyParameterCount,5);
+});
+const legacyMessage={id:'in-legacy',from:'972501234567',timestamp:'1792321200',context:{id:'wamid.out'},type:'button',button:{payload:'לא זמין',text:'לא זמין'}};
+test('legacy fixed-label button updates canonical status using original message and recipient and is idempotent', async()=>{
+ const f=await sendingModule(); const result=await f.module.applyAttendanceWhatsAppLegacyButton(legacyMessage,[template]);
+ assert.equal(result.status,'unavailable'); assert.equal(f.saved[0].sessionId,'meeting-A'); assert.equal(f.saved[0].record.status,'unavailable');
+ await f.module.applyAttendanceWhatsAppLegacyButton(legacyMessage,[template]); assert.equal(f.saved.length,1);
+});
+test('legacy buttons cannot use unknown contexts, senders, labels, or overwrite later manual changes',async()=>{
+ const f=await sendingModule();
+ for(const message of [{...legacyMessage,from:'972509999999'},{...legacyMessage,context:{id:'other'}},{...legacyMessage,context:{}},{...legacyMessage,button:{text:'מגיע'}},{...legacyMessage,button:{payload:'attendance:unknown',text:'לא זמין'}}]){
+  assert.equal(await f.module.applyAttendanceWhatsAppLegacyButton(message,[template]),null);
+ }
+ assert.equal(f.saved.length,0);
+ const corrected=await sendingModule({recordUpdatedAt:'2030-01-01T00:00:00Z'});
+ await corrected.module.applyAttendanceWhatsAppLegacyButton(legacyMessage,[template]); assert.equal(corrected.saved.length,0);
 });

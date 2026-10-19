@@ -23,7 +23,7 @@ import {
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
 import { sendAttendanceInvitation } from "../../lib/attendance-invitations";
 import { uploadBufferToR2 } from "../../lib/r2";
-import { listWhatsAppCoexistenceApprovedTemplates, sendAttendanceSessionWhatsApp, sendAttendanceSessionWhatsAppApprovedTemplate, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
+import { listWhatsAppCoexistenceApprovedTemplates, reconcileAttendanceWhatsAppReplies, sendAttendanceSessionWhatsApp, sendAttendanceSessionWhatsAppApprovedTemplate, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
 import { requireAttendanceUser, requireEmailSender } from "../../lib/rbac";
 
 function clean(value) {
@@ -489,4 +489,14 @@ export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formDa
   }
   revalidatePath(`/attendance/${sessionId}`);
   redirect(`/attendance/${sessionId}?whatsappTemplateSent=1`);
+}
+
+export async function reconcileAttendanceWhatsAppRepliesAction(formData) {
+  const user = await requireAttendanceUser();
+  if (!user.is_manager && !user.is_super_admin) throw new Error("אין הרשאה לסנכרן תגובות.");
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+  const updated = await reconcileAttendanceWhatsAppReplies(sessionId);
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?whatsappRepliesSynced=${updated}`);
 }

@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { saveWhatsAppCoexistenceEvent } from "../../../../../lib/whatsapp-coexistence-events";
-import { applyAttendanceWhatsAppResponse, recordAttendanceWhatsAppTextResponse } from "../../../../../lib/attendance-whatsapp";
+import { applyAttendanceWhatsAppLegacyButton, applyAttendanceWhatsAppResponse, recordAttendanceWhatsAppTextResponse } from "../../../../../lib/attendance-whatsapp";
 
 export const runtime = "nodejs";
 
@@ -132,6 +132,8 @@ export async function POST(request) {
       const contextMessageId = clean(event?.payload?.message?.context?.id);
       if (payload.startsWith("attendance:")) {
         await applyAttendanceWhatsAppResponse(payload, event.waId, event.textPreview, event.occurredAt, contextMessageId, event.messageId);
+      } else if (event.eventType === "message" && ["button", "interactive"].includes(event.messageType)) {
+        await applyAttendanceWhatsAppLegacyButton(event.payload.message);
       } else if (event.eventType === "message" && event.messageType === "text") {
         await recordAttendanceWhatsAppTextResponse(event.waId, event.textPreview, event.occurredAt, contextMessageId, event.messageId);
       }
