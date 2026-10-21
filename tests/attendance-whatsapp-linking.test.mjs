@@ -50,7 +50,7 @@ test('quoted reply selects the original meeting; unquoted text selects the lates
 
 async function sendingModule(options = {}) {
  const sent=[],links=[],replies=[],saved=[],tokens=new Map();
- const student={id:'s1',label:'Student',phone:'0501234567'};
+ const student={id:'s1',label:'Student',phone:options.phone || '0501234567'};
  const roster={session:{id:'meeting-A',isLocked:false,customStatuses:[]},students:[{id:'s1',status:'missing'}]};
  const sql=async(strings,...values)=>{
   const query=strings.join('?');
@@ -164,4 +164,38 @@ test('production coexistence webhook routes template payloads and legacy fixed-l
  assert.equal(calls[0][0],'legacy'); assert.equal(calls[0][1].context.id,'wamid.out');
  assert.equal(calls[1][0],'token'); assert.equal(calls[1][1][4],'wamid.out');
  assert.equal(calls[2][0],'text');
+});
+
+
+test('attendance phones accept country codes, local Israeli zero and international prefixes',async()=>{
+ const {module}=await sendingModule();
+ const cases=[
+  [{primaryPhoneCallingCode:'+972',primaryPhoneNumber:'0537834062'},'972537834062'],
+  [{primaryPhoneCallingCode:'+972',primaryPhoneNumber:'546680138'},'972546680138'],
+  [{primaryPhoneCallingCode:'+1',primaryPhoneNumber:'7708809266'},'17708809266'],
+  [{primaryPhoneCallingCode:'+1',primaryPhoneNumber:'17708809266'},'17708809266'],
+  [{primaryPhoneCallingCode:'+972',primaryPhoneNumber:'972537834062'},'972537834062'],
+  [{callingCode:'00972',number:'02-555-1234'},'97225551234'],
+  [{callingCode:'+1',number:'+44 7700 900123'},'447700900123'],
+  [{callingCode:'+44',number:'0044 7700 900123'},'447700900123'],
+  ['+972 (0)53-783-4062','972537834062'],
+  ['0537834062','972537834062'],
+  ['+1 (770) 880-9266','17708809266'],
+  ['0017708809266','17708809266'],
+  ['',null],['123',null],['+1234567890123456',null],
+  [{callingCode:'+972',number:'000000000'},null]
+ ];
+ for(const [phone,expected] of cases){const recipients=module.recipientPhones({phone},['student']);assert.equal(recipients[0]?.value || null,expected);}
+ const recipients=module.recipientPhones({phone:{callingCode:'+972',number:'0537834062'},dadPhone:'+972537834062',momPhone:{callingCode:'+1',number:'7708809266'}},['student','father','mother']);
+ assert.equal(recipients.length,2);assert.equal(recipients[1].value,'17708809266');
+});
+
+test('foreign recipients get message links and can update attendance from international webhook IDs',async()=>{
+ for(const phone of [{primaryPhoneCallingCode:'+1',primaryPhoneNumber:'7708809266'},{primaryPhoneCallingCode:'+43',primaryPhoneNumber:'1234567'},{primaryPhoneCallingCode:'+972',primaryPhoneNumber:'0501234567'}]){
+  const f=await sendingModule({phone});const result=await sendFixture(f);assert.equal(result.sentMessages,1);
+  const recipient=f.sent[0].to;assert.equal(f.links[0].phone,recipient);
+  const payload=f.sent[0].template.components[0].parameters[0].payload;
+  const response=await f.module.applyAttendanceWhatsAppResponse(payload,recipient,'לא זמין','2026-10-21T10:00:00Z','wamid.out','in-foreign');
+  assert.equal(response.status,'unavailable');assert.equal(f.saved[0].record.status,'unavailable');assert.equal(f.replies[0].phone,recipient);
+ }
 });
