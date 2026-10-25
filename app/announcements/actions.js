@@ -6,9 +6,9 @@ import { canUseAnnouncementTemplate, createAnnouncement, createAnnouncementSigna
 import { renderAnnouncementDocx } from "../../lib/announcement-pdf";
 import { convertAnnouncementDocxToPdf } from "../../lib/announcement-converter";
 import { canUsePrintQueue, createPrintJobFromBuffer, normalizePrintPlan } from "../../lib/print-jobs";
-import { DOCX_CONTENT_TYPE, MAX_DOCX_TEMPLATE_BYTES, normalizeDocxTemplate } from "../../lib/docx-template";
+import { DOCX_CONTENT_TYPE, MAX_DOCX_TEMPLATE_BYTES, MAX_DOCX_IMPORT_BYTES, inspectAnnouncementDocx, mappedDocxFields, normalizeDocxTemplate } from "../../lib/docx-template";
 import { requireAuthenticatedUser } from "../../lib/rbac";
-import { isR2Configured, uploadBufferToR2 } from "../../lib/r2";
+import { isR2Configured, uploadBufferToR2, deleteObjectFromR2 } from "../../lib/r2";
 import { buildResendFromAddress, sendResendEmail } from "../../lib/resend";
 
 const DEFAULT_IMAGE_FIELD_WIDTH = 180;
@@ -510,7 +510,17 @@ export async function createAnnouncementTemplateAction(formData) {
     redirect("/announcements?error=יש להזין שם תבנית");
   }
 
+  let docx = null;
   try {
+    let fields = templateFieldsFromForm(formData);
+    if (clean(formData.get("templateSource")) === "docx") {
+      const file = formData.get("docxFile");
+      if (!file || typeof file.arrayBuffer !== "function" || !/\.docx$/i.test(clean(file.name))) throw new Error("יש לבחור קובץ Word מסוג DOCX.");
+      if (file.size > MAX_DOCX_IMPORT_BYTES) throw new Error("ניתן להעלות קובץ Word עד 4MB.");
+      const inspected = inspectAnnouncementDocx(Buffer.from(await file.arrayBuffer()));
+      fields = mappedDocxFields(inspected.fields, fields);
+      docx = await uploadTemplateDocx(file, templateId);
+    }
     await createAnnouncementTemplate({
       id: templateId,
       name,
@@ -518,7 +528,8 @@ export async function createAnnouncementTemplateAction(formData) {
       generatorName,
       googleDocsUrl: formData.get("googleDocsUrl"),
       category,
-      fields: templateFieldsFromForm(formData),
+      fields,
+      docx,
       allowedRoles: allowedTemplateRolesFromForm(formData),
       isPreferred: clean(formData.get("isPreferred")) === "on",
       headerText: generatorName,
@@ -527,6 +538,7 @@ export async function createAnnouncementTemplateAction(formData) {
       createdByUserId: user.clerk_user_id
     });
   } catch (error) {
+    if (docx?.key) await getAnnouncementTemplateById(templateId).then((existing) => existing ? null : deleteObjectFromR2(docx.key)).catch(() => null);
     redirect(`/announcements?error=${encodeURIComponent(error?.message || "יצירת התבנית נכשלה")}`);
   }
 

@@ -13,7 +13,7 @@ function emptyField(required = false) {
   };
 }
 
-export default function AnnouncementTemplateFieldsClient({ fields = [], minRows = 0 }) {
+export default function AnnouncementTemplateFieldsClient({ fields = [], minRows = 0, detected = false }) {
   const [rows, setRows] = useState(() => {
     const initialRows = Array.isArray(fields) ? fields : [];
     const missingRows = Math.max(0, Number(minRows || 0) - initialRows.length);
@@ -26,14 +26,14 @@ export default function AnnouncementTemplateFieldsClient({ fields = [], minRows 
       <div className="announcement-template-fields-title">
         <div>
           <strong>שדות התבנית</strong>
-          <span className="muted">המזהים כאן טכניים בלבד. שם הרשומה ושם הקובץ נקבעים בכל מודעה בנפרד.</span>
+          <span className="muted">{detected ? "לכל שדה שזוהה, כתוב את התווית שתופיע למשתמש בעת יצירת מודעה." : "המזהים כאן טכניים בלבד. שם הרשומה ושם הקובץ נקבעים בכל מודעה בנפרד."}</span>
         </div>
-        <button type="button" className="btn btn-ghost" onClick={() => setRows((current) => [...current, emptyField()])}>
+        {!detected ? <button type="button" className="btn btn-ghost" onClick={() => setRows((current) => [...current, emptyField()])}>
           הוסף שדה
-        </button>
+        </button> : null}
       </div>
       <div className="announcement-template-fields-head">
-        <span>מזהה טכני ב־Google Docs</span>
+        <span>מזהה שדה במסמך</span>
         <span>תיאור/תווית למשתמש</span>
         <span>סוג שדה</span>
       </div>
@@ -42,12 +42,12 @@ export default function AnnouncementTemplateFieldsClient({ fields = [], minRows 
           <input type="hidden" name={`fieldKey:${index}`} defaultValue={field.key || ""} />
           <input type="hidden" name={`fieldRequired:${index}`} defaultValue={field.required === false ? "0" : "1"} />
           <input type="hidden" name={`fieldMaxLength:${index}`} defaultValue={field.maxLength || ""} />
-          <input name={`fieldTemplateFieldId:${index}`} defaultValue={field.templateFieldId || ""} placeholder="7 / data / name" />
-          <input name={`fieldLabel:${index}`} defaultValue={field.label || ""} placeholder="תוכן המודעה" />
+          <input name={`fieldTemplateFieldId:${index}`} defaultValue={field.templateFieldId || ""} placeholder="7 / data / name" readOnly={detected} dir="auto" aria-label={`מזהה שדה ${index + 1}`} />
+          <input name={`fieldLabel:${index}`} defaultValue={field.label || ""} placeholder="לדוגמה: תוכן המודעה" required={detected} maxLength={160} aria-label={`תווית למשתמש עבור ${field.templateFieldId || index + 1}`} />
           <select name={`fieldType:${index}`} defaultValue={["multiline", "image"].includes(field.type) ? field.type : "text"}>
             <option value="text">שדה פשוט - שורה אחת</option>
             <option value="multiline">טקסט עשיר - ירידת שורה</option>
-            <option value="image">תמונה - חתימה או קובץ</option>
+            {!detected ? <option value="image">תמונה - חתימה או קובץ</option> : null}
           </select>
         </div>
       ))}

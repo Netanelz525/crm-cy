@@ -6,6 +6,7 @@ import { canUseColorPrint } from "../../lib/print-jobs";
 import { createAnnouncementSignatureAction, createAnnouncementTemplateAction, createQueuedAnnouncementAction, updateAnnouncementTemplateGoogleDocsAction } from "./actions";
 import AnnouncementGeneratorClient from "./announcement-generator-client";
 import AnnouncementTemplateFieldsClient from "./announcement-template-fields-client";
+import AnnouncementTemplateCreateClient from "./announcement-template-create-client";
 
 function clean(value) {
   return String(value || "").trim();
@@ -131,8 +132,8 @@ export default async function AnnouncementsPage({ searchParams }) {
         <details className="card glass announcement-section-card" open={templateUpdated || templateCreated}>
           <summary>
             <span>
-              <h3>ניהול תבניות Google Docs</h3>
-              <p className="muted">סופר־אדמין יכול לשמור קישור Google Docs ולערוך את מיפוי השדות. ה־Document ID והשדות נשלחים תמיד לשרת הפנימי בכל יצירת מודעה.</p>
+              <h3>ניהול תבניות Word ו־Google Docs</h3>
+              <p className="muted">העלה מסמך Word לזיהוי השדות ולהגדרת התוויות למשתמש, או השתמש בקישור Google Docs.</p>
             </span>
             <span className="meta-chip">תבניות: {templates.length}</span>
           </summary>
@@ -151,7 +152,7 @@ export default async function AnnouncementsPage({ searchParams }) {
                       <Link className="btn btn-primary" href={`/announcements?templateId=${encodeURIComponent(template.id)}#create-announcement`}>צור מודעה מתבנית זו</Link>
                       {docsUrl ? <a className="btn btn-ghost" href={docsUrl} target="_blank" rel="noreferrer">פתח ב־Google Docs</a> : null}
                       <span className="meta-chip">נוצרו: {templateAnnouncements.length}</span>
-                      <span className="meta-chip">{template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
+                      <span className="meta-chip">{template.docxObjectKey && !template.googleDocsId ? "Word" : template.googleDocsId ? `ID: ${template.googleDocsId.slice(0, 12)}...` : "חסר Google Docs ID"}</span>
                     </span>
                   </summary>
                   <form action={updateAnnouncementTemplateGoogleDocsAction} className="announcement-template-admin-form" encType="multipart/form-data">
@@ -242,42 +243,11 @@ export default async function AnnouncementsPage({ searchParams }) {
             <summary>
               <span>
                 <strong>יצירת תבנית חדשה</strong>
-                <small>Google Docs + שדות החלפה</small>
+                <small>העלאת Word וזיהוי שדות, או קישור Google Docs</small>
               </span>
               <span className="meta-chip">חדש</span>
             </summary>
-            <form action={createAnnouncementTemplateAction} className="announcement-template-admin-form">
-              <div className="announcement-template-create-grid">
-                <label>
-                  <span>שם תבנית</span>
-                  <input name="name" required placeholder="מראה מקומות חדש" />
-                </label>
-                <label>
-                  <span>קישור Google Docs</span>
-                  <input name="googleDocsUrl" required placeholder="https://docs.google.com/document/d/..." />
-                </label>
-                <label>
-                  <span>סוג</span>
-                  <select name="category" defaultValue="sources">
-                    <option value="sources">מראה מקומות</option>
-                    <option value="announcement">מודעה</option>
-                    <option value="letter">מכתב</option>
-                  </select>
-                </label>
-              </div>
-              <div className="announcement-template-role-access">
-                <strong>הגדרות תבנית</strong>
-                <input type="hidden" name="isPreferred" value="" />
-                <label className="checkbox-inline">
-                  <input name="allowedRoles" value="marei_mekomot" type="checkbox" defaultChecked />
-                  <span>מאושר להרשאת מראה מקומות</span>
-                </label>
-              </div>
-              <AnnouncementTemplateFieldsClient minRows={1} />
-              <div className="announcement-template-admin-actions">
-                <button type="submit" className="btn">צור תבנית</button>
-              </div>
-            </form>
+            <AnnouncementTemplateCreateClient action={createAnnouncementTemplateAction} />
           </details>
         </details>
       ) : null}
