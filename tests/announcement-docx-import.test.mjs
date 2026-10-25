@@ -91,3 +91,10 @@ test('new DOCX metadata and field labels are persisted in one insert with no pos
  const result=await module.namespace.createAnnouncementTemplate({id:'new-template',name:'Word',fields:[{key:'field_1',templateFieldId:'t',label:'תוכן',type:'text'}],docx:{key:'templates/fixture.docx',fileName:'fixture.docx',contentType:docx.DOCX_CONTENT_TYPE},createdByUserId:'user-1'});
  assert.equal(queries.length,1);assert(queries[0].query.includes('docx_object_key'));assert(queries[0].query.includes('RETURNING *'));assert(queries[0].values.includes('docx-template'));assert.equal(result.docxObjectKey,'templates/fixture.docx');assert.equal(result.fields[0].label,'תוכן');
 });
+
+
+test('import bounds expanded archive size and the number of unique fields',()=>{
+ const zip=new PizZip(fixture(p('{t}')));zip.file('word/media/large.bin',Buffer.alloc(41*1024*1024));
+ assert.throws(()=>docx.inspectAnnouncementDocx(zip.generate({type:'nodebuffer',compression:'DEFLATE'})),/גדול מדי/);
+ assert.throws(()=>docx.inspectAnnouncementDocx(fixture(Array.from({length:101},(_,i)=>p('{field_'+i+'}')).join(''))));
+});
