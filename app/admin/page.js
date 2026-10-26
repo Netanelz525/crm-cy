@@ -34,6 +34,7 @@ export default async function AdminPage() {
           cta="פתח ניהול הרשאות"
           badge="למנהלים"
         />
+        <AdminAreaLinkCard title="פקודות לצוות" description="הגדרת פעולות מאובטחות ובחירת המשתמשים שיוכלו להפעיל אותן." href="/commands" cta="פתח פקודות" />
         <AdminAreaLinkCard
           title="גישת API וטוקנים"
           description="יצירת טוקנים, תיעוד endpointים, וסקירה של שימושים קיימים והיסטוריים."

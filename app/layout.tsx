@@ -34,6 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ];
   const primaryNavItems = [
     ...roleNavItems,
+    ...(currentUser ? [{ href: "/commands", label: "פקודות" }] : []),
     ...(currentUser ? [{ href: "/call-desk", label: "אזור השיחות שלי" }] : [])
   ];
   const secondaryNavItems = isStudentPortalUser ? [] : [
