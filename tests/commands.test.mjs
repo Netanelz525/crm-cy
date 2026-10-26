@@ -6,6 +6,7 @@ import * as crypto from 'node:crypto';
 import * as net from 'node:net';
 import * as dns from 'node:dns/promises';
 import * as https from 'node:https';
+import * as http from 'node:http';
 import {EventEmitter} from 'node:events';
 async function load(file,stubs){const context=vm.createContext({Buffer,URL,process:{env:{CLERK_SECRET_KEY:'synthetic-test-key'}},setTimeout,clearTimeout});const mod=new vm.SourceTextModule(await fs.readFile(new URL(file,import.meta.url),'utf8'),{context});await mod.link(async name=>{const values=stubs[name];if(!values)throw Error(name);return new vm.SyntheticModule(Object.keys(values),function(){for(const [key,value]of Object.entries(values))this.setExport(key,value);},{context});});await mod.evaluate();return mod.namespace;}
 const input=await load('../lib/command-request-input.js',{});
@@ -35,14 +36,14 @@ test('address policy blocks metadata, private, mapped IPv6, multicast and docume
 });
 test('DNS is checked on every execution, mixed answers fail, and connection uses pinned address without redirects',async()=>{
  let connections=0;
- const transport=(url,options,callback)=>{connections++;assert.equal(options.agent,false);options.lookup('example.com',{},(err,ip,family)=>{assert.equal(ip,'8.8.8.8');assert.equal(family,4);});const req=new EventEmitter();req.destroy=()=>{};req.end=()=>{const response=new EventEmitter();response.statusCode=302;response.destroy=()=>{};queueMicrotask(()=>callback(response));};return req;};
+ const transport=(url,options,callback)=>{connections++;assert.equal(options.agent,false);options.lookup('example.com',{},(err,ip,family)=>{assert.equal(ip,'8.8.8.8');assert.equal(family,4);});const req=new EventEmitter();req.destroy=()=>{};req.end=()=>{const response=new EventEmitter();response.statusCode=302;response.destroy=()=>{};response.headers={'content-type':'application/json'};queueMicrotask(()=>{callback(response);response.emit('data',Buffer.from('{}'));response.emit('end');});};return req;};
  const result=await request.sendCommand(config,{resolve:async()=>[{address:'8.8.8.8',family:4}],transport});assert.equal(result.ok,false);assert.equal(result.status,302);assert.equal(connections,1);
  await assert.rejects(request.sendCommand(config,{resolve:async()=>[{address:'8.8.8.8',family:4},{address:'127.0.0.1',family:4}],transport}));assert.equal(connections,1);
 });
 const admin={clerk_user_id:'admin',is_super_admin:true,access_status:'approved'},staff={clerk_user_id:'staff',access_status:'approved'};
 async function serviceFixture({claim=true,sendError=false,keyValue=null}={}){
  const calls=[],sent=[];const sql=async(strings,...args)=>{const query=strings.join('?');calls.push({query,args});if(query.includes('WITH claimed'))return claim?[{encrypted_request:'encrypted',encrypted_value:keyValue,key_type:'bearer',key_parameter:''}]:[];if(query.includes('RETURNING id'))return [{id:'key1'}];if(query.includes('SELECT id FROM system_command_keys'))return [{id:'key1'}];if(query.includes('SELECT clerk_user_id'))return [{clerk_user_id:'staff'}];if(query.includes('SELECT id,name'))return [];return [];};
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding}});return {mod,calls,sent};
+ const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding,prepareCommandRequest:request.prepareCommandRequest}});return {mod,calls,sent};
 }
 test('permissions require approved account, explicit grant, active command; only admin can manage',async()=>{
  const {mod,calls}=await serviceFixture();const command={enabled:true,allowed_user_ids:['staff']};assert(mod.canRunCommand(staff,command));assert(!mod.canRunCommand({...staff,access_status:'pending'},command));assert(!mod.canRunCommand({...staff,clerk_user_id:'other'},command));assert(!mod.canRunCommand(admin,{...command,enabled:false}));
@@ -100,4 +101,44 @@ test('server actions reject malformed JSON and unauthorized vault access without
  const error=await actions.saveCommandAction({},form);assert.equal(saved,undefined);assert(error.error.includes('JSON'));assert(!error.error.includes('PRIVATE'));
  form.set('body','{"on":true}');form.set('keyId','key1');await assert.rejects(actions.saveCommandAction({},form),/redirect/);assert.equal(saved.keyId,'key1');assert.equal(saved.requestConfig.headers['content-type'],'application/json');
  const keyError=await actions.saveCommandKeyAction({},new FormData());assert.equal(keyError.error,'שמירת המפתח נכשלה.');
+});
+
+test('JSON forms save an empty dictionary and content type instead of an empty request; GET remains bodyless',async()=>{
+ let saved;const actions=await load('../app/commands/actions.js',{'next/navigation':{redirect:()=>{throw Error('redirect');}},'next/cache':{revalidatePath:()=>{}},'../../lib/rbac':{getCurrentAppUser:async()=>admin},'../../lib/commands':{saveCommand:async(_user,value)=>{saved=value;},runCommand:async()=>({code:'sent'}),saveCommandKey:async()=>{}},'../../lib/command-request':request});
+ const form=new FormData();form.set('url','https://example.com/api/mdm/abm/sync');form.set('method','POST');form.set('bodyFormat','json');
+ await assert.rejects(actions.saveCommandAction({},form),/redirect/);assert.equal(saved.requestConfig.body,'{}');assert.equal(saved.requestConfig.headers['content-type'],'application/json');assert.equal(saved.requestConfig.bodyFormat,'json');
+ form.set('method','GET');await assert.rejects(actions.saveCommandAction({},form),/redirect/);assert.equal(saved.requestConfig.body,'');
+});
+test('existing empty MDM POSTs match Shortcuts JSON semantics and Bearer prefix is not doubled',()=>{
+ const config=request.prepareCommandRequest({url:'https://example.com/api/mdm/abm/sync',method:'POST',headers:{},body:''});assert.equal(config.body,'{}');assert.equal(config.headers['content-type'],'application/json');
+ assert.equal(request.prepareCommandRequest({url:'https://example.com/api/mdm/abm/sync',method:'POST',headers:{},body:'',bodyFormat:'text'}).body,'');
+ assert.equal(request.prepareCommandRequest({url:'https://example.com/other',method:'POST',headers:{},body:''}).body,'');
+ assert.equal(request.applyCommandKey(config,'Bearer actual-key',{type:'bearer'}).headers.authorization,'Bearer actual-key');
+});
+test('HTTP 200 cannot hide API failure, HTML login page, malformed JSON, or a redirect',()=>{
+ for(const [status,type,body,outcome] of [[200,'application/json','{"success":false,"message":"PRIVATE"}','api_error'],[200,'application/json','{"response":{"Status":"Error"}}','api_error'],[200,'text/html','<html>login</html>','unexpected_html'],[200,'application/json','broken','invalid_json'],[302,'text/html','redirect','redirect_blocked'],[401,'application/json','{}','http_error']]){
+  const result=request.classifyCommandResponse(status,type,body);assert.equal(result.ok,false);assert.equal(result.outcome,outcome);assert(!JSON.stringify(result).includes('PRIVATE'));
+ }
+ assert(request.classifyCommandResponse(200,'application/json','{"ok":true,"errors":[]}').ok);
+ assert.equal(request.classifyCommandResponse(202,'application/json','{}').outcome,'accepted');
+});
+test('real Node HTTP transport sends UTF-8 content length, trace ID and complete JSON, and reads the whole response before classifying',async(t)=>{
+ const received=[];const server=http.createServer((req,res)=>{const chunks=[];req.on('data',chunk=>chunks.push(chunk));req.on('end',()=>{received.push({headers:req.headers,body:Buffer.concat(chunks).toString('utf8'),method:req.method});res.setHeader('content-type','application/json');res.write('{"success":');setTimeout(()=>res.end('false,"message":"PRIVATE"}'),15);});});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+ const transport=(_url,options,callback)=>http.request({hostname:'127.0.0.1',port:server.address().port,path:'/api/mdm/abm/sync',method:options.method,headers:options.headers,agent:false},callback);
+ for(const body of ['',JSON.stringify({name:'ישראל'})]){
+  const result=await request.sendCommand({url:'https://example.com/api/mdm/abm/sync',method:'POST',headers:{},body},{resolve:async()=>[{address:'8.8.8.8',family:4}],transport,requestId:'synthetic-run-id'});
+  assert.equal(result.outcome,'api_error');assert.equal(result.ok,false);assert(!JSON.stringify(result).includes('PRIVATE'));
+  const sent=received.at(-1);assert.equal(sent.body,body||'{}');assert.equal(Number(sent.headers['content-length']),Buffer.byteLength(sent.body));assert.equal(sent.headers['x-crm-command-run-id'],'synthetic-run-id');
+ }
+});
+test('single command lookup never reveals an ungranted command',async()=>{
+ const {mod}=await serviceFixture();assert.equal(await mod.getCommand(staff,'unknown'),null);assert.equal(await mod.getCommand(null,'known'),null);
+});
+
+test('admin request summary exposes structure but never saved tokens, body values or query values',async()=>{
+ const secret='PRIVATE-KEY',sql=async(strings)=>strings.join('?').includes('SELECT c.encrypted_request')?[{encrypted_request:'stored',key_type:'bearer',encrypted_value:request.encryptCommandKey('Bearer '+secret)}]:[];
+ const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{...request,decryptCommand:()=>({url:'https://example.com/api/mdm/abm/sync?token=PRIVATE-QUERY',method:'POST',headers:{Authorization:'Bearer PRIVATE-OLD'},body:''})}});
+ await assert.rejects(mod.getCommandRequestSummary(staff,'cmd'));
+ const summary=await mod.getCommandRequestSummary(admin,'cmd');assert.equal(summary.bodyBytes,2);assert.equal(summary.contentType,'application/json');assert.equal(summary.prefixedBearer,true);assert.equal(summary.target,'https://example.com/api/mdm/abm/sync');assert(!JSON.stringify(summary).includes('PRIVATE'));
 });

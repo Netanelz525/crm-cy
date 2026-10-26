@@ -22,7 +22,7 @@ export default function CommandEditor({command,users,keys=[]}) {
       setCurl('');setImportError('');
     } catch {setImportError('לא ניתן לפענח את הדוגמה. יש להדביק בקשת cURL אחת עם URL, כותרות וגוף בקשה נתמכים.');}
   }
-  let example='';try{const exampleHeaders=JSON.parse(headers||'{}');if(bodyFormat==='json'&&body.trim()&&!Object.keys(exampleHeaders).some(name=>name.toLowerCase()==='content-type'))exampleHeaders['Content-Type']='application/json';example=commandCurlExample({url,method,headers:exampleHeaders,body},{hasKey:Boolean(keyId),type:keyType,parameter:keyParameter});}catch{}
+  let example='';try{const exampleBody=bodyFormat==='json'&&method!=='GET'&&!body.trim()?'{}':body;const exampleHeaders=JSON.parse(headers||'{}');if(bodyFormat==='json'&&(exampleBody.trim())&&!Object.keys(exampleHeaders).some(name=>name.toLowerCase()==='content-type'))exampleHeaders['Content-Type']='application/json';example=commandCurlExample({url,method,headers:exampleHeaders,body:exampleBody},{hasKey:Boolean(keyId),type:keyType,parameter:keyParameter});}catch{}
   return <form action={action} style={{display:'grid',gap:14}} autoComplete="off">
     {command&&<input type="hidden" name="id" value={command.id}/>}
     <label>שם הפקודה<input name="name" required maxLength={100} defaultValue={command?.name||''} placeholder="לדוגמה: פתיחת מזגן"/></label>

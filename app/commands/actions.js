@@ -16,12 +16,14 @@ export async function saveCommandAction(_previous,form) {
     else if(url) {
       let headers;try{headers=JSON.parse(String(form.get('headers')||'{}'));}catch{return {error:'כותרות הבקשה אינן JSON תקין.'};}
       if(!headers || typeof headers!=='object' || Array.isArray(headers))return {error:'כותרות הבקשה צריכות להיות אובייקט JSON.'};
-      const body=String(form.get('body')||'');
-      if(form.get('bodyFormat')==='json' && body.trim()) {
+      let body=String(form.get('body')||'');
+      const bodyFormat=String(form.get('bodyFormat')||'text');
+      if(bodyFormat==='json' && (String(form.get('method')).toUpperCase()!=='GET'||body.trim())) {
+        body=body.trim()?body:'{}';
         try {JSON.parse(body);}catch{return {error:'גוף הבקשה אינו JSON תקין.'};}
         if(!Object.keys(headers||{}).some(name=>name.toLowerCase()==='content-type'))headers={...headers,'Content-Type':'application/json'};
       }
-      requestConfig=validateCommandRequest({url,method:form.get('method'),headers,body});
+      requestConfig=validateCommandRequest({url,method:form.get('method'),headers,body,bodyFormat});
     }
     const keyId=String(form.get('keyId')||'');
     if(keyId==='__new')return {error:'יש לשמור את המפתח במאגר לפני שמירת הפקודה.'};
@@ -30,12 +32,12 @@ export async function saveCommandAction(_previous,form) {
     // Never surface infrastructure errors: driver errors may contain SQL parameters/secrets.
     return {error:error instanceof CommandValidationError?error.message:'שמירת הפקודה נכשלה. יש לבדוק את ההגדרות ולנסות שוב.'};
   }
-  revalidatePath('/commands');redirect('/commands?result=saved');
+  revalidatePath('/commands');const id=String(form.get('id')||'');if(id)revalidatePath('/commands/'+encodeURIComponent(id));redirect(id?'/commands/'+encodeURIComponent(id)+'?result=saved':'/commands?result=saved');
 }
 export async function runCommandAction(form) {
   const user=await getCurrentAppUser();let code='failed';
   try {code=(await runCommand(user,String(form.get('id')||''))).code;}catch{}
-  revalidatePath('/commands');redirect('/commands?result='+code);
+  const id=String(form.get('id')||'');revalidatePath('/commands');if(id)revalidatePath('/commands/'+encodeURIComponent(id));redirect('/commands/'+encodeURIComponent(id)+'?result='+code);
 }
 
 export async function saveCommandKeyAction(_previous,form) {
