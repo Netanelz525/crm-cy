@@ -97,7 +97,7 @@ test('command save links a shared key while preserving an unchanged encrypted re
  const update=calls.find(call=>call.query.includes('UPDATE system_commands SET name'));assert(update.query.includes('encrypted_request=COALESCE'));assert(update.args.includes('key1'));assert(update.args.includes('X-API-Key'));assert(update.args.includes('web'));assert(update.args.includes(null));
 });
 test('server actions reject malformed JSON and unauthorized vault access without leaking submitted secrets',async()=>{
- let saved;const actions=await load('../app/commands/actions.js',{'next/navigation':{redirect:()=>{throw Error('redirect');}},'next/cache':{revalidatePath:()=>{}},'../../lib/rbac':{getCurrentAppUser:async()=>admin},'../../lib/commands':{saveCommand:async(_user,value)=>{saved=value;},runCommand:async()=>({code:'sent'}),saveCommandKey:async()=>{throw Error('database error containing PRIVATE');}},'../../lib/command-request':request});
+ let saved;const actions=await load('../app/commands/actions.js',{'next/navigation':{redirect:()=>{throw Error('redirect');}},'next/cache':{revalidatePath:()=>{}},'../../lib/rbac':{getCurrentAppUser:async()=>admin},'../../lib/commands':{duplicateCommand:async()=>{},saveCommand:async(_user,value)=>{saved=value;},runCommand:async()=>({code:'sent'}),saveCommandKey:async()=>{throw Error('database error containing PRIVATE');}},'../../lib/command-request':request});
  const form=new FormData();form.set('name','AC');form.set('url','https://example.com');form.set('method','POST');form.set('headers','{}');form.set('bodyFormat','json');form.set('body','{"secret":"PRIVATE"');
  const error=await actions.saveCommandAction({},form);assert.equal(saved,undefined);assert(error.error.includes('JSON'));assert(!error.error.includes('PRIVATE'));
  form.set('body','{"on":true}');form.set('keyId','key1');await assert.rejects(actions.saveCommandAction({},form),/redirect/);assert.equal(saved.keyId,'key1');assert.equal(saved.requestConfig.headers['content-type'],'application/json');
@@ -105,7 +105,7 @@ test('server actions reject malformed JSON and unauthorized vault access without
 });
 
 test('JSON forms save an empty dictionary and content type instead of an empty request; GET remains bodyless',async()=>{
- let saved;const actions=await load('../app/commands/actions.js',{'next/navigation':{redirect:()=>{throw Error('redirect');}},'next/cache':{revalidatePath:()=>{}},'../../lib/rbac':{getCurrentAppUser:async()=>admin},'../../lib/commands':{saveCommand:async(_user,value)=>{saved=value;},runCommand:async()=>({code:'sent'}),saveCommandKey:async()=>{}},'../../lib/command-request':request});
+ let saved;const actions=await load('../app/commands/actions.js',{'next/navigation':{redirect:()=>{throw Error('redirect');}},'next/cache':{revalidatePath:()=>{}},'../../lib/rbac':{getCurrentAppUser:async()=>admin},'../../lib/commands':{duplicateCommand:async()=>{},saveCommand:async(_user,value)=>{saved=value;},runCommand:async()=>({code:'sent'}),saveCommandKey:async()=>{}},'../../lib/command-request':request});
  const form=new FormData();form.set('url','https://example.com/api/mdm/abm/sync');form.set('method','POST');form.set('bodyFormat','json');
  await assert.rejects(actions.saveCommandAction({},form),/redirect/);assert.equal(saved.requestConfig.body,'{}');assert.equal(saved.requestConfig.headers['content-type'],'application/json');assert.equal(saved.requestConfig.bodyFormat,'json');
  form.set('method','GET');await assert.rejects(actions.saveCommandAction({},form),/redirect/);assert.equal(saved.requestConfig.body,'');
@@ -167,4 +167,12 @@ test('response previews are decrypted only after the existing history access fil
  const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':request});
  assert.equal((await mod.listCommandRuns(null)).length,0);assert.equal(queries.length,0);
  const rows=await mod.listCommandRuns(staff);assert.equal(rows[0].response.body,'{"ok":true}');assert.equal(rows[0].encrypted_response,undefined);assert(queries.find(query=>query.includes('SELECT r.id,c.name')).includes('ANY(c.allowed_user_ids)'));
+});
+
+test('editing and duplication are admin-only; cloning preserves ciphertext and starts without grants or execution',async()=>{
+ const calls=[];const sql=async(strings,...args)=>{const query=strings.join('?');calls.push({query,args});if(query.includes('SELECT encrypted_request'))return [{encrypted_request:request.encryptCommand(config)}];if(query.includes('RETURNING id'))return [{id:'copy'}];return [];};
+ const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':request});
+ await assert.rejects(mod.getCommandEditConfig(staff,'cmd'));await assert.rejects(mod.duplicateCommand(staff,'cmd'));assert.equal(calls.length,0);
+ const edit=await mod.getCommandEditConfig(admin,'cmd');assert.equal(edit.url,config.url);assert.equal(edit.body,config.body);assert.equal(edit.method,'POST');
+ await mod.duplicateCommand(admin,'cmd');const copy=calls.find(c=>c.query.includes('INSERT INTO system_commands(id,name'));assert(copy.query.includes("ARRAY[]::TEXT[],FALSE"));assert(copy.query.includes('description,encrypted_request'));assert(copy.query.includes('key_id,key_type,key_parameter,response_type'));assert(!calls.some(c=>c.query.includes('INSERT INTO system_command_runs')));
 });

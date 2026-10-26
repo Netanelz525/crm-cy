@@ -4,11 +4,11 @@ import { saveCommandAction,saveCommandKeyAction } from './actions';
 import {parseCurlInput,extractCurlKey,commandCurlExample} from '../../lib/command-request-input';
 const fieldset={minWidth:0,padding:14,border:'1px solid #d6e2ef',borderRadius:12,display:'grid',gap:12};
 const checkbox={width:18,height:18,flexShrink:0,margin:0};
-export default function CommandEditor({command,users,keys=[]}) {
+export default function CommandEditor({command,users,keys=[],requestConfig}) {
   const [state,action,pending]=useActionState(saveCommandAction,{});
   const [keyState,keyAction,keyPending]=useActionState(saveCommandKeyAction,{});
   const [search,setSearch]=useState(''),[curl,setCurl]=useState(''),[importError,setImportError]=useState('');
-  const [url,setUrl]=useState(''),[method,setMethod]=useState('POST'),[headers,setHeaders]=useState(''),[body,setBody]=useState(''),[bodyFormat,setBodyFormat]=useState('json');
+  const [url,setUrl]=useState(requestConfig?.url||''),[method,setMethod]=useState(requestConfig?.method||'POST'),[headers,setHeaders]=useState(requestConfig?JSON.stringify(requestConfig.headers||{},null,2):''),[body,setBody]=useState(requestConfig?.body||''),[bodyFormat,setBodyFormat]=useState(requestConfig?.bodyFormat||(requestConfig?.headers?.['content-type']?.includes('json')?'json':requestConfig?'text':'json'));
   const [keyId,setKeyId]=useState(command?.key_id||''),[keyType,setKeyType]=useState(command?.key_type||'bearer'),[keyParameter,setKeyParameter]=useState(command?.key_parameter||'');
   const [vaultName,setVaultName]=useState(''),[vaultValue,setVaultValue]=useState(''),[copied,setCopied]=useState(false);
   useEffect(()=>{if(keyState.savedKey){setKeyId(keyState.savedKey.id);setVaultValue('');setVaultName('');}},[keyState.savedKey]);
@@ -44,8 +44,8 @@ export default function CommandEditor({command,users,keys=[]}) {
       {keyId&&<><label>אופן צירוף המפתח<select name="keyType" value={keyType} onChange={event=>setKeyType(event.target.value)}><option value="bearer">Authorization: Bearer</option><option value="header">כותרת מותאמת (למשל X-API-Key)</option><option value="query">פרמטר בכתובת</option></select></label>{keyType!=='bearer'&&<label>{keyType==='header'?'שם הכותרת':'שם הפרמטר'}<input name="keyParameter" value={keyParameter} onChange={event=>setKeyParameter(event.target.value)} required dir="ltr" maxLength={80} placeholder={keyType==='header'?'X-API-Key':'api_key'}/></label>}</>}
       <p className="muted">אותו מפתח יכול לשמש כמה פקודות. ערכו נוסף לבקשה בשרת בלבד.</p>
     </fieldset>
-    <fieldset style={fieldset}><legend>{command?'החלפת הגדרת הבקשה (רשות)':'הגדרת הבקשה'}</legend>
-      {command&&<p className="muted">השאר את כתובת הבקשה ריקה כדי לשמור את ההגדרה הקיימת. בחירת מפתח, סוג התשובה והרשאות מתעדכנים גם בלי החלפת הבקשה.</p>}
+    <fieldset style={fieldset}><legend>הגדרת הבקשה</legend>
+      {command&&<p className="muted">ההגדרות הקיימות נטענו לעריכה. ערך המפתח מהמאגר נשאר בשרת ואינו מוצג בטופס.</p>}
       <details><summary>טעינת דוגמת cURL לשדות</summary><label>דוגמת cURL<textarea value={curl} onChange={event=>setCurl(event.target.value)} rows={5} dir="ltr" spellCheck={false} placeholder={'curl -X POST https://api.example.com/device/on -H \'Authorization: Bearer TOKEN\' -H \'Content-Type: application/json\' --data-raw \'{"on":true}\''}/></label><button className="btn" type="button" onClick={importCurl} disabled={!curl.trim()}>טען cURL לשדות</button>{importError&&<p role="alert">{importError}</p>}</details>
       <p className="muted">הבקשה נשלחת מהשרת לכתובת HTTPS ציבורית.</p>
       <label>סוג התשובה הצפויה<select name="responseType" defaultValue={command?.response_type||'auto'}><option value="auto">אוטומטי לפי סוג הבקשה</option><option value="api">API / JSON — צפויה תשובת API</option><option value="web">דף אינטרנט — HTML מותר</option></select></label>

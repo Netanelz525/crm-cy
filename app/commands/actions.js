@@ -2,7 +2,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getCurrentAppUser } from '../../lib/rbac';
-import { saveCommand,runCommand,saveCommandKey } from '../../lib/commands';
+import { saveCommand,runCommand,saveCommandKey,duplicateCommand } from '../../lib/commands';
 import { parseCommandCurl,validateCommandRequest,CommandValidationError } from '../../lib/command-request';
 
 export async function saveCommandAction(_previous,form) {
@@ -47,4 +47,11 @@ export async function saveCommandKeyAction(_previous,form) {
     const savedKey=await saveCommandKey(user,{id:String(form.get('vaultId')||'')||null,name:form.get('vaultName'),value:String(form.get('vaultValue')||''),enabled:form.get('vaultEnabled')==='on'});
     revalidatePath('/commands');return {savedKey};
   } catch(error) {return {error:error instanceof CommandValidationError?error.message:'שמירת המפתח נכשלה.'};}
+}
+
+export async function duplicateCommandAction(form) {
+  const user=await getCurrentAppUser();
+  let id;try {id=await duplicateCommand(user,String(form.get('id')||''));}
+  catch {redirect('/commands?result=failed');}
+  revalidatePath('/commands');redirect('/commands/'+encodeURIComponent(id)+'?result=duplicated');
 }

@@ -272,3 +272,5 @@ node /Users/netanelzevin/Documents/crm/scripts/backup-crm-json.mjs --env /path/t
 
 
 בכל הפעלה חדשה ניתן לפתוח "הצג תשובת שרת", בהצלחה ובכשל. ההפעלות מוצגות ככרטיסים עם סימון ירוק לתוצאה תקינה ואדום לתוצאה שנכשלה. תגובות שמורות מוצפנות בנפרד, מוגבלות ל־256KB ונגישות רק דרך מסנן ההרשאות הקיים של ההיסטוריה. ערכי מפתחות מהבקשה, שדות טוקן/סיסמה בתשובת JSON ותוכן קבצים מזוהה מוסתרים לפני השמירה. HTML מוצג כטקסט, ללא הרצה. בריצות ישנות, שבהן לא נשמר תוכן, מוצגת הודעה מתאימה; בכשל רשת מוסבר שלא התקבלה תשובת שרת.
+
+Super admins can edit the saved request URL, method, headers and body directly; these request values are loaded only after an approved super-admin check. Shared vault key values remain server-only. The duplicate action copies the encrypted request and shared-key binding server-side into a disabled command with no user grants or run history. Staff receive only authorized execution controls and redacted results.
