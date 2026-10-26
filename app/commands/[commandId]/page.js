@@ -5,14 +5,14 @@ import {getCommand,listCommandKeys,listCommandRuns,canRunCommand,getCommandReque
 import {runCommandAction} from '../actions';
 import RunButton from '../run-button';
 import CommandEditor from '../command-editor';
-import CommandHistory,{commandMessages} from '../command-history';
+import CommandHistory,{CommandResult} from '../command-history';
 import CopyCommandLink from '../copy-link';
 export const runtime='nodejs';
 export default async function CommandPage({params,searchParams}) {
   const user=await requireAuthenticatedUser(),{commandId}=await params;
   const command=await getCommand(user,commandId);if(!command)notFound();
   const [runs,users,keys,summary,result]=await Promise.all([listCommandRuns(user,commandId),user.is_super_admin?listAppUsers():[],user.is_super_admin?listCommandKeys(user):[],user.is_super_admin?getCommandRequestSummary(user,commandId):null,searchParams]);
-  return <div style={{display:'grid',gap:20}}><section className="card glass"><Link href="/commands">כל הפקודות</Link><h1>{command.name}</h1><p style={{whiteSpace:'pre-wrap'}}>{command.description}</p>{commandMessages[result?.result]&&<p role="status">{commandMessages[result.result]}</p>}
+  return <div style={{display:'grid',gap:20}}><section className="card glass"><Link href="/commands">כל הפקודות</Link><h1>{command.name}</h1><p style={{whiteSpace:'pre-wrap'}}>{command.description}</p><CommandResult result={result?.result}/>
     <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>{canRunCommand(user,command)?<form action={runCommandAction}><input type="hidden" name="id" value={command.id}/><RunButton/></form>:<p>הפקודה אינה זמינה להפעלה כעת.</p>}<CopyCommandLink id={command.id}/></div>
     <p className="muted">פתיחת הקישור אינה מפעילה את הפקודה. ההפעלה דורשת התחברות והרשאה.</p>
   </section>

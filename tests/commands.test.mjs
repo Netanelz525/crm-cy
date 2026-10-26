@@ -10,7 +10,8 @@ import * as http from 'node:http';
 import {EventEmitter} from 'node:events';
 async function load(file,stubs){const context=vm.createContext({Buffer,URL,process:{env:{CLERK_SECRET_KEY:'synthetic-test-key'}},setTimeout,clearTimeout});const mod=new vm.SourceTextModule(await fs.readFile(new URL(file,import.meta.url),'utf8'),{context});await mod.link(async name=>{const values=stubs[name];if(!values)throw Error(name);return new vm.SyntheticModule(Object.keys(values),function(){for(const [key,value]of Object.entries(values))this.setExport(key,value);},{context});});await mod.evaluate();return mod.namespace;}
 const input=await load('../lib/command-request-input.js',{});
-const request=await load('../lib/command-request.js',{'node:crypto':crypto,'node:net':net,'node:dns/promises':dns,'node:https':https,'./command-request-input.js':input});
+const responses=await load('../lib/command-response.js',{});
+const request=await load('../lib/command-request.js',{'node:crypto':crypto,'node:net':net,'node:dns/promises':dns,'node:https':https,'./command-request-input.js':input,'./command-response.js':responses});
 const config={url:'https://example.com/on?token=secret',method:'POST',headers:{Authorization:'Bearer hidden'},body:'{"on":true}'};
 test('curl parses quoted tokens, JSON and line continuations without shell execution',()=>{
  const result=request.parseCommandCurl("curl -X POST 'https://example.com/on' \\\n -H 'Authorization: Bearer hidden' -H 'Content-Type: application/json' --data-raw '{\"on\":true}'");
@@ -43,7 +44,7 @@ test('DNS is checked on every execution, mixed answers fail, and connection uses
 const admin={clerk_user_id:'admin',is_super_admin:true,access_status:'approved'},staff={clerk_user_id:'staff',access_status:'approved'};
 async function serviceFixture({claim=true,sendError=false,keyValue=null}={}){
  const calls=[],sent=[];const sql=async(strings,...args)=>{const query=strings.join('?');calls.push({query,args});if(query.includes('WITH claimed'))return claim?[{encrypted_request:'encrypted',encrypted_value:keyValue,key_type:'bearer',key_parameter:''}]:[];if(query.includes('RETURNING id'))return [{id:'key1'}];if(query.includes('SELECT id FROM system_command_keys'))return [{id:'key1'}];if(query.includes('SELECT clerk_user_id'))return [{clerk_user_id:'staff'}];if(query.includes('SELECT id,name'))return [];return [];};
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding,prepareCommandRequest:request.prepareCommandRequest,commandResponseType:request.commandResponseType}});return {mod,calls,sent};
+ const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding,prepareCommandRequest:request.prepareCommandRequest,commandResponseType:request.commandResponseType,encryptCommandResponse:request.encryptCommandResponse,decryptCommandResponse:request.decryptCommandResponse}});return {mod,calls,sent};
 }
 test('permissions require approved account, explicit grant, active command; only admin can manage',async()=>{
  const {mod,calls}=await serviceFixture();const command={enabled:true,allowed_user_ids:['staff']};assert(mod.canRunCommand(staff,command));assert(!mod.canRunCommand({...staff,access_status:'pending'},command));assert(!mod.canRunCommand({...staff,clerk_user_id:'other'},command));assert(!mod.canRunCommand(admin,{...command,enabled:false}));
@@ -128,7 +129,7 @@ test('real Node HTTP transport sends UTF-8 content length, trace ID and complete
  const transport=(_url,options,callback)=>http.request({hostname:'127.0.0.1',port:server.address().port,path:'/api/mdm/abm/sync',method:options.method,headers:options.headers,agent:false},callback);
  for(const body of ['',JSON.stringify({name:'ישראל'})]){
   const result=await request.sendCommand({url:'https://example.com/api/mdm/abm/sync',method:'POST',headers:{},body},{resolve:async()=>[{address:'8.8.8.8',family:4}],transport,requestId:'synthetic-run-id'});
-  assert.equal(result.outcome,'api_error');assert.equal(result.ok,false);assert(!JSON.stringify(result).includes('PRIVATE'));
+  assert.equal(result.outcome,'api_error');assert.equal(result.ok,false);assert(result.response.body.includes('PRIVATE'));
   const sent=received.at(-1);assert.equal(sent.body,body||'{}');assert.equal(Number(sent.headers['content-length']),Buffer.byteLength(sent.body));assert.equal(sent.headers['x-crm-command-run-id'],'synthetic-run-id');
  }
 });
@@ -152,4 +153,18 @@ test('normal webpages accept HTML while API commands reject it, with an explicit
  assert(request.classifyCommandResponse(200,'text/html','<html>done</html>','web').ok);assert(!request.classifyCommandResponse(200,'text/html','<html>login</html>','api').ok);
  assert(!request.classifyCommandResponse(200,'text/plain','plain page','api').ok);assert(request.classifyCommandResponse(200,'text/plain','plain page','web').ok);
  assert(!request.classifyCommandResponse(500,'text/html','<html>error</html>','web').ok);
+});
+
+test('response previews hide request credentials and newly returned tokens while preserving error details',()=>{
+ const config={url:'https://example.com/process/very-private-path-token-12345?api_key=query-secret',headers:{authorization:'Bearer header-secret','X-API-Key':'custom-secret'},body:'{"password":"body-secret"}'};
+ const reply=responses.sanitizeCommandResponse(JSON.stringify({ok:false,message:'rejected header-secret query-secret custom-secret body-secret very-private-path-token-12345',token:'new-returned-secret',nested:{password:'other-secret'},code:'DENIED'}),'application/json',config);
+ assert(reply.body.includes('DENIED'));for(const secret of ['header-secret','query-secret','custom-secret','body-secret','very-private-path-token-12345','new-returned-secret','other-secret'])assert(!reply.body.includes(secret));
+ const cipher=request.encryptCommandResponse(reply);assert(!cipher.includes('DENIED'));assert.equal(request.decryptCommandResponse(cipher).body,reply.body);assert.throws(()=>request.decryptCommand(cipher));
+ const html=responses.sanitizeCommandResponse('<html><script>alert(1)</script>header-secret</html>','text/html',config);assert(html.body.includes('<script>'));assert(!html.body.includes('header-secret'));
+});
+test('response previews are decrypted only after the existing history access filter, and ciphertext never reaches the UI',async()=>{
+ const queries=[];const sql=async(strings)=>{const query=strings.join('?');queries.push(query);return query.includes('SELECT r.id,c.name')?[{id:'r1',status:'succeeded',encrypted_response:request.encryptCommandResponse({body:'{"ok":true}',contentType:'application/json'})}]:[];};
+ const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':request});
+ assert.equal((await mod.listCommandRuns(null)).length,0);assert.equal(queries.length,0);
+ const rows=await mod.listCommandRuns(staff);assert.equal(rows[0].response.body,'{"ok":true}');assert.equal(rows[0].encrypted_response,undefined);assert(queries.find(query=>query.includes('SELECT r.id,c.name')).includes('ANY(c.allowed_user_ids)'));
 });

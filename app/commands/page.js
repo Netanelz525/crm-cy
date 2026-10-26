@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import CommandHistory,{commandMessages as messages} from './command-history';
+import CommandHistory,{CommandResult} from './command-history';
 import { requireAuthenticatedUser,listAppUsers } from '../../lib/rbac';
 import { listCommands,listCommandRuns,canRunCommand,listCommandKeys } from '../../lib/commands';
 import { runCommandAction } from './actions';
@@ -15,7 +15,7 @@ export default async function CommandsPage({searchParams}) {
   const query=String(params?.q||'').trim();
   const filtered=commands.filter(command=>`${command.name} ${command.description}`.toLowerCase().includes(query.toLowerCase()));
   return <main style={{display:'grid',gap:20}}>
-    <section className="card glass"><h1>פקודות</h1><p>הפעלת פעולות שהוגדרו עבורך במערכת.</p>{messages[params?.result]&&<p role="status">{messages[params.result]}</p>}</section>
+    <section className="card glass"><h1>פקודות</h1><p>הפעלת פעולות שהוגדרו עבורך במערכת.</p><CommandResult result={params?.result}/></section>
     {user.is_super_admin&&<details className="card glass"><summary><strong>מאגר מפתחות לפקודות ({keys.length})</strong></summary><p>המפתחות משותפים לפקודות ונשמרים מוצפנים. רק סופר אדמין יכול לנהל אותם.</p>
       <details><summary>הוספת מפתח חדש</summary><CommandKeyEditor/></details>
       {keys.map(key=><details key={key.id} style={{marginTop:16}}><summary>{key.name}{!key.enabled?' — מושבת':''}</summary><CommandKeyEditor record={key}/></details>)}
