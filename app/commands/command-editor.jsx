@@ -45,9 +45,10 @@ export default function CommandEditor({command,users,keys=[]}) {
       <p className="muted">אותו מפתח יכול לשמש כמה פקודות. ערכו נוסף לבקשה בשרת בלבד.</p>
     </fieldset>
     <fieldset style={fieldset}><legend>{command?'החלפת הגדרת הבקשה (רשות)':'הגדרת הבקשה'}</legend>
-      {command&&<p className="muted">השאר את כתובת הבקשה ריקה כדי לשמור את ההגדרה הקיימת. בחירת מפתח והרשאות מתעדכנות גם בלי החלפת הבקשה.</p>}
+      {command&&<p className="muted">השאר את כתובת הבקשה ריקה כדי לשמור את ההגדרה הקיימת. בחירת מפתח, סוג התשובה והרשאות מתעדכנים גם בלי החלפת הבקשה.</p>}
       <details><summary>טעינת דוגמת cURL לשדות</summary><label>דוגמת cURL<textarea value={curl} onChange={event=>setCurl(event.target.value)} rows={5} dir="ltr" spellCheck={false} placeholder={'curl -X POST https://api.example.com/device/on -H \'Authorization: Bearer TOKEN\' -H \'Content-Type: application/json\' --data-raw \'{"on":true}\''}/></label><button className="btn" type="button" onClick={importCurl} disabled={!curl.trim()}>טען cURL לשדות</button>{importError&&<p role="alert">{importError}</p>}</details>
       <p className="muted">הבקשה נשלחת מהשרת לכתובת HTTPS ציבורית.</p>
+      <label>סוג התשובה הצפויה<select name="responseType" defaultValue={command?.response_type||'auto'}><option value="auto">אוטומטי לפי סוג הבקשה</option><option value="api">API / JSON — צפויה תשובת API</option><option value="web">דף אינטרנט — HTML מותר</option></select></label>
       <label>כתובת היעד<input name="url" type="url" dir="ltr" value={url} onChange={event=>setUrl(event.target.value)} placeholder="https://api.example.com/device/on"/></label>
       <label>שיטה<select name="method" value={method} onChange={event=>setMethod(event.target.value)}>{['GET','POST','PUT','PATCH','DELETE'].map(item=><option key={item}>{item}</option>)}</select></label>
       <label>כותרות נוספות JSON (ללא המפתח השמור)<textarea name="headers" rows={3} dir="ltr" spellCheck={false} value={headers} onChange={event=>setHeaders(event.target.value)} placeholder={'{"Content-Type":"application/json"}'}/></label>

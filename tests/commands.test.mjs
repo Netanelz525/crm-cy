@@ -43,7 +43,7 @@ test('DNS is checked on every execution, mixed answers fail, and connection uses
 const admin={clerk_user_id:'admin',is_super_admin:true,access_status:'approved'},staff={clerk_user_id:'staff',access_status:'approved'};
 async function serviceFixture({claim=true,sendError=false,keyValue=null}={}){
  const calls=[],sent=[];const sql=async(strings,...args)=>{const query=strings.join('?');calls.push({query,args});if(query.includes('WITH claimed'))return claim?[{encrypted_request:'encrypted',encrypted_value:keyValue,key_type:'bearer',key_parameter:''}]:[];if(query.includes('RETURNING id'))return [{id:'key1'}];if(query.includes('SELECT id FROM system_command_keys'))return [{id:'key1'}];if(query.includes('SELECT clerk_user_id'))return [{clerk_user_id:'staff'}];if(query.includes('SELECT id,name'))return [];return [];};
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding,prepareCommandRequest:request.prepareCommandRequest}});return {mod,calls,sent};
+ const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding,prepareCommandRequest:request.prepareCommandRequest,commandResponseType:request.commandResponseType}});return {mod,calls,sent};
 }
 test('permissions require approved account, explicit grant, active command; only admin can manage',async()=>{
  const {mod,calls}=await serviceFixture();const command={enabled:true,allowed_user_ids:['staff']};assert(mod.canRunCommand(staff,command));assert(!mod.canRunCommand({...staff,access_status:'pending'},command));assert(!mod.canRunCommand({...staff,clerk_user_id:'other'},command));assert(!mod.canRunCommand(admin,{...command,enabled:false}));
@@ -92,8 +92,8 @@ test('multiple commands resolve the current shared key on each run and redacted 
  }
 });
 test('command save links a shared key while preserving an unchanged encrypted request',async()=>{
- const {mod,calls}=await serviceFixture();await mod.saveCommand(admin,{id:'cmd1',name:'AC',description:'',enabled:true,allowedUserIds:['staff'],keyId:'key1',keyType:'header',keyParameter:'X-API-Key'});
- const update=calls.find(call=>call.query.includes('UPDATE system_commands SET name'));assert(update.query.includes('encrypted_request=COALESCE'));assert(update.args.includes('key1'));assert(update.args.includes('X-API-Key'));assert(update.args.includes(null));
+ const {mod,calls}=await serviceFixture();await mod.saveCommand(admin,{id:'cmd1',name:'AC',description:'',enabled:true,allowedUserIds:['staff'],responseType:'web',keyId:'key1',keyType:'header',keyParameter:'X-API-Key'});
+ const update=calls.find(call=>call.query.includes('UPDATE system_commands SET name'));assert(update.query.includes('encrypted_request=COALESCE'));assert(update.args.includes('key1'));assert(update.args.includes('X-API-Key'));assert(update.args.includes('web'));assert(update.args.includes(null));
 });
 test('server actions reject malformed JSON and unauthorized vault access without leaking submitted secrets',async()=>{
  let saved;const actions=await load('../app/commands/actions.js',{'next/navigation':{redirect:()=>{throw Error('redirect');}},'next/cache':{revalidatePath:()=>{}},'../../lib/rbac':{getCurrentAppUser:async()=>admin},'../../lib/commands':{saveCommand:async(_user,value)=>{saved=value;},runCommand:async()=>({code:'sent'}),saveCommandKey:async()=>{throw Error('database error containing PRIVATE');}},'../../lib/command-request':request});
@@ -137,8 +137,19 @@ test('single command lookup never reveals an ungranted command',async()=>{
 });
 
 test('admin request summary exposes structure but never saved tokens, body values or query values',async()=>{
+ let targetURL='https://example.com/api/mdm/abm/sync?token=PRIVATE-QUERY';
  const secret='PRIVATE-KEY',sql=async(strings)=>strings.join('?').includes('SELECT c.encrypted_request')?[{encrypted_request:'stored',key_type:'bearer',encrypted_value:request.encryptCommandKey('Bearer '+secret)}]:[];
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{...request,decryptCommand:()=>({url:'https://example.com/api/mdm/abm/sync?token=PRIVATE-QUERY',method:'POST',headers:{Authorization:'Bearer PRIVATE-OLD'},body:''})}});
+ const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},sql},'./command-request.js':{...request,decryptCommand:()=>({url:targetURL,method:'POST',headers:{Authorization:'Bearer PRIVATE-OLD'},body:''})}});
  await assert.rejects(mod.getCommandRequestSummary(staff,'cmd'));
  const summary=await mod.getCommandRequestSummary(admin,'cmd');assert.equal(summary.bodyBytes,2);assert.equal(summary.contentType,'application/json');assert.equal(summary.prefixedBearer,true);assert.equal(summary.target,'https://example.com/api/mdm/abm/sync');assert(!JSON.stringify(summary).includes('PRIVATE'));
+ targetURL='https://example.com/public/home-assistant/process/PRIVATE-TOKEN-IN-PATH-1234567890?v=PRIVATE';const hidden=await mod.getCommandRequestSummary(admin,'cmd');assert(!JSON.stringify(hidden).includes('PRIVATE'));assert(hidden.target.includes('[מוסתר]'));
+});
+
+test('normal webpages accept HTML while API commands reject it, with an explicit per-command override',()=>{
+ const website={url:'https://example.com/switch',method:'GET',headers:{},body:''};
+ assert.equal(request.commandResponseType(website),'web');assert.equal(request.commandResponseType({...website,headers:{authorization:'Bearer test'}}),'api');assert.equal(request.commandResponseType({...website,url:'https://example.com/api/sync'}),'api');
+ assert.equal(request.commandResponseType({...website,headers:{authorization:'Bearer test'},responseType:'web'}),'web');
+ assert(request.classifyCommandResponse(200,'text/html','<html>done</html>','web').ok);assert(!request.classifyCommandResponse(200,'text/html','<html>login</html>','api').ok);
+ assert(!request.classifyCommandResponse(200,'text/plain','plain page','api').ok);assert(request.classifyCommandResponse(200,'text/plain','plain page','web').ok);
+ assert(!request.classifyCommandResponse(500,'text/html','<html>error</html>','web').ok);
 });

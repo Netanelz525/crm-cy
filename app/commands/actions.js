@@ -23,11 +23,11 @@ export async function saveCommandAction(_previous,form) {
         try {JSON.parse(body);}catch{return {error:'גוף הבקשה אינו JSON תקין.'};}
         if(!Object.keys(headers||{}).some(name=>name.toLowerCase()==='content-type'))headers={...headers,'Content-Type':'application/json'};
       }
-      requestConfig=validateCommandRequest({url,method:form.get('method'),headers,body,bodyFormat});
+      requestConfig=validateCommandRequest({url,method:form.get('method'),headers,body,bodyFormat,responseType:String(form.get('responseType')||'auto')});
     }
     const keyId=String(form.get('keyId')||'');
     if(keyId==='__new')return {error:'יש לשמור את המפתח במאגר לפני שמירת הפקודה.'};
-    await saveCommand(user,{keyId:keyId||null,keyType:String(form.get('keyType')||'bearer'),keyParameter:String(form.get('keyParameter')||'').trim(),id:String(form.get('id')||'')||null,name:form.get('name'),description:form.get('description'),enabled:form.get('enabled')==='on',allowedUserIds:form.getAll('allowedUserIds').map(String),requestConfig});
+    await saveCommand(user,{responseType:String(form.get('responseType')||'auto'),keyId:keyId||null,keyType:String(form.get('keyType')||'bearer'),keyParameter:String(form.get('keyParameter')||'').trim(),id:String(form.get('id')||'')||null,name:form.get('name'),description:form.get('description'),enabled:form.get('enabled')==='on',allowedUserIds:form.getAll('allowedUserIds').map(String),requestConfig});
   } catch(error) {
     // Never surface infrastructure errors: driver errors may contain SQL parameters/secrets.
     return {error:error instanceof CommandValidationError?error.message:'שמירת הפקודה נכשלה. יש לבדוק את ההגדרות ולנסות שוב.'};
