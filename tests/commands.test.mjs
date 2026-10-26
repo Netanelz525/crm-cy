@@ -47,7 +47,7 @@ test('permissions require approved account, explicit grant, active command; only
  const {mod,calls}=await serviceFixture();const command={enabled:true,allowed_user_ids:['staff']};assert(mod.canRunCommand(staff,command));assert(!mod.canRunCommand({...staff,access_status:'pending'},command));assert(!mod.canRunCommand({...staff,clerk_user_id:'other'},command));assert(!mod.canRunCommand(admin,{...command,enabled:false}));
  await assert.rejects(mod.saveCommand(staff,{name:'on'}));assert.equal(calls.length,0);
  assert.equal((await mod.runCommand(null,'cmd')).code,'denied');assert.equal(calls.length,0);
- await mod.listCommands(staff);const query=calls.find(call=>call.query.includes('SELECT id,name'));assert(!query.query.includes('encrypted_request'));assert(query.query.includes('ANY(allowed_user_ids)'));
+ await mod.listCommands(staff);const query=calls.find(call=>call.query.includes('SELECT id,name'));assert(!query.query.includes('encrypted_request'));assert(query.query.includes('ANY(allowed_user_ids)'));assert(query.query.includes('ELSE ARRAY['));assert(!query.query.includes('ELSE ARRAY[]'));assert(query.args.includes('staff'));
 });
 test('atomic run claim includes live permissions, cooldown and audit before dispatch; failed claims never send',async()=>{
  for(const claim of [false,true]){const {mod,calls,sent}=await serviceFixture({claim});const result=await mod.runCommand(staff,'cmd');assert.equal(sent.length,claim?1:0);assert.equal(result.code,claim?'sent':'unavailable');const query=calls.find(c=>c.query.includes('WITH claimed')).query;assert(query.includes('enabled'));assert(query.includes('ANY(allowed_user_ids)'));assert(query.includes("INTERVAL '30 seconds'"));assert(query.includes('INSERT INTO system_command_runs'));}
