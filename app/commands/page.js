@@ -27,7 +27,7 @@ export default async function CommandsPage({searchParams}) {
       <h2><Link href={"/commands/"+encodeURIComponent(command.id)}>{command.name}</Link></h2><p><Link href={"/commands/"+encodeURIComponent(command.id)}>פתח עמוד פקודה</Link></p><p style={{whiteSpace:'pre-wrap'}}>{command.description}</p>
       {!command.enabled?<p>הפקודה מושבתת</p>:command.key_available===false?<p>הפקודה אינה זמינה כעת</p>:null}
       {canRunCommand(user,command)&&<form action={runCommandAction}><input type="hidden" name="id" value={command.id}/><RunButton/></form>}
-      {user.is_super_admin&&<details style={{marginTop:16}}><summary>ניהול והגדרת הרשאות</summary><CommandEditor command={command} users={users} keys={keys}/></details>}
+      {user.is_super_admin&&<Link className="btn" style={{display:'inline-block',marginTop:16}} href={"/commands/"+encodeURIComponent(command.id)+"#settings"}>עריכה, הרשאות ושכפול</Link>}
     </article>)}</section>
     <CommandHistory runs={runs}/>
   </main>;
