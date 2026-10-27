@@ -23,7 +23,7 @@ async function replyModule(messages=[]) {
   }
   return[];
  };
- return {module:await load('../lib/attendance-whatsapp-replies.js',{'node:crypto':{randomUUID},'./db':{sql,initDb:async()=>{}}}),queries};
+ return {module:await load('../lib/attendance-whatsapp-replies.js',{'node:crypto':{randomUUID},'./db':{sql,initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate()}}),queries};
 }
 
 test('free text has an exact five-hour window, independent of the calendar day',async()=>{
@@ -65,7 +65,7 @@ async function sendingModule(options = {}) {
   return[];
  };
  const module=await load('../lib/attendance-whatsapp.js',{
-  'node:crypto':{randomUUID},'./db':{sql,initDb:async()=>{}},
+  'node:crypto':{randomUUID},'./db':{sql,initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate()},
   './attendance':{buildAttendanceStatusLabels:()=>({found:'נמצא',available:'זמין',unavailable:'לא זמין'}),getAttendanceRoster:async()=>roster,normalizeAttendanceStatus:v=>v,saveAttendanceRecord:async record=>saved.push(record)},
   './neon-students':{getNeonStudentById:async()=>student},
   './whatsapp-channel-config.mjs':{coexistenceWhatsAppConfig:()=>({templatesUrl:'https://example.invalid/templates',messagesUrl:'https://example.invalid/messages',accessToken:'test'})},

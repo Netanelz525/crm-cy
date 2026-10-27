@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { startVisiblePolling } from "../../lib/visible-polling.js";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
 import StudentQuickEmailForm from "../student-quick-email-form";
@@ -357,6 +358,9 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     flashTimersRef.current.set(id, timer);
   }
 
+  const liveFiltersRef=useRef({selectedFilters,query,contactFilter});
+  liveFiltersRef.current={selectedFilters,query,contactFilter};
+
   useEffect(() => {
     let cancelled = false;
 
@@ -405,6 +409,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
 
         if (!changedRows.length) return;
 
+        const {selectedFilters,query,contactFilter}=liveFiltersRef.current;
         const nextVisible = [];
         for (const change of changedRows) {
           const wasVisible = rowMatchesFilters(change.previous, selectedFilters, query, contactFilter);
@@ -426,15 +431,14 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
       }
     }
 
-    pollRoster();
-    const intervalId = setInterval(pollRoster, POLL_INTERVAL_MS);
+    const stopPolling=startVisiblePolling(pollRoster,{intervalMs:POLL_INTERVAL_MS,onPause:()=>pollAbortRef.current?.abort()});
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      stopPolling();
       if (pollAbortRef.current) pollAbortRef.current.abort();
     };
-  }, [sessionId, selectedFilters, query, contactFilter]);
+  }, [sessionId]);
 
   return (
     <>
