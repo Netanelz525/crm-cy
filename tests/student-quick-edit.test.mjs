@@ -20,9 +20,9 @@ test('quick edit changes only requested fields, preserving sibling names, phone 
 test('clears, enums, lists and source dates are supported; forged fields and invalid values fail',()=>{
  assert.equal(quick.studentQuickPatch({},'registration',{registration:''}).registration,null);
  assert.equal(quick.studentQuickPatch({},'field:note',{note:''}).note,'');
- assert.equal(quick.studentQuickPatch({},'age',{dateofbirth:'2008-03-28'}).dateofbirth,'2008-03-28T00:00:00.000Z');
+ assert.equal(quick.studentQuickPatch({},'field:dateofbirth',{dateofbirth:'2008-03-28'}).dateofbirth,'2008-03-28T00:00:00.000Z');
  assert.equal(quick.studentQuickPatch({},'field:phone.additionalPhones',{'phone.additionalPhones':''}).phone.additionalPhones.length,0);
- for(const [column,values]of [['registration',{registration:'FORGED'}],['age',{dateofbirth:'2008-02-31'}],['name',{'__proto__.role':'admin'}],['registration',{registration:'DT',note:'unexpected'}],['field:childrenCount',{childrenCount:'-2'}],['field:role',{role:'admin'}]])assert.throws(()=>quick.studentQuickPatch({},column,values));
+ for(const [column,values]of [['registration',{registration:'FORGED'}],['field:dateofbirth',{dateofbirth:'2008-02-31'}],['name',{'__proto__.role':'admin'}],['registration',{registration:'DT',note:'unexpected'}],['field:childrenCount',{childrenCount:'-2'}],['field:role',{role:'admin'}]])assert.throws(()=>quick.studentQuickPatch({},column,values));
 });
 test('server action rechecks approved staff permissions, refuses unknown students and persists a narrow patch',async()=>{
  let user={access_status:'approved',is_manager:true},exists=true,writes=[];const current={id:'student',fullName:{firstName:'משה',lastName:'כהן'}};
@@ -32,4 +32,11 @@ test('server action rechecks approved staff permissions, refuses unknown student
  user={access_status:'pending',is_manager:true};assert.equal((await actions.quickEditStudentAction(input)).ok,false);assert.equal(writes.length,0);
  user={access_status:'approved',is_manager:true};exists=false;assert.equal((await actions.quickEditStudentAction(input)).ok,false);assert.equal(writes.length,0);
  exists=true;const result=await actions.quickEditStudentAction(input);assert.equal(result.ok,true);assert.deepEqual(Object.keys(writes[0].patch),['note']);assert.equal(writes[0].patch.note,'עדכון');
+});
+
+test('computed full name and age never offer quick editing',()=>{
+ assert.equal(quick.studentQuickFields('name').length,0);assert.equal(quick.studentQuickFields('age').length,0);
+ assert.equal(quick.studentQuickFields('field:fullName.firstName')[0].key,'fullName.firstName');
+ assert.equal(quick.studentQuickFields('field:fullName.lastName')[0].key,'fullName.lastName');
+ assert.equal(quick.studentQuickFields('field:dateofbirth')[0].key,'dateofbirth');
 });
