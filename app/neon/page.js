@@ -19,6 +19,7 @@ import {
   parseAdvancedFilters,
   parsePdfBlankColumns,
   parseListParam,
+  normalizeStudentColumns,
   parseSortLevels,
   PDF_PRINT_ONLY_COLUMNS,
   SORT_OPTIONS,
@@ -244,7 +245,7 @@ export default async function NeonPage({ searchParams }) {
       : q || tz ? "search" : ""
   );
 
-  const parsedColumnKeys = parseListParam(resolvedSearchParams?.cols).filter((key) => INSTITUTION_COLUMN_MAP[key]);
+  const parsedColumnKeys = normalizeStudentColumns(resolvedSearchParams?.cols);
   const selectedColumnKeys = parsedColumnKeys.length ? parsedColumnKeys : DEFAULT_INSTITUTION_COLUMN_KEYS;
   const selectedColumns = selectedColumnKeys.map((key) => INSTITUTION_COLUMN_MAP[key]).filter(Boolean);
   const pdfBlankColumnKeys = parsePdfBlankColumns(resolvedSearchParams);

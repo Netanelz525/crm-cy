@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import QuickStudentCell from "./quick-student-cell";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { ENUM_LABELS } from "../../lib/student-fields";
@@ -267,7 +268,7 @@ function StudentCardMeta({ student }) {
   );
 }
 
-function TagActionButton({ student, availableTags, onAddTag, disabled = false }) {
+function TagActionButton({ student, availableTags, onAddTag, disabled = false, compact = false }) {
   const tags = Array.isArray(student?.tags) ? student.tags : [];
   const assignedIds = new Set(tags.map((tag) => tag.id));
   const selectableTags = availableTags.filter((tag) => !assignedIds.has(tag.id));
@@ -290,7 +291,7 @@ function TagActionButton({ student, availableTags, onAddTag, disabled = false })
 
   return (
     <details ref={detailsRef} className="student-tag-quick-panel">
-      <summary className="chip-link student-tag-quick-trigger">הוספת תווית</summary>
+      <summary className={compact?"quick-student-pencil":"chip-link student-tag-quick-trigger"} aria-label={compact?`עריכת תגיות עבור ${student.label}`:undefined}>{compact?"✎":"הוספת תווית"}</summary>
       <div className="student-tag-quick-body">
         {tags.length ? <div className="muted">תוויות משויכות: {tags.map((tag) => tag.name).join(", ")}</div> : <div className="muted">אין עדיין תוויות לתלמיד הזה.</div>}
         <form ref={formRef} onSubmit={handleSubmit} className="student-tag-quick-form">
@@ -445,6 +446,11 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
     setStudentRows((current) => current.map((student) => (
       student.id === studentId ? updater(student) : student
     )));
+  }
+
+  function quickCell(student,key,label,node=columnNode(student,key)) {
+    if(key==="tags")return <span className="quick-student-value"><StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending}/><TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} compact/></span>;
+    return <QuickStudentCell student={student} columnKey={key} label={label} onSaved={saved=>updateStudentRow(student.id,current=>{const next={...current,...saved};return {...next,missingItems:buildMissingState(next).items};})}>{node}</QuickStudentCell>;
   }
 
   function sortTags(list) {
@@ -852,7 +858,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     </td>
                     {selectedColumns.map((col) => (
                       <td key={col.key} style={col.key === "missing" && hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>
-                        {columnNode(student, col.key)}
+                        {quickCell(student,col.key,col.label)}
                       </td>
                     ))}
                     {canSendEmails ? (
@@ -874,17 +880,17 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     </td>
                     <td>
                       <div className="student-table-name-cell">
-                        <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
+                        {quickCell(student,"name","שם")}
                         <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
                       </div>
                     </td>
                     {showMatchScores ? <td><MatchScoreBadge score={student._matchScore} /></td> : null}
-                    <td>{classLabel(student.class)}</td>
-                    <td>{student.tznum || "-"}</td>
-                    <td>{ageOf(student.dateofbirth) ?? "-"}</td>
-                    <td><PhoneLink phoneObj={student.phone} /></td>
-                    <td><PhoneLink phoneObj={student.dadPhone} /></td>
-                    <td><PhoneLink phoneObj={student.momPhone} /></td>
+                    <td>{quickCell(student,"class","שיעור")}</td>
+                    <td>{quickCell(student,"tznum",'ת"ז')}</td>
+                    <td>{quickCell(student,"age","תאריך לידה")}</td>
+                    <td>{quickCell(student,"studentPhone","טלפון תלמיד")}</td>
+                    <td>{quickCell(student,"dadPhone","טלפון אב")}</td>
+                    <td>{quickCell(student,"momPhone","טלפון אם")}</td>
                     <td>
                       <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
                     </td>
@@ -899,7 +905,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                     <td>
                       <TagActionButton student={student} availableTags={tagOptions} onAddTag={handleAddTag} disabled={isPending} />
                     </td>
-                    <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>{hasMissing ? missingState.items.join(", ") : "-"}</td>
+                    <td style={hasMissing ? { color: "#b42318", fontWeight: 700 } : undefined}>{quickCell(student,"missing","חוסרים",hasMissing ? missingState.items.join(", ") : "-")}</td>
                   </tr>
                 );
               })
@@ -921,7 +927,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <span>בחר לעדכון מרוכז</span>
                 </label>
                 <div className="student-mobile-head">
-                  <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
+                  {quickCell(student,"name","שם")}
                 </div>
                 <StudentCardMeta student={student} />
                 <StudentTagSummary student={student} onRemoveTag={handleRemoveTag} disabled={isPending} />
@@ -932,7 +938,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <b>אירוע קרוב:</b> {student?.upcomingEvent ? `${student.upcomingEvent.eventLabel} | ${student.upcomingEvent.hebrewDateLabel} | ${eventOffsetLabel(student.upcomingEvent?.nextOccurrence?.daysUntil)}` : "אין אירוע"}
                 </div>
                 <div className="student-mobile-grid">
-                  {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {columnNode(student, col.key)}</div>)}
+                  {selectedColumns.map((col) => <div key={col.key}><b>{col.label}:</b> {quickCell(student,col.key,col.label)}</div>)}
                 </div>
                 <ContactActionButton student={student} onAddContact={handleAddContact} disabled={isPending} />
                 <EventActionButton student={student} onAddEvent={handleAddEvent} disabled={isPending} />
@@ -951,7 +957,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
                   <span>בחר לעדכון מרוכז</span>
                 </label>
                 <div className="student-mobile-head">
-                  <Link className="student-link" href={`/neon/students/${student.id}`}>{student.label}</Link>
+                  {quickCell(student,"name","שם")}
                   {showMatchScores ? <MatchScoreBadge score={student._matchScore} /> : null}
                 </div>
                 <StudentCardMeta student={student} />
