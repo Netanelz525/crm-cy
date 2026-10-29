@@ -560,6 +560,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
     setDeleteOpen(false);
   }
 
+  const detailTargetIds=selectedIds.length?selectedIds:studentRows.map(student=>student.id);
   const emailHref = useMemo(() => {
     const params = new URLSearchParams();
     const rawQuery = clean(returnTo).split("?")[1] || "";
@@ -662,6 +663,7 @@ export default function BulkStudentsClient({ students, selectedColumns, showInst
             }}>
               עבור לשליחת מייל
             </Link>
+            <Link className="btn btn-ghost bulk-open-btn" href={'/detail-requests?'+new URLSearchParams(detailTargetIds.slice(0,200).map(id=>['studentIds',id])).toString()} aria-disabled={!studentRows.length} onClick={event=>{if(!studentRows.length||detailTargetIds.length>200){event.preventDefault();setFeedback('יש לבחור עד 200 תלמידים לבקשת אימות או עדכון.');}}}>בקשת אימות או עדכון פרטים</Link>
             <button type="button" className="btn btn-ghost bulk-open-btn" disabled={!selectedIds.length} onClick={() => setBulkOpen(true)}>
               המשך לבחירת השדות לעדכון
             </button>

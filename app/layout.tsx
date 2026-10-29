@@ -30,6 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     { href: "/email", label: "מיילים" },
     { href: "/announcements", label: "הודעות" },
     { href: "/attendance", label: "נוכחות" },
+    ...(currentUser?.is_manager || currentUser?.is_team_member ? [{ href: "/detail-requests", label: "אימות פרטים" }] : []),
     { href: "/print", label: "הדפסה" }
   ];
   const primaryNavItems = [
