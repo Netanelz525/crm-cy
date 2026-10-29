@@ -1,4 +1,5 @@
 "use client";
+import WeddingDateInput from "../../../components/wedding-date-input";
 import { useEffect, useState } from "react";
 import { FIELD_SECTIONS, ENUM_LABELS } from "../../../lib/student-fields";
 
@@ -27,10 +28,10 @@ export default function CallStudentEditor({lead,request,disabled,onSaved,onClose
       <fieldset disabled={busy || disabled} style={{border:0,padding:0}}>
         <label>חיפוש שדה<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="שם, טלפון, מוסד…"/></label>
         {FIELD_SECTIONS.map(section=>{
-          const fields=section.fields.filter(field=>!query || field.label.includes(query.trim()));
+          const fields=section.fields.filter(field=>(!field.marriedOnly||values.famliystatus==='MARRIED')&&(!query || field.label.includes(query.trim())));
           if(!fields.length)return null;
           return <details className="call-edit-section" key={section.title} open={Boolean(query)||undefined}><summary><span>{section.title}</span><small>לחץ לפתיחת השדות</small></summary><div className="grid">
-            {fields.map(field=><label key={field.key}>{field.label}
+            {fields.map(field=>field.key==='weddingDate'?<fieldset key={field.key}><legend>{field.label}</legend><WeddingDateInput disabled={busy||disabled} value={values[field.key]||''} onChange={value=>setValues(v=>({...v,[field.key]:value}))}/></fieldset>:<label key={field.key}>{field.label}
               {field.enum?<select value={values[field.key]||""} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))}>
                 <option value="">ללא ערך</option>{Object.entries(ENUM_LABELS[field.enum] || {}).map(([value,label])=><option key={value} value={value}>{label}</option>)}
               </select>:field.isList || field.key==='note'?<textarea value={values[field.key]||""} maxLength={4000} placeholder={field.isList?"ערכים מופרדים בפסיקים":""} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))}/>:<input type={field.type||"text"} min={field.type==='number'?0:undefined} value={values[field.key]||""} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))}/>}

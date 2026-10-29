@@ -1,3 +1,4 @@
+import {weddingDateLabel} from '../lib/wedding-date.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 async function load(path,stubs={}){const context=vm.createContext({URLSearchParams,Date});const module=new vm.SourceTextModule(await fs.readFile(new URL(path,import.meta.url),'utf8'),{context});await module.link(async key=>new vm.SyntheticModule(Object.keys(stubs[key]),function(){for(const [name,value] of Object.entries(stubs[key]))this.setExport(name,value);},{context}));await module.evaluate();return module.namespace;}
 const fields=await load('../lib/student-fields.js');
 const quick=await load('../lib/student-quick-edit.js',{'./student-fields':fields});
-const view=await load('../lib/student-view.js',{'./student-fields':fields});
+const view=await load('../lib/student-view.js',{'./student-fields':fields,'./wedding-date':{weddingDateLabel}});
 test('legacy registration columns collapse to one column in the picker and saved selections',()=>{
  assert.equal(view.INSTITUTION_COLUMNS_FULL.filter(column=>column.label==='רישום').length,1);
  assert.deepEqual([...view.normalizeStudentColumns(['field:registration','missing','registration','missing'])],['registration','missing']);

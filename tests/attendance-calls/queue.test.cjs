@@ -8,7 +8,7 @@ const { PGlite } = require('@electric-sql/pglite');
 test('attendance calls: SQL queue, leases, authorization, outcomes and atomic writes', async (t) => {
  const db = new PGlite();
  t.after(() => db.close());
- await db.exec(`CREATE TABLE app_users(clerk_user_id text primary key, linked_student_id text, access_status text, role text, display_name text);
+ await db.exec(`CREATE TABLE app_users(clerk_user_id text primary key, linked_student_id text, access_status text, role text, display_name text,can_call_attendance boolean default true,linked_student_class text);
  CREATE TABLE attendance_sessions(id text primary key,title text,session_type text,session_date date,responsible_user_ids text[],responsible_user_id text,created_at timestamptz default now(),updated_at timestamptz default '2026-09-08T00:00:00.123456Z',is_locked boolean default false);
  CREATE TABLE neon_students(student_id text primary key,full_name text,first_name text,last_name text,tznum text,class text,current_institution text,registration text,primary_email text,father_email text,mother_email text,student_phone text,father_phone text,mother_phone text,age_years int,children_count int,payload jsonb,synced_at timestamptz default now());
  CREATE TABLE attendance_records(session_id text,student_id text,student_name text,student_class text,status text,note_text text,marked_by_user_id text,marked_at timestamptz,updated_at timestamptz,primary key(session_id,student_id));
@@ -24,15 +24,15 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const roster=()=>({session:{id:'meeting',title:'test',updatedAt:new Date('2026-09-08T00:00:00.123Z'),statusOptions:[['found','נמצא'],['missing','לא נמצא']],isLocked:false},students});
  const source=fs.readFileSync(path.join(__dirname,'../../lib/attendance-calls.js'),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
  const fieldSource=fs.readFileSync(path.join(__dirname,'../../lib/student-fields.js'),'utf8').replace(/export /g,'');
- const fieldHelpers=new Function(fieldSource+';return {FIELD_SECTIONS,ENUM_LABELS,studentToFormValues,normalizeStudentInput,getByPath};')();
+ const fieldHelpers=new Function(fieldSource+';return {FIELD_SECTIONS,ENUM_LABELS,studentToFormValues,normalizeStudentInput,getByPath,normalizeWeddingDate};')();
  const neonSource=fs.readFileSync(path.join(__dirname,'../../lib/neon-students.js'),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
- const mirror=new Function('sql','initDb','randomUUID',neonSource+';return buildStudentMirrorRecord;')(sql,async()=>{},randomUUID);
+ const mirror=new Function('sql','initDb','randomUUID','normalizeWeddingDate',neonSource+';return buildStudentMirrorRecord;')(sql,async()=>{},randomUUID,fieldHelpers.normalizeWeddingDate);
  const getStudent=async id=>{const row=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',[id])).rows[0];return row?{...row.payload,id,childrenCount:row.children_count}:null;};
  const deps={sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
  const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
- const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved'};
- const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved'};
- const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved'};
+ const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved',can_call_attendance:true};
+ const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved',can_call_attendance:true};
+ const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved',can_call_attendance:true};
  await api.saveCallTeam('meeting',['caller-a','caller-b'],manager);
  await assert.rejects(api.saveCallTeam('meeting',[],a),e=>e.status===403);
  await assert.rejects(api.claimAttendanceCall('meeting',{...a,clerk_user_id:'outsider',linked_student_id:'caller-x'}),e=>e.status===403);
@@ -120,7 +120,7 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  await assert.rejects(api.updateAttendanceCallStudent('meeting',{...identity,version:latest.version,fields:{note:'expired'}},a),e=>e.status===409);
  // Existing session responsible users can join without being a student call-team member.
  await db.query("UPDATE attendance_sessions SET responsible_user_ids=ARRAY['outsider']");
- const responsible={clerk_user_id:'outsider',linked_student_id:'caller-x',access_status:'approved'};
+ const responsible={clerk_user_id:'outsider',linked_student_id:'caller-x',access_status:'approved',can_call_attendance:true};
  assert.equal((await api.listMyCallSessions(responsible)).length,1);
  assert.ok((await api.claimAttendanceCall('meeting',responsible,'lead-1')).lead);
 });

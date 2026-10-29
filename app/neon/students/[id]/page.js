@@ -1,3 +1,5 @@
+import MarriedStudentFields from "../../../../components/married-student-fields";
+import {weddingDateLabel} from "../../../../lib/wedding-date";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import AttendanceHistoryPanel from "../../../../components/attendance-history-panel";
@@ -148,6 +150,7 @@ function formatDisplayValue(field, value) {
     return renderEmailValue(value);
   }
   if (Array.isArray(value)) return value.join(", ");
+  if(field.key==="weddingDate")return weddingDateLabel(value);
   if (field.type === "date") return formatDate(value);
   if (field.enum && ENUM_LABELS[field.enum]) return ENUM_LABELS[field.enum][String(value)] || String(value);
   if (typeof value === "boolean") return value ? "כן" : "לא";
@@ -172,7 +175,7 @@ function visibleSections(student) {
   return FIELD_SECTIONS.map((section) => {
     const normalFields = section.fields
       .filter((field) => !isPhoneSubField(field.key))
-      .filter((field) => field.key !== "childrenCount" || isMarried(student?.famliystatus))
+      .filter((field) => !field.marriedOnly || isMarried(student?.famliystatus))
       .map((field) => ({ field, value: getByPath(student, field.key) }))
       .filter((row) => hasDisplayValue(row.value));
 
@@ -820,10 +823,11 @@ export default async function NeonStudentPage({ params, searchParams }) {
           </div>
 
           <div className="card">
+            <MarriedStudentFields student={student}/>
             {FIELD_SECTIONS.map((section) => {
               const sectionFields = section.fields.filter((field) => {
                 if (TOP_EDIT_KEYS.has(field.key)) return false;
-                if (field.key === "childrenCount" && !showChildrenCount) return false;
+                if (field.marriedOnly) return false;
                 if (!advancedMode && isAdvancedOnlyField(field.key)) return false;
                 return true;
               });

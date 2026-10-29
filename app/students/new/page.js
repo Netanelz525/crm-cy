@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+import MarriedStudentFields from "../../../components/married-student-fields";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ENUM_LABELS, FIELD_SECTIONS } from "../../../lib/student-fields";
 import { requireAuthenticatedUser } from "../../../lib/rbac";
@@ -106,6 +107,7 @@ export default async function NewStudentPage({ searchParams }) {
           </p>
         </div>
 
+        <MarriedStudentFields/>
         {FIELD_SECTIONS.map((section) => {
           const sectionFields = section.fields.filter((field) => {
             if (TOP_CREATE_KEYS.has(field.key)) return false;
