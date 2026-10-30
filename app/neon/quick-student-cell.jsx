@@ -11,7 +11,7 @@ export default function QuickStudentCell({student,columnKey,label,children,onSav
  useEffect(()=>{if(open)dialog.current?.showModal();},[open]);
  function close(){if(pending)return;setOpen(false);trigger.current?.focus();}
  if(!fields.length||fields.some(field=>field.marriedOnly)&&student.famliystatus!=='MARRIED')return children;
- return <><span className="quick-student-value">{children}<button ref={trigger} type="button" className="quick-student-pencil" aria-label={'עריכת '+label+' עבור '+student.label} title={'עריכת '+label} onClick={()=>{setValues(studentToFormValues(student));setError('');setOpen(true);}}>✎</button></span>
+ return <><span className="quick-student-value quick-student-editable"><span className="quick-student-text">{children}</span><button ref={trigger} type="button" className="quick-student-pencil" aria-label={'עריכת '+label+' עבור '+student.label} title={'עריכת '+label} onClick={()=>{setValues(studentToFormValues(student));setError('');setOpen(true);}}>✎</button></span>
  {open&&createPortal(<dialog ref={dialog} className="quick-student-dialog" onCancel={event=>{event.preventDefault();close();}} aria-label={'עריכת '+label}>
  <form onSubmit={async event=>{event.preventDefault();setPending(true);setError('');try{const selected=Object.fromEntries(fields.map(field=>[field.key,values[field.key]||'']));const result=await quickEditStudentAction({studentId:student.id,columnKey,values:selected});if(!result.ok){setError(result.error);return;}onSaved(result.student);setOpen(false);trigger.current?.focus();}catch{setError('השמירה נכשלה. ניתן לנסות שוב.');}finally{setPending(false);}}}>
  <h2>עריכת {label}</h2><p>{student.label}</p>
