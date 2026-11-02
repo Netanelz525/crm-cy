@@ -60,3 +60,11 @@ test('recipient server action derives identity from Clerk, never submitted email
  userId='u';profile={emailAddresses:[],externalAccounts:[]};assert.equal((await actions.respondToDetailRequestAction('request',{},'r')).ok,false);assert.equal(captured,null);
  profile={emailAddresses:[{emailAddress:'parent@example.com',verification:{status:'verified'}}],externalAccounts:[{provider:'oauth_google',emailAddress:'parent@example.com'}]};fail=true;const failed=await actions.respondToDetailRequestAction('request',{},'r');assert.equal(failed.ok,false);assert(!failed.error.includes('PRIVATE'));
 });
+
+test('manual student lookup requires approved staff and searches independently of request filters with bounded results',async()=>{
+ let user=manager,calls=[];
+ const actions=await load('../app/detail-requests/actions.js',{'next/cache':{revalidatePath:()=>{}},'../../lib/rbac':{requireAuthenticatedUser:async()=>user},'../../lib/detail-request-fields':fields,'../../lib/detail-requests':{requireDetailManager:value=>{if(value?.access_status!=='approved'||(!value.is_manager&&!value.is_team_member))throw Error('denied');},createDetailBatch:()=>{},sendDetailChunk:()=>{},closeDetailBatch:()=>{}},'../../lib/neon-students':{listNeonStudentsByFilters:async options=>{calls.push(options);return Array.from({length:21},(_,i)=>({...student,id:String(i),note:'PRIVATE'}));}}});
+ user={access_status:'pending',is_manager:true};assert.equal((await actions.searchDetailStudentsAction('Student')).ok,false);assert.equal(calls.length,0);
+ user=manager;assert.equal((await actions.searchDetailStudentsAction(' ')).ok,false);assert.equal((await actions.searchDetailStudentsAction('x'.repeat(151))).ok,false);assert.equal(calls.length,0);
+ const result=await actions.searchDetailStudentsAction(' Student ');assert.equal(result.ok,true);assert.equal(result.students.length,20);assert.equal(result.hasMore,true);assert.equal(calls[0].q,'Student');assert.equal(calls[0].limit,21);assert.deepEqual(Object.keys(calls[0]).sort(),['limit','q']);assert(!JSON.stringify(result).includes('PRIVATE'));
+});
