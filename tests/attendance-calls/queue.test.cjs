@@ -29,11 +29,18 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const mirror=new Function('sql','initDb','randomUUID','normalizeWeddingDate',neonSource+';return buildStudentMirrorRecord;')(sql,async()=>{},randomUUID,fieldHelpers.normalizeWeddingDate);
  const getStudent=async id=>{const row=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',[id])).rows[0];return row?{...row.payload,id,childrenCount:row.children_count}:null;};
  const deps={sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
- const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
+ const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
  const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved',can_call_attendance:true};
  const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved',can_call_attendance:true};
  const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved',can_call_attendance:true};
  await api.saveCallTeam('meeting',['caller-a','caller-b'],manager);
+ assert.equal(await api.canAccessCallDesk(a),true);
+ assert.equal(await api.canAccessCallDesk({...a,linked_student_id:'caller-x',clerk_user_id:'outsider'}),false);
+ assert.equal(await api.canAccessCallDesk({...a,can_call_attendance:false}),false);
+ assert.equal(await api.canAccessCallDesk({...a,access_status:'pending'}),false);
+ assert.equal(await api.canAccessCallDesk(manager),true);
+ await db.exec("UPDATE attendance_sessions SET responsible_user_ids=ARRAY['responsible'] WHERE id='meeting'");
+ assert.equal(await api.canAccessCallDesk({...a,clerk_user_id:'responsible',linked_student_id:null}),true);
  await assert.rejects(api.saveCallTeam('meeting',[],a),e=>e.status===403);
  await assert.rejects(api.claimAttendanceCall('meeting',{...a,clerk_user_id:'outsider',linked_student_id:'caller-x'}),e=>e.status===403);
  await assert.rejects(api.claimAttendanceCall('meeting',{...a,access_status:'pending'}),e=>e.status===403);
@@ -87,6 +94,13 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
 
  // Manual selection includes completed invitees, preserves an existing lease if busy.
  await api.saveCallTeam('meeting',['caller-a','caller-b'],manager);
+ assert.equal(await api.canAccessCallDesk(a),true);
+ assert.equal(await api.canAccessCallDesk({...a,linked_student_id:'caller-x',clerk_user_id:'outsider'}),false);
+ assert.equal(await api.canAccessCallDesk({...a,can_call_attendance:false}),false);
+ assert.equal(await api.canAccessCallDesk({...a,access_status:'pending'}),false);
+ assert.equal(await api.canAccessCallDesk(manager),true);
+ await db.exec("UPDATE attendance_sessions SET responsible_user_ids=ARRAY['responsible'] WHERE id='meeting'");
+ assert.equal(await api.canAccessCallDesk({...a,clerk_user_id:'responsible',linked_student_id:null}),true);
  const manual=await api.claimAttendanceCall('meeting',a,'lead-1');
  assert.equal(manual.lead.studentId,'lead-1');
  const other=await api.claimAttendanceCall('meeting',b);

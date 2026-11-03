@@ -2,6 +2,8 @@ import { ClerkProvider, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import AiChatWidget from "./ai-chat-widget";
 import { getCurrentAppUser } from "../lib/rbac";
+import { canManagePersonalTools } from "../lib/personal-access";
+import { canAccessCallDesk } from "../lib/attendance-calls";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,8 @@ export const metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const currentUser = await getCurrentAppUser();
-  const canUseAiChat = Boolean(currentUser?.is_team_member || currentUser?.is_manager);
+  const canUseAiChat = canManagePersonalTools(currentUser);
+  const canShowCallDesk = await canAccessCallDesk(currentUser);
   const canUsePrintQueue = Boolean(currentUser?.can_use_print_queue);
   const canShowTopbar = Boolean(currentUser);
   const isStudentPortalUser = Boolean(currentUser && !currentUser.is_team_member && !currentUser.is_manager && !currentUser.is_super_admin && !currentUser.is_print_only && !currentUser.is_marei_mekomot);
@@ -35,8 +38,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ];
   const primaryNavItems = [
     ...roleNavItems,
-    ...(currentUser ? [{ href: "/commands", label: "פקודות" }] : []),
-    ...(currentUser ? [{ href: "/call-desk", label: "אזור השיחות שלי" }] : [])
+    ...(canManagePersonalTools(currentUser) ? [{ href: "/commands", label: "פקודות" }] : []),
+    ...(canShowCallDesk ? [{ href: "/call-desk", label: "אזור השיחות שלי" }] : [])
   ];
   const secondaryNavItems = isStudentPortalUser ? [] : [
     ...(currentUser?.is_manager || currentUser?.is_super_admin ? [{ href: "/admin/articles", label: "מאמרי מידע" }] : []),

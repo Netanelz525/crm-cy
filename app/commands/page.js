@@ -1,3 +1,4 @@
+import {canManagePersonalTools} from '../../lib/personal-access';
 import Link from 'next/link';
 import CommandHistory,{CommandResult} from './command-history';
 import { requireAuthenticatedUser,listAppUsers } from '../../lib/rbac';
@@ -9,9 +10,9 @@ import CommandKeyEditor from './command-key-editor';
 export const runtime='nodejs';
 export default async function CommandsPage({searchParams}) {
   const user=await requireAuthenticatedUser();
-  if(user.access_status!=='approved')return <div className="card"><h1>פקודות</h1><p>נדרש חשבון מאושר.</p></div>;
+  if(!canManagePersonalTools(user))return <div className="card"><h1>פקודות</h1><p>הפקודות זמינות למנהלים בלבד.</p></div>;
   const [commands,runs,allUsers,keys,params]=await Promise.all([listCommands(user),listCommandRuns(user),user.is_super_admin?listAppUsers():[],user.is_super_admin?listCommandKeys(user):[],searchParams]);
-  const users=allUsers.filter(item=>item.access_status==='approved');
+  const users=allUsers.filter(canManagePersonalTools);
   const query=String(params?.q||'').trim();
   const filtered=commands.filter(command=>`${command.name} ${command.description}`.toLowerCase().includes(query.toLowerCase()));
   return <main style={{display:'grid',gap:20}}>

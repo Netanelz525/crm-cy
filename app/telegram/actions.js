@@ -1,5 +1,6 @@
 "use server";
 
+import {canManagePersonalTools} from '../../lib/personal-access';
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "../../lib/rbac";
 import {
@@ -23,7 +24,7 @@ function resolveBaseUrl() {
 
 export async function generateTelegramLinkCodeAction() {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!canManagePersonalTools(user)) {
     throw new Error("רק משתמשים מורשים יכולים לחבר Telegram.");
   }
   const link = await getTelegramLinkByClerkUserId(user.clerk_user_id);
@@ -47,7 +48,7 @@ export async function generateTelegramLinkCodeAction() {
 
 export async function unlinkTelegramAction() {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!canManagePersonalTools(user)) {
     throw new Error("רק משתמשים מורשים יכולים לנתק Telegram.");
   }
   await unlinkTelegramByClerkUserId(user.clerk_user_id);
@@ -57,7 +58,7 @@ export async function unlinkTelegramAction() {
 
 export async function setupTelegramWebhookAction() {
   const user = await requireAuthenticatedUser();
-  if (!user.is_team_member && !user.is_manager) {
+  if (!canManagePersonalTools(user)) {
     throw new Error("רק משתמשים מורשים יכולים להגדיר webhook.");
   }
   const baseUrl = resolveBaseUrl();

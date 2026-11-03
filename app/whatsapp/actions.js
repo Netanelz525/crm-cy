@@ -1,8 +1,8 @@
 "use server";
 
+import {canManagePersonalTools} from '../../lib/personal-access';
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "../../lib/rbac";
-import { canUsePrintQueue } from "../../lib/print-jobs";
 import {
   buildWhatsAppDeepLink,
   createWhatsAppLinkCode,
@@ -11,7 +11,7 @@ import {
 } from "../../lib/whatsapp";
 
 function canConnectWhatsApp(user) {
-  return Boolean(user?.is_team_member || user?.is_manager || user?.is_super_admin || user?.linked_student_id || canUsePrintQueue(user));
+  return canManagePersonalTools(user);
 }
 
 export async function generateWhatsAppLinkCodeAction() {

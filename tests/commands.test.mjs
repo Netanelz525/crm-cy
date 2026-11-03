@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {canManagePersonalTools} from '../lib/personal-access.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
@@ -41,10 +42,10 @@ test('DNS is checked on every execution, mixed answers fail, and connection uses
  const result=await request.sendCommand(config,{resolve:async()=>[{address:'8.8.8.8',family:4}],transport});assert.equal(result.ok,false);assert.equal(result.status,302);assert.equal(connections,1);
  await assert.rejects(request.sendCommand(config,{resolve:async()=>[{address:'8.8.8.8',family:4},{address:'127.0.0.1',family:4}],transport}));assert.equal(connections,1);
 });
-const admin={clerk_user_id:'admin',is_super_admin:true,access_status:'approved'},staff={clerk_user_id:'staff',access_status:'approved'};
+const admin={clerk_user_id:'admin',is_super_admin:true,access_status:'approved'},staff={clerk_user_id:'staff',access_status:'approved',is_manager:true};
 async function serviceFixture({claim=true,sendError=false,keyValue=null}={}){
  const calls=[],sent=[];const sql=async(strings,...args)=>{const query=strings.join('?');calls.push({query,args});if(query.includes('WITH claimed'))return claim?[{encrypted_request:'encrypted',encrypted_value:keyValue,key_type:'bearer',key_parameter:''}]:[];if(query.includes('RETURNING id'))return [{id:'key1'}];if(query.includes('SELECT id FROM system_command_keys'))return [{id:'key1'}];if(query.includes('SELECT clerk_user_id'))return [{clerk_user_id:'staff'}];if(query.includes('SELECT id,name'))return [];return [];};
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding,prepareCommandRequest:request.prepareCommandRequest,commandResponseType:request.commandResponseType,encryptCommandResponse:request.encryptCommandResponse,decryptCommandResponse:request.decryptCommandResponse}});return {mod,calls,sent};
+ const mod=await load('../lib/commands.js',{'./personal-access':{canManagePersonalTools},'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':{encryptCommand:()=> 'encrypted',decryptCommand:()=>config,sendCommand:async value=>{sent.push(value);if(sendError)throw Error('private token');return {ok:true,status:204};},CommandValidationError:request.CommandValidationError,encryptCommandKey:request.encryptCommandKey,decryptCommandKey:request.decryptCommandKey,applyCommandKey:request.applyCommandKey,validateKeyBinding:request.validateKeyBinding,prepareCommandRequest:request.prepareCommandRequest,commandResponseType:request.commandResponseType,encryptCommandResponse:request.encryptCommandResponse,decryptCommandResponse:request.decryptCommandResponse}});return {mod,calls,sent};
 }
 test('permissions require approved account, explicit grant, active command; only admin can manage',async()=>{
  const {mod,calls}=await serviceFixture();const command={enabled:true,allowed_user_ids:['staff']};assert(mod.canRunCommand(staff,command));assert(!mod.canRunCommand({...staff,access_status:'pending'},command));assert(!mod.canRunCommand({...staff,clerk_user_id:'other'},command));assert(!mod.canRunCommand(admin,{...command,enabled:false}));
@@ -140,7 +141,7 @@ test('single command lookup never reveals an ungranted command',async()=>{
 test('admin request summary exposes structure but never saved tokens, body values or query values',async()=>{
  let targetURL='https://example.com/api/mdm/abm/sync?token=PRIVATE-QUERY';
  const secret='PRIVATE-KEY',sql=async(strings)=>strings.join('?').includes('SELECT c.encrypted_request')?[{encrypted_request:'stored',key_type:'bearer',encrypted_value:request.encryptCommandKey('Bearer '+secret)}]:[];
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':{...request,decryptCommand:()=>({url:targetURL,method:'POST',headers:{Authorization:'Bearer PRIVATE-OLD'},body:''})}});
+ const mod=await load('../lib/commands.js',{'./personal-access':{canManagePersonalTools},'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':{...request,decryptCommand:()=>({url:targetURL,method:'POST',headers:{Authorization:'Bearer PRIVATE-OLD'},body:''})}});
  await assert.rejects(mod.getCommandRequestSummary(staff,'cmd'));
  const summary=await mod.getCommandRequestSummary(admin,'cmd');assert.equal(summary.bodyBytes,2);assert.equal(summary.contentType,'application/json');assert.equal(summary.prefixedBearer,true);assert.equal(summary.target,'https://example.com/api/mdm/abm/sync');assert(!JSON.stringify(summary).includes('PRIVATE'));
  targetURL='https://example.com/public/home-assistant/process/PRIVATE-TOKEN-IN-PATH-1234567890?v=PRIVATE';const hidden=await mod.getCommandRequestSummary(admin,'cmd');assert(!JSON.stringify(hidden).includes('PRIVATE'));assert(hidden.target.includes('[מוסתר]'));
@@ -164,15 +165,21 @@ test('response previews hide request credentials and newly returned tokens while
 });
 test('response previews are decrypted only after the existing history access filter, and ciphertext never reaches the UI',async()=>{
  const queries=[];const sql=async(strings)=>{const query=strings.join('?');queries.push(query);return query.includes('SELECT r.id,c.name')?[{id:'r1',status:'succeeded',encrypted_response:request.encryptCommandResponse({body:'{"ok":true}',contentType:'application/json'})}]:[];};
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':request});
+ const mod=await load('../lib/commands.js',{'./personal-access':{canManagePersonalTools},'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':request});
  assert.equal((await mod.listCommandRuns(null)).length,0);assert.equal(queries.length,0);
  const rows=await mod.listCommandRuns(staff);assert.equal(rows[0].response.body,'{"ok":true}');assert.equal(rows[0].encrypted_response,undefined);assert(queries.find(query=>query.includes('SELECT r.id,c.name')).includes('ANY(c.allowed_user_ids)'));
 });
 
 test('editing and duplication are admin-only; cloning preserves ciphertext and starts without grants or execution',async()=>{
  const calls=[];const sql=async(strings,...args)=>{const query=strings.join('?');calls.push({query,args});if(query.includes('SELECT encrypted_request'))return [{encrypted_request:request.encryptCommand(config)}];if(query.includes('RETURNING id'))return [{id:'copy'}];return [];};
- const mod=await load('../lib/commands.js',{'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':request});
+ const mod=await load('../lib/commands.js',{'./personal-access':{canManagePersonalTools},'node:crypto':crypto,'./db.js':{initDb:async()=>{},ensureDbFeature:async(_key,_version,migrate)=>migrate(),sql},'./command-request.js':request});
  await assert.rejects(mod.getCommandEditConfig(staff,'cmd'));await assert.rejects(mod.duplicateCommand(staff,'cmd'));assert.equal(calls.length,0);
  const edit=await mod.getCommandEditConfig(admin,'cmd');assert.equal(edit.url,config.url);assert.equal(edit.body,config.body);assert.equal(edit.method,'POST');
  await mod.duplicateCommand(admin,'cmd');const copy=calls.find(c=>c.query.includes('INSERT INTO system_commands(id,name'));assert(copy.query.includes("ARRAY[]::TEXT[],FALSE"));assert(copy.query.includes('description,encrypted_request'));assert(copy.query.includes('key_id,key_type,key_parameter,response_type'));assert(!calls.some(c=>c.query.includes('INSERT INTO system_command_runs')));
+});
+
+test('students and non-manager users cannot list, inspect history or run a command even with an explicit old grant',async()=>{
+ const {mod,calls,sent}=await serviceFixture();const student={clerk_user_id:'staff',access_status:'approved',linked_student_id:'student',is_manager:false,is_team_member:false};
+ assert(!mod.canRunCommand(student,{enabled:true,allowed_user_ids:['staff']}));assert.equal((await mod.listCommands(student)).length,0);assert.equal((await mod.listCommandRuns(student)).length,0);assert.equal((await mod.runCommand(student,'cmd')).code,'denied');assert.equal(calls.length,0);assert.equal(sent.length,0);
+ assert(!canManagePersonalTools({...admin,access_status:'pending'}));assert(!canManagePersonalTools({...student,is_team_member:true}));assert(canManagePersonalTools(admin));
 });

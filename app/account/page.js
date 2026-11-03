@@ -1,3 +1,5 @@
+import {canManagePersonalTools} from "../../lib/personal-access";
+import {canAccessCallDesk} from "../../lib/attendance-calls";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canAccessPrintFeature } from "../../lib/print-jobs";
@@ -20,9 +22,14 @@ export default async function AccountPage() {
   const user = await getCurrentAppUser();
   if (!user) redirect(await signInRedirectUrl());
 
-  const canUseAiChat = Boolean(user.is_team_member || user.is_manager);
+  if (!canManagePersonalTools(user)) {
+    if (user.linked_student_id) redirect('/neon/students/'+encodeURIComponent(user.linked_student_id));
+    return <section className="card glass"><h1>אזור אישי</h1><p>לא משויך כרטיס תלמיד לחשבון זה. יש לפנות לצוות לצורך שיוך הכרטיס.</p></section>;
+  }
+  const showCalls = await canAccessCallDesk(user);
+  const canUseAiChat = true;
   const canSendPrintJobs = canAccessPrintFeature(user);
-  const canUseWhatsAppAgent = Boolean(canUseAiChat || user.linked_student_id || canSendPrintJobs);
+  const canUseWhatsAppAgent = canManagePersonalTools(user);
   const telegramLink = canUseAiChat ? await getTelegramLinkByClerkUserId(user.clerk_user_id) : null;
   const whatsappLink = canUseWhatsAppAgent ? await getWhatsAppLinkByClerkUserId(user.clerk_user_id) : null;
   const botUsername = getTelegramBotUsername();
@@ -38,7 +45,7 @@ export default async function AccountPage() {
           כאן מנהלים את החיבור האישי לסוכן, מעתיקים קישורי כניסה ישירים ל־Telegram ול־WhatsApp,
           ומנתקים ערוצים אם צריך.
         </p>
-        {user.access_status === "approved" ? (
+        {showCalls ? (
           <div className="quick-actions" style={{ marginTop: 14 }}>
             <Link className="quick-action-btn quick-action-primary" href="/call-desk">אזור השיחות שלי — מפגשים ותלמידים משויכים</Link>
           </div>

@@ -5,7 +5,7 @@ import { listCallAssignments } from "../../lib/student-call-assignments";
 import RefreshAssignments from "./refresh-assignments";
 import CallDeskClient from "./call-desk-client";
 import Link from "next/link";
-import { listMyCallSessions } from "../../lib/attendance-calls";
+import { listMyCallSessions, canAccessCallDesk } from "../../lib/attendance-calls";
 import { ATTENDANCE_SESSION_TYPE_LABELS } from "../../lib/attendance";
 
 function hasPhone(value) {
@@ -25,7 +25,7 @@ function hasCallContact(student) {
 export default async function CallDeskPage() {
   const user = await getCurrentAppUser();
   if (!user) redirect("/sign-in?redirect_url=/call-desk");
-  if (user.access_status !== "approved" || !user.can_call_attendance) redirect("/unauthorized");
+  if (!(await canAccessCallDesk(user))) redirect("/unauthorized");
   const sessions = await listMyCallSessions(user);
   const [students, assignments] = await Promise.all([listAllNeonStudents(), listCallAssignments()]);
   const mine = assignments.filter((item) => (item.assignee_user_id === user.clerk_user_id || (user.linked_student_id && item.assignee_student_id === user.linked_student_id)) && item.status === "pending");

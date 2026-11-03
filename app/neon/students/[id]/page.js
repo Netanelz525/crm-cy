@@ -354,7 +354,7 @@ export default async function NeonStudentPage({ params, searchParams }) {
             />
           </div>
           <div className="student-actions student-actions-wrap">
-            <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link>
+            {canManageStudent ? <Link className="btn btn-ghost" href="/neon">חזרה לרשימת תלמידים</Link> : null}
             {canManageStudent ? <Link className="btn btn-ghost" href={`/neon/students/${studentId}?payments=1#payments`}>תשלומים</Link> : null}
             {canManageStudent ? (
               <Link
