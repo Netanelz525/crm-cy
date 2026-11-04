@@ -294,3 +294,11 @@ Creating a batch sends real mail; verify production with an explicitly chosen te
 `childrenCount` and the new `weddingDate` field are shown only for married students, including detail-request responses and quick editing. A reusable wedding-date editor accepts either Gregorian input or Hebrew day/month/year and displays both calendars, validating leap Adar and month lengths with the existing Hebcal library. Conversion is date-only (no sunset calculation). The canonical Gregorian date is stored in the existing student JSON payload; Hebrew display is derived, avoiding conflicting copies. An import that omits the local wedding field preserves it; explicit clearing remains supported. Zero children is retained as a real value.
 
 Run `node --experimental-vm-modules --test tests/*.test.mjs tests/attendance-calls/*.test.cjs` after installing dev dependencies. PGlite provides isolated real Postgres checks for the mirror upsert and atomic request-response update, with synthetic data and no real mail.
+
+### השלמת אקסל דרך בוט המייל
+
+משתמש צוות או מנהל מאושר יכול לצרף XLSX ולבקש להשלים אותו לפי מספרי זהות. בוט המייל מזהה כותרות מהשדות במערכת וכינויים נפוצים, מאתר שורות לפי מספר זהות מדויק (כולל אפסים מובילים), ומחזיר XLSX בתשובת המייל. הנתונים נשלפים לקריאה בלבד. ברירת המחדל היא מילוי תאים ריקים; אפשר לבקש במפורש "החלף ערכים קיימים", אך נוסחאות נשמרות בכל מצב.
+
+הקובץ מעובד בזיכרון, ללא אחסון ב־R2 וללא יצירת משימת הדפסה. XML שאינו משתנה נשמר, כולל גיליונות עזר ורשימות בחירה רגילות או x14. נתונים חסרים, כפילויות מספר זהות, כותרות לא מוכרות וערכים שלא מתאימים לכללי התבנית מדווחים במייל ולא מנוחשים. אין הסקת זכאות למענקים או בעלות על חשבון בנק. תאריך נישואים מפוצל לעברי ולועזי לפי כותרות העמודות; תבנית עם כלל אימות לתאריך טקסט נשארת בתצורת יום/חודש/שנה.
+
+גבולות: XLSX עד 10MB, עד 500 שורות תלמידים, כותרות בתוך 40 השורות הראשונות ועד 151 עמודות, ZIP עד 25MB לאחר פתיחה, ותשובות מצורפות עד 15MB יחד. קובצי מאקרו, גיליונות מוגנים, לוח תאריכים 1904 וכללי אימות מותאמים שאינם נתמכים אינם נעקפים. בדיקות: `tests/student-workbook.test.mjs`, `tests/email-workbook.test.mjs`.
