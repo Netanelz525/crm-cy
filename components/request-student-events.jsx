@@ -1,0 +1,12 @@
+'use client';
+import {STUDENT_EVENT_TYPE_OPTIONS,HEBREW_MONTH_OPTIONS} from '../lib/student-event-fields';
+export default function RequestStudentEvents({events,onChange,disabled=false}){
+ const update=(index,key,value)=>onChange(events.map((event,i)=>i===index?{...event,[key]:value}:event));
+ return <fieldset disabled={disabled} style={{border:'1px solid #d6e2ef',borderRadius:12,padding:16,minWidth:0}}><legend>אירועים לתלמיד</legend><p>אפשר להוסיף כמה אירועים. האירועים החדשים יתווספו לכרטיס התלמיד בשמירת הבקשה. אם אין אירועים להוסיף, אפשר להשאיר את הרשימה ריקה.</p>
+ {events.map((event,index)=><fieldset key={index} style={{display:'grid',gap:12,padding:14,marginBottom:16,border:'1px solid #d6e2ef',borderRadius:10,minWidth:0}}><legend>אירוע {index+1}</legend>
+ <label>סוג האירוע<select value={event.eventType} onChange={e=>update(index,'eventType',e.target.value)}>{STUDENT_EVENT_TYPE_OPTIONS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+ {event.eventType==='other'&&<label>שם האירוע<input required maxLength={150} value={event.customEventLabel} onChange={e=>update(index,'customEventLabel',e.target.value)}/></label>}
+ <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:12}}><label>יום בחודש העברי<select required value={event.hebrewDay} onChange={e=>update(index,'hebrewDay',e.target.value)}><option value="">בחר יום</option>{Array.from({length:30},(_,i)=>i+1).map(day=><option key={day} value={day}>{day}</option>)}</select></label><label>חודש עברי<select required value={event.hebrewMonthCode} onChange={e=>update(index,'hebrewMonthCode',e.target.value)}><option value="">בחר חודש</option>{HEBREW_MONTH_OPTIONS.map(month=><option key={month.value} value={month.value}>{month.label}</option>)}</select></label></div>
+ <label>הערה על האירוע<textarea maxLength={2000} rows={2} value={event.noteText} onChange={e=>update(index,'noteText',e.target.value)}/></label><button type="button" className="btn btn-ghost" onClick={()=>onChange(events.filter((_,i)=>i!==index))}>הסר אירוע {index+1}</button></fieldset>)}
+ <button type="button" className="btn btn-ghost" disabled={disabled||events.length>=20} onClick={()=>onChange([...events,{eventType:'birthday',customEventLabel:'',noteText:'',hebrewDay:'',hebrewMonthCode:''}])}>הוסף אירוע נוסף</button><p className="muted">{events.length} אירועים חדשים · עד 20 אירועים בכל בקשה. התאריכים מחזוריים לפי הלוח העברי, כמו בכרטיס התלמיד.</p></fieldset>;
+}
