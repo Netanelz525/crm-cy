@@ -18,19 +18,26 @@ function ContactDetails({ label, name, phone, email, active }) {
   </section>;
 }
 const labels = { completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
-export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[], publicToken="" }) {
+export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[], publicToken="", initialStatus="" }) {
   const [data,setData] = useState(null), [note,setNote] = useState(""), [status,setStatus] = useState("");
   const [busy,setBusy] = useState(false), [error,setError] = useState(""), [now,setNow] = useState(Date.now());
   const [query,setQuery] = useState(""), [matches,setMatches] = useState(null), [editing,setEditing] = useState(false);
   const publicWindow=useRef("");
   const [closed,setClosed]=useState(false);
-  const [attendanceFilter,setAttendanceFilter]=useState("");
+  const [attendanceFilter,setAttendanceFilter]=useState(()=>statusOptions.find(([value,label])=>value!=="unavailable"&&(value===initialStatus||label===initialStatus))?.[0]||"");
   const [notice,setNotice] = useState("");
   const [invitationBusy,setInvitationBusy] = useState(false);
   const inFlight = useRef(false), offset = useRef(0);
   const lead = data?.lead;
   const remaining = lead ? Math.max(0, Math.ceil((new Date(lead.expiresAt).getTime()-now)/1000)) : 0;
   useEffect(() => { const timer=setInterval(()=>setNow(Date.now()+offset.current),1000); return ()=>clearInterval(timer); },[]);
+  async function copyFilteredLink() {
+    const url = new URL(window.location.href);
+    if (attendanceFilter) url.searchParams.set("status", attendanceFilter);
+    else url.searchParams.delete("status");
+    try { await navigator.clipboard.writeText(url.toString()); setNotice("הקישור עם סינון הסטטוס הועתק."); }
+    catch { setError("לא ניתן להעתיק את הקישור. נסה שוב."); }
+  }
   async function request(body) {
     if(publicToken&&!publicWindow.current)publicWindow.current=crypto.randomUUID();
     const response = await fetch(publicToken?`/api/public-call/${encodeURIComponent(publicToken)}`:`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls`, {
@@ -81,7 +88,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     {!publicToken&&<Link href="/call-desk">חזרה לאזור השיחות שלי</Link>}
     <h1>{data?.session?.title || title}</h1>
     <p className="muted">כל תלמיד מוקצה לך לחמש דקות. לאחר טיפול, דחייה או אי־מענה עוברים לתלמיד הבא.</p>
-    <div className="card"><label>מיקוד שיחות לפי סטטוס נוכחות<select disabled={busy||Boolean(lead)} value={attendanceFilter} onChange={event=>{setAttendanceFilter(event.target.value);setData(null);setMatches(null);}}><option value="">כל הסטטוסים הזמינים למוקד</option>{statusOptions.filter(([value])=>value!=='unavailable').map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>{lead&&<p className="muted">סיים או דחה את השיחה הנוכחית לפני שינוי הסינון.</p>}{!publicToken&&<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימת תלמידים וטלפונים לפי הסינון (Excel)</a>}</div>
+    <div className="card"><label>מיקוד שיחות לפי סטטוס נוכחות<select disabled={busy||Boolean(lead)} value={attendanceFilter} onChange={event=>{setAttendanceFilter(event.target.value);setData(null);setMatches(null);}}><option value="">כל הסטטוסים הזמינים למוקד</option>{statusOptions.filter(([value])=>value!=='unavailable').map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><button type="button" className="quick-action-btn quick-action-outline" onClick={copyFilteredLink}>העתק קישור לפי הסטטוס שנבחר</button>{lead&&<p className="muted">סיים או דחה את השיחה הנוכחית לפני שינוי הסינון.</p>}{!publicToken&&<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימת תלמידים וטלפונים לפי הסינון (Excel)</a>}</div>
     {data?.stats ? <p>טופלו {data.stats.completed} מתוך {data.stats.total} · בשיחה כעת: {data.stats.active}</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
