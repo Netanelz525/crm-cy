@@ -7723,3 +7723,27 @@ td {
 .quick-student-editable { display: inline-grid; grid-template-columns: minmax(0, 1fr) 26px; align-items: start; gap: 5px; width: 100%; max-width: 100%; min-width: 31px; box-sizing: border-box; vertical-align: top; }
 .quick-student-text { min-width: 0; overflow-wrap: anywhere; }
 .quick-student-editable > .quick-student-pencil { display: inline-flex; align-items: center; justify-content: center; width: 26px; min-width: 26px; max-width: 26px; height: 26px; margin: 0; padding: 0; line-height: 1; position: static; box-sizing: border-box; }
+
+/* iPhone navigation keeps the primary workflows within thumb reach. */
+.mobile-navigation { display: none; }
+@media screen and (max-width: 640px) {
+  body:has(.mobile-navigation) { padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)); }
+  .mobile-navigation {
+    position: fixed; inset: auto 0 0; z-index: 100;
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: #fff; border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 20px #0d254c0d;
+  }
+  .mobile-navigation a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 48px; border-radius: 12px; color: var(--text); text-decoration: none; font-size: 12px; }
+  .mobile-navigation a > span:first-child { font-size: 22px; line-height: 1; }
+  .mobile-navigation a[aria-current="page"] { background: #eaf2ff; color: #174ea6; font-weight: 700; }
+  .mobile-navigation a:focus-visible { outline: 3px solid #174ea6; outline-offset: -3px; }
+  input, select, textarea { font-size: max(16px, 1em); }
+  .attendance-status-option, .attendance-contact-btn, .attendance-filter-chip { min-height: 44px; }
+  .attendance-student-link { display: inline-flex; align-items: center; min-height: 44px; }
+  .attendance-filter-toolbar { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; }
+  .attendance-filter-toolbar > button { flex-shrink: 0; }
+  .student-actions-wrap { gap: 8px; }
+  .student-actions-wrap .btn { min-height: 44px; }
+}

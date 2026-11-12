@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 const BW_PRINT_PLANS = [
@@ -36,7 +36,9 @@ function SubmitButton({ outputMode }) {
   );
 }
 
-export default function AnnouncementGeneratorClient({ templates, signatures = [], action, initialTemplateId = "", canUseColor = false }) {
+export default function AnnouncementGeneratorClient({ templates, signatures = [], action, initialTemplateId = "", canUseColor = false, sharedText = "" }) {
+  const formRef = useRef(null);
+  const [sharedField, setSharedField] = useState("");
   const printPlans = canUseColor ? [...BW_PRINT_PLANS, ...COLOR_PRINT_PLANS] : BW_PRINT_PLANS;
   const initialSelectedId = templates.some((template) => template.id === initialTemplateId)
     ? initialTemplateId
@@ -103,9 +105,9 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
           name="templateId"
           value={template.id}
           checked={selectedTemplate?.id === template.id}
-          onChange={() => setSelectedId(template.id)}
+          onChange={() => { setSelectedId(template.id); setSharedField(""); }}
         />
-        <button type="button" className="announcement-template-select" onClick={() => setSelectedId(template.id)}>
+        <button type="button" className="announcement-template-select" onClick={() => { setSelectedId(template.id); setSharedField(""); }}>
           <strong>{template.name}</strong>
           <span>{categoryLabel(template.category)}</span>
         </button>
@@ -127,7 +129,25 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
   }
 
   return (
-    <form action={action} className="announcement-generator-form" encType="multipart/form-data">
+    <form ref={formRef} action={action} className="announcement-generator-form" encType="multipart/form-data">
+      {sharedText && <section className="card" style={{display:'grid',gap:12}}>
+        <label>הטקסט ששיתפתם<textarea readOnly value={sharedText} rows={5}/></label>
+        <label>לאיזה שדה בתבנית להכניס את הטקסט?
+          <select value={sharedField} onChange={e=>setSharedField(e.target.value)}>
+            <option value="">בחרו שדה</option>
+            {(selectedTemplate?.fields || []).filter(field=>field.type!=='image').map(field=><option key={field.key} value={field.key}>{field.label}</option>)}
+          </select>
+        </label>
+        <button type="button" className="btn" disabled={!sharedField} onClick={()=>{
+          const input = formRef.current?.elements.namedItem(`field:${sharedField}`);
+          if (!input || !('value' in input)) return;
+          if (input.value && !window.confirm('להחליף את הטקסט הקיים בשדה?')) return;
+          input.value = sharedText;
+          input.dispatchEvent(new Event('input',{bubbles:true}));
+          input.focus();
+        }}>הכנס את הטקסט לשדה הנבחר</button>
+      </section>}
+
       <div className="announcement-template-picker">
         <div className="announcement-template-picker-title">
           <strong>תבניות להכנה</strong>

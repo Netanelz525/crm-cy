@@ -22,3 +22,14 @@ server.err.log
 .env*.local
 backups/
 .env*
+
+# Local Xcode builds and signing credentials
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/build/
+*.xcarchive
+*.ipa
+*.p12
+*.p8
+
+*.tsbuildinfo
