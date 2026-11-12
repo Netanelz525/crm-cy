@@ -173,7 +173,15 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   return (
     <>
       <div className="card glass">
-        <h1>מפגש נוכחות</h1>
+        <h1>{roster.session.title || "מפגש נוכחות"}</h1>
+        <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
+      </div>
+      <details className="card attendance-message-panel">
+        <summary className="attendance-message-summary">
+          <div><h2>ניהול המפגש</h2><p className="muted">הגדרות, מוקד שיחות, שליחה ויצוא</p></div>
+          <span className="attendance-message-summary-action">פתח ניהול</span>
+        </summary>
+      <div className="card glass">
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
           <form action={syncAttendanceSessionStudentsAction} className="quick-actions" style={{ marginTop: 0 }}>
@@ -517,6 +525,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <button formAction={sendAttendanceSessionWhatsAppAction} className="quick-action-btn">שלח WhatsApp למפגש</button>
           </div>
         </form>
+      </details>
+
       </details>
 
       <AttendanceRosterClient
