@@ -18,10 +18,12 @@ function ContactDetails({ label, name, phone, email, active }) {
   </section>;
 }
 const labels = { completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
-export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[] }) {
+export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[], publicToken="" }) {
   const [data,setData] = useState(null), [note,setNote] = useState(""), [status,setStatus] = useState("");
   const [busy,setBusy] = useState(false), [error,setError] = useState(""), [now,setNow] = useState(Date.now());
   const [query,setQuery] = useState(""), [matches,setMatches] = useState(null), [editing,setEditing] = useState(false);
+  const publicWindow=useRef("");
+  const [closed,setClosed]=useState(false);
   const [attendanceFilter,setAttendanceFilter]=useState("");
   const [notice,setNotice] = useState("");
   const [invitationBusy,setInvitationBusy] = useState(false);
@@ -30,13 +32,16 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
   const remaining = lead ? Math.max(0, Math.ceil((new Date(lead.expiresAt).getTime()-now)/1000)) : 0;
   useEffect(() => { const timer=setInterval(()=>setNow(Date.now()+offset.current),1000); return ()=>clearInterval(timer); },[]);
   async function request(body) {
-    const response = await fetch(`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls`, {
-      method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)
+    if(publicToken&&!publicWindow.current)publicWindow.current=crypto.randomUUID();
+    const response = await fetch(publicToken?`/api/public-call/${encodeURIComponent(publicToken)}`:`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls`, {
+      method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(publicToken?{...body,windowId:publicWindow.current}:body)
     });
     const result = await response.json();
+    if(publicToken&&response.status===403){setClosed(true);setData(null);}
     if (!response.ok) throw new Error(result.error || "לא ניתן להשלים את הפעולה.");
     return result;
   }
+  useEffect(()=>{if(!publicToken)return;const check=()=>{if(document.visibilityState==='visible')request({kind:'state'}).catch(()=>{});};const timer=setInterval(check,15000);window.addEventListener('focus',check);return()=>{clearInterval(timer);window.removeEventListener('focus',check);};},[publicToken]);
   async function next(outcome, requestedStudentId = "") {
     if (inFlight.current) return;
     inFlight.current=true; setBusy(true); setError("");
@@ -71,15 +76,16 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
       setError(failure.message || "שליחת ההזמנה נכשלה.");
     } finally { setInvitationBusy(false); }
   }
+  if(closed)return <section className="card"><h1>החפ״ק נסגר</h1><p>יש לפנות למנהל לקבלת קישור פעיל.</p></section>;
   return <section className="card call-desk">
-    <Link href="/call-desk">חזרה לאזור השיחות שלי</Link>
+    {!publicToken&&<Link href="/call-desk">חזרה לאזור השיחות שלי</Link>}
     <h1>{data?.session?.title || title}</h1>
     <p className="muted">כל תלמיד מוקצה לך לחמש דקות. לאחר טיפול, דחייה או אי־מענה עוברים לתלמיד הבא.</p>
-    <div className="card"><label>מיקוד שיחות לפי סטטוס נוכחות<select disabled={busy||Boolean(lead)} value={attendanceFilter} onChange={event=>{setAttendanceFilter(event.target.value);setData(null);setMatches(null);}}><option value="">כל הסטטוסים הזמינים למוקד</option>{statusOptions.filter(([value])=>value!=='unavailable').map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>{lead&&<p className="muted">סיים או דחה את השיחה הנוכחית לפני שינוי הסינון.</p>}<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימת תלמידים וטלפונים לפי הסינון (Excel)</a></div>
+    <div className="card"><label>מיקוד שיחות לפי סטטוס נוכחות<select disabled={busy||Boolean(lead)} value={attendanceFilter} onChange={event=>{setAttendanceFilter(event.target.value);setData(null);setMatches(null);}}><option value="">כל הסטטוסים הזמינים למוקד</option>{statusOptions.filter(([value])=>value!=='unavailable').map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>{lead&&<p className="muted">סיים או דחה את השיחה הנוכחית לפני שינוי הסינון.</p>}{!publicToken&&<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימת תלמידים וטלפונים לפי הסינון (Excel)</a>}</div>
     {data?.stats ? <p>טופלו {data.stats.completed} מתוך {data.stats.total} · בשיחה כעת: {data.stats.active}</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
-    {!locked ? <details className="card"><summary>חיפוש תלמיד מסוים במפגש</summary>
+    {!locked && !publicToken ? <details className="card"><summary>חיפוש תלמיד מסוים במפגש</summary>
       <form onSubmit={search}><label>חיפוש לפי שם או טלפון<input type="search" value={query} onChange={e=>setQuery(e.target.value)} minLength={2} required /></label><button disabled={busy}>חפש במוזמני המפגש</button></form>
       {lead ? <p className="muted">בחירה בתלמיד אחר משחררת את ההקצאה הנוכחית. שמור את סיכום השיחה לפני המעבר.</p> : null}
       {matches?.length===0 ? <p>לא נמצאו תלמידים תואמים במפגש.</p> : null}
@@ -92,18 +98,18 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     </> : <div className="linked-record-card call-lead-card">
       <h2>{lead.name}</h2><p>{lead.classLabel}</p>
       <p role="status">{remaining ? `הקצאה בלעדית: ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}` : "זמן ההקצאה הסתיים. אין להתקשר או לשמור על סמך ההקצאה הישנה."}</p>
-      <button type="button" className="quick-action-btn quick-action-primary" disabled={invitationBusy || !remaining} onClick={sendInvitation}>{invitationBusy ? "שולח הזמנה…" : "שלח הזמנה לפי הגדרות המפגש"}</button>
+      {!publicToken&&<button type="button" className="quick-action-btn quick-action-primary" disabled={invitationBusy || !remaining} onClick={sendInvitation}>{invitationBusy ? "שולח הזמנה…" : "שלח הזמנה לפי הגדרות המפגש"}</button>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:12}}>
         <ContactDetails label="תלמיד" phone={lead.phone} email={lead.email} active={remaining>0} />
         <ContactDetails label="אב" {...lead.father} active={remaining>0} />
         <ContactDetails label="אם" {...lead.mother} active={remaining>0} />
       </div>
-      <button className={`call-edit-toggle${editing ? " is-open" : ""}`} type="button" aria-expanded={editing} disabled={busy || !remaining} onClick={()=>setEditing(!editing)}>
-        <span className="call-edit-toggle-icon" aria-hidden="true">{editing ? "×" : "✎"}</span>
-        <span><strong>{editing ? "סגור את אזור העריכה" : "פתח עדכון פרטי תלמיד"}</strong><small>{editing ? "הטופס פתוח כעת" : "לחץ כדי לפתוח את שדות התלמיד"}</small></span>
+      {!publicToken&&<button className={`call-edit-toggle${!publicToken&&editing ? " is-open" : ""}`} type="button" aria-expanded={editing} disabled={busy || !remaining} onClick={()=>setEditing(!editing)}>
+        <span className="call-edit-toggle-icon" aria-hidden="true">{!publicToken&&editing ? "×" : "✎"}</span>
+        <span><strong>{!publicToken&&editing ? "סגור את אזור העריכה" : "פתח עדכון פרטי תלמיד"}</strong><small>{!publicToken&&editing ? "הטופס פתוח כעת" : "לחץ כדי לפתוח את שדות התלמיד"}</small></span>
         <span className="call-edit-toggle-arrow" aria-hidden="true">⌄</span>
-      </button>
-      {editing ? <CallStudentEditor key={lead.token} lead={lead} request={request} disabled={busy || !remaining} onBusy={setBusy} onClose={()=>setEditing(false)} onSaved={async()=>{setNotice("פרטי התלמיד נשמרו במערכת.");await next();}} /> : null}
+      </button>}
+      {!publicToken&&editing ? <CallStudentEditor key={lead.token} lead={lead} request={request} disabled={busy || !remaining} onBusy={setBusy} onClose={()=>setEditing(false)} onSaved={async()=>{setNotice("פרטי התלמיד נשמרו במערכת.");await next();}} /> : null}
       <fieldset disabled={busy || !remaining} style={{border:0,padding:0}}>
         <label>סטטוס נוכחות לאחר השיחה<select value={status} onChange={e=>setStatus(e.target.value)}>
           <option value="">ללא שינוי בסטטוס הנוכחות</option>

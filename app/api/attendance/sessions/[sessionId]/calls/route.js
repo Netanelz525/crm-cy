@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "../../../../../../lib/rbac";
-import { CallQueueError, claimAttendanceCall, finishAttendanceCall, saveCallTeam, searchAttendanceCalls, getAttendanceCallStudent, updateAttendanceCallStudent, manageAttendanceCall } from "../../../../../../lib/attendance-calls";
+import { CallQueueError, publicCallSettings, setPublicCallLink, claimAttendanceCall, finishAttendanceCall, saveCallTeam, searchAttendanceCalls, getAttendanceCallStudent, updateAttendanceCallStudent, manageAttendanceCall } from "../../../../../../lib/attendance-calls";
 import { sendAttendanceInvitation } from "../../../../../../lib/attendance-invitations";
 
 export async function POST(request, { params }) {
@@ -15,6 +15,8 @@ export async function POST(request, { params }) {
     const { sessionId } = await params;
     const body = await request.json();
     requestKind = body?.kind || "";
+    if(body.kind==='public_settings')return NextResponse.json(await publicCallSettings(sessionId,user));
+    if(body.kind==='public_open'||body.kind==='public_close')return NextResponse.json(await setPublicCallLink(sessionId,body.kind==='public_open',user));
     if (body.kind === "team") {
       await saveCallTeam(sessionId, body.studentIds, user);
       return NextResponse.json({ ok:true });

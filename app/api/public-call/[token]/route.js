@@ -1,0 +1,3 @@
+import {NextResponse} from 'next/server';
+import {publicCallAction,CallQueueError} from '../../../../lib/attendance-calls';
+export async function POST(request,{params}){try{if(request.headers.get('origin')!==new URL(request.url).origin)return NextResponse.json({error:'אין הרשאה.'},{status:403});const {token}=await params;const body=await request.json();return NextResponse.json(await publicCallAction(token,body.windowId,body),{headers:{'cache-control':'no-store'}});}catch(error){return NextResponse.json({error:error instanceof CallQueueError?error.message:'לא ניתן להשלים את הפעולה.'},{status:error instanceof CallQueueError?error.status:500,headers:{'cache-control':'no-store'}});}}

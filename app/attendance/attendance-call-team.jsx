@@ -1,5 +1,6 @@
 "use client";
 
+import PublicCallSettings from "./public-call-settings";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -84,6 +85,7 @@ export default function AttendanceCallTeam({ sessionId, team, rosterIds }) {
       <div><span className="eyebrow">ניהול מפגש</span><h2>דשבורד תוצאות שיחות</h2><p className="muted">מעקב קצר אחר מצב המפגש. פרטי העדכון נפתחים רק עבור השורה שבחרת.</p></div>
       <div className="attendance-call-dashboard-actions"><Link className="quick-action-btn quick-action-primary" href={`/attendance/${encodeURIComponent(sessionId)}#call-results`}>פתח דשבורד מפגש</Link><Link className="quick-action-btn quick-action-outline" href="/call-desk/manage">דשבורד מנהלים</Link><Link className="quick-action-btn quick-action-outline" href={`/call-desk/attendance/${encodeURIComponent(sessionId)}`}>כניסה למוקד המפגש</Link></div>
     </div>
+    <PublicCallSettings sessionId={sessionId}/>
     <div className="attendance-call-stats" aria-label="סיכום מצב המפגש">
       <div className="attendance-call-stat"><b>{dashboardStats.total}</b><span>מוזמנים</span></div><div className="attendance-call-stat attendance-call-stat-success"><b>{dashboardStats.completed}</b><span>טופלו</span></div><div className="attendance-call-stat attendance-call-stat-warning"><b>{dashboardStats.no_answer}</b><span>לא ענו</span></div><div className="attendance-call-stat attendance-call-stat-danger"><b>{dashboardStats.deferred}</b><span>נדחו</span></div><div className="attendance-call-stat attendance-call-stat-neutral"><b>{dashboardStats.pending}</b><span>ממתינים</span></div>
     </div>

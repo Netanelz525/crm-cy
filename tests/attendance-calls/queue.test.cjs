@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
+const { randomUUID,randomBytes,createHash } = require('node:crypto');
 const { PGlite } = require('@electric-sql/pglite');
 
 test('attendance calls: SQL queue, leases, authorization, outcomes and atomic writes', async (t) => {
@@ -28,8 +28,8 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const neonSource=fs.readFileSync(path.join(__dirname,'../../lib/neon-students.js'),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
  const mirror=new Function('sql','initDb','randomUUID','normalizeWeddingDate',neonSource+';return buildStudentMirrorRecord;')(sql,async()=>{},randomUUID,fieldHelpers.normalizeWeddingDate);
  const getStudent=async id=>{const row=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',[id])).rows[0];return row?{...row.payload,id,childrenCount:row.children_count}:null;};
- const deps={sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
- const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,filterCallRoster,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
+ const deps={sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,randomBytes,createHash,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
+ const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {publicCallAction,publicCallState,publicCallSettings,setPublicCallLink,claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,filterCallRoster,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
  const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved',can_call_attendance:true};
  const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved',can_call_attendance:true};
  const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved',can_call_attendance:true};
@@ -140,4 +140,17 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const responsible={clerk_user_id:'outsider',linked_student_id:'caller-x',access_status:'approved',can_call_attendance:true};
  assert.equal((await api.listMyCallSessions(responsible)).length,1);
  assert.ok((await api.claimAttendanceCall('meeting',responsible,'lead-1')).lead);
+ // Secret link shares the authenticated queue, is scoped to the meeting and can be revoked.
+ await db.query("UPDATE attendance_call_leads SET caller_key=NULL,lease_token=NULL,lease_until=NULL,outcome='pending',available_at=now()");
+ assert.equal((await api.publicCallSettings('meeting',manager)).enabled,false);
+ await assert.rejects(api.setPublicCallLink('meeting',true,a),e=>e.status===403);
+ const open=await api.setPublicCallLink('meeting',true,manager);assert.equal(open.token.length,64);const stored=(await db.query('SELECT * FROM attendance_call_public_links')).rows[0];assert.notEqual(stored.token_hash,open.token);assert.equal(stored.enabled,true);
+ const w1=randomUUID(),w2=randomUUID();const guest1=await api.publicCallAction(open.token,w1,{kind:'claim'}),guest2=await api.publicCallAction(open.token,w2,{kind:'claim'});assert(guest1.lead);assert(guest2.lead);assert.notEqual(guest1.lead.studentId,guest2.lead.studentId);assert.equal(guest1.lead.email,null);assert.equal(guest1.lead.history.length,0);
+ await assert.rejects(api.publicCallAction(open.token,w2,{kind:'finish',studentId:guest1.lead.studentId,token:guest1.lead.token,outcome:'completed'}),e=>e.status===409);
+ await api.publicCallAction(open.token,w1,{kind:'finish',studentId:guest1.lead.studentId,token:guest1.lead.token,outcome:'completed',attendanceStatus:'found',note:'Public test'});assert.equal((await db.query('SELECT status FROM attendance_records WHERE student_id=$1',[guest1.lead.studentId])).rows[0].status,'found');
+ for(const kind of ['search','details','update_student','invitation','team'])await assert.rejects(api.publicCallAction(open.token,w1,{kind}),e=>e.status===403);
+ const rotated=await api.setPublicCallLink('meeting',true,manager);await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim'}),e=>e.status===403);assert.equal((await db.query("SELECT * FROM attendance_call_leads WHERE caller_key LIKE 'public:%'")).rows.length,0);
+ assert((await api.publicCallState(rotated.token)).sessionId==='meeting');await api.setPublicCallLink('meeting',false,manager);await assert.rejects(api.publicCallState(rotated.token),e=>e.status===403);
+ const unlocked=await api.setPublicCallLink('meeting',true,manager);await db.query("UPDATE attendance_sessions SET is_locked=true");await assert.rejects(api.publicCallState(unlocked.token),e=>e.status===403);
+
 });
