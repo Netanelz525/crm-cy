@@ -22,18 +22,21 @@
 000000000000000000000014 = {isa=PBXProject;attributes={BuildIndependentTargetsInParallel=YES;LastUpgradeCheck=2600;TargetAttributes={000000000000000000000013={CreatedOnToolsVersion=26.0;DevelopmentTeam=4J82HMXY47;ProvisioningStyle=Automatic;};};};buildConfigurationList=000000000000000000000011;compatibilityVersion="Xcode 14.0";developmentRegion=he;hasScannedForEncodings=0;knownRegions=(he,en,Base,);mainGroup=000000000000000000000009;productRefGroup=000000000000000000000008;projectDirPath="";projectRoot="";targets=(000000000000000000000013,00000000000000000000001E,);};
 000000000000000000000015 = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path=ShareViewController.swift;sourceTree="<group>";};
 000000000000000000000016 = {isa=PBXFileReference;lastKnownFileType=text.plist.xml;path=Info.plist;sourceTree="<group>";};
-000000000000000000000017 = {isa=PBXGroup;path=ShareExtension;sourceTree="<group>";children=(000000000000000000000015,000000000000000000000016,);};
+000000000000000000000017 = {isa=PBXGroup;path=ShareExtension;sourceTree="<group>";children=(000000000000000000000015,000000000000000000000016,000000000000000000000025,);};
 000000000000000000000018 = {isa=PBXFileReference;explicitFileType="wrapper.app-extension";path=CRMShare.appex;sourceTree=BUILT_PRODUCTS_DIR;};
 000000000000000000000019 = {isa=PBXBuildFile;fileRef=000000000000000000000015;};
 00000000000000000000001A = {isa=PBXSourcesBuildPhase;buildActionMask=2147483647;files=(000000000000000000000019,);runOnlyForDeploymentPostprocessing=0;};
 00000000000000000000001B = {isa=XCBuildConfiguration;name=Debug;buildSettings={PRODUCT_NAME=CRMShare;PRODUCT_BUNDLE_IDENTIFIER=il.co.yeshivatcy.crm.share;INFOPLIST_FILE=ShareExtension/Info.plist;CODE_SIGN_ENTITLEMENTS=ShareExtension/Share.entitlements;DEVELOPMENT_TEAM=4J82HMXY47;CODE_SIGN_STYLE=Automatic;CURRENT_PROJECT_VERSION=1;MARKETING_VERSION=1.0;TARGETED_DEVICE_FAMILY=1;APPLICATION_EXTENSION_API_ONLY=YES;SKIP_INSTALL=YES;GENERATE_INFOPLIST_FILE=NO;};};
 00000000000000000000001C = {isa=XCBuildConfiguration;name=Release;buildSettings={PRODUCT_NAME=CRMShare;PRODUCT_BUNDLE_IDENTIFIER=il.co.yeshivatcy.crm.share;INFOPLIST_FILE=ShareExtension/Info.plist;CODE_SIGN_ENTITLEMENTS=ShareExtension/Share.entitlements;DEVELOPMENT_TEAM=4J82HMXY47;CODE_SIGN_STYLE=Automatic;CURRENT_PROJECT_VERSION=1;MARKETING_VERSION=1.0;TARGETED_DEVICE_FAMILY=1;APPLICATION_EXTENSION_API_ONLY=YES;SKIP_INSTALL=YES;GENERATE_INFOPLIST_FILE=NO;};};
 00000000000000000000001D = {isa=XCConfigurationList;buildConfigurations=(00000000000000000000001B,00000000000000000000001C,);defaultConfigurationIsVisible=0;defaultConfigurationName=Release;};
-00000000000000000000001E = {isa=PBXNativeTarget;buildConfigurationList=00000000000000000000001D;buildPhases=(00000000000000000000001A,);buildRules=();dependencies=();name=CRMShare;productName=CRMShare;productReference=000000000000000000000018;productType="com.apple.product-type.app-extension";};
+00000000000000000000001E = {isa=PBXNativeTarget;buildConfigurationList=00000000000000000000001D;buildPhases=(00000000000000000000001A,000000000000000000000027,);buildRules=();dependencies=();name=CRMShare;productName=CRMShare;productReference=000000000000000000000018;productType="com.apple.product-type.app-extension";};
 00000000000000000000001F = {isa=PBXContainerItemProxy;containerPortal=000000000000000000000014;proxyType=1;remoteGlobalIDString=00000000000000000000001E;remoteInfo=CRMShare;};
 000000000000000000000020 = {isa=PBXTargetDependency;target=00000000000000000000001E;targetProxy=00000000000000000000001F;};
 000000000000000000000021 = {isa=PBXBuildFile;fileRef=000000000000000000000018;settings={ATTRIBUTES=(RemoveHeadersOnCopy,);};};
 000000000000000000000022 = {isa=PBXCopyFilesBuildPhase;buildActionMask=2147483647;dstPath="";dstSubfolderSpec=13;files=(000000000000000000000021,);name="Embed App Extensions";runOnlyForDeploymentPostprocessing=0;};
 000000000000000000000023 = {isa=PBXFileReference;lastKnownFileType=folder.assetcatalog;path=Assets.xcassets;sourceTree="<group>";};
 000000000000000000000024 = {isa=PBXBuildFile;fileRef=000000000000000000000023;};
+000000000000000000000025 = {isa=PBXFileReference;lastKnownFileType=text.xml;path=PrivacyInfo.xcprivacy;sourceTree="<group>";};
+000000000000000000000026 = {isa=PBXBuildFile;fileRef=000000000000000000000025;};
+000000000000000000000027 = {isa=PBXResourcesBuildPhase;buildActionMask=2147483647;files=(000000000000000000000026,);runOnlyForDeploymentPostprocessing=0;};
 };rootObject=000000000000000000000014;}
