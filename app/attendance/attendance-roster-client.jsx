@@ -9,7 +9,6 @@ import StudentQuickEmailForm from "../student-quick-email-form";
 const POLL_INTERVAL_MS = 10000;
 const EXIT_HIGHLIGHT_MS = 1800;
 const FLASH_HIGHLIGHT_MS = 2200;
-const LOCAL_DIRTY_GRACE_MS = 4000;
 
 function clean(value) {
   return String(value || "").trim();
@@ -118,6 +117,9 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const [contactFilter, setContactFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
+  const [saveStates, setSaveStates] = useState({});
+  const saveQueueRef = useRef(new Map());
+  const saveVersionRef = useRef(new Map());
   const [flashRowIds, setFlashRowIds] = useState([]);
   const [exitingRows, setExitingRows] = useState([]);
   const [externalNotices, setExternalNotices] = useState([]);
@@ -225,23 +227,33 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
 
   function persistRow(row) {
     if (!row?.id || locked) return;
-    localDirtyRowsRef.current.set(row.id, Date.now() + LOCAL_DIRTY_GRACE_MS);
-    startTransition(async () => {
+    const version = (saveVersionRef.current.get(row.id) || 0) + 1;
+    saveVersionRef.current.set(row.id, version);
+    // Keep unsaved values visible even when live polling receives older server data.
+    localDirtyRowsRef.current.set(row.id, Infinity);
+    setSaveStates(current => ({ ...current, [row.id]: 'saving' }));
+    const previous = saveQueueRef.current.get(row.id) || Promise.resolve();
+    const operation = previous.catch(() => {}).then(async () => {
+      if (saveVersionRef.current.get(row.id) !== version) return;
       try {
         await saveAttendanceRecordAction({
-          sessionId,
-          studentId: row.id,
-          studentName: row.label,
-          studentClass: row.class,
-          status: row.status,
-          noteText: row.noteText
+          sessionId, studentId: row.id, studentName: row.label,
+          studentClass: row.class, status: row.status, noteText: row.noteText
         });
-      } catch (error) {
-        console.error("Attendance autosave failed", error);
+        if (saveVersionRef.current.get(row.id) === version) {
+          localDirtyRowsRef.current.set(row.id, Date.now() + 1200);
+          setSaveStates(current => ({ ...current, [row.id]: 'saved' }));
+        }
+      } catch {
+        if (saveVersionRef.current.get(row.id) === version) {
+          setSaveStates(current => ({ ...current, [row.id]: 'error' }));
+        }
       } finally {
-        localDirtyRowsRef.current.set(row.id, Date.now() + 1200);
+        if (saveQueueRef.current.get(row.id) === operation) saveQueueRef.current.delete(row.id);
       }
     });
+    saveQueueRef.current.set(row.id, operation);
+    startTransition(async () => { await operation; });
   }
 
   function updateRow(studentId, patch) {
@@ -574,6 +586,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                   </td>
                   <td className="attendance-class-cell">{student.classLabel}</td>
                   <td className="attendance-status-cell">
+                    <div role="status" aria-live="polite" className="attendance-save-state">
+                      {saveStates[student.id] === 'saving' ? 'שומר…' : saveStates[student.id] === 'saved' ? '✓ נשמר' : null}
+                      {saveStates[student.id] === 'error' ? <span className="error">לא נשמר. <button type="button" className="btn btn-ghost" onClick={() => persistRow(rowsRef.current.find(row => row.id === student.id))}>נסה לשמור שוב</button></span> : null}
+                    </div>
                     <div className="attendance-status-group" role="radiogroup" aria-label={`סטטוס נוכחות עבור ${student.label}`} aria-disabled={locked}>
                       {statusOptions.map(([value, label]) => (
                         <label

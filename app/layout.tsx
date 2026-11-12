@@ -1,6 +1,7 @@
 import { ClerkProvider, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import AiChatWidget from "./ai-chat-widget";
+import MobileNavigation from "./mobile-navigation";
 import { getCurrentAppUser } from "../lib/rbac";
 import { canManagePersonalTools } from "../lib/personal-access";
 import { canAccessCallDesk } from "../lib/attendance-calls";
@@ -77,6 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </header>
           ) : null}
           <main className="container">{children}</main>
+          {currentUser && !isStudentPortalUser && !currentUser.is_print_only && !currentUser.is_marei_mekomot ? <MobileNavigation /> : null}
           {canUseAiChat ? <AiChatWidget /> : null}
         </ClerkProvider>
       </body>

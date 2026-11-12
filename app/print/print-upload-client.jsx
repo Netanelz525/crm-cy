@@ -93,9 +93,9 @@ async function postUploadPart(payload) {
   return data;
 }
 
-export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unlimitedPrintCredit = false, canUseColor = false }) {
+export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unlimitedPrintCredit = false, canUseColor = false, initialFile = null }) {
   const printPlanOptions = canUseColor ? BW_PRINT_PLAN_OPTIONS : BW_PRINT_PLAN_OPTIONS.slice(0, 6);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(initialFile);
   const [copies, setCopies] = useState("1");
   const [printPlan, setPrintPlan] = useState("booklet-bw");
   const [status, setStatus] = useState("");
@@ -159,6 +159,7 @@ export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unl
       setStatus("מסיים קליטה בתור ההדפסה...");
       await postUploadPart({ action: "finish", uploadId });
       setProgress(100);
+      if (initialFile) window.webkit?.messageHandlers?.mobileAuth?.postMessage("importCompleted");
       window.location.href = "/print?uploaded=1";
     } catch (uploadError) {
       setError(clean(uploadError?.message) || "שליחת המסמך להדפסה נכשלה.");
@@ -176,7 +177,7 @@ export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unl
         <input
           type="file"
           accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.txt"
-          required
+          required={!selectedFile}
           onChange={(event) => {
             setSelectedFile(event.target.files?.[0] || null);
             setError("");
@@ -203,7 +204,7 @@ export default function PrintUploadClient({ maxFileBytes, creditBalance = 0, unl
           max="99"
           step="1"
           value={copies}
-          required
+          required={!selectedFile}
           onChange={(event) => setCopies(event.target.value)}
           disabled={submitting}
         />
