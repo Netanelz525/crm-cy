@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "../../../../lib/rbac";
-import { listMyCallSessions } from "../../../../lib/attendance-calls";
+import { listMyCallSessions, getAttendanceCallRoster } from "../../../../lib/attendance-calls";
 import AttendanceCallClient from "../attendance-call-client";
 
 export default async function Page({ params }) {
@@ -11,5 +11,6 @@ export default async function Page({ params }) {
   const sessions = await listMyCallSessions(user);
   const session = sessions.find(s => s.id === sessionId);
   if (!session) redirect("/unauthorized");
-  return <AttendanceCallClient sessionId={sessionId} title={session.title || "מוקד מפגש"} locked={session.is_locked} />;
+  const roster=session.is_locked?null:await getAttendanceCallRoster(sessionId,user);
+  return <AttendanceCallClient statusOptions={roster?.session.statusOptions||[]} sessionId={sessionId} title={session.title || "מוקד מפגש"} locked={session.is_locked} />;
 }

@@ -29,11 +29,14 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const mirror=new Function('sql','initDb','randomUUID','normalizeWeddingDate',neonSource+';return buildStudentMirrorRecord;')(sql,async()=>{},randomUUID,fieldHelpers.normalizeWeddingDate);
  const getStudent=async id=>{const row=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',[id])).rows[0];return row?{...row.payload,id,childrenCount:row.children_count}:null;};
  const deps={sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
- const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
+ const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,filterCallRoster,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
  const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved',can_call_attendance:true};
  const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved',can_call_attendance:true};
  const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved',can_call_attendance:true};
  await api.saveCallTeam('meeting',['caller-a','caller-b'],manager);
+ assert.equal(api.filterCallRoster(roster(),'missing').students.length,students.length);assert.equal(api.filterCallRoster(roster(),'found').students.length,0);assert.throws(()=>api.filterCallRoster(roster(),'forged'));
+ const emptyClaim=await api.claimAttendanceCall('meeting',a,'','found');assert.equal(emptyClaim.lead,null);assert.equal(emptyClaim.stats.total,0);
+
  assert.equal(await api.canAccessCallDesk(a),true);
  assert.equal(await api.canAccessCallDesk({...a,linked_student_id:'caller-x',clerk_user_id:'outsider'}),false);
  assert.equal(await api.canAccessCallDesk({...a,can_call_attendance:false}),false);

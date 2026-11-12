@@ -1,17 +1,9 @@
 "use client";
+import {callPhone as phoneNumber} from "../../../lib/call-phone";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import CallStudentEditor from "./call-student-editor";
 
-function phoneNumber(value) {
-  const raw = String(typeof value === "object" && value ? value.primaryPhoneNumber || "" : value || "").replace(/[^\d+]/g, "");
-  if (!raw) return "";
-  let number = raw.replace(/^00/, "+");
-  if (number.startsWith("+")) return number;
-  const code = String(value?.primaryPhoneCallingCode || "972").replace(/\D/g, "");
-  if (number.startsWith(code)) return `+${number}`;
-  return `+${code}${number.replace(/^0/, "")}`;
-}
 function ContactDetails({ label, name, phone, email, active }) {
   const number = phoneNumber(phone);
   const address = String(typeof email === "object" && email ? email.primaryEmail || "" : email || "").trim();
@@ -26,10 +18,11 @@ function ContactDetails({ label, name, phone, email, active }) {
   </section>;
 }
 const labels = { completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
-export default function AttendanceCallClient({ sessionId, title, locked }) {
+export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[] }) {
   const [data,setData] = useState(null), [note,setNote] = useState(""), [status,setStatus] = useState("");
   const [busy,setBusy] = useState(false), [error,setError] = useState(""), [now,setNow] = useState(Date.now());
   const [query,setQuery] = useState(""), [matches,setMatches] = useState(null), [editing,setEditing] = useState(false);
+  const [attendanceFilter,setAttendanceFilter]=useState("");
   const [notice,setNotice] = useState("");
   const [invitationBusy,setInvitationBusy] = useState(false);
   const inFlight = useRef(false), offset = useRef(0);
@@ -52,7 +45,7 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
         await request({kind:"finish",studentId:lead.studentId,token:lead.token,outcome,note,attendanceStatus:status});
         setData(current=>({...current,lead:null})); setNote(""); setStatus("");
       }
-      const result = await request({kind:"claim", studentId:requestedStudentId});
+      const result = await request({kind:"claim", studentId:requestedStudentId,attendanceStatus:attendanceFilter});
       offset.current=new Date(result.serverTime).getTime()-Date.now();
       setNow(Date.now()+offset.current);
       setData(result); setEditing(false); setMatches(null);
@@ -63,7 +56,7 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
   async function search(event) {
     event.preventDefault(); if(inFlight.current || busy)return;
     inFlight.current=true;setBusy(true);setError("");
-    try { const result=await request({kind:"search",query});setMatches(result.students); }
+    try { const result=await request({kind:"search",query,attendanceStatus:attendanceFilter});setMatches(result.students); }
     catch(failure){setError(failure.message);}finally{inFlight.current=false;setBusy(false);}
   }
   async function sendInvitation() {
@@ -82,6 +75,7 @@ export default function AttendanceCallClient({ sessionId, title, locked }) {
     <Link href="/call-desk">חזרה לאזור השיחות שלי</Link>
     <h1>{data?.session?.title || title}</h1>
     <p className="muted">כל תלמיד מוקצה לך לחמש דקות. לאחר טיפול, דחייה או אי־מענה עוברים לתלמיד הבא.</p>
+    <div className="card"><label>מיקוד שיחות לפי סטטוס נוכחות<select disabled={busy||Boolean(lead)} value={attendanceFilter} onChange={event=>{setAttendanceFilter(event.target.value);setData(null);setMatches(null);}}><option value="">כל הסטטוסים הזמינים למוקד</option>{statusOptions.filter(([value])=>value!=='unavailable').map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>{lead&&<p className="muted">סיים או דחה את השיחה הנוכחית לפני שינוי הסינון.</p>}<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימת תלמידים וטלפונים לפי הסינון (Excel)</a></div>
     {data?.stats ? <p>טופלו {data.stats.completed} מתוך {data.stats.total} · בשיחה כעת: {data.stats.active}</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
