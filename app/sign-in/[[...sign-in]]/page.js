@@ -15,10 +15,12 @@ export default async function SignInPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const redirectUrl = safeInternalPath(resolvedSearchParams?.redirect_url);
 
+  const mobileRedirect = redirectUrl.startsWith("/mobile/connect?") ? redirectUrl : undefined;
+
   return (
     <div className="card">
       <h1>כניסה למערכת</h1>
-      <SignIn fallbackRedirectUrl={redirectUrl} />
+      <SignIn fallbackRedirectUrl={redirectUrl} forceRedirectUrl={mobileRedirect} signUpForceRedirectUrl={mobileRedirect} />
     </div>
   );
 }

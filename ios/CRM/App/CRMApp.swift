@@ -30,7 +30,7 @@ struct CRMRootView: View {
                 Button { browser.reload() } label: { Image(systemName: "arrow.clockwise") }
                     .accessibilityLabel("רענון")
                 Menu {
-                    Button("התחברות מחדש", action: browser.signIn)
+                    Button("התחברות מחדש", action: browser.restartSignIn)
                     Button("שיתוף שממתין לטיפול", action: browser.showSharedImport)
                     Button("פתיחה ב־Safari", action: browser.openInSafari)
                 } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("אפשרויות")
@@ -44,7 +44,7 @@ struct CRMRootView: View {
                         Image(systemName: "wifi.exclamationmark").font(.largeTitle)
                         Text(error).multilineTextAlignment(.center)
                         Button("נסה שוב", action: browser.reload).buttonStyle(.borderedProminent)
-                        Button("התחברות", action: browser.signIn).buttonStyle(.bordered)
+                        Button("התחברות", action: browser.restartSignIn).buttonStyle(.bordered)
                     }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(.background)
                 }
@@ -127,8 +127,17 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { return nil }
         return Data(bytes).base64URLEncodedString()
     }
+    func restartSignIn() {
+        let previous = authentication
+        authentication = nil
+        verifier = nil; authState = nil; pendingCode = nil
+        previous?.cancel()
+        // The cancelled session's callback must not overwrite the next attempt.
+        Task { @MainActor in signIn() }
+    }
     func signIn() {
         guard authentication == nil else { return }
+        error = nil; loading = false
         guard let verifier = randomSecret(), let state = randomSecret() else {
             error = "לא ניתן להתחיל כניסה מאובטחת. נסו שוב."; return
         }
@@ -143,7 +152,9 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         let session = ASWebAuthenticationSession(url: components.url!, callbackURLScheme: "crmcy") { [weak self] url, failure in
             Task { @MainActor in
                 guard let self else { return }
+                guard self.authState == state else { return }
                 self.authentication = nil
+                self.loading = false
                 guard failure == nil, let url,
                       url.scheme == "crmcy", url.host == "auth",
                       let callback = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -161,7 +172,10 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         session.presentationContextProvider = self
         session.prefersEphemeralWebBrowserSession = false
         authentication = session
-        if !session.start() { authentication = nil; error = "לא ניתן לפתוח חלון התחברות." }
+        if !session.start() {
+            authentication = nil; self.verifier = nil; authState = nil
+            error = "לא ניתן לפתוח חלון התחברות. נסו להתחבר שוב."
+        }
     }
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         webView.window ?? ASPresentationAnchor()
@@ -246,22 +260,21 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = action.request.url else { decisionHandler(.cancel); return }
-        if url.scheme == "blob", action.sourceFrame.securityOrigin.host == baseURL.host { decisionHandler(.allow); return }
-        if url.host == baseURL.host && url.scheme == baseURL.scheme {
-            if url.path.hasPrefix("/sign-in") || url.path.hasPrefix("/sign-up") {
-                decisionHandler(.cancel); signIn(); return
-            }
-            decisionHandler(.allow); return
-        }
-        // OAuth always uses the system authentication session, never an embedded Google form.
-        if url.host?.hasSuffix("accounts.google.com") == true || url.host?.hasSuffix("accounts.dev") == true {
-            decisionHandler(.cancel); signIn(); return
-        }
-        if ["https", "http", "tel", "mailto"].contains(url.scheme ?? "") {
+        switch CRMNavigationPolicy.destination(url: url, baseURL: baseURL,
+            isMainFrame: action.targetFrame?.isMainFrame, sourceHost: action.sourceFrame.securityOrigin.host) {
+        case .embedded: decisionHandler(.allow)
+        case .authenticate:
+            loading = false; error = nil
+            decisionHandler(.cancel)
+            // Present only after WebKit has finished cancelling its navigation.
+            Task { @MainActor in self.signIn() }
+        case .external:
+            decisionHandler(.cancel)
             UIApplication.shared.open(url)
+        case .blocked: decisionHandler(.cancel)
         }
-        decisionHandler(.cancel)
     }
+
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         if let url = action.request.url {
@@ -293,7 +306,10 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) { fail(failure) }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { reload() }
     private func fail(_ failure: Error) {
-        guard (failure as NSError).code != NSURLErrorCancelled else { return }
+        let navigationError = failure as NSError
+        guard !CRMNavigationPolicy.isExpectedCancellation(navigationError) else { return }
+        // A previous, interrupted web navigation may finish while system auth is on screen.
+        guard authentication == nil, pendingCode == nil else { return }
         loading = false; error = "לא ניתן לטעון את המערכת. בדקו את החיבור לאינטרנט ונסו שוב."
     }
 }
