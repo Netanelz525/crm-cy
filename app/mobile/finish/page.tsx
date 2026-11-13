@@ -17,6 +17,7 @@ export default function MobileFinish() {
     async function finish(event: Event) {
       if (busy.current) return;
       busy.current = true;
+      window.webkit?.messageHandlers?.mobileAuth?.postMessage("exchange-start");
       try {
         const detail = (event as CustomEvent).detail;
         const response = await fetch('/api/mobile/redeem', {
@@ -25,11 +26,14 @@ export default function MobileFinish() {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
+        window.webkit?.messageHandlers?.mobileAuth?.postMessage("exchange-ok");
         const attempt = await signIn!.create({ strategy: 'ticket', ticket: result.ticket });
         if (attempt.status !== 'complete' || !attempt.createdSessionId) throw new Error('יש להשלים כניסה מחדש.');
         await setActive!({ session: attempt.createdSessionId });
+        window.webkit?.messageHandlers?.mobileAuth?.postMessage("session-active");
         window.location.replace('/attendance');
       } catch {
+        window.webkit?.messageHandlers?.mobileAuth?.postMessage("exchange-failed");
         setError('לא ניתן להשלים כניסה. לחצו על התחברות מחדש באפליקציה.');
       }
     }

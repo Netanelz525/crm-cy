@@ -11,6 +11,9 @@ struct NavigationPolicyChecks {
         precondition(route("https://crm.example/mobile/finish") == .embedded)
         precondition(route("https://live-urchin-40.clerk.accounts.dev/sync", main: false) == .embedded)
         precondition(route("https://live-urchin-40.clerk.accounts.dev/sign-in") == .authenticate)
+        precondition(route("https://live-urchin-40.clerk.accounts.dev/v1/client/handshake") == .embedded)
+        precondition(route("https://live-urchin-40.clerk.accounts.dev/v1/client/sync/") == .embedded)
+        precondition(route("https://live-urchin-40.clerk.accounts.dev/v1/client/handshake-evil") == .authenticate)
         precondition(route("about:blank", main: false) == .embedded)
         precondition(route("https://accounts.google.com/o/oauth2/auth") == .authenticate)
         precondition(route("https://evilaccounts.dev/") == .external)
@@ -19,6 +22,6 @@ struct NavigationPolicyChecks {
         precondition(CRMNavigationPolicy.isExpectedCancellation(NSError(domain: "WebKitErrorDomain", code: 102)))
         precondition(CRMNavigationPolicy.isExpectedCancellation(NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)))
         precondition(!CRMNavigationPolicy.isExpectedCancellation(NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)))
-        print("12 native authentication navigation checks passed")
+        print("15 native authentication navigation checks passed")
     }
 }

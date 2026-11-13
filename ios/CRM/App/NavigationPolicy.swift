@@ -14,6 +14,12 @@ enum CRMNavigationPolicy {
             if url.path.hasPrefix("/sign-in") || url.path.hasPrefix("/sign-up") { return .authenticate }
             return .embedded
         }
+        // Development Clerk sessions use a top-level browser handshake as well as frames.
+        // It must finish in this same WebKit cookie store before ticket sign-in is ready.
+        if url.scheme == "https", let host = url.host, host.hasSuffix(".accounts.dev"),
+           ["/v1/client/handshake", "/v1/client/sync"].contains(url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/" )).isEmpty ? "/" : "/" + url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) {
+            return .embedded
+        }
         if let host = url.host,
            host == "accounts.google.com" || host.hasSuffix(".accounts.dev") {
             return .authenticate

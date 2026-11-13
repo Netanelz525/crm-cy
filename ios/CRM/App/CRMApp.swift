@@ -45,6 +45,7 @@ struct CRMRootView: View {
                         Text(error).multilineTextAlignment(.center)
                         Button("נסה שוב", action: browser.reload).buttonStyle(.borderedProminent)
                         Button("התחברות", action: browser.restartSignIn).buttonStyle(.bordered)
+                        Button("העתק פרטי תקלה") { UIPasteboard.general.string = browser.authDiagnostics }.font(.caption)
                     }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(.background)
                 }
@@ -80,6 +81,15 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     @Published var canGoBack = false
     @Published var selectedPath = "/attendance"
     @Published var error: String?
+    @Published private(set) var authDiagnostics = ""
+    private var authEvents: [String] = []
+    private func traceAuth(_ stage: String, error: NSError? = nil) {
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        let entry = "build=\(build) stage=\(stage)" + (error.map { " domain=\($0.domain) code=\($0.code)" } ?? "")
+        authEvents.append(entry); authEvents = Array(authEvents.suffix(20))
+        authDiagnostics = authEvents.joined(separator: "\n")
+        print("CRMAuth \(entry)")
+    }
     let webView: WKWebView
     let baseURL: URL
     private var authentication: ASWebAuthenticationSession?
@@ -136,7 +146,8 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         Task { @MainActor in signIn() }
     }
     func signIn() {
-        guard authentication == nil else { return }
+        guard authentication == nil else { traceAuth("system-already-active"); return }
+        traceAuth("system-start")
         error = nil; loading = false
         guard let verifier = randomSecret(), let state = randomSecret() else {
             error = "לא ניתן להתחיל כניסה מאובטחת. נסו שוב."; return
@@ -152,7 +163,8 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         let session = ASWebAuthenticationSession(url: components.url!, callbackURLScheme: "crmcy") { [weak self] url, failure in
             Task { @MainActor in
                 guard let self else { return }
-                guard self.authState == state else { return }
+                self.traceAuth(url == nil ? "system-return-without-url" : "system-return-with-url", error: failure as NSError?)
+                guard self.authState == state else { self.traceAuth("stale-return"); return }
                 self.authentication = nil
                 self.loading = false
                 guard failure == nil, let url,
@@ -161,9 +173,11 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
                       callback.queryItems?.first(where: { $0.name == "state" })?.value == self.authState,
                       let code = callback.queryItems?.first(where: { $0.name == "code" })?.value,
                       code.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil else {
+                    self.traceAuth("system-return-rejected")
                     self.verifier = nil; self.authState = nil
                     self.error = "הכניסה לא הושלמה. אפשר להתחבר שוב."; return
                 }
+                self.traceAuth("callback-validated")
                 self.pendingCode = code
                 self.error = nil
                 self.webView.load(URLRequest(url: self.baseURL.appendingPathComponent("mobile/finish")))
@@ -173,6 +187,7 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         session.prefersEphemeralWebBrowserSession = false
         authentication = session
         if !session.start() {
+            traceAuth("system-start-failed")
             authentication = nil; self.verifier = nil; authState = nil
             error = "לא ניתן לפתוח חלון התחברות. נסו להתחבר שוב."
         }
@@ -198,8 +213,13 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
             if let activeImport { try? FileManager.default.removeItem(at: activeImport) }
             activeImport = nil; importedPayload = nil; return
         }
+        if webView.url?.path == "/mobile/finish", let stage = message.body as? String,
+           ["exchange-start", "exchange-ok", "session-active", "exchange-failed"].contains(stage) {
+            traceAuth(stage); return
+        }
         guard webView.url?.path == "/mobile/finish", message.body as? String == "ready",
               let code = pendingCode, let verifier else { return }
+        traceAuth("web-ready")
         pendingCode = nil; self.verifier = nil; authState = nil
         webView.callAsyncJavaScript(
             "window.dispatchEvent(new CustomEvent('crm-mobile-auth',{detail:{code,verifier}}));",
@@ -262,8 +282,18 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         guard let url = action.request.url else { decisionHandler(.cancel); return }
         switch CRMNavigationPolicy.destination(url: url, baseURL: baseURL,
             isMainFrame: action.targetFrame?.isMainFrame, sourceHost: action.sourceFrame.securityOrigin.host) {
-        case .embedded: decisionHandler(.allow)
+        case .embedded:
+            if url.host?.hasSuffix(".accounts.dev") == true { traceAuth("clerk-session-navigation-allowed") }
+            decisionHandler(.allow)
         case .authenticate:
+            traceAuth(url.host == baseURL.host ? "auth-navigation-first-party" : "auth-navigation-provider")
+            if pendingCode != nil {
+                decisionHandler(.cancel)
+                traceAuth("unexpected-login-during-exchange")
+                loading = false
+                error = "לא ניתן להשלים את ההתחברות. אפשר להעתיק פרטי תקלה או להתחבר מחדש."
+                return
+            }
             loading = false; error = nil
             decisionHandler(.cancel)
             // Present only after WebKit has finished cancelling its navigation.
@@ -307,6 +337,7 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { reload() }
     private func fail(_ failure: Error) {
         let navigationError = failure as NSError
+        traceAuth("web-navigation-error", error: navigationError)
         guard !CRMNavigationPolicy.isExpectedCancellation(navigationError) else { return }
         // A previous, interrupted web navigation may finish while system auth is on screen.
         guard authentication == nil, pendingCode == nil else { return }
