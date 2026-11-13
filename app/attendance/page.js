@@ -1,4 +1,6 @@
 import Link from "next/link";
+import PhoneWorkspace from "../phone-workspace";
+import { PhoneAttendance } from "../phone-workspaces";
 import { redirect } from "next/navigation";
 import {
   ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER,
@@ -306,6 +308,8 @@ export default async function AttendancePage({ searchParams }) {
 
   return (
     <>
+      <PhoneAttendance sessions={sessions} showAll={responsibleFilterMode === "all"} />
+      <PhoneWorkspace label="כלי ניהול, יצירה וסינון">
       <div className="card glass">
         <h1>נוכחות מוסדית</h1>
         <p className="muted">
@@ -658,6 +662,7 @@ export default async function AttendancePage({ searchParams }) {
         </aside>
       </div>
       <div className="card muted">בחר מפגש קיים או צור מפגש חדש כדי להתחיל להזין נוכחות.</div>
+      </PhoneWorkspace>
     </>
   );
 }

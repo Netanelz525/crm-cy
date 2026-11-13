@@ -72,6 +72,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   </details>
                 ) : null}
               </nav>
+              <details className="phone-tools">
+                <summary>כל הכלים <span aria-hidden="true">☰</span></summary>
+                <nav aria-label="כל כלי המערכת">{[...primaryNavItems, ...secondaryNavItems].map(item => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
+              </details>
               <div style={{ display: "flex", gap: 8 }}>
                 {currentUser ? <UserButton /> : null}
               </div>
