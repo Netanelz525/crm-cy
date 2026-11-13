@@ -42,9 +42,9 @@ test('mobile codes require the originating device verifier, expire, and can be r
 });
 
 test('redemption rejects foreign origins and never asks Clerk for an unverified user', async () => {
-  let consumed = 0, minted = 0;
+  let consumed = 0, minted = 0, currentUser = null;
   const route = await load('../app/api/mobile/redeem/route.js', {
-    '@clerk/nextjs/server': { clerkClient: async () => ({ signInTokens: { createSignInToken: async ({userId, expiresInSeconds}) => {
+    '@clerk/nextjs/server': { auth: async () => ({ userId: currentUser }), clerkClient: async () => ({ signInTokens: { createSignInToken: async ({userId, expiresInSeconds}) => {
       minted++; assert.equal(userId, 'verified-user'); assert.equal(expiresInSeconds,30); return {token:'short-ticket'};
     } } }) },
     '../../../../lib/mobile-auth': { consumeMobileCode: async (code, verifier) => { consumed++; return code==='valid' && verifier==='proof' ? 'verified-user' : null; } }
@@ -59,4 +59,10 @@ test('redemption rejects foreign origins and never asks Clerk for an unverified 
   const response = await route.POST(request({code:'valid',verifier:'proof'}));
   assert.equal(response.status,200); assert.equal(response.headers.get('cache-control'),'no-store');
   assert.equal((await response.json()).ticket,'short-ticket'); assert.equal(minted,1);
+  currentUser = 'verified-user';
+  const existing = await route.POST(request({code:'valid',verifier:'proof'}));
+  assert.equal((await existing.json()).sessionActive, true); assert.equal(minted,1);
+  currentUser = 'different-user';
+  assert.equal((await route.POST(request({code:'valid',verifier:'proof'}))).status,409);
+  assert.equal(minted,1);
 });

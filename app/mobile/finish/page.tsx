@@ -27,11 +27,20 @@ export default function MobileFinish() {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
         window.webkit?.messageHandlers?.mobileAuth?.postMessage("exchange-ok");
+        if (result.sessionActive) {
+          window.webkit?.messageHandlers?.mobileAuth?.postMessage("session-active");
+          window.location.replace('/attendance');
+          return;
+        }
         const attempt = await signIn!.create({ strategy: 'ticket', ticket: result.ticket });
         if (attempt.status !== 'complete' || !attempt.createdSessionId) throw new Error('יש להשלים כניסה מחדש.');
-        await setActive!({ session: attempt.createdSessionId });
-        window.webkit?.messageHandlers?.mobileAuth?.postMessage("session-active");
-        window.location.replace('/attendance');
+        await setActive!({
+          session: attempt.createdSessionId,
+          navigate: async () => {
+            window.webkit?.messageHandlers?.mobileAuth?.postMessage("session-active");
+            window.location.replace('/attendance');
+          }
+        });
       } catch {
         window.webkit?.messageHandlers?.mobileAuth?.postMessage("exchange-failed");
         setError('לא ניתן להשלים כניסה. לחצו על התחברות מחדש באפליקציה.');

@@ -1,4 +1,4 @@
-import { clerkClient } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { consumeMobileCode } from '../../../../lib/mobile-auth';
 
 export const runtime = 'nodejs';
@@ -17,6 +17,9 @@ export async function POST(request) {
     const { code, verifier } = JSON.parse(raw);
     const userId = await consumeMobileCode(code, verifier);
     if (!userId) return Response.json({ error: 'הכניסה פגה. יש להתחבר שוב.' }, { status: 401, headers });
+    const current = await auth();
+    if (current.userId === userId) return Response.json({ sessionActive: true }, { headers });
+    if (current.userId) return Response.json({ error: 'יש לצאת מהחשבון הנוכחי לפני החלפת חשבון.' }, { status: 409, headers });
     const client = await clerkClient();
     const token = await client.signInTokens.createSignInToken({ userId, expiresInSeconds: 30 });
     return Response.json({ ticket: token.token }, { headers });
