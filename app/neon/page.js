@@ -1,4 +1,6 @@
 import Link from "next/link";
+import PhoneWorkspace from "../phone-workspace";
+import { PhoneStudents } from "../phone-workspaces";
 import { redirect } from "next/navigation";
 import { purgeExpiredSoftDeletedStudents } from "../../lib/deleted-students";
 import { ENUM_LABELS } from "../../lib/student-fields";
@@ -342,6 +344,8 @@ export default async function NeonPage({ searchParams }) {
 
   return (
     <>
+      <PhoneStudents students={students} query={q} error={error} />
+      <PhoneWorkspace label="כלי ניהול וסינון מתקדם">
       <div className="card glass">
         <div className="student-topbar">
           <div>
@@ -748,6 +752,7 @@ export default async function NeonPage({ searchParams }) {
         canEmailParents={currentUser.can_email_parents}
         defaultReplyTo={defaultReplyTo}
       />
+      </PhoneWorkspace>
     </>
   );
 }

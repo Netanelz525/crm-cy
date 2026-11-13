@@ -7747,3 +7747,89 @@ td {
   .student-actions-wrap { gap: 8px; }
   .student-actions-wrap .btn { min-height: 44px; }
 }
+
+/* Focused phone workspaces; desktop management remains available. */
+.phone-home, .phone-workspace-toggle, .phone-tools { display: none; }
+@media screen and (max-width: 640px) {
+  :root { --phone-blue: #205cc8; --phone-ink: #172c49; }
+  html, body { max-width: 100%; overflow-x: clip; }
+  body { background: #f4f6fa; color: var(--phone-ink); }
+  .container { width: 100%; max-width: 100%; padding: 12px 18px 28px; }
+  .topbar { position: relative; min-height: 44px; padding: 4px 18px; background: #f4f6fa; border: 0; box-shadow: none; backdrop-filter: none; gap: 10px; justify-content: space-between; }
+  .topbar > .nav { display: none; }
+  .phone-tools { display: block; position: relative; z-index: 50; }
+  .phone-tools > summary { display: flex; gap: 10px; align-items: center; min-height: 44px; list-style: none; font-size: 13px; color: #5f6f86; cursor: pointer; }
+  .phone-tools > summary::-webkit-details-marker { display: none; }
+  .phone-tools > nav { position: absolute; top: 48px; inset-inline-start: 0; width: min(310px, 85vw); max-height: 65vh; overflow: auto; padding: 8px; border-radius: 20px; background: white; border: 1px solid #e5eaf1; box-shadow: 0 18px 50px #172c4920; display: grid; }
+  .phone-tools nav a { padding: 13px 16px; color: var(--phone-ink); text-decoration: none; min-height: 48px; border-radius: 12px; }
+  .phone-tools nav a:active { background: #edf3ff; }
+  .phone-home { display: block; }
+  .phone-heading { padding: 10px 0 22px; }
+  .phone-eyebrow { color: #748297; font-size: 12px; font-weight: 600; letter-spacing: .2px; }
+  .phone-heading h1 { font-size: 34px; letter-spacing: -1px; line-height: 1.2; margin: 8px 0 9px; color: var(--phone-ink); }
+  .phone-heading p { font-size: 14px; color: #708096; margin: 0; line-height: 1.6; }
+  .phone-segments { display: flex; padding: 5px; border-radius: 16px; background: #e8edf5; gap: 4px; margin-bottom: 25px; }
+  .phone-segments a { flex: 1; text-align: center; min-height: 44px; display: grid; place-items: center; border-radius: 12px; text-decoration: none; font-weight: 650; font-size: 14px; color: #68778b; }
+  .phone-segments a[aria-current] { background: white; color: var(--phone-blue); box-shadow: 0 2px 6px #172c4908; }
+  .phone-section-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 14px; }
+  .phone-section-title h2 { font-size: 18px; margin: 0; }
+  .phone-section-title > span, .phone-section-title a { font-size: 12px; color: #6c7d94; text-decoration: none; }
+  .phone-section-title a { color: var(--phone-blue); min-height: 44px; display: grid; align-items: center; font-weight: 600; }
+  .phone-card-list { display: grid; gap: 12px; }
+  .phone-session-card { display: flex; align-items: flex-start; gap: 13px; padding: 19px 16px; border: 1px solid #e7ecf3; border-radius: 21px; background: #fff; text-decoration: none; color: var(--phone-ink); box-shadow: 0 3px 12px #172c4903; }
+  .phone-session-icon { flex: 0 0 43px; height: 43px; display: grid; place-items: center; border-radius: 14px; background: #edf3ff; color: var(--phone-blue); font-size: 23px; font-weight: 500; }
+  .phone-card-copy { min-width: 0; flex: 1; }
+  .phone-card-subtitle { font-size: 11px; color: #8290a3; }
+  .phone-card-copy h3 { font-size: 17px; line-height: 1.4; margin: 3px 0 6px; color: var(--phone-ink); overflow-wrap: anywhere; }
+  .phone-card-copy p { font-size: 12px; line-height: 1.6; color: #76869b; margin: 0; }
+  .phone-status { display: inline-flex; align-items: center; gap: 6px; background: #edf8f2; color: #26815b; font-size: 10px; font-weight: 650; border-radius: 7px; padding: 4px 8px; margin-top: 10px; }
+  .phone-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .phone-status.is-locked { color: #78869a; background: #f0f3f7; }
+  .phone-chevron { font-size: 27px; line-height: 1; color: #a4b1c3; align-self: center; }
+  .phone-workspace { margin-top: 22px; }
+  .phone-workspace-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; min-height: 52px; padding: 12px 16px; background: transparent; color: #6a7c93; border: 1px dashed #cdd7e5; border-radius: 15px; box-shadow: none; font-size: 13px; font-weight: 500; }
+  .phone-workspace-body { display: none; }
+  .phone-workspace.is-open .phone-workspace-body { display: block; padding-top: 16px; }
+  .phone-empty { text-align: center; padding: 38px 20px; background: white; border: 1px solid #e7ecf3; border-radius: 22px; }
+  .phone-empty > span { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 22px; background: #edf3ff; color: var(--phone-blue); font-size: 32px; }
+  .phone-empty h2 { font-size: 18px; margin: 0 0 8px; }
+  .phone-empty p, .phone-hint { color: #7c8b9f; font-size: 13px; line-height: 1.7; margin: 0; }
+  .phone-search { display: flex; gap: 8px; padding: 6px; background: white; border: 1px solid #e2e8f1; border-radius: 17px; margin: 0 0 23px; }
+  .phone-search input { flex: 1; min-width: 0; border: 0; box-shadow: none; background: transparent; min-height: 46px; padding: 8px 10px; font-size: 16px; border-radius: 12px; }
+  .phone-search button { width: auto; flex: 0 0 66px; padding: 10px; min-height: 46px; border: 0; border-radius: 12px; background: var(--phone-blue); color: white; font-size: 13px; }
+  .phone-student-card { display: flex; align-items: center; gap: 8px; border: 1px solid #e7ecf3; border-radius: 20px; padding: 14px; background: white; }
+  .phone-student-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; color: inherit; text-decoration: none; min-height: 56px; }
+  .phone-avatar { flex: 0 0 48px; height: 48px; border-radius: 17px; display: grid; place-items: center; background: #edf0fa; color: #5068a2; font-size: 23px; font-weight: 650; }
+  .phone-call { display: grid; place-items: center; min-width: 46px; min-height: 46px; border-radius: 14px; color: #246b56; background: #edf8f3; font-size: 12px; text-decoration: none; }
+  .phone-search .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .card, .card.glass { background: white; border: 1px solid #e7ecf3; border-radius: 20px; box-shadow: none; backdrop-filter: none; padding: 18px; }
+  .grid, .email-form-grid { grid-template-columns: minmax(0, 1fr); }
+  input, select, textarea { font-size: 16px; min-height: 46px; border-radius: 12px; }
+  input[type=checkbox], input[type=radio] { min-height: 22px; width: 22px; }
+  .btn, .quick-action-btn, .chip-link { min-height: 44px; border-radius: 12px; }
+  .student-detail-page .student-topbar h1 { font-size: 22px; }
+  .student-detail-page .student-actions { display: flex; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; width: 100%; }
+  .student-detail-page .student-actions > * { flex: 0 0 auto; }
+  .student-detail-page .student-meta-line { gap: 6px; }
+  .student-detail-page .meta-chip { font-size: 11px; border-radius: 8px; padding: 5px 9px; }
+  .attendance-table { min-width: 0; }
+  .attendance-table thead { display: none; }
+  .attendance-table, .attendance-table tbody { display: block; width: 100%; }
+  .attendance-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 17px; border: 1px solid #e7ecf3; border-radius: 20px; background: white; margin-bottom: 12px; }
+  .attendance-table td { display: block; padding: 7px 0; border: 0; white-space: normal; }
+  .attendance-status-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .attendance-status-option { min-height: 48px; justify-content: center; border-radius: 13px; }
+  .attendance-contact-actions { margin-top: 8px; }
+  .mobile-navigation { background: #ffffffed; border-top: 1px solid #e7ecf3; box-shadow: none; }
+}
+.phone-profile-caption { color: var(--muted); font-size: 12px; }
+@media screen and (max-width: 640px) {
+  .student-profile-header { padding: 24px 18px; }
+  .student-profile-header h1 { margin: 7px 0 16px; }
+  .student-detail-page .linked-record-group-summary, .student-detail-page .linked-records-toggle { gap: 10px; flex-wrap: wrap; }
+  .student-detail-page .linked-records-summary { flex-wrap: wrap; }
+  .student-detail-page .sticky-save-bar { bottom: 0; padding-bottom: 12px; z-index: 20; }
+  .attendance-table-wrap { overflow: visible; border: 0; background: transparent; }
+  .attendance-table td.attendance-note-cell textarea { width: 100%; }
+  .ai-chat-bubble { min-width: 0; padding: 10px 14px; font-size: 12px; min-height: 44px; box-shadow: 0 4px 14px #172c4915; }
+}

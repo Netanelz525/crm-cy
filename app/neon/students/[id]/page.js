@@ -335,11 +335,12 @@ export default async function NeonStudentPage({ params, searchParams }) {
   const deleteLabel = `אני מאשר מחיקה של תלמיד ${studentName}`;
 
   return (
-    <>
-      <div className="card glass">
+    <div className="student-detail-page">
+      <div className="card glass student-profile-header">
         <div className="student-topbar">
           <div>
-            <h1>כרטיס תלמיד</h1>
+            <span className="phone-profile-caption">כרטיס תלמיד</span>
+            <h1>{studentName}</h1>
             <div className="student-meta-line">
               <span className="meta-chip">מוסד: {institutionLabel(student?.currentInstitution)}</span>
               <span className="meta-chip">רישום: {registrationLabel(student?.registration)}</span>
@@ -870,6 +871,6 @@ export default async function NeonStudentPage({ params, searchParams }) {
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }
