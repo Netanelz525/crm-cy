@@ -7850,3 +7850,12 @@ td {
   .call-desk-layout { grid-template-columns: minmax(0, 1fr); }
   .call-attendance-dashboard { position: static; order: -1; }
 }
+
+.call-status-picker { position: sticky; top: 12px; z-index: 5; padding: 18px; margin: 16px 0; background: #f5f9ff; border: 2px solid #b5d4f3; border-radius: 16px; box-shadow: 0 4px 14px rgba(25,61,102,.06); }
+.call-status-picker-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.call-status-picker-heading h2 { margin: 0; font-size: 1.3rem; }
+.call-status-picker-heading strong { color: #135b9c; }
+.call-status-picker-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.call-status-picker-options button[aria-pressed="true"] { background: #1764a8; border-color: #1764a8; color: white; font-weight: 700; box-shadow: 0 0 0 3px #d5e8fa; }
+.call-status-current-note { padding: 10px; border-radius: 8px; background: #fff; color: #214d74; }
+@media (max-width: 600px) { .call-status-picker { position: static; } .call-status-picker-options button { flex: 1 1 auto; } }
