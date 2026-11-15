@@ -17,3 +17,10 @@ test('removed or ineligible statuses are not restored and meeting scopes remain 
   assert.notEqual(callDeskFilterKey('meeting-a'),callDeskFilterKey('meeting-b'));
   assert.notEqual(callDeskFilterKey('meeting-a',true),callDeskFilterKey('meeting-a',false));
 });
+
+test('multiple statuses survive saved preferences and explicit links without breaking legacy choices',()=>{
+  assert.equal(resolveCallDeskFilter(statuses,'','missing,available'),'missing,available');
+  assert.equal(resolveCallDeskFilter(statuses,'לא נמצא,זמין','custom',true),'missing,available');
+  assert.equal(resolveCallDeskFilter(statuses,'custom','missing,missing,available'),'missing,available');
+  assert.equal(resolveCallDeskFilter(statuses,'missing','available,removed'),'missing');
+});

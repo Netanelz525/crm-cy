@@ -36,6 +36,10 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved',can_call_attendance:true};
  await api.saveCallTeam('meeting',['caller-a','caller-b'],manager);
  assert.equal(api.filterCallRoster(roster(),'missing').students.length,students.length);assert.equal(api.filterCallRoster(roster(),'found').students.length,0);assert.throws(()=>api.filterCallRoster(roster(),'forged'));
+ const mixed={...roster(),students:[{id:'m',status:'missing'},{id:'f',status:'found'},{id:'a',status:'available'}]};
+ assert.deepEqual(api.filterCallRoster(mixed,'missing,found').students.map(s=>s.id),['m','f']);
+ assert.deepEqual(api.filterCallRoster(mixed,['missing','found']).students.map(s=>s.id),['m','f']);
+ assert.throws(()=>api.filterCallRoster(mixed,'missing,forged'));
  const emptyClaim=await api.claimAttendanceCall('meeting',a,'','found');assert.equal(emptyClaim.lead,null);assert.equal(emptyClaim.stats.total,0);
 
  assert.equal(await api.canAccessCallDesk(a),true);
@@ -147,6 +151,16 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  assert.equal((await api.publicCallSettings('meeting',manager)).enabled,false);
  await assert.rejects(api.setPublicCallLink('meeting',true,a),e=>e.status===403);
  const open=await api.setPublicCallLink('meeting',true,manager);assert.equal(open.token.length,64);const stored=(await db.query('SELECT * FROM attendance_call_public_links')).rows[0];assert.notEqual(stored.token_hash,open.token);assert.equal(stored.enabled,true);
+ const savedRoster=students;
+ students=[{id:'status-found',label:'Found',status:'found',phone:'0501234567'},{id:'status-missing',label:'Missing',status:'missing',phone:'0501234567'}];
+ const multiWindow=randomUUID();
+ const firstMulti=await api.publicCallAction(open.token,multiWindow,{kind:'claim',attendanceStatus:'found,missing'});
+ await api.publicCallAction(open.token,multiWindow,{kind:'finish',studentId:firstMulti.lead.studentId,token:firstMulti.lead.token,outcome:'completed'});
+ const secondMulti=await api.publicCallAction(open.token,multiWindow,{kind:'claim',attendanceStatus:'found,missing'});
+ assert.notEqual(firstMulti.lead.studentId,secondMulti.lead.studentId);
+ assert.deepEqual([firstMulti.lead.status,secondMulti.lead.status].sort(),['found','missing']);
+ await api.publicCallAction(open.token,multiWindow,{kind:'finish',studentId:secondMulti.lead.studentId,token:secondMulti.lead.token,outcome:'completed'});
+ students=savedRoster;
  const w1=randomUUID(),w2=randomUUID();const guest1=await api.publicCallAction(open.token,w1,{kind:'claim'}),guest2=await api.publicCallAction(open.token,w2,{kind:'claim'});assert(guest1.lead);assert(guest2.lead);assert.notEqual(guest1.lead.studentId,guest2.lead.studentId);assert.equal(guest1.lead.email,null);assert.equal(guest1.lead.history.length,0);
  await assert.rejects(api.publicCallAction(open.token,w2,{kind:'finish',studentId:guest1.lead.studentId,token:guest1.lead.token,outcome:'completed'}),e=>e.status===409);
  await api.publicCallAction(open.token,w1,{kind:'finish',studentId:guest1.lead.studentId,token:guest1.lead.token,outcome:'completed',attendanceStatus:'found',note:'Public test'});assert.equal((await db.query('SELECT status FROM attendance_records WHERE student_id=$1',[guest1.lead.studentId])).rows[0].status,'found');

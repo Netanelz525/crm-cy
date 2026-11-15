@@ -7859,3 +7859,10 @@ td {
 .call-status-picker-options button[aria-pressed="true"] { background: #1764a8; border-color: #1764a8; color: white; font-weight: 700; box-shadow: 0 0 0 3px #d5e8fa; }
 .call-status-current-note { padding: 10px; border-radius: 8px; background: #fff; color: #214d74; }
 @media (max-width: 600px) { .call-status-picker { position: static; } .call-status-picker-options button { flex: 1 1 auto; } }
+
+.call-status-picker > summary { cursor: pointer; list-style: none; margin-bottom: 0; }
+.call-status-picker > summary::-webkit-details-marker, .call-attendance-summary::-webkit-details-marker { display: none; }
+.call-status-picker[open] > summary { margin-bottom: 14px; }
+.call-attendance-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
+.call-attendance-dashboard details[open] > summary { margin-bottom: 16px; }
+.call-status-picker > summary:focus-visible, .call-attendance-summary:focus-visible { outline: 3px solid #1764a8; outline-offset: 4px; border-radius: 6px; }
