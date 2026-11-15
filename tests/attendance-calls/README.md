@@ -10,7 +10,7 @@ A caller receives one invitee per session, exclusively for five minutes. Reopeni
 - All three actions request the next available invitee. If none are available, the caller can retry later.
 - Removing a caller releases their lease. Locked sessions and unapproved accounts cannot operate the queue.
 
-The manager panel shows completion counts and the latest 100 call attempts. The assigned caller sees only the current invitee's name, class, phone, attendance status and last five call attempts. Full student cards and the complete roster are not exposed by the new queue API. Calls are made by the user's telephone application via a `tel:` link; no automatic dialing or messages are sent.
+The manager panel shows completion counts and the latest 100 call attempts. The assigned caller sees only the current invitee's name, class, phone, attendance status and last five call attempts. Both the signed-in desk and the public חפ״ק can search by name or phone and list all meeting students with attendance and call outcomes. The directory does not expose full student cards or contact fields; phones for calling remain on the exclusively allocated lead. Selecting a student preserves the same exclusive lease rules. Calls are made by the user's telephone application via a `tel:` link; no automatic dialing or messages are sent.
 
 Three additive tables are initialized on first use. Schema setup uses a transaction-scoped advisory lock. Queue mutations use a single Neon HTTP transaction, lock the session row, and run subsequent statements at READ COMMITTED. A partial unique index also enforces one active lease per caller per session. Completion, attendance update and contact log are atomic and lease-token retries are idempotent.
 
