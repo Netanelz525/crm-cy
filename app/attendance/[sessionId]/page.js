@@ -3,6 +3,7 @@ import { withAttendanceWhatsAppReplies } from "../../../lib/attendance-whatsapp-
 import { redirect } from "next/navigation";
 import AttendanceRosterClient from "../attendance-roster-client";
 import AttendanceEmailSendSubmit from "../attendance-email-send-submit";
+import AttendanceWhatsAppSendSubmit from "../attendance-whatsapp-send-submit";
 import AttendanceMessageComposer from "../attendance-message-composer";
 import {
   saveAttendanceSessionDetailsAction,
@@ -176,6 +177,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         <h1>{roster.session.title || "מפגש נוכחות"}</h1>
         <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
       </div>
+      {resolvedSearchParams?.whatsappSent != null ? <div className="ok" role="status" aria-live="polite"><b>שליחת ה־WhatsApp הושלמה.</b> ספק WhatsApp אישר שליחת {clean(resolvedSearchParams.whatsappSent)} הודעות. נכשלו: {clean(resolvedSearchParams.whatsappFailed) || "0"}. תלמידים ללא מספר תקין: {clean(resolvedSearchParams.whatsappMissingPhones) || "0"}. אין צורך ללחוץ שוב על שליחה.</div> : null}
+      {resolvedSearchParams?.whatsappError ? <div className="error" role="alert">{clean(resolvedSearchParams.whatsappError)}</div> : null}
+      {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
+      {whatsappTemplateError ? <div className="error" role="alert">{whatsappTemplateError}</div> : null}
       <details className="card attendance-message-panel">
         <summary className="attendance-message-summary">
           <div><h2>ניהול המפגש</h2><p className="muted">הגדרות, מוקד שיחות, שליחה ויצוא</p></div>
@@ -219,10 +224,6 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
       {quickEmailError ? <div className="error">{quickEmailError}</div> : null}
       {resolvedSearchParams?.whatsappRepliesSynced != null ? <div className="ok">סנכרון תגובות WhatsApp הושלם. עודכנו {clean(resolvedSearchParams.whatsappRepliesSynced)} תגובות.</div> : null}
-      {resolvedSearchParams?.whatsappSent != null ? <div className="ok">ספק WhatsApp אישר שליחת {clean(resolvedSearchParams.whatsappSent)} הודעות. נכשלו: {clean(resolvedSearchParams.whatsappFailed) || "0"}. תלמידים ללא מספר תקין: {clean(resolvedSearchParams.whatsappMissingPhones) || "0"}.</div> : null}
-      {resolvedSearchParams?.whatsappError ? <div className="error">{clean(resolvedSearchParams.whatsappError)}</div> : null}
-      {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
-      {whatsappTemplateError ? <div className="error">{whatsappTemplateError}</div> : null}
       {invitationSaved ? <div className="ok">הגדרות ההזמנה נשמרו.</div> : null}
       {invitationQueued ? <div className="ok">שליחת ההזמנות התחילה ברקע.</div> : null}
       {invitationError ? <div className="error">{invitationError}</div> : null}
@@ -428,7 +429,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         <summary className="attendance-message-summary">
           <div>
             <h3>שליחת הודעות למפגש</h3>
-            <span className="muted">פותחים רק כשצריך לשלוח מייל.</span>
+            <span className="muted">שליחת מייל או WhatsApp ומעקב אחר תוצאת השליחה.</span>
           </div>
           <span className="attendance-message-summary-action">פתח אפשרויות</span>
         </summary>
@@ -524,7 +525,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <div className="quick-actions">
             <button formAction={saveAttendanceSessionMessagingAction} className="quick-action-btn quick-action-outline">שמור הודעה</button>
             <AttendanceEmailSendSubmit formAction={sendAttendanceSessionEmailsAction} />
-            <button formAction={sendAttendanceSessionWhatsAppAction} className="quick-action-btn">שלח WhatsApp למפגש</button>
+            <AttendanceWhatsAppSendSubmit formAction={sendAttendanceSessionWhatsAppAction} />
           </div>
         </form>
       </details>
