@@ -1,6 +1,7 @@
 "use client";
 import {callPhone as phoneNumber} from "../../../lib/call-phone";
 import Link from "next/link";
+import { callDeskFilterKey, resolveCallDeskFilter } from "../../../lib/call-desk-preferences.mjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CallStudentEditor from "./call-student-editor";
 
@@ -49,7 +50,35 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
   const [dashboardError, setDashboardError] = useState("");
   const publicWindow=useRef("");
   const [closed,setClosed]=useState(false);
-  const [attendanceFilter,setAttendanceFilter]=useState(()=>statusOptions.find(([value,label])=>value!=="unavailable"&&(value===initialStatus||label===initialStatus))?.[0]||"");
+  const [attendanceFilter,setAttendanceFilter]=useState(()=>resolveCallDeskFilter(statusOptions,initialStatus,null,true));
+  const [filterReady, setFilterReady] = useState(false);
+  const [preferenceWarning, setPreferenceWarning] = useState("");
+  const preferenceScope = publicToken ? "public" : "signed";
+  const optionsKey = JSON.stringify(statusOptions);
+  const selectedStatusLabel = statusOptions.find(([value])=>value===attendanceFilter)?.[1] || "כל הסטטוסים הזמינים";
+  useEffect(() => {
+    let saved = null;
+    try { saved = window.localStorage.getItem(callDeskFilterKey(sessionId, preferenceScope === "public")); }
+    catch { setPreferenceWarning("לא ניתן לזכור את הבחירה אחרי סגירת הדפדפן. הבחירה תישמר במהלך העבודה בעמוד."); }
+    const url = new URL(window.location.href);
+    const restored = resolveCallDeskFilter(JSON.parse(optionsKey),url.searchParams.get("status") ?? initialStatus,saved,url.searchParams.has("status"));
+    setAttendanceFilter(restored);
+    try { window.localStorage.setItem(callDeskFilterKey(sessionId, preferenceScope === "public"), restored); }
+    catch { setPreferenceWarning("הבחירה נשמרת לעמוד הנוכחי בלבד; הדפדפן אינו מאפשר שמירה קבועה."); }
+    setFilterReady(true);
+  }, [sessionId, initialStatus, optionsKey, preferenceScope]);
+
+  function chooseAttendanceFilter(value) {
+    setAttendanceFilter(value);
+    try {
+      window.localStorage.setItem(callDeskFilterKey(sessionId, preferenceScope === "public"),value);
+      setPreferenceWarning("");
+    } catch { setPreferenceWarning("הבחירה נשמרה לעמוד הנוכחי בלבד; הדפדפן אינו מאפשר שמירה קבועה."); }
+    const url = new URL(window.location.href);
+    url.searchParams.set("status",value);
+    window.history.replaceState(window.history.state,"",url.toString());
+    // Keep the current call and its notes intact. The selection applies to the next automatic claim.
+  }
   const [notice,setNotice] = useState("");
   const [invitationBusy,setInvitationBusy] = useState(false);
   const inFlight = useRef(false), offset = useRef(0);
@@ -58,8 +87,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
   useEffect(() => { const timer=setInterval(()=>setNow(Date.now()+offset.current),1000); return ()=>clearInterval(timer); },[]);
   async function copyFilteredLink() {
     const url = new URL(window.location.href);
-    if (attendanceFilter) url.searchParams.set("status", attendanceFilter);
-    else url.searchParams.delete("status");
+    url.searchParams.set("status", attendanceFilter);
     try { await navigator.clipboard.writeText(url.toString()); setNotice("הקישור עם סינון הסטטוס הועתק."); }
     catch { setError("לא ניתן להעתיק את הקישור. נסה שוב."); }
   }
@@ -93,14 +121,14 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
   }, [sessionId, publicToken, closed]);
 
   async function next(outcome, requestedStudentId = "") {
-    if (inFlight.current) return;
+    if (inFlight.current || !filterReady) return;
     inFlight.current=true; setBusy(true); setError("");
     try {
       if (outcome && lead) {
         await request({kind:"finish",studentId:lead.studentId,token:lead.token,outcome,note,attendanceStatus:status});
         setData(current=>({...current,lead:null})); setNote(""); setStatus("");
       }
-      const result = await request({kind:"claim", studentId:requestedStudentId,attendanceStatus:requestedStudentId ? "" : attendanceFilter});
+      const result = await request({kind:"claim", studentId:requestedStudentId,attendanceStatus:requestedStudentId ? "" : !outcome && lead && remaining > 0 ? lead.status : attendanceFilter});
       offset.current=new Date(result.serverTime).getTime()-Date.now();
       setNow(Date.now()+offset.current);
       setData(result); setEditing(false); setMatches(null);
@@ -139,13 +167,26 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     {!publicToken&&<Link href="/call-desk">חזרה לאזור השיחות שלי</Link>}
     <h1>{data?.session?.title || title}</h1>
     <p className="muted">כל תלמיד מוקצה לך לחמש דקות. לאחר טיפול, דחייה או אי־מענה עוברים לתלמיד הבא.</p>
-    <div className="card"><label>מיקוד שיחות לפי סטטוס נוכחות<select disabled={busy||Boolean(lead)} value={attendanceFilter} onChange={event=>{setAttendanceFilter(event.target.value);setData(null);setMatches(null);}}><option value="">כל הסטטוסים הזמינים למוקד</option>{statusOptions.filter(([value])=>value!=='unavailable').map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><button type="button" className="quick-action-btn quick-action-outline" onClick={copyFilteredLink}>העתק קישור לפי הסטטוס שנבחר</button>{lead&&<p className="muted">סיים או דחה את השיחה הנוכחית לפני שינוי הסינון.</p>}{!publicToken&&<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימת תלמידים וטלפונים לפי הסינון (Excel)</a>}</div>
-    {data?.stats ? <p>טופלו {data.stats.completed} מתוך {data.stats.total} · בשיחה כעת: {data.stats.active}</p> : null}
+    <div className="call-status-picker">
+      <div className="call-status-picker-heading"><h2>למי מתקשרים?</h2><strong>הסטטוס שנבחר: {selectedStatusLabel}</strong></div>
+      <div className="call-status-picker-options" role="group" aria-label="בחירת סטטוס נוכחות להתקשרות">
+        {[["", "כל הסטטוסים"], ...statusOptions.filter(([value])=>value!=="unavailable")].map(([value,label])=><button
+          key={value || "all"} type="button" aria-pressed={attendanceFilter===value}
+          className={`quick-action-btn${attendanceFilter===value ? " quick-action-primary" : " quick-action-outline"}`}
+          disabled={busy || !filterReady || locked} onClick={()=>chooseAttendanceFilter(value)}>{label}</button>)}
+      </div>
+      <p className="muted">הבחירה נשמרת למפגש הזה גם אחרי חיפוש, בחירה ידנית ורענון. התלמיד הבא יוקצה לפי הסטטוס שבחרת.</p>
+      {lead ? <p className="call-status-current-note">אפשר לשנות עכשיו — הבחירה תחול על התלמיד הבא. השיחה הנוכחית וההערות שלה נשמרות.</p> : null}
+      {preferenceWarning ? <p role="status" className="muted">{preferenceWarning}</p> : null}
+      <div className="quick-actions"><button type="button" className="quick-action-btn quick-action-outline" disabled={!filterReady} onClick={copyFilteredLink}>העתק קישור עם הבחירה</button>
+      {!publicToken&&<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימה לפי הסטטוס שנבחר (Excel)</a>}</div>
+    </div>
+    {data?.stats ? <p>בסטטוס של ההקצאה הנוכחית: טופלו {data.stats.completed} מתוך {data.stats.total} · בשיחה כעת: {data.stats.active}</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
     {!locked ? <details className="card"><summary>חיפוש תלמיד ורשימת תלמידי המפגש</summary>
       <form onSubmit={search}><label>חיפוש לפי שם או טלפון<input type="search" value={query} onChange={e=>setQuery(e.target.value)} minLength={2} required /></label><button disabled={busy}>חפש במוזמני המפגש</button><button type="button" disabled={busy} onClick={showAllStudents}>{busy ? "טוען…" : "הצג את כל תלמידי המפגש"}</button></form>
-      <p className="muted">החיפוש והרשימה כוללים את כל תלמידי המפגש, גם תלמידים שטופלו או שאינם זמינים להתקשרות.</p>
+      <p className="muted">החיפוש והרשימה כוללים את כל תלמידי המפגש. בחירה ידנית לא משנה את סטטוס ההתקשרות הקבוע שבחרת.</p>
       {lead ? <p className="muted">בחירה בתלמיד אחר משחררת את ההקצאה הנוכחית. שמור את סיכום השיחה לפני המעבר.</p> : null}
       {matches?.length===0 ? <p>לא נמצאו תלמידים תואמים במפגש.</p> : null}
       {matches ? <>
@@ -177,7 +218,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     {locked ? <p>המפגש נעול. מנהל צריך לפתוח אותו לפני תחילת השיחות.</p> : !lead ? <>
       <p>{data ? "אין כרגע תלמיד פנוי. ייתכן שהרשימה טופלה, שיש שיחות פעילות או שממתינים לניסיון חוזר." : "לחץ להתחלת עבודה ולקבלת התלמיד הראשון."}</p>
       {data?.stats?.next_available_at ? <p>ניסיון חוזר זמין החל מ־{new Date(data.stats.next_available_at).toLocaleTimeString("he-IL")}</p> : null}
-      <button disabled={busy} onClick={()=>next()}>{busy ? "מקצה תלמיד…" : "קבל תלמיד להתקשרות"}</button>
+      <button disabled={busy || !filterReady} onClick={()=>next()}>{busy ? "מקצה תלמיד…" : `קבל תלמיד — ${selectedStatusLabel}`}</button>
     </> : <div className="linked-record-card call-lead-card">
       <h2>{lead.name}</h2><p>{lead.classLabel}</p>
       <p role="status">{remaining ? `הקצאה בלעדית: ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}` : "זמן ההקצאה הסתיים. אין להתקשר או לשמור על סמך ההקצאה הישנה."}</p>
