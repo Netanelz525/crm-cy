@@ -239,3 +239,21 @@ test('six-variable attendance template preserves student name and both status la
  const payload=f.sent.find(item=>typeof item==='object');
  assert.deepEqual(Array.from(payload.template.components[0].parameters,p=>p.text),['Student','מפגש',legacyArgs.personalMessage,'Student','זמין','לא זמין']);
 });
+
+test('meeting messages with newlines, tabs and long spaces are safe for Meta template variables',async()=>{
+ const f=await sendingModule({templates:[legacyTemplate]});
+ const message='שורה ראשונה\r\nשורה שנייה\tעם     רווחים';
+ const result=await f.module.sendAttendanceSessionWhatsApp({...legacyArgs,personalMessage:message});
+ assert.equal(result.sent,1);
+ const payload=f.sent.find(item=>typeof item==='object');
+ assert.equal(payload.template.components[0].parameters[2].text,'שורה ראשונה שורה שנייה עם רווחים');
+ assert.equal(message,'שורה ראשונה\r\nשורה שנייה\tעם     רווחים');
+});
+test('named and positional template values normalize forbidden whitespace identically',async()=>{
+ const f=await sendingModule();
+ for(const parameterFormat of ['named','positional']){
+  const parameters=f.module.templateBodyParameters({parameterFormat,parameterDefinitions:[{parameterName:'message'}]},['  ראשון\n\tשני      שלישי  ']);
+  assert.equal(parameters[0].text,'ראשון שני שלישי');
+  if(parameterFormat==='named')assert.equal(parameters[0].parameter_name,'message');
+ }
+});
