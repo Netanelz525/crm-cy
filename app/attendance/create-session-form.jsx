@@ -27,7 +27,7 @@ export default function CreateSessionForm({ action, children }) {
       <fieldset disabled={pending} className="grid attendance-collapsible-body" style={{ border: 0, padding: 0, marginInline: 0, minWidth: 0 }}>
         {children}
         {error ? <p role="alert" style={{ gridColumn: "1 / -1", color: "#b91c1c" }}>{error}</p> : null}
-        <button type="submit">{pending ? "יוצר מפגש…" : "צור מפגש והתחל להזין"}</button>
+        <button type="submit">{pending ? "יוצר מפגש ובודק נוכחות…" : "צור מפגש והתחל להזין"}</button>
       </fieldset>
     </form>
   );

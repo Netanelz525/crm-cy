@@ -1,3 +1,7 @@
+import NetworkPresencePanel from "../network-presence-panel";
+import AttendanceLockDateField from "../lock-date-field";
+import { israelDate } from "../../../lib/attendance-presence-policy.mjs";
+import { PRESENCE_MESSAGES } from "../../../lib/presence-messages.mjs";
 import Link from "next/link";
 import { withAttendanceWhatsAppReplies } from "../../../lib/attendance-whatsapp-replies.js";
 import { redirect } from "next/navigation";
@@ -202,12 +206,16 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
               <input type="hidden" name="sessionId" value={roster.session.id} />
               <input type="hidden" name="locked" value={roster.session.isLocked ? "0" : "1"} />
               <button type="submit" className={roster.session.isLocked ? "quick-action-btn quick-action-primary" : "quick-action-btn quick-action-outline"}>
-                {roster.session.isLocked ? "פתח נעילה" : "נעל מפגש"}
+                {roster.session.isLocked ? "פתח נעילה (3 ימים אם המועד חלף)" : "נעל מפגש"}
               </button>
             </form>
           ) : null}
         </div>
       </div>
+
+      <NetworkPresencePanel sessionId={sessionId} result={roster.session.presenceSyncResult} syncedAt={roster.session.presenceSyncedAt}
+        disabledReason={roster.session.isLocked ? PRESENCE_MESSAGES.locked : roster.session.sessionDate !== israelDate() ? PRESENCE_MESSAGES.different_date : roster.session.communicationAudience !== 'student' ? PRESENCE_MESSAGES.wrong_audience : ''} />
+      <div className="card muted">נעילה אוטומטית: {roster.session.autoLockDate} בתחילת היום, לפי שעון ישראל. {roster.session.customLockDate ? 'נקבע תאריך מותאם למפגש.' : 'ברירת מחדל: שלושה ימים לאחר תאריך המפגש.'}</div>
 
       {created ? <div className="ok">המפגש נוצר ונפתח להזנת נוכחות.</div> : null}
       {callTeam ? <AttendanceCallTeam sessionId={sessionId} team={callTeam} rosterIds={roster.students.map(s => s.id)} /> : null}
@@ -356,7 +364,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
 
       {roster.session.isLocked ? (
         <div className="attendance-lock-banner">
-          המפגש נעול לעדכוני סטטוסים. מנהל יכול לפתוח את הנעילה מהכפתור בראש הדף.
+          המפגש נעול לעדכוני סטטוסים. מנהל יכול להאריך את מועד הנעילה בפרטי המפגש או לפתוח לשלושה ימים נוספים מהכפתור בראש הדף.
         </div>
       ) : null}
 
@@ -394,6 +402,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <span className="muted">תאריך</span>
             <input name="sessionDate" type="date" defaultValue={roster.session.sessionDate} required />
           </label>
+          {canManageSessionSettings ? <AttendanceLockDateField value={roster.session.customLockDate} effectiveDate={roster.session.autoLockDate} /> : null}
+
           <label style={{ gridColumn: "1 / -1" }}>
             <span className="muted">פרטי המפגש ותוכן ההודעה</span>
             <textarea name="sourceNote" rows={5} defaultValue={roster.session.sourceNote} placeholder="הטקסט שיופיע גם במייל וגם ב־WhatsApp" />
