@@ -7833,3 +7833,20 @@ td {
   .attendance-table td.attendance-note-cell textarea { width: 100%; }
   .ai-chat-bubble { min-width: 0; padding: 10px 14px; font-size: 12px; min-height: 44px; box-shadow: 0 4px 14px #172c4915; }
 }
+
+.call-desk-layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 20px; align-items: start; }
+.call-desk-layout > .call-desk { min-width: 0; }
+.call-attendance-dashboard { position: sticky; top: 20px; padding: 20px; border: 1px solid #d5e1ef; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(25, 61, 102, .07); }
+.call-attendance-dashboard h2 { margin-top: 0; font-size: 1.3rem; }
+.call-attendance-total { display: flex; gap: 12px; align-items: baseline; margin: 18px 0; }
+.call-attendance-total strong { font-size: 2rem; color: #1764a8; }
+.call-attendance-status { margin: 18px 0; }
+.call-attendance-status > div { display: flex; justify-content: space-between; gap: 12px; }
+.call-attendance-status strong { font-size: 1.25rem; }
+.call-attendance-status progress { display: block; width: 100%; height: 12px; margin: 7px 0; accent-color: #1764a8; }
+.call-attendance-status-found progress { accent-color: #14834d; }
+.call-attendance-status-missing progress { accent-color: #c44444; }
+@media (max-width: 1000px) {
+  .call-desk-layout { grid-template-columns: minmax(0, 1fr); }
+  .call-attendance-dashboard { position: static; order: -1; }
+}

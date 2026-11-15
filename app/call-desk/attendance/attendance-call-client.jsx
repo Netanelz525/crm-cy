@@ -17,6 +17,7 @@ function ContactDetails({ label, name, phone, email, active }) {
     </div> : null}
   </section>;
 }
+
 const labels = { in_call:"בשיחה כעת", pending:"ממתין", completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
 export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[], publicToken="", initialStatus="" }) {
   const [data,setData] = useState(null), [note,setNote] = useState(""), [status,setStatus] = useState("");
@@ -44,6 +45,8 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     });
     return { rows, callCounts, attendanceCounts: [...attendanceCounts].sort(([a], [b]) => String(a).localeCompare(String(b), "he")) };
   }, [matches, listStatus, listOutcome, listSort]);
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardError, setDashboardError] = useState("");
   const publicWindow=useRef("");
   const [closed,setClosed]=useState(false);
   const [attendanceFilter,setAttendanceFilter]=useState(()=>statusOptions.find(([value,label])=>value!=="unavailable"&&(value===initialStatus||label===initialStatus))?.[0]||"");
@@ -70,7 +73,25 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     if (!response.ok) throw new Error(result.error || "לא ניתן להשלים את הפעולה.");
     return result;
   }
-  useEffect(()=>{if(!publicToken)return;const check=()=>{if(document.visibilityState==='visible')request({kind:'state'}).catch(()=>{});};const timer=setInterval(check,15000);window.addEventListener('focus',check);return()=>{clearInterval(timer);window.removeEventListener('focus',check);};},[publicToken]);
+  useEffect(() => {
+    if (closed) return;
+    let cancelled = false, loading = false;
+    async function refresh() {
+      if (loading || document.visibilityState === "hidden") return;
+      loading = true;
+      try {
+        const result = await request({ kind: "dashboard" });
+        if (!cancelled) { setDashboard(result); setDashboardError(""); }
+      } catch (failure) { if (!cancelled) setDashboardError(failure.message); }
+      finally { loading = false; }
+    }
+    refresh();
+    const timer = setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { cancelled = true; clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, [sessionId, publicToken, closed]);
+
   async function next(outcome, requestedStudentId = "") {
     if (inFlight.current) return;
     inFlight.current=true; setBusy(true); setError("");
@@ -83,6 +104,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
       offset.current=new Date(result.serverTime).getTime()-Date.now();
       setNow(Date.now()+offset.current);
       setData(result); setEditing(false); setMatches(null);
+      request({kind:"dashboard"}).then(setDashboard).catch(failure=>setDashboardError(failure.message));
       if (result.lead?.token !== lead?.token) { setNote(""); setStatus(""); }
     } catch (failure) { setError(failure.message || "חיבור הרשת נכשל. נסה שוב."); }
     finally { inFlight.current=false; setBusy(false); }
@@ -113,7 +135,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     } finally { setInvitationBusy(false); }
   }
   if(closed)return <section className="card"><h1>החפ״ק נסגר</h1><p>יש לפנות למנהל לקבלת קישור פעיל.</p></section>;
-  return <section className="card call-desk">
+  return <div className="call-desk-layout"><section className="card call-desk">
     {!publicToken&&<Link href="/call-desk">חזרה לאזור השיחות שלי</Link>}
     <h1>{data?.session?.title || title}</h1>
     <p className="muted">כל תלמיד מוקצה לך לחמש דקות. לאחר טיפול, דחייה או אי־מענה עוברים לתלמיד הבא.</p>
@@ -187,5 +209,21 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
       {!remaining || error ? <button disabled={busy} onClick={()=>next()}>רענן הקצאה</button> : null}
       {lead.history?.length ? <details><summary>ניסיונות קודמים</summary>{lead.history.map((item,i)=><p key={i}>{new Date(item.created_at).toLocaleString("he-IL")} · {labels[item.outcome]} · {item.note}</p>)}</details> : null}
     </div>}
-  </section>;
+  </section>
+  <aside className="card call-attendance-dashboard" aria-label="דשבורד מצב נוכחות במפגש">
+    <h2>מצב הנוכחות במפגש</h2>
+    <p className="muted">כל מוזמני המפגש · ללא סינון</p>
+    {dashboard ? <>
+      <div className="call-attendance-total"><strong>{dashboard.total}</strong><span>מוזמנים במפגש</span></div>
+      {dashboard.total === 0 ? <p>עדיין אין מוזמנים במפגש.</p> : null}
+      {dashboard.statuses.map(item=><div className={`call-attendance-status call-attendance-status-${item.value === "found" ? "found" : item.value === "missing" ? "missing" : "other"}`} key={item.value}>
+        <div><b>{item.label}</b><strong>{item.percentage}%</strong></div>
+        <progress max="100" value={item.percentage} aria-label={`${item.label}: ${item.percentage}%`} />
+        <small>{item.count} מתוך {dashboard.total} מוזמנים</small>
+      </div>)}
+      <small className="muted">עודכן ב־{new Date(dashboard.updatedAt).toLocaleTimeString("he-IL",{timeZone:"Asia/Jerusalem"})} · מתרענן כל 15 שניות</small>
+    </> : !dashboardError ? <p role="status">טוען את מצב המפגש…</p> : null}
+    {dashboardError ? <p role="alert" className="error">לא ניתן לרענן את הדשבורד. {dashboard ? "מוצגים הנתונים מהעדכון האחרון." : dashboardError}</p> : null}
+  </aside>
+  </div>;
 }
