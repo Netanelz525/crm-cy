@@ -70,7 +70,7 @@ async function sendingModule(options = {}) {
   './neon-students':{getNeonStudentById:async()=>student},
   './whatsapp-channel-config.mjs':{coexistenceWhatsAppConfig:()=>({templatesUrl:'https://example.invalid/templates',messagesUrl:'https://example.invalid/messages',accessToken:'test'})},
   './attendance-whatsapp-replies.js':{attendanceReplyDate:v=>new Date(Number(v)*1000),linkAttendanceWhatsAppMessage:async link=>links.push(link),resolveAttendanceWhatsAppText:async()=>({message_id:'new',session_id:'meeting-B',student_id:'s2',is_locked:true}),saveAttendanceWhatsAppReply:async reply=>replies.push(reply)}
- },{URL,fetch:async(url,options)=>{if(!options.body){sent.push(url);return{ok:true,json:async()=>({data:[{name:template.name,status:'APPROVED',language:'he',components:[{type:'BODY',text:template.bodyText},{type:'BUTTONS',buttons:template.buttons}]}]})};}sent.push(JSON.parse(options.body));return{ok:true,json:async()=>({messages:[{id:'wamid.out'}]})};}});
+ },{URL,fetch:async(url,requestOptions)=>{if(!requestOptions.body){sent.push(url);return{ok:true,json:async()=>({data:options.templates || [{name:template.name,status:'APPROVED',language:'he',components:[{type:'BODY',text:template.bodyText},{type:'BUTTONS',buttons:template.buttons}]}]})};}sent.push(JSON.parse(requestOptions.body));return{ok:!options.sendError,status:400,json:async()=>options.sendError?{error:{message:options.sendError}}:options.emptyAcknowledgement?{}:{messages:[{id:'wamid.out'}]}};}});
  return{module,sent,links,replies,saved,tokens};
 }
 const template={name:'fixed_buttons',language:'he',parameterCount:0,bodyText:'Fixed text without parameters',buttons:[{type:'QUICK_REPLY',index:0,text:'לא זמין'},{type:'QUICK_REPLY',index:1,text:'נמצא'},{type:'QUICK_REPLY',index:2,text:'זמין'}]};
@@ -198,4 +198,44 @@ test('foreign recipients get message links and can update attendance from intern
   const response=await f.module.applyAttendanceWhatsAppResponse(payload,recipient,'לא זמין','2026-10-21T10:00:00Z','wamid.out','in-foreign');
   assert.equal(response.status,'unavailable');assert.equal(f.saved[0].record.status,'unavailable');assert.equal(f.replies[0].phone,recipient);
  }
+});
+
+const legacyTemplate = {
+ name:'attendance_status_update_v1',status:'APPROVED',language:'he',
+ components:[{type:'BODY',text:'שלום {{1}}, מפגש {{2}}: {{3}}. אפשרויות: {{4}} / {{5}}'},
+ {type:'BUTTONS',buttons:[{type:'QUICK_REPLY',text:'1'},{type:'QUICK_REPLY',text:'2'}]}]
+};
+const legacyArgs={sessionId:'meeting-A',responseStatuses:['available','unavailable'],personalMessage:'טקסט שנערך בטופס'};
+test('meeting form sends the approved five body values instead of the old six-value payload',async()=>{
+ const f=await sendingModule({templates:[legacyTemplate]});
+ const result=await f.module.sendAttendanceSessionWhatsApp(legacyArgs);
+ assert.equal(result.sent,1);assert.equal(result.failed,0);
+ const payload=f.sent.find(item=>typeof item==='object');
+ assert.deepEqual(Array.from(payload.template.components[0].parameters,p=>p.text),['Student','מפגש',legacyArgs.personalMessage,'זמין','לא זמין']);
+ assert.equal(payload.template.components[1].index,'0');assert.equal(f.links.length,1);
+});
+test('meeting form includes parameter names for named templates',async()=>{
+ const names=['recipient','meeting','message','first','second'];
+ const named={...legacyTemplate,components:[{type:'BODY',text:names.map(name=>'{{'+name+'}}').join(' ')},legacyTemplate.components[1]]};
+ const f=await sendingModule({templates:[named]});await f.module.sendAttendanceSessionWhatsApp(legacyArgs);
+ const payload=f.sent.find(item=>typeof item==='object');
+ assert.deepEqual(Array.from(payload.template.components[0].parameters,p=>p.parameter_name),names);
+});
+test('missing approved meeting template fails before sending any message',async()=>{
+ const f=await sendingModule();await assert.rejects(f.module.sendAttendanceSessionWhatsApp(legacyArgs),/attendance_status_update_v1/);
+ assert.equal(f.sent.filter(item=>typeof item==='object').length,0);
+});
+test('meeting form reports provider rejections and missing acknowledgements as failures',async()=>{
+ for(const option of [{sendError:'Template parameter mismatch'},{emptyAcknowledgement:true}]){
+  const f=await sendingModule({templates:[legacyTemplate],...option});
+  const result=await f.module.sendAttendanceSessionWhatsApp(legacyArgs);
+  assert.equal(result.sent,0);assert.equal(result.failed,1);assert.equal(result.errors.length,1);assert.equal(f.links.length,0);
+ }
+});
+
+test('six-variable attendance template preserves student name and both status labels',async()=>{
+ const six={...legacyTemplate,components:[{type:'BODY',text:'{{1}} {{2}} {{3}} {{4}} {{5}} {{6}}'},legacyTemplate.components[1]]};
+ const f=await sendingModule({templates:[six]});await f.module.sendAttendanceSessionWhatsApp(legacyArgs);
+ const payload=f.sent.find(item=>typeof item==='object');
+ assert.deepEqual(Array.from(payload.template.components[0].parameters,p=>p.text),['Student','מפגש',legacyArgs.personalMessage,'Student','זמין','לא זמין']);
 });

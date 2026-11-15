@@ -426,26 +426,34 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
   if (responseStatuses.length !== 2) {
     redirect(`/attendance/${sessionId}?whatsappError=${encodeURIComponent("יש לבחור בדיוק שני סטטוסים לעדכון דרך WhatsApp")}`);
   }
-  after(async () => {
-    try {
-      const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
-        ? await uploadAttendanceWhatsAppImage(imageFile)
-        : "";
-      await sendAttendanceSessionWhatsApp({
-        sessionId,
-        personalMessage: clean(formData.get("personalMessage")),
-        responseStatuses,
-        targetStatuses,
-        recipientRoles,
-        imageId,
-        useGenericTemplate,
-        createdByUserId: user.clerk_user_id
-      });
-    } catch (error) {
-      console.error("Attendance WhatsApp batch failed", { sessionId, error: clean(error?.message) });
+  let result;
+  try {
+    const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
+      ? await uploadAttendanceWhatsAppImage(imageFile)
+      : "";
+    result = await sendAttendanceSessionWhatsApp({
+      sessionId,
+      personalMessage: clean(formData.get("personalMessage")),
+      responseStatuses,
+      targetStatuses,
+      recipientRoles,
+      imageId,
+      useGenericTemplate,
+      createdByUserId: user.clerk_user_id
+    });
+    if (!result.sent) {
+      throw new Error(result.errors?.join("; ") || (result.missingPhones
+        ? "לא נמצאו מספרי WhatsApp תקינים לנמעני המפגש."
+        : "לא נשלחו הודעות WhatsApp."));
     }
-  });
-  redirect(`/attendance/${sessionId}?whatsappQueued=1`);
+  } catch (error) {
+    console.error("Attendance WhatsApp batch failed", { sessionId, error: clean(error?.message) });
+    redirect(`/attendance/${sessionId}?whatsappError=${encodeURIComponent(clean(error?.message) || "שליחת WhatsApp נכשלה")}`);
+  }
+  revalidatePath(`/attendance/${sessionId}`);
+  const query = new URLSearchParams({ whatsappSent: String(result.sent), whatsappFailed: String(result.failed), whatsappMissingPhones: String(result.missingPhones) });
+  if (result.errors?.length) query.set("whatsappError", result.errors.join("; "));
+  redirect(`/attendance/${sessionId}?${query}`);
 }
 
 export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formData) {
