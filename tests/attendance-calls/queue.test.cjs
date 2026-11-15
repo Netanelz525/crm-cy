@@ -29,7 +29,7 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const mirror=new Function('sql','initDb','randomUUID','normalizeWeddingDate',neonSource+';return buildStudentMirrorRecord;')(sql,async()=>{},randomUUID,fieldHelpers.normalizeWeddingDate);
  const getStudent=async id=>{const row=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',[id])).rows[0];return row?{...row.payload,id,childrenCount:row.children_count}:null;};
  const deps={sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,randomBytes,createHash,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
- const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {publicCallAction,publicCallState,publicCallSettings,setPublicCallLink,claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,filterCallRoster,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
+ const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {publicCallAction,publicCallState,publicCallSettings,setPublicCallLink,claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,filterCallRoster,listAttendanceCalls,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
  const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved',can_call_attendance:true};
  const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved',can_call_attendance:true};
  const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved',can_call_attendance:true};
@@ -149,8 +149,29 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const w1=randomUUID(),w2=randomUUID();const guest1=await api.publicCallAction(open.token,w1,{kind:'claim'}),guest2=await api.publicCallAction(open.token,w2,{kind:'claim'});assert(guest1.lead);assert(guest2.lead);assert.notEqual(guest1.lead.studentId,guest2.lead.studentId);assert.equal(guest1.lead.email,null);assert.equal(guest1.lead.history.length,0);
  await assert.rejects(api.publicCallAction(open.token,w2,{kind:'finish',studentId:guest1.lead.studentId,token:guest1.lead.token,outcome:'completed'}),e=>e.status===409);
  await api.publicCallAction(open.token,w1,{kind:'finish',studentId:guest1.lead.studentId,token:guest1.lead.token,outcome:'completed',attendanceStatus:'found',note:'Public test'});assert.equal((await db.query('SELECT status FROM attendance_records WHERE student_id=$1',[guest1.lead.studentId])).rows[0].status,'found');
- for(const kind of ['search','details','update_student','invitation','team'])await assert.rejects(api.publicCallAction(open.token,w1,{kind}),e=>e.status===403);
- const rotated=await api.setPublicCallLink('meeting',true,manager);await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim'}),e=>e.status===403);assert.equal((await db.query("SELECT * FROM attendance_call_leads WHERE caller_key LIKE 'public:%'")).rows.length,0);
+ // Public directory searches and lists only this meeting, without full cards or contact fields.
+ const originalStudents=students;
+ students=[...students,...Array.from({length:55},(_,i)=>({id:`directory-${i}`,label:`Directory ${i}`,classLabel:'A',status:'missing',phone:'0509999999',email:'hidden@example.invalid'})),{id:'no-phone',label:'No phone',status:'missing'}, {id:'not-available',label:'Unavailable',status:'unavailable',phone:'0501111111'}];
+ const directory=await api.publicCallAction(open.token,w1,{kind:'list'});
+ assert.equal(directory.students.length,students.length);
+ assert.equal(directory.students.find(s=>s.id===guest2.lead.studentId).busy,true);
+ assert.equal(directory.students.find(s=>s.id==='no-phone').canCall,false);
+ assert.equal(directory.students.find(s=>s.id==='not-available').canCall,false);
+ assert.equal(directory.students.find(s=>s.id===guest1.lead.studentId).outcome,'completed');
+ for(const entry of directory.students){assert.equal(entry.phone,undefined);assert.equal(entry.email,undefined);assert.equal(entry.payload,undefined);}
+ const matches=await api.publicCallAction(open.token,w1,{kind:'search',query:'Directory'});
+ assert.equal(matches.students.length,55);
+ assert.equal((await api.publicCallAction(open.token,w1,{kind:'search',query:'050-999-9999'})).students.length,55);
+ assert.equal((await api.publicCallAction(open.token,w1,{kind:'search',query:'x'})).students.length,0);
+ await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim',studentId:'not-in-meeting'}),e=>e.status===403);
+ await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim',studentId:guest2.lead.studentId}),e=>e.status===409);
+ const chosen=await api.publicCallAction(open.token,w1,{kind:'claim',studentId:'directory-54'});
+ assert.equal(chosen.lead.studentId,'directory-54');
+ students=originalStudents;
+ for(const kind of ['details','update_student','invitation','team'])await assert.rejects(api.publicCallAction(open.token,w1,{kind}),e=>e.status===403);
+ const rotated=await api.setPublicCallLink('meeting',true,manager);await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim'}),e=>e.status===403);
+ for(const kind of ['list','search'])await assert.rejects(api.publicCallAction(open.token,w1,{kind,query:'Lead'}),e=>e.status===403);
+ assert.equal((await db.query("SELECT * FROM attendance_call_leads WHERE caller_key LIKE 'public:%'")).rows.length,0);
  assert((await api.publicCallState(rotated.token)).sessionId==='meeting');await api.setPublicCallLink('meeting',false,manager);await assert.rejects(api.publicCallState(rotated.token),e=>e.status===403);
  // No-answer remains claimable when all other leads are completed, even for
  // pre-deployment rows that still carry the old fifteen-minute timestamp.

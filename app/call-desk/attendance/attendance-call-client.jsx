@@ -17,7 +17,7 @@ function ContactDetails({ label, name, phone, email, active }) {
     </div> : null}
   </section>;
 }
-const labels = { completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
+const labels = { pending:"ממתין", completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
 export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[], publicToken="", initialStatus="" }) {
   const [data,setData] = useState(null), [note,setNote] = useState(""), [status,setStatus] = useState("");
   const [busy,setBusy] = useState(false), [error,setError] = useState(""), [now,setNow] = useState(Date.now());
@@ -57,7 +57,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
         await request({kind:"finish",studentId:lead.studentId,token:lead.token,outcome,note,attendanceStatus:status});
         setData(current=>({...current,lead:null})); setNote(""); setStatus("");
       }
-      const result = await request({kind:"claim", studentId:requestedStudentId,attendanceStatus:attendanceFilter});
+      const result = await request({kind:"claim", studentId:requestedStudentId,attendanceStatus:requestedStudentId ? "" : attendanceFilter});
       offset.current=new Date(result.serverTime).getTime()-Date.now();
       setNow(Date.now()+offset.current);
       setData(result); setEditing(false); setMatches(null);
@@ -68,8 +68,15 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
   async function search(event) {
     event.preventDefault(); if(inFlight.current || busy)return;
     inFlight.current=true;setBusy(true);setError("");
-    try { const result=await request({kind:"search",query,attendanceStatus:attendanceFilter});setMatches(result.students); }
+    try { const result=await request({kind:"search",query});setMatches(result.students); }
     catch(failure){setError(failure.message);}finally{inFlight.current=false;setBusy(false);}
+  }
+  async function showAllStudents() {
+    if (inFlight.current || busy) return;
+    inFlight.current = true; setBusy(true); setError("");
+    try { const result = await request({ kind: "list" }); setMatches(result.students); }
+    catch (failure) { setError(failure.message); }
+    finally { inFlight.current = false; setBusy(false); }
   }
   async function sendInvitation() {
     if (!lead || invitationBusy || !remaining) return;
@@ -92,11 +99,18 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     {data?.stats ? <p>טופלו {data.stats.completed} מתוך {data.stats.total} · בשיחה כעת: {data.stats.active}</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
-    {!locked && !publicToken ? <details className="card"><summary>חיפוש תלמיד מסוים במפגש</summary>
-      <form onSubmit={search}><label>חיפוש לפי שם או טלפון<input type="search" value={query} onChange={e=>setQuery(e.target.value)} minLength={2} required /></label><button disabled={busy}>חפש במוזמני המפגש</button></form>
+    {!locked ? <details className="card"><summary>חיפוש תלמיד ורשימת תלמידי המפגש</summary>
+      <form onSubmit={search}><label>חיפוש לפי שם או טלפון<input type="search" value={query} onChange={e=>setQuery(e.target.value)} minLength={2} required /></label><button disabled={busy}>חפש במוזמני המפגש</button><button type="button" disabled={busy} onClick={showAllStudents}>{busy ? "טוען…" : "הצג את כל תלמידי המפגש"}</button></form>
+      <p className="muted">החיפוש והרשימה כוללים את כל תלמידי המפגש, גם תלמידים שטופלו או שאינם זמינים להתקשרות.</p>
       {lead ? <p className="muted">בחירה בתלמיד אחר משחררת את ההקצאה הנוכחית. שמור את סיכום השיחה לפני המעבר.</p> : null}
       {matches?.length===0 ? <p>לא נמצאו תלמידים תואמים במפגש.</p> : null}
-      {matches?.map(student=><div className="quick-actions" key={student.id}><span>{student.name} · {student.classLabel}</span><button disabled={busy || student.busy} onClick={()=>next(null,student.id)}>{student.busy?"בטיפול אצל מתקשר אחר":"בחר לטיפול ולעדכון"}</button></div>)}
+      {matches ? <p role="status">{matches.length} תלמידים ברשימה</p> : null}
+      <div style={{ maxHeight: 420, overflowY: "auto" }}>
+      {matches?.map(student=><div className="quick-actions" key={student.id}>
+        <span><b>{student.name}</b> · {student.classLabel} · {student.statusLabel} · {labels[student.outcome] || student.outcome}</span>
+        <button disabled={busy || student.busy || !student.canCall} onClick={()=>next(null,student.id)}>{student.busy ? "בטיפול אצל מתקשר אחר" : !student.canCall ? student.unavailableReason : "בחר להתקשרות"}</button>
+      </div>)}
+      </div>
     </details> : null}
     {locked ? <p>המפגש נעול. מנהל צריך לפתוח אותו לפני תחילת השיחות.</p> : !lead ? <>
       <p>{data ? "אין כרגע תלמיד פנוי. ייתכן שהרשימה טופלה, שיש שיחות פעילות או שממתינים לניסיון חוזר." : "לחץ להתחלת עבודה ולקבלת התלמיד הראשון."}</p>
