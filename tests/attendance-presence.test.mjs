@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
+import fs from 'node:fs/promises';
+import vm from 'node:vm';
 import { normalizeMac, presenceCandidates, presenceConfig, checkMacPresence } from '../lib/mac-presence.mjs';
 import { israelDate, validLockDate, defaultLockDate, migrateAttendancePresence } from '../lib/attendance-presence-policy.mjs';
 import { syncNetworkPresence } from '../lib/attendance-network-presence.mjs';
@@ -8,6 +10,37 @@ import { syncNetworkPresence } from '../lib/attendance-network-presence.mjs';
 const config = { endpoint: 'https://presence.example/check', key: 'synthetic-test-key' };
 const mac = i => `02:00:00:${(i >> 16 & 255).toString(16).padStart(2,'0')}:${(i >> 8 & 255).toString(16).padStart(2,'0')}:${(i & 255).toString(16).padStart(2,'0')}`;
 const response = (macs, connected = true) => Response.json({ ok: true, checkedAt: new Date().toISOString(), results: macs.map(mac => ({ mac, connected })) });
+
+test('the actual base schema initializes a fresh database and upgrades again without touching locked records',async()=>{
+  const db=new PGlite();
+  const sql=async(strings,...values)=>{
+    const query=typeof strings==='string'?strings:strings.reduce((text,part,i)=>text+(i?`$${i}`:'')+part,'');
+    if(query.includes('pg_advisory_'))return [];
+    return (await db.query(query,values)).rows;
+  };
+  async function initialize(){
+    const context=vm.createContext({Date,console,process:{env:{DATABASE_URL:'postgresql://synthetic.invalid/test'}}});
+    const stubs={
+      './attendance-presence-policy.mjs':{migrateAttendancePresence},
+      './db-feature-schema.js':{createFeatureSchemaGuard:()=>async()=>{}},
+      '@neondatabase/serverless':{neon:()=>sql},
+      './article-slug.js':{normalizeArticleSlug:()=> 'synthetic'}
+    };
+    const module=new vm.SourceTextModule(await fs.readFile(new URL('../lib/db.js',import.meta.url),'utf8'),{context});
+    await module.link(name=>new vm.SyntheticModule(Object.keys(stubs[name]),function(){for(const[key,value]of Object.entries(stubs[name]))this.setExport(key,value);},{context}));
+    await module.evaluate();await module.namespace.initDb();
+  }
+  try {
+    await initialize();
+    await db.exec("INSERT INTO attendance_sessions(id,institution,session_date,auto_lock_date) VALUES ('old','ALL',CURRENT_DATE-20,CURRENT_DATE+1)");
+    await db.exec("INSERT INTO attendance_records(session_id,student_id,student_name,status,note_text) VALUES ('old','s1','Synthetic','found','preserved')");
+    await db.exec("UPDATE attendance_sessions SET auto_lock_date=NULL; UPDATE crm_schema_meta SET version='previous-schema'");
+    await initialize();
+    const row=(await db.query('SELECT status,note_text FROM attendance_records')).rows[0];
+    assert.equal(row.status,'found');assert.equal(row.note_text,'preserved');
+    await assert.rejects(db.exec("UPDATE attendance_records SET status='missing'"),/נעול/);
+  } finally {await db.close();}
+});
 
 test('MAC normalization, duplicated identities and Israel calendar lock dates', () => {
   assert.equal(normalizeMac('02-AA-BB-CC-DD-EE'), '02:aa:bb:cc:dd:ee');
