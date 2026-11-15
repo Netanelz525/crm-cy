@@ -219,6 +219,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       {quickEmailSent ? <div className="ok">המייל נשלח לתור השליחה ויישלח ברקע.</div> : null}
       {quickEmailError ? <div className="error">{quickEmailError}</div> : null}
       {resolvedSearchParams?.whatsappRepliesSynced != null ? <div className="ok">סנכרון תגובות WhatsApp הושלם. עודכנו {clean(resolvedSearchParams.whatsappRepliesSynced)} תגובות.</div> : null}
+      {resolvedSearchParams?.whatsappSent != null ? <div className="ok">ספק WhatsApp אישר שליחת {clean(resolvedSearchParams.whatsappSent)} הודעות. נכשלו: {clean(resolvedSearchParams.whatsappFailed) || "0"}. תלמידים ללא מספר תקין: {clean(resolvedSearchParams.whatsappMissingPhones) || "0"}.</div> : null}
+      {resolvedSearchParams?.whatsappError ? <div className="error">{clean(resolvedSearchParams.whatsappError)}</div> : null}
       {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
       {whatsappTemplateError ? <div className="error">{whatsappTemplateError}</div> : null}
       {invitationSaved ? <div className="ok">הגדרות ההזמנה נשמרו.</div> : null}
