@@ -1,7 +1,7 @@
 "use client";
 import {callPhone as phoneNumber} from "../../../lib/call-phone";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CallStudentEditor from "./call-student-editor";
 
 function ContactDetails({ label, name, phone, email, active }) {
@@ -17,11 +17,33 @@ function ContactDetails({ label, name, phone, email, active }) {
     </div> : null}
   </section>;
 }
-const labels = { pending:"ממתין", completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
+const labels = { in_call:"בשיחה כעת", pending:"ממתין", completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
 export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[], publicToken="", initialStatus="" }) {
   const [data,setData] = useState(null), [note,setNote] = useState(""), [status,setStatus] = useState("");
   const [busy,setBusy] = useState(false), [error,setError] = useState(""), [now,setNow] = useState(Date.now());
   const [query,setQuery] = useState(""), [matches,setMatches] = useState(null), [editing,setEditing] = useState(false);
+  const [listStatus, setListStatus] = useState("");
+  const [listOutcome, setListOutcome] = useState("");
+  const [listSort, setListSort] = useState("outcome");
+  const directory = useMemo(() => {
+    const students = matches || [];
+    const attendanceCounts = new Map();
+    const callCounts = { pending: 0, no_answer: 0, deferred: 0, completed: 0, in_call: 0 };
+    const callState = (student) => student.inCall ? "in_call" : student.outcome;
+    for (const student of students) {
+      attendanceCounts.set(student.statusLabel, (attendanceCounts.get(student.statusLabel) || 0) + 1);
+      callCounts[callState(student)] = (callCounts[callState(student)] || 0) + 1;
+    }
+    const order = { in_call: 0, pending: 1, no_answer: 2, deferred: 3, completed: 4 };
+    const compareName = (a, b) => String(a.name || "").localeCompare(String(b.name || ""), "he", { numeric: true });
+    const rows = students.filter(student => (!listStatus || student.statusLabel === listStatus)
+      && (!listOutcome || callState(student) === listOutcome)).sort((a, b) => {
+      const group = listSort === "outcome" ? (order[callState(a)] ?? 5) - (order[callState(b)] ?? 5)
+        : listSort === "attendance" ? String(a.statusLabel || "").localeCompare(String(b.statusLabel || ""), "he") : 0;
+      return group || compareName(a, b);
+    });
+    return { rows, callCounts, attendanceCounts: [...attendanceCounts].sort(([a], [b]) => String(a).localeCompare(String(b), "he")) };
+  }, [matches, listStatus, listOutcome, listSort]);
   const publicWindow=useRef("");
   const [closed,setClosed]=useState(false);
   const [attendanceFilter,setAttendanceFilter]=useState(()=>statusOptions.find(([value,label])=>value!=="unavailable"&&(value===initialStatus||label===initialStatus))?.[0]||"");
@@ -104,10 +126,28 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
       <p className="muted">החיפוש והרשימה כוללים את כל תלמידי המפגש, גם תלמידים שטופלו או שאינם זמינים להתקשרות.</p>
       {lead ? <p className="muted">בחירה בתלמיד אחר משחררת את ההקצאה הנוכחית. שמור את סיכום השיחה לפני המעבר.</p> : null}
       {matches?.length===0 ? <p>לא נמצאו תלמידים תואמים במפגש.</p> : null}
-      {matches ? <p role="status">{matches.length} תלמידים ברשימה</p> : null}
+      {matches ? <>
+        <p>ממתינים: {directory.callCounts.pending} · לא ענו: {directory.callCounts.no_answer} · נדחו: {directory.callCounts.deferred} · טופלו: {directory.callCounts.completed} · בשיחה כעת: {directory.callCounts.in_call}</p>
+        <div className="quick-actions">
+          <label>סינון לפי סטטוס נוכחות<select value={listStatus} onChange={event=>setListStatus(event.target.value)}>
+            <option value="">כל סטטוסי הנוכחות ({matches.length})</option>
+            {directory.attendanceCounts.map(([label, count])=><option key={label} value={label}>{label} ({count})</option>)}
+          </select></label>
+          <label>סינון לפי מצב השיחה<select value={listOutcome} onChange={event=>setListOutcome(event.target.value)}>
+            <option value="">כל מצבי השיחה ({matches.length})</option>
+            {Object.entries(labels).map(([value,label])=><option key={value} value={value}>{label} ({directory.callCounts[value] || 0})</option>)}
+          </select></label>
+          <label>מיון הרשימה<select value={listSort} onChange={event=>setListSort(event.target.value)}>
+            <option value="outcome">לפי מצב השיחה</option><option value="attendance">לפי סטטוס נוכחות</option><option value="name">לפי שם תלמיד</option>
+          </select></label>
+          <button type="button" onClick={()=>{setListStatus("");setListOutcome("");setListSort("outcome");}}>איפוס סינון ומיון</button>
+        </div>
+        <p role="status">מוצגים {directory.rows.length} מתוך {matches.length} תלמידים ברשימה</p>
+        {matches.length > 0 && directory.rows.length === 0 ? <p>אין תלמידים שמתאימים למסננים שנבחרו.</p> : null}
+      </> : null}
       <div style={{ maxHeight: 420, overflowY: "auto" }}>
-      {matches?.map(student=><div className="quick-actions" key={student.id}>
-        <span><b>{student.name}</b> · {student.classLabel} · {student.statusLabel} · {labels[student.outcome] || student.outcome}</span>
+      {directory.rows.map(student=><div className="quick-actions" key={student.id}>
+        <span><b>{student.name}</b> · {student.classLabel} · {student.statusLabel} · {student.inCall ? labels.in_call : labels[student.outcome] || student.outcome}</span>
         <button disabled={busy || student.busy || !student.canCall} onClick={()=>next(null,student.id)}>{student.busy ? "בטיפול אצל מתקשר אחר" : !student.canCall ? student.unavailableReason : "בחר להתקשרות"}</button>
       </div>)}
       </div>
