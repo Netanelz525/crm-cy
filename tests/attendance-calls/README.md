@@ -6,7 +6,7 @@ A caller receives one invitee per session, exclusively for five minutes. Reopeni
 
 - **טופל** records the call and removes the invitee from that session's queue. An optional attendance status updates the session's attendance record.
 - **דחה** releases immediately and retries after five minutes.
-- **לא ענה** releases immediately and retries after fifteen minutes. It does not change attendance.
+- **לא ענה** releases immediately and stays eligible for another attempt at the back of the queue, without a waiting period. It does not change attendance.
 - All three actions request the next available invitee. If none are available, the caller can retry later.
 - Removing a caller releases their lease. Locked sessions and unapproved accounts cannot operate the queue.
 

@@ -128,7 +128,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
           <button onClick={()=>next("no_answer")}>לא ענה — עבור לבא</button>
           <button onClick={()=>next("deferred")}>דחה — עבור לבא</button>
         </div>
-        <p className="muted">דחייה: חזרה לתור בעוד 5 דקות. לא ענה: ניסיון חוזר בעוד 15 דקות. סטטוס נוכחות מתעדכן רק בלחיצה על „טופל”.</p>
+        <p className="muted">דחייה: חזרה לתור בעוד 5 דקות. לא ענה: נשאר בתור לניסיון נוסף, ללא המתנה. סטטוס נוכחות מתעדכן רק בלחיצה על „טופל”.</p>
       </fieldset>
       {!remaining || error ? <button disabled={busy} onClick={()=>next()}>רענן הקצאה</button> : null}
       {lead.history?.length ? <details><summary>ניסיונות קודמים</summary>{lead.history.map((item,i)=><p key={i}>{new Date(item.created_at).toLocaleString("he-IL")} · {labels[item.outcome]} · {item.note}</p>)}</details> : null}
