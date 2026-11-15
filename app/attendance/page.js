@@ -1,3 +1,4 @@
+import AttendanceLockDateField from "./lock-date-field";
 import Link from "next/link";
 import PhoneWorkspace from "../phone-workspace";
 import { PhoneAttendance } from "../phone-workspaces";
@@ -480,6 +481,8 @@ export default async function AttendancePage({ searchParams }) {
             <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
             <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
             <label htmlFor="attendance-source-note">פרטי המפגש ותוכן ההודעה</label>
+            {canManageSessionLock ? <AttendanceLockDateField /> : null}
+
             <textarea id="attendance-source-note" name="sourceNote" rows={5} placeholder="הטקסט שיופיע גם במייל וגם ב־WhatsApp" />
             <small className="muted">הטקסט נשמר פעם אחת ומשמש את שני ערוצי ההזמנה.</small>
             {canUseSessionAudienceFilters ? (

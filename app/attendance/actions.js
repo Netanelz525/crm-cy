@@ -13,6 +13,7 @@ import {
   saveAttendanceRecord,
   setAttendanceSessionManualStudent,
   setAttendanceSessionLocked,
+  syncAttendanceNetworkPresence,
   syncAttendanceSessionStudents,
   updateAttendanceSessionManualStudents,
   updateAttendanceSessionCustomStatuses,
@@ -70,6 +71,7 @@ export async function createAttendanceSessionAction(formData) {
     sessionType: sessionType || templateSession?.sessionType,
     title: title || (templateSession ? `${templateSession.displayTitle || templateSession.title || templateSession.sessionTypeLabel} - חדש` : ""),
     sessionDate,
+    autoLockDate: user.is_manager || user.is_super_admin ? clean(formData.get("autoLockDate")) : "",
     sourceNote: sourceNote || templateSession?.sourceNote || "",
     communicationAudience: clean(formData.get("communicationAudience")) || templateSession?.communicationAudience || "student",
     emailSubject: templateSession?.emailSubject || "",
@@ -111,6 +113,7 @@ export async function saveAttendanceSessionDetailsAction(formData) {
   const canManageSessionSettings = user.is_manager || user.is_super_admin;
   const sessionId = clean(formData.get("sessionId"));
   if (!sessionId) throw new Error("Missing attendance session id.");
+  if (!canManageSessionSettings && (await getAttendanceSessionById(sessionId))?.isLocked) throw new Error("המפגש נעול. יש לפנות למנהל לשינוי הפרטים.");
 
   await updateAttendanceSessionDetails(sessionId, {
     title: clean(formData.get("title")),
@@ -119,6 +122,7 @@ export async function saveAttendanceSessionDetailsAction(formData) {
     sourceNote: clean(formData.get("sourceNote")),
     communicationAudience: clean(formData.get("communicationAudience")),
     ...(canManageSessionSettings ? {
+      autoLockDate: clean(formData.get("autoLockDate")),
       responsibleUserIds: cleanList(formData.getAll("responsibleUserIds")),
       visibleToStudents: clean(formData.get("visibleToStudents")) === "1"
     } : {})
@@ -507,4 +511,14 @@ export async function reconcileAttendanceWhatsAppRepliesAction(formData) {
   const updated = await reconcileAttendanceWhatsAppReplies(sessionId);
   revalidatePath(`/attendance/${sessionId}`);
   redirect(`/attendance/${sessionId}?whatsappRepliesSynced=${updated}`);
+}
+
+export async function syncAttendanceNetworkPresenceAction(formData) {
+  const user = await requireAttendanceUser();
+  const sessionId = clean(formData.get("sessionId"));
+  if (!sessionId) throw new Error("Missing attendance session id.");
+  const result = await syncAttendanceNetworkPresence(sessionId, user.clerk_user_id);
+  revalidatePath("/attendance");
+  revalidatePath(`/attendance/${sessionId}`);
+  return { status: result.status };
 }
