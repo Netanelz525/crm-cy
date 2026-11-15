@@ -533,6 +533,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
       </details>
 
       <AttendanceRosterClient
+        key={sessionId}
         sessionId={roster.session.id}
         students={roster.students}
         statusOptions={statusOptions}

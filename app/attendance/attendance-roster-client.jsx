@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { mergeAttendanceRows } from "../../lib/attendance-roster-sync.mjs";
 import { startVisiblePolling } from "../../lib/visible-polling.js";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { saveAttendanceRecordAction } from "./actions";
@@ -126,13 +127,15 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   const [, startTransition] = useTransition();
   const noteTimersRef = useRef(new Map());
   const localDirtyRowsRef = useRef(new Map());
+  const focusedNotesRef = useRef(new Set());
   const flashTimersRef = useRef(new Map());
   const pollAbortRef = useRef(null);
   const rowsRef = useRef(rows);
 
   useEffect(() => {
-    setRows(students);
-    rowsRef.current = students;
+    const merged = mergeAttendanceRows(students, rowsRef.current, localDirtyRowsRef.current, focusedNotesRef.current);
+    rowsRef.current = merged;
+    setRows(merged);
   }, [students]);
 
   useEffect(() => {
@@ -230,7 +233,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
     const version = (saveVersionRef.current.get(row.id) || 0) + 1;
     saveVersionRef.current.set(row.id, version);
     // Keep unsaved values visible even when live polling receives older server data.
-    localDirtyRowsRef.current.set(row.id, Infinity);
+    localDirtyRowsRef.current.set(row.id, { saved: false });
     setSaveStates(current => ({ ...current, [row.id]: 'saving' }));
     const previous = saveQueueRef.current.get(row.id) || Promise.resolve();
     const operation = previous.catch(() => {}).then(async () => {
@@ -241,7 +244,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
           studentClass: row.class, status: row.status, noteText: row.noteText
         });
         if (saveVersionRef.current.get(row.id) === version) {
-          localDirtyRowsRef.current.set(row.id, Date.now() + 1200);
+          localDirtyRowsRef.current.set(row.id, { saved: true });
           setSaveStates(current => ({ ...current, [row.id]: 'saved' }));
         }
       } catch {
@@ -257,6 +260,10 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }
 
   function updateRow(studentId, patch) {
+    // Invalidate an earlier save as soon as typing starts, before the debounce.
+    saveVersionRef.current.set(studentId, (saveVersionRef.current.get(studentId) || 0) + 1);
+    localDirtyRowsRef.current.set(studentId, { saved: false });
+    setSaveStates(current => ({ ...current, [studentId]: "editing" }));
     const currentRows = rowsRef.current;
     let nextRow = null;
     const nextRows = currentRows.map((row) => {
@@ -294,6 +301,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
   }
 
   function handleNoteBlur(studentId) {
+    focusedNotesRef.current.delete(studentId);
     if (locked) return;
     const existing = noteTimersRef.current.get(studentId);
     if (existing) {
@@ -395,16 +403,9 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
         setLocked(Boolean(payload?.item?.session?.isLocked));
         if (!nextRowsRaw.length) return;
 
-        const now = Date.now();
         const currentRows = rowsRef.current;
         const currentMap = new Map(currentRows.map((row) => [row.id, row]));
-        const nextRows = nextRowsRaw.map((incoming) => {
-          const current = currentMap.get(incoming.id);
-          const dirtyUntil = localDirtyRowsRef.current.get(incoming.id) || 0;
-          if (!current) return incoming;
-          if (dirtyUntil > now) return current;
-          return { ...current, ...incoming };
-        });
+        const nextRows = mergeAttendanceRows(nextRowsRaw, currentRows, localDirtyRowsRef.current, focusedNotesRef.current);
 
         const changedRows = [];
         for (const incoming of nextRows) {
@@ -587,7 +588,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                   <td className="attendance-class-cell">{student.classLabel}</td>
                   <td className="attendance-status-cell">
                     <div role="status" aria-live="polite" className="attendance-save-state">
-                      {saveStates[student.id] === 'saving' ? 'שומר…' : saveStates[student.id] === 'saved' ? '✓ נשמר' : null}
+                      {saveStates[student.id] === 'editing' ? 'ממתין לשמירה…' : saveStates[student.id] === 'saving' ? 'שומר…' : saveStates[student.id] === 'saved' ? '✓ נשמר' : null}
                       {saveStates[student.id] === 'error' ? <span className="error">לא נשמר. <button type="button" className="btn btn-ghost" onClick={() => persistRow(rowsRef.current.find(row => row.id === student.id))}>נסה לשמור שוב</button></span> : null}
                     </div>
                     <div className="attendance-status-group" role="radiogroup" aria-label={`סטטוס נוכחות עבור ${student.label}`} aria-disabled={locked}>
@@ -614,6 +615,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                     <WhatsAppReplyHistory replies={student.whatsappReplies} />
                     <input
                       value={student.noteText || ""}
+                      onFocus={() => focusedNotesRef.current.add(student.id)}
                       onChange={(event) => handleNoteChange(student.id, event.target.value)}
                       onBlur={() => handleNoteBlur(student.id)}
                       placeholder="הערה קצרה"
