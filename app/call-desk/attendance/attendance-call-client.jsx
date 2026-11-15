@@ -55,7 +55,8 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
   const [preferenceWarning, setPreferenceWarning] = useState("");
   const preferenceScope = publicToken ? "public" : "signed";
   const optionsKey = JSON.stringify(statusOptions);
-  const selectedStatusLabel = statusOptions.find(([value])=>value===attendanceFilter)?.[1] || "כל הסטטוסים הזמינים";
+  const selectedStatuses = attendanceFilter ? attendanceFilter.split(",") : [];
+  const selectedStatusLabel = selectedStatuses.length ? selectedStatuses.map(id=>statusOptions.find(([value])=>value===id)?.[1] || id).join(" · ") : "כל הסטטוסים הזמינים";
   useEffect(() => {
     let saved = null;
     try { saved = window.localStorage.getItem(callDeskFilterKey(sessionId, preferenceScope === "public")); }
@@ -68,7 +69,12 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     setFilterReady(true);
   }, [sessionId, initialStatus, optionsKey, preferenceScope]);
 
-  function chooseAttendanceFilter(value) {
+  function chooseAttendanceFilter(status) {
+    const selected = new Set(selectedStatuses);
+    if (!status) selected.clear();
+    else if (selected.has(status)) selected.delete(status);
+    else selected.add(status);
+    const value = [...selected].join(",");
     setAttendanceFilter(value);
     try {
       window.localStorage.setItem(callDeskFilterKey(sessionId, preferenceScope === "public"),value);
@@ -167,20 +173,20 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     {!publicToken&&<Link href="/call-desk">חזרה לאזור השיחות שלי</Link>}
     <h1>{data?.session?.title || title}</h1>
     <p className="muted">כל תלמיד מוקצה לך לחמש דקות. לאחר טיפול, דחייה או אי־מענה עוברים לתלמיד הבא.</p>
-    <div className="call-status-picker">
-      <div className="call-status-picker-heading"><h2>למי מתקשרים?</h2><strong>הסטטוס שנבחר: {selectedStatusLabel}</strong></div>
+    <details className="call-status-picker">
+      <summary className="call-status-picker-heading"><span><b>מתקשרים לסטטוסים:</b> <strong>{selectedStatusLabel}</strong></span><span className="muted">לחץ לשינוי ▾</span></summary>
       <div className="call-status-picker-options" role="group" aria-label="בחירת סטטוס נוכחות להתקשרות">
         {[["", "כל הסטטוסים"], ...statusOptions.filter(([value])=>value!=="unavailable")].map(([value,label])=><button
-          key={value || "all"} type="button" aria-pressed={attendanceFilter===value}
-          className={`quick-action-btn${attendanceFilter===value ? " quick-action-primary" : " quick-action-outline"}`}
+          key={value || "all"} type="button" aria-pressed={value ? selectedStatuses.includes(value) : !selectedStatuses.length}
+          className={`quick-action-btn${(value ? selectedStatuses.includes(value) : !selectedStatuses.length) ? " quick-action-primary" : " quick-action-outline"}`}
           disabled={busy || !filterReady || locked} onClick={()=>chooseAttendanceFilter(value)}>{label}</button>)}
       </div>
-      <p className="muted">הבחירה נשמרת למפגש הזה גם אחרי חיפוש, בחירה ידנית ורענון. התלמיד הבא יוקצה לפי הסטטוס שבחרת.</p>
+      <p className="muted">אפשר לבחור כמה סטטוסים במקביל. הבחירה נשמרת גם אחרי חיפוש ורענון; התלמיד הבא יוקצה מאחד הסטטוסים שנבחרו.</p>
       {lead ? <p className="call-status-current-note">אפשר לשנות עכשיו — הבחירה תחול על התלמיד הבא. השיחה הנוכחית וההערות שלה נשמרות.</p> : null}
       {preferenceWarning ? <p role="status" className="muted">{preferenceWarning}</p> : null}
       <div className="quick-actions"><button type="button" className="quick-action-btn quick-action-outline" disabled={!filterReady} onClick={copyFilteredLink}>העתק קישור עם הבחירה</button>
-      {!publicToken&&<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימה לפי הסטטוס שנבחר (Excel)</a>}</div>
-    </div>
+      {!publicToken&&<a className="btn btn-primary" href={`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls/export?status=${encodeURIComponent(attendanceFilter)}`}>הורד רשימה לפי הסטטוסים שנבחרו (Excel)</a>}</div>
+    </details>
     {data?.stats ? <p>בסטטוס של ההקצאה הנוכחית: טופלו {data.stats.completed} מתוך {data.stats.total} · בשיחה כעת: {data.stats.active}</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
@@ -252,7 +258,8 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     </div>}
   </section>
   <aside className="card call-attendance-dashboard" aria-label="דשבורד מצב נוכחות במפגש">
-    <h2>מצב הנוכחות במפגש</h2>
+    <details>
+    <summary className="call-attendance-summary"><b>אחוזי נוכחות במפגש</b><span className="muted">לחץ לפתיחה ▾</span></summary>
     <p className="muted">כל מוזמני המפגש · ללא סינון</p>
     {dashboard ? <>
       <div className="call-attendance-total"><strong>{dashboard.total}</strong><span>מוזמנים במפגש</span></div>
@@ -265,6 +272,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
       <small className="muted">עודכן ב־{new Date(dashboard.updatedAt).toLocaleTimeString("he-IL",{timeZone:"Asia/Jerusalem"})} · מתרענן כל 15 שניות</small>
     </> : !dashboardError ? <p role="status">טוען את מצב המפגש…</p> : null}
     {dashboardError ? <p role="alert" className="error">לא ניתן לרענן את הדשבורד. {dashboard ? "מוצגים הנתונים מהעדכון האחרון." : dashboardError}</p> : null}
+    </details>
   </aside>
   </div>;
 }
