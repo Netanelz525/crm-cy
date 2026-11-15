@@ -155,6 +155,8 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const directory=await api.publicCallAction(open.token,w1,{kind:'list'});
  assert.equal(directory.students.length,students.length);
  assert.equal(directory.students.find(s=>s.id===guest2.lead.studentId).busy,true);
+ assert.equal(directory.students.find(s=>s.id===guest2.lead.studentId).inCall,true);
+ assert.equal(directory.students.find(s=>s.id===guest1.lead.studentId).inCall,false);
  assert.equal(directory.students.find(s=>s.id==='no-phone').canCall,false);
  assert.equal(directory.students.find(s=>s.id==='not-available').canCall,false);
  assert.equal(directory.students.find(s=>s.id===guest1.lead.studentId).outcome,'completed');
@@ -167,6 +169,8 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim',studentId:guest2.lead.studentId}),e=>e.status===409);
  const chosen=await api.publicCallAction(open.token,w1,{kind:'claim',studentId:'directory-54'});
  assert.equal(chosen.lead.studentId,'directory-54');
+ const ownRow=(await api.publicCallAction(open.token,w1,{kind:'list'})).students.find(s=>s.id==='directory-54');
+ assert.equal(ownRow.inCall,true);assert.equal(ownRow.busy,false);
  students=originalStudents;
  for(const kind of ['details','update_student','invitation','team'])await assert.rejects(api.publicCallAction(open.token,w1,{kind}),e=>e.status===403);
  const rotated=await api.setPublicCallLink('meeting',true,manager);await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim'}),e=>e.status===403);
