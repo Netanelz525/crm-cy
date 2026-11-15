@@ -67,9 +67,10 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  assert.notEqual(next.lead.studentId,again.lead.studentId);
  await api.finishAttendanceCall('meeting',{studentId:next.lead.studentId,token:next.lead.token,outcome:'no_answer',attendanceStatus:'found'},a);
  let row=(await db.query('SELECT * FROM attendance_call_leads WHERE student_id=$1',[next.lead.studentId])).rows[0];
- assert.equal(row.caller_key,null); assert.equal(row.outcome,'no_answer'); assert.ok(new Date(row.available_at)-Date.now()>890000);
+ assert.equal(row.caller_key,null); assert.equal(row.outcome,'no_answer'); assert.ok(new Date(row.available_at)-Date.now()<1000);
  assert.equal((await db.query('SELECT * FROM attendance_records')).rows.length,1);
  const deferred=await api.claimAttendanceCall('meeting',a);
+ assert.notEqual(deferred.lead.studentId,next.lead.studentId); // Uncalled leads stay ahead of retries.
  await api.finishAttendanceCall('meeting',{studentId:deferred.lead.studentId,token:deferred.lead.token,outcome:'deferred'},a);
  row=(await db.query('SELECT * FROM attendance_call_leads WHERE student_id=$1',[deferred.lead.studentId])).rows[0];
  assert.ok(new Date(row.available_at)-Date.now()>290000);
@@ -151,6 +152,19 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  for(const kind of ['search','details','update_student','invitation','team'])await assert.rejects(api.publicCallAction(open.token,w1,{kind}),e=>e.status===403);
  const rotated=await api.setPublicCallLink('meeting',true,manager);await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim'}),e=>e.status===403);assert.equal((await db.query("SELECT * FROM attendance_call_leads WHERE caller_key LIKE 'public:%'")).rows.length,0);
  assert((await api.publicCallState(rotated.token)).sessionId==='meeting');await api.setPublicCallLink('meeting',false,manager);await assert.rejects(api.publicCallState(rotated.token),e=>e.status===403);
+ // No-answer remains claimable when all other leads are completed, even for
+ // pre-deployment rows that still carry the old fifteen-minute timestamp.
+ await db.query("UPDATE attendance_call_leads SET caller_key=NULL,lease_token=NULL,lease_until=NULL,outcome='completed'");
+ await db.query("UPDATE attendance_call_leads SET outcome='no_answer',available_at=now()+interval '15 minutes' WHERE student_id='lead-1'");
+ const retry=await api.claimAttendanceCall('meeting',a);
+ assert.equal(retry.lead.studentId,'lead-1');
+ await api.finishAttendanceCall('meeting',{studentId:retry.lead.studentId,token:retry.lead.token,outcome:'no_answer'},a);
+ const immediate=await api.claimAttendanceCall('meeting',b);
+ assert.equal(immediate.lead.studentId,'lead-1');
+ assert.equal(immediate.stats.next_available_at,null);
+ assert.equal((await api.claimAttendanceCall('meeting',a)).lead,null);
+ await api.finishAttendanceCall('meeting',{studentId:immediate.lead.studentId,token:immediate.lead.token,outcome:'completed'},b);
+ assert.equal((await api.claimAttendanceCall('meeting',a)).lead,null);
  const unlocked=await api.setPublicCallLink('meeting',true,manager);await db.query("UPDATE attendance_sessions SET is_locked=true");await assert.rejects(api.publicCallState(unlocked.token),e=>e.status===403);
 
 });
