@@ -213,7 +213,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </div>
       </div>
 
-      <NetworkPresencePanel sessionId={sessionId} result={roster.session.presenceSyncResult} syncedAt={roster.session.presenceSyncedAt}
+      <NetworkPresencePanel canDiagnose={canManageSessionSettings} sessionId={sessionId} result={roster.session.presenceSyncResult} syncedAt={roster.session.presenceSyncedAt}
         disabledReason={roster.session.isLocked ? PRESENCE_MESSAGES.locked : roster.session.sessionDate !== israelDate() ? PRESENCE_MESSAGES.different_date : roster.session.communicationAudience !== 'student' ? PRESENCE_MESSAGES.wrong_audience : ''} />
       <div className="card muted">נעילה אוטומטית: {roster.session.autoLockDate} בתחילת היום, לפי שעון ישראל. {roster.session.customLockDate ? 'נקבע תאריך מותאם למפגש.' : 'ברירת מחדל: שלושה ימים לאחר תאריך המפגש.'}</div>
 

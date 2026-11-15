@@ -60,7 +60,7 @@ test('provider batches at 200, authenticates only in headers, validates identiti
   const batches=[];
   const result=await checkMacPresence(Array.from({length:201},(_,i)=>mac(i)),{config,fetcher:async(url,options)=>{
     const body=JSON.parse(options.body); batches.push(body.macs.length);
-    assert.equal(options.headers['X-API-Key'],config.key); assert.equal(options.redirect,'error');
+    assert.equal(options.headers['X-API-Key'],config.key); assert.equal(options.redirect,'manual');
     assert(!url.includes(config.key)); assert(!options.body.includes(config.key));
     return response(body.macs);
   }});
@@ -70,6 +70,28 @@ test('provider batches at 200, authenticates only in headers, validates identiti
   }
   await assert.rejects(checkMacPresence([mac(1)],{config,fetcher:async()=>new Response('',{status:429})}),error=>error.code==='rate_limited');
   await assert.rejects(checkMacPresence([mac(1)],{config,fetcher:async()=>{throw Error(config.key);}}),error=>error.code==='unavailable' && !error.message.includes(config.key));
+});
+
+test('Cloudflare login redirects and HTML pages are never accepted as a working presence API',async()=>{
+  let requests=0;
+  await assert.rejects(checkMacPresence([mac(1)],{config,fetcher:async()=>{
+    requests++;return new Response('',{status:302,headers:{location:'https://example.cloudflareaccess.com/cdn-cgi/access/login/presence.example?token=never-log-this'}});
+  }}),error=>error.code==='access_required' && !error.message.includes('never-log-this'));
+  assert.equal(requests,1);
+  await assert.rejects(checkMacPresence([mac(1)],{config,fetcher:async()=>new Response('<html>Login</html>',{status:200,headers:{'content-type':'text/html'}})}),error=>error.code==='invalid_response');
+  await assert.rejects(checkMacPresence([mac(1)],{config,fetcher:async()=>new Response('',{status:307,headers:{location:'https://other.example/check'}})}),error=>error.code==='unexpected_redirect');
+  await assert.rejects(checkMacPresence([mac(1)],{config,fetcher:async()=>Response.json({error:'Unauthorized'},{status:401})}),error=>error.code==='auth_failed');
+});
+
+test('the documented endpoint is the default; optional Cloudflare credentials require both server values',async()=>{
+  assert.equal(presenceConfig({MAC_PRESENCE_API_KEY:'synthetic'}).endpoint,'https://unifi.kfilter.net/attendance/public/mac-presence');
+  assert.throws(()=>presenceConfig({MAC_PRESENCE_API_KEY:'synthetic',MAC_PRESENCE_CF_ACCESS_CLIENT_ID:'client-id'}),error=>error.code==='not_configured');
+  const accessConfig=presenceConfig({MAC_PRESENCE_API_KEY:'synthetic',MAC_PRESENCE_API_URL:config.endpoint,MAC_PRESENCE_CF_ACCESS_CLIENT_ID:'synthetic-client',MAC_PRESENCE_CF_ACCESS_CLIENT_SECRET:'synthetic-secret'});
+  await checkMacPresence([mac(1)],{config:accessConfig,fetcher:async(url,options)=>{
+    assert.equal(url,config.endpoint);assert.equal(options.redirect,'manual');
+    assert.equal(options.headers['CF-Access-Client-Id'],'synthetic-client');assert.equal(options.headers['CF-Access-Client-Secret'],'synthetic-secret');
+    assert(!options.body.includes('synthetic-secret'));return response([mac(1)]);
+  }});
 });
 
 async function fixture(students = [{id:'s1',label:'Synthetic',class:'A',macAddress:mac(1)}]) {

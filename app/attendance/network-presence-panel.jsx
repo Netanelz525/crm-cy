@@ -2,10 +2,11 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { PRESENCE_MESSAGES } from '../../lib/presence-messages.mjs';
-import { syncAttendanceNetworkPresenceAction } from './actions';
+import { syncAttendanceNetworkPresenceAction, checkAttendancePresenceConnectionAction } from './actions';
 
-export default function NetworkPresencePanel({ sessionId, result, syncedAt, disabledReason = '' }) {
+export default function NetworkPresencePanel({ sessionId, result, syncedAt, disabledReason = '', canDiagnose = false }) {
   const [pending, startTransition] = useTransition();
+  const [testing, startTest] = useTransition();
   const [status, setStatus] = useState('');
   const router = useRouter();
   const activeStatus = status || result?.status;
@@ -20,9 +21,13 @@ export default function NetworkPresencePanel({ sessionId, result, syncedAt, disa
   }
   return <section className="card attendance-network-panel" aria-label="סנכרון נוכחות מהרשת">
     <div><h3>נוכחות מהרשת הפנימית</h3><p className="muted">מכשיר מחובר מסמן תלמיד כ״נמצא״. סימון קיים נשמר, ואי־חיבור לרשת אינו מסמן היעדרות.</p></div>
-    <button type="button" className="quick-action-btn quick-action-primary" disabled={pending || Boolean(disabledReason)} onClick={sync}>{pending ? 'בודק נוכחות ברשת…' : 'סנכרן נוכחות מהרשת'}</button>
+    <button type="button" className="quick-action-btn quick-action-primary" disabled={pending || testing || Boolean(disabledReason)} onClick={sync}>{pending ? 'בודק נוכחות ברשת…' : 'סנכרן נוכחות מהרשת'}</button>
+    {canDiagnose ? <button type="button" className="quick-action-btn quick-action-outline" disabled={pending || testing} onClick={() => startTest(async () => {
+      try { setStatus((await checkAttendancePresenceConnectionAction()).status); } catch { setStatus('failed'); }
+    })}>{testing ? 'בודק חיבור לשרת…' : 'בדיקת חיבור ללא שינוי נוכחות'}</button> : null}
     <div role="status" aria-live="polite">
       {disabledReason ? <p className="muted">{disabledReason}</p> : null}
+      {activeStatus === 'connection_ok' ? <p>החיבור לשירות הנוכחות תקין. לא שונו סימוני נוכחות.</p> : null}
       {activeStatus === 'complete' && result?.status === 'complete' ? <p>נבדקו {result.checkedStudents} תלמידים; {result.connected} מחוברים; עודכנו {result.updated} סימונים חדשים. יתר הסימונים נשמרו.</p> : null}
       {result?.status === 'complete' && (result.missingMac || result.invalidMac || result.duplicateStudents) ? <p className="muted">לא נבדקו: {result.missingMac || 0} ללא כתובת MAC, {result.invalidMac || 0} עם כתובת לא תקינה, {result.duplicateStudents || 0} עם כתובת משותפת לתלמיד נוסף.</p> : null}
       {pending ? null : activeStatus === 'running' ? <p>סנכרון ברקע. אפשר לרענן בעוד מספר שניות.</p> : PRESENCE_MESSAGES[activeStatus] ? <p>{PRESENCE_MESSAGES[activeStatus]}</p> : null}

@@ -1,4 +1,6 @@
 "use server";
+import { checkMacPresence } from "../../lib/mac-presence.mjs";
+import { PRESENCE_MESSAGES } from "../../lib/presence-messages.mjs";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -521,4 +523,15 @@ export async function syncAttendanceNetworkPresenceAction(formData) {
   revalidatePath("/attendance");
   revalidatePath(`/attendance/${sessionId}`);
   return { status: result.status };
+}
+
+export async function checkAttendancePresenceConnectionAction() {
+  const user = await requireAttendanceUser();
+  if (!user.is_manager && !user.is_super_admin) throw new Error('אין הרשאה לבדוק את חיבור השרת.');
+  try {
+    await checkMacPresence(['02:00:00:00:00:01']);
+    return { status: 'connection_ok' };
+  } catch (error) {
+    return { status: Object.hasOwn(PRESENCE_MESSAGES, error?.code) ? error.code : 'failed' };
+  }
 }
