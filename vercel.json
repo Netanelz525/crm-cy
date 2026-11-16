@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/automation-recovery",
       "schedule": "20 19 * * 4"
+    },
+    {
+      "path": "/api/cron/attendance-presence",
+      "schedule": "* * * * *"
     }
   ]
 }

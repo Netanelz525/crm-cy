@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { PGlite } from '@electric-sql/pglite';
+import { migrateAttendancePresence } from '../lib/attendance-presence-policy.mjs';
+import { setAutomaticPresence, runAutomaticPresence } from '../lib/attendance-presence-schedule.mjs';
+
+test('automatic presence expires after four hours, runs only due jobs and can be disabled', async () => {
+  const db = new PGlite();
+  const sql = async (parts, ...values) => (await db.query(parts.reduce((text, part, i) => text + (i ? `$${i}` : '') + part, ''), values)).rows;
+  await db.exec(`CREATE TABLE attendance_sessions (id TEXT PRIMARY KEY, is_locked BOOLEAN DEFAULT FALSE, session_date DATE DEFAULT ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jerusalem')::date), communication_audience TEXT DEFAULT 'student');`);
+  await db.exec('CREATE TABLE attendance_records (session_id TEXT)');
+  await migrateAttendancePresence(sql);
+  await sql`INSERT INTO attendance_sessions (id) VALUES ('a'), ('b')`;
+  await setAutomaticPresence({ sql, sessionId: 'a', enabled: true });
+  const [enabled] = await sql`SELECT EXTRACT(EPOCH FROM (presence_auto_until-NOW())) AS remaining FROM attendance_sessions WHERE id='a'`;
+  assert.ok(Number(enabled.remaining) > 14390 && Number(enabled.remaining) <= 14400);
+  await assert.rejects(setAutomaticPresence({ sql, sessionId: 'a', enabled: true }));
+  const calls = [];
+  const sync = async id => calls.push(id);
+  await runAutomaticPresence({sql, sync}); assert.equal(calls.length, 0);
+  await sql`UPDATE attendance_sessions SET presence_auto_next_at=NOW()-INTERVAL '1 minute' WHERE id='a'`;
+  await runAutomaticPresence({sql, sync}); assert.deepEqual(calls,['a']);
+  await runAutomaticPresence({sql, sync}); assert.equal(calls.length,1);
+  await sql`UPDATE attendance_sessions SET presence_auto_until=NOW()-INTERVAL '1 second', presence_auto_next_at=NOW()-INTERVAL '1 minute' WHERE id='a'`;
+  await runAutomaticPresence({sql, sync}); assert.equal(calls.length,1);
+  const [expired]=await sql`SELECT presence_auto_until FROM attendance_sessions WHERE id='a'`; assert.equal(expired.presence_auto_until,null);
+  await setAutomaticPresence({sql,sessionId:'a',enabled:true});
+  await setAutomaticPresence({sql,sessionId:'a',enabled:false});
+  const [off]=await sql`SELECT presence_auto_until,presence_auto_next_at FROM attendance_sessions WHERE id='a'`; assert.deepEqual(off,{presence_auto_until:null,presence_auto_next_at:null});
+  await sql`UPDATE attendance_sessions SET is_locked=TRUE WHERE id='b'`;
+  await assert.rejects(setAutomaticPresence({sql,sessionId:'b',enabled:true}));
+  await db.close();
+});

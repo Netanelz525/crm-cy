@@ -26,3 +26,16 @@
 ## אימות
 
 בדיקות מול PostgreSQL מקומי (PGlite) מכסות שמירת סימונים והערות, סנכרון חוזר, כשל במנה מאוחרת ללא שמירה חלקית, תחרות עם סימון ידני ונעילה במהלך בדיקה, תאריך נעילה מותאם, נעילה ידנית ומחיקת מפגש עם רשומות נעולות. בדיקות נוספות מכסות מנות API, זהויות MAC, כשלי ספק ותגובה לא תקינה.
+
+## Automatic four-hour window
+The meeting panel provides a switch instead of the connection diagnostic button.
+Enabling it runs a presence sync immediately and persists a four-hour deadline with
+checks due every 30 minutes. Turning it off cancels further automatic writes;
+expired windows do not restart without an explicit user action. Locked meetings,
+meetings for another Israel date and parent meetings are excluded. Existing
+attendance and notes remain protected by the same insert-only synchronizer.
+
+`/api/cron/attendance-presence` uses the existing server-only `CRON_SECRET` and
+Vercel's minute scheduler to claim due meetings atomically. Checks normally start
+within one minute of their due time; provider errors remain visible on the meeting
+and the next interval can retry. Scheduling does not depend on an open browser.
