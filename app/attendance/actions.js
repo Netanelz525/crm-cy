@@ -1,6 +1,4 @@
 "use server";
-import { checkMacPresence } from "../../lib/mac-presence.mjs";
-import { PRESENCE_MESSAGES } from "../../lib/presence-messages.mjs";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -16,6 +14,7 @@ import {
   setAttendanceSessionManualStudent,
   setAttendanceSessionLocked,
   syncAttendanceNetworkPresence,
+  setAttendancePresenceAutomatic,
   syncAttendanceSessionStudents,
   updateAttendanceSessionManualStudents,
   updateAttendanceSessionCustomStatuses,
@@ -525,13 +524,13 @@ export async function syncAttendanceNetworkPresenceAction(formData) {
   return { status: result.status };
 }
 
-export async function checkAttendancePresenceConnectionAction() {
-  const user = await requireAttendanceUser();
-  if (!user.is_manager && !user.is_super_admin) throw new Error('אין הרשאה לבדוק את חיבור השרת.');
-  try {
-    await checkMacPresence(['02:00:00:00:00:01']);
-    return { status: 'connection_ok' };
-  } catch (error) {
-    return { status: Object.hasOwn(PRESENCE_MESSAGES, error?.code) ? error.code : 'failed' };
-  }
+export async function setAttendancePresenceAutomaticAction(formData) {
+  await requireAttendanceUser();
+  const sessionId = clean(formData.get('sessionId'));
+  if (!sessionId) throw new Error('Missing attendance session id.');
+  const enabled = formData.get('enabled') === 'true';
+  await setAttendancePresenceAutomatic(sessionId, enabled);
+  if (enabled) await syncAttendanceNetworkPresence(sessionId);
+  revalidatePath(`/attendance/${sessionId}`);
+  return { ok: true };
 }
