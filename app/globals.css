@@ -7866,3 +7866,31 @@ td {
 .call-attendance-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
 .call-attendance-dashboard details[open] > summary { margin-bottom: 16px; }
 .call-status-picker > summary:focus-visible, .call-attendance-summary:focus-visible { outline: 3px solid #1764a8; outline-offset: 4px; border-radius: 6px; }
+
+.attendance-presence-switch {
+  appearance: none;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid #94a3b8;
+  background: #cbd5e1;
+  position: relative;
+  cursor: pointer;
+}
+.attendance-presence-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px #0003;
+  transition: transform .15s;
+}
+.attendance-presence-switch:checked { background: #2563eb; border-color: #2563eb; }
+.attendance-presence-switch:checked::after { transform: translateX(20px); }
+.attendance-presence-switch:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+.attendance-presence-switch:disabled { opacity: .5; cursor: default; }

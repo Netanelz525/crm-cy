@@ -34,7 +34,7 @@ export default function NetworkPresencePanel({ sessionId, result, syncedAt, disa
           catch { setStatus('failed'); }
           router.refresh();
         });
-      }} style={{ width: 28, height: 28 }} />
+      }} className="attendance-presence-switch" />
       <span>סנכרון אוטומטי כל חצי שעה למשך 4 שעות
         <small className="muted" style={{ display: 'block' }}>{automatic ? `פעיל עד ${new Date(autoUntil).toLocaleTimeString('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit' })}; לאחר מכן יכבה אוטומטית.` : 'בהפעלה תתבצע בדיקה מיידית. ממשיך לפעול גם כשהאפליקציה סגורה.'}</small>
       </span>
