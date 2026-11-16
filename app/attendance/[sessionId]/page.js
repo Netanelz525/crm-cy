@@ -181,6 +181,16 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         <h1>{roster.session.title || "מפגש נוכחות"}</h1>
         <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
       </div>
+      {roster.session.isLocked ? <div className="attendance-lock-banner" role="status">
+        <strong>המפגש בארכיון ונעול לעדכונים.</strong>
+        <p>כדי לשנות נוכחות יש לפתוח את הנעילה.</p>
+        {canManageSessionLock ? <form action={setAttendanceSessionLockAction}>
+          <input type="hidden" name="sessionId" value={sessionId} />
+          <input type="hidden" name="locked" value="0" />
+          <input type="hidden" name="returnPath" value={`/attendance/${sessionId}`} />
+          <button type="submit" className="quick-action-btn quick-action-primary">פתח מפגש לעדכון נוכחות</button>
+        </form> : <p>יש לפנות למנהל לפתיחת המפגש.</p>}
+      </div> : null}
       {resolvedSearchParams?.whatsappSent != null ? <div className="ok" role="status" aria-live="polite"><b>שליחת ה־WhatsApp הושלמה.</b> ספק WhatsApp אישר שליחת {clean(resolvedSearchParams.whatsappSent)} הודעות. נכשלו: {clean(resolvedSearchParams.whatsappFailed) || "0"}. תלמידים ללא מספר תקין: {clean(resolvedSearchParams.whatsappMissingPhones) || "0"}. אין צורך ללחוץ שוב על שליחה.</div> : null}
       {resolvedSearchParams?.whatsappError ? <div className="error" role="alert">{clean(resolvedSearchParams.whatsappError)}</div> : null}
       {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
@@ -362,11 +372,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         sendAction={sendAttendanceInvitationAction}
       />
 
-      {roster.session.isLocked ? (
-        <div className="attendance-lock-banner">
-          המפגש נעול לעדכוני סטטוסים. מנהל יכול להאריך את מועד הנעילה בפרטי המפגש או לפתוח לשלושה ימים נוספים מהכפתור בראש הדף.
-        </div>
-      ) : null}
+
 
       <details className="card attendance-message-panel">
         <summary className="attendance-message-summary">
