@@ -390,7 +390,7 @@ export default async function AttendancePage({ searchParams }) {
           </nav>
           <div className="attendance-list-heading"><h2>{archived ? 'ארכיון מפגשים' : selectedResponsibleIds.length ? 'מפגשים באחריות שנבחרה' : 'כל המפגשים הפתוחים'}</h2><span>{sessions.length} מפגשים</span></div>
           <details className="attendance-search-panel"><summary>חיפוש וסינון לפי אחראי{selectedResponsibleIds.length ? ` · ${selectedResponsibleIds.length} נבחרו` : ''}</summary>
-          <form method="get" className="attendance-responsible-filter attendance-session-search">
+          <form key={JSON.stringify([archived, selectedResponsibleIds, sessionListFilters])} method="get" className="attendance-responsible-filter attendance-session-search">
             {archived ? <input type="hidden" name="view" value="archive" /> : null}
             <div className="attendance-responsible-filter-head">
               <b>חיפוש וסינון מפגשים</b>
