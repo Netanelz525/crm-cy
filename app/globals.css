@@ -7917,3 +7917,4 @@ button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outl
   .attendance-list-tabs a { min-height: 44px; display: grid; place-items: center; font-size: 14px; }
   button.attendance-status-option { min-height: 48px; width: 100%; }
 }
+.attendance-wifi-origin { display: inline-flex; padding: 5px 10px; margin: 4px 0 8px; border-radius: 10px; background: #e6f4ff; color: #135d88; font-weight: 600; }

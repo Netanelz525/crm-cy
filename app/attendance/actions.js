@@ -15,6 +15,7 @@ import {
   setAttendanceSessionLocked,
   syncAttendanceNetworkPresence,
   setAttendancePresenceAutomatic,
+  runAttendancePresenceAutomatic,
   syncAttendanceSessionStudents,
   updateAttendanceSessionManualStudents,
   updateAttendanceSessionCustomStatuses,
@@ -533,4 +534,11 @@ export async function setAttendancePresenceAutomaticAction(formData) {
   if (enabled) await syncAttendanceNetworkPresence(sessionId);
   revalidatePath(`/attendance/${sessionId}`);
   return { ok: true };
+}
+
+export async function refreshAttendancePresenceAutomaticAction(sessionId) {
+  await requireAttendanceUser();
+  const id = clean(sessionId);
+  if (!id) throw new Error('Missing attendance session id.');
+  await runAttendancePresenceAutomatic(id);
 }
