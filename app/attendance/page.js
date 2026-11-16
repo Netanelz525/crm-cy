@@ -290,7 +290,7 @@ export default async function AttendancePage({ searchParams }) {
 
   return (
     <>
-      <div className="card glass">
+      <div className="card glass attendance-index-header">
         <h1>מפגשים ונוכחות</h1>
         <p className="muted">
           בוחרים מפגש ומסמנים נוכחות. מפגשים נעולים נמצאים בארכיון.
