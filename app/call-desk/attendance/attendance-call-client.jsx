@@ -97,6 +97,25 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     try { await navigator.clipboard.writeText(url.toString()); setNotice("הקישור עם סינון הסטטוס הועתק."); }
     catch { setError("לא ניתן להעתיק את הקישור. נסה שוב."); }
   }
+  async function copyDirectoryNames() {
+    const text = directory.rows.map((student, index) => `${index + 1}. ${String(student.name || '').trim() || 'ללא שם'}`).join('\n');
+    if (!text) return;
+    setError(''); setNotice('');
+    try {
+      try { await navigator.clipboard.writeText(text); }
+      catch {
+        const field = document.createElement('textarea');
+        field.value = text; field.setAttribute('readonly', '');
+        field.style.position = 'fixed'; field.style.opacity = '0';
+        document.body.appendChild(field);
+        try {
+          field.select(); field.setSelectionRange(0, text.length);
+          if (!document.execCommand('copy')) throw new Error('Copy failed');
+        } finally { field.remove(); }
+      }
+      setNotice(`${directory.rows.length} שמות מהסינון הנוכחי הועתקו.`);
+    } catch { setError('לא ניתן להעתיק את השמות. נסה שוב.'); }
+  }
   async function request(body) {
     if(publicToken&&!publicWindow.current)publicWindow.current=crypto.randomUUID();
     const response = await fetch(publicToken?`/api/public-call/${encodeURIComponent(publicToken)}`:`/api/attendance/sessions/${encodeURIComponent(sessionId)}/calls`, {
@@ -211,7 +230,10 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
           </select></label>
           <button type="button" onClick={()=>{setListStatus("");setListOutcome("");setListSort("outcome");}}>איפוס סינון ומיון</button>
         </div>
-        <p role="status">מוצגים {directory.rows.length} מתוך {matches.length} תלמידים ברשימה</p>
+        <div className="quick-actions">
+          <p role="status">מוצגים {directory.rows.length} מתוך {matches.length} תלמידים ברשימה</p>
+          <button type="button" className="quick-action-btn quick-action-outline" disabled={!directory.rows.length} onClick={copyDirectoryNames}>העתק שמות ({directory.rows.length})</button>
+        </div>
         {matches.length > 0 && directory.rows.length === 0 ? <p>אין תלמידים שמתאימים למסננים שנבחרו.</p> : null}
       </> : null}
       <div style={{ maxHeight: 420, overflowY: "auto" }}>

@@ -7929,3 +7929,5 @@ button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outl
   .attendance-meeting-browser { padding: 14px; }
   .attendance-list-heading h2 { font-size: 19px; }
 }
+.attendance-contact-filter-panel { border-top: 1px solid var(--line); padding-top: 10px; }
+.attendance-contact-filter-panel > summary { cursor: pointer; font-weight: 600; min-height: 44px; padding: 10px 0; }

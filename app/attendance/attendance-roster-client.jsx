@@ -515,8 +515,9 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
             </button>
           ))}
         </div>
-        <div className="attendance-contact-filter" role="group" aria-label="סינון לפי פרטי קשר">
-          <span className="attendance-contact-filter-label">סינון לפי פרטי קשר:</span>
+        <details className="attendance-contact-filter-panel">
+          <summary>סינון לפי פרטי קשר{contactFilter !== 'all' ? ' · מסנן פעיל' : ''}</summary>
+          <div className="attendance-contact-filter" role="group" aria-label="סינון לפי פרטי קשר">
           {[
             ["all", "כל התלמידים"],
             ["student_missing", "חסר מספר לתלמיד"],
@@ -537,7 +538,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
               {label}
             </button>
           ))}
-        </div>
+          </div>
+        </details>
         <div className="attendance-table-wrap">
           <table className="attendance-table">
             <thead>
