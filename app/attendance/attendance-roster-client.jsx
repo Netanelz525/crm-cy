@@ -414,6 +414,8 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
           if (
             clean(current.status) !== clean(incoming.status)
             || clean(current.noteText) !== clean(incoming.noteText)
+            || current.presenceSource !== incoming.presenceSource
+            || String(current.networkMarkedAt || "") !== String(incoming.networkMarkedAt || "")
             || JSON.stringify(current.whatsappReplies || []) !== JSON.stringify(incoming.whatsappReplies || [])
           ) {
             changedRows.push({ previous: current, next: incoming });
@@ -591,6 +593,7 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                       {saveStates[student.id] === 'editing' ? 'ממתין לשמירה…' : saveStates[student.id] === 'saving' ? 'שומר…' : saveStates[student.id] === 'saved' ? '✓ נשמר' : null}
                       {saveStates[student.id] === 'error' ? <span className="error">לא נשמר. <button type="button" className="btn btn-ghost" onClick={() => persistRow(rowsRef.current.find(row => row.id === student.id))}>נסה לשמור שוב</button></span> : null}
                     </div>
+                    {student.networkMarkedAt ? <small className="attendance-wifi-origin">{student.presenceSource === 'wifi' ? 'סומן אוטומטית מה־Wi-Fi' : 'זוהה בעבר ב־Wi-Fi'} · {new Date(student.networkMarkedAt).toLocaleTimeString('he-IL', {timeZone:'Asia/Jerusalem', hour:'2-digit',minute:'2-digit'})}</small> : null}
                     <div className="attendance-status-group" role="radiogroup" aria-label={`סטטוס נוכחות עבור ${student.label}`} aria-disabled={locked}>
                       {statusOptions.map(([value, label]) => (
                         <button

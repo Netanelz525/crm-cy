@@ -509,7 +509,8 @@ export default async function AttendancePage({ searchParams }) {
                   <Link href={`/attendance/${session.id}`}>
                     <strong>{formatSessionLabel(session)}</strong>
                     {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
-                    <span>נוצר על ידי: {session.createdByDisplayName}</span>
+                    <span>סוג מפגש: {session.sessionTypeLabel}</span>
+                    <span>נוצר: {session.createdAt ? new Date(session.createdAt).toLocaleString('he-IL', {timeZone:'Asia/Jerusalem', dateStyle:'short', timeStyle:'short'}) : '—'} · {session.createdByDisplayName}</span>
                     <span>אחראי: {session.responsibleDisplayName || "לא הוגדר"}</span>
                     <span>{session.isLocked ? "נעול לעדכונים" : "פתוח לעדכונים"}</span>
                     <span>{session.visibleToStudents ? "גלוי לתלמידים" : "מוסתר מתלמידים"}</span>

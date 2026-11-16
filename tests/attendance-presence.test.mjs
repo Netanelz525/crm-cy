@@ -33,7 +33,7 @@ test('the actual base schema initializes a fresh database and upgrades again wit
   try {
     await initialize();
     assert.equal((await db.query("SELECT version FROM crm_schema_meta WHERE key='schema'")).rows[0].version,'20261006_3');
-    assert.equal((await db.query("SELECT version FROM crm_schema_meta WHERE key='attendance-presence-policy'")).rows[0].version,'20261116_1');
+    assert.equal((await db.query("SELECT version FROM crm_schema_meta WHERE key='attendance-presence-policy'")).rows[0].version,'20261116_2');
     await db.exec("INSERT INTO attendance_sessions(id,institution,session_date,auto_lock_date) VALUES ('old','ALL',CURRENT_DATE-20,CURRENT_DATE+1)");
     await db.exec("INSERT INTO attendance_records(session_id,student_id,student_name,status,note_text) VALUES ('old','s1','Synthetic','found','preserved')");
     await db.exec("UPDATE attendance_sessions SET auto_lock_date=NULL; UPDATE crm_schema_meta SET version='previous-schema'");
@@ -117,6 +117,8 @@ test('real Postgres sync preserves manual records and notes, marks connected stu
     const provider=async()=>response([mac(1),mac(2),mac(3)]).json().then(body=>Response.json({...body,results:body.results.map(r=>({...r,connected:r.mac!==mac(3)}))}));
     const result=await f.sync(provider);assert.equal(result.status,'complete');assert.equal(result.updated,1);assert.equal(result.connected,2);
     const rows=await f.records();assert.equal(rows.length,2);assert.equal(rows[0].status,'unavailable');assert.equal(rows[0].note_text,'keep my note');assert.equal(rows[1].status,'found');
+    assert.equal(rows[1].presence_source,'wifi');assert.ok(rows[1].network_marked_at);
+    assert.match(rows[1].note_text,/Wi-Fi/);assert.equal(rows[0].presence_source,null);assert.equal(rows[0].network_marked_at,null);
     assert.equal((await f.sync(provider)).status,'busy');
     await f.db.exec("UPDATE attendance_sessions SET presence_sync_started_at=NOW()-INTERVAL '1 minute'");
     assert.equal((await f.sync(provider)).updated,0);

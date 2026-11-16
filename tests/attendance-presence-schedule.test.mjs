@@ -27,6 +27,15 @@ test('automatic presence expires after four hours, runs only due jobs and can be
   await setAutomaticPresence({sql,sessionId:'a',enabled:true});
   await setAutomaticPresence({sql,sessionId:'a',enabled:false});
   const [off]=await sql`SELECT presence_auto_until,presence_auto_next_at FROM attendance_sessions WHERE id='a'`; assert.deepEqual(off,{presence_auto_until:null,presence_auto_next_at:null});
+  await setAutomaticPresence({sql,sessionId:'a',enabled:true});
+  await setAutomaticPresence({sql,sessionId:'b',enabled:true});
+  await sql`UPDATE attendance_sessions SET presence_auto_next_at=NOW()-INTERVAL '1 minute'`;
+  calls.length=0;
+  await runAutomaticPresence({sql,sync,sessionId:'b'}); assert.deepEqual(calls,['b']);
+  await runAutomaticPresence({sql,sync,sessionId:'b'}); assert.deepEqual(calls,['b']);
+  const [stillDue]=await sql`SELECT presence_auto_next_at < NOW() AS due FROM attendance_sessions WHERE id='a'`;
+  assert.equal(stillDue.due,true);
+  await setAutomaticPresence({sql,sessionId:'b',enabled:false});
   await sql`UPDATE attendance_sessions SET is_locked=TRUE WHERE id='b'`;
   await assert.rejects(setAutomaticPresence({sql,sessionId:'b',enabled:true}));
   await db.close();

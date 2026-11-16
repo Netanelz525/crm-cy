@@ -179,6 +179,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
     <>
       <div className="card glass">
         <h1>{roster.session.title || "מפגש נוכחות"}</h1>
+        <p className="muted">סוג מפגש: {roster.session.sessionTypeLabel} · נוצר: {roster.session.createdAt ? new Date(roster.session.createdAt).toLocaleString('he-IL', {timeZone:'Asia/Jerusalem', dateStyle:'short', timeStyle:'short'}) : '—'}</p>
         <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
       </div>
       {roster.session.isLocked ? <div className="attendance-lock-banner" role="status">
@@ -223,7 +224,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         </div>
       </div>
 
-      <NetworkPresencePanel autoUntil={roster.session.presenceAutoUntil} sessionId={sessionId} result={roster.session.presenceSyncResult} syncedAt={roster.session.presenceSyncedAt}
+      <NetworkPresencePanel autoUntil={roster.session.presenceAutoUntil} nextAt={roster.session.presenceAutoNextAt} sessionId={sessionId} result={roster.session.presenceSyncResult} syncedAt={roster.session.presenceSyncedAt}
         disabledReason={roster.session.isLocked ? PRESENCE_MESSAGES.locked : roster.session.sessionDate !== israelDate() ? PRESENCE_MESSAGES.different_date : roster.session.communicationAudience !== 'student' ? PRESENCE_MESSAGES.wrong_audience : ''} />
       <div className="card muted">נעילה אוטומטית: {roster.session.autoLockDate} בתחילת היום, לפי שעון ישראל. {roster.session.customLockDate ? 'נקבע תאריך מותאם למפגש.' : 'ברירת מחדל: שלושה ימים לאחר תאריך המפגש.'}</div>
 

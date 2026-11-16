@@ -39,3 +39,16 @@ attendance and notes remain protected by the same insert-only synchronizer.
 a five-minute scheduler to claim due meetings atomically. Checks normally start
 within five minutes of their due time; provider errors remain visible on the meeting
 and the next interval can retry. Scheduling does not depend on an open browser.
+
+The network panel now refreshes while its four-hour window is active. Once a
+minute it asks the authenticated server to claim any due interval for this meeting
+only; the same atomic claim is shared with the background scheduler. This provides
+a fallback for delayed GitHub schedules while the page is open, and displays the
+next due time. Background scheduling can still be delayed by GitHub when the app
+is closed; there is no exact-time delivery guarantee.
+
+New records inserted by Wi-Fi synchronization store `presence_source='wifi'`,
+`network_marked_at`, and a human-readable automatic-mark note. Saved manual records
+and notes are untouched. Existing historical records without reliable provenance
+are not retroactively attributed to Wi-Fi. Changing a record's status manually
+changes its current source to manual while preserving the historical network time.
