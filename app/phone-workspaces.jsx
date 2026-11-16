@@ -1,20 +1,6 @@
 import Link from 'next/link';
 import { classLabel, INSTITUTIONS, phoneHref } from '../lib/student-view';
 
-export function PhoneAttendance({ sessions, showAll }) {
-  const open = sessions.filter(session => !session.isLocked);
-  return <section className="phone-home" aria-label="נוכחות בנייד">
-    <header className="phone-heading"><span className="phone-eyebrow">CRM CY · ניהול יומיומי</span><h1>נוכחות</h1><p>בוחרים מפגש ומסמנים נוכחות.</p></header>
-    <nav className="phone-segments" aria-label="סינון מפגשים"><Link href="/attendance" aria-current={!showAll ? 'page' : undefined}>באחריותי</Link><Link href="/attendance?responsible=all" aria-current={showAll ? 'page' : undefined}>כל המפגשים</Link></nav>
-    <div className="phone-section-title"><h2>המפגשים שלך</h2><span>{open.length} פתוחים</span></div>
-    <div className="phone-card-list">{[...open, ...sessions.filter(session => session.isLocked)].map(session => <Link key={session.id} href={`/attendance/${session.id}`} className="phone-session-card">
-      <div className="phone-session-icon" aria-hidden="true">✓</div>
-      <div className="phone-card-copy"><span className="phone-card-subtitle">{session.institutionLabel || 'מפגש'}</span><h3>{session.displayTitle || session.title || session.sessionTypeLabel}</h3><p>{[session.sessionDate, session.sessionWeekdayLabel].filter(Boolean).join(' · ')}</p><span className={`phone-status ${session.isLocked ? 'is-locked' : ''}`}>{session.isLocked ? 'נעול לעדכונים' : 'פתוח לסימון נוכחות'}</span></div><span className="phone-chevron" aria-hidden="true">‹</span>
-    </Link>)}</div>
-    {!sessions.length && <div className="phone-empty"><span aria-hidden="true">✓</span><h2>אין מפגשים להצגה</h2><p>אפשר לעבור לכל המפגשים או לפתוח את כלי הניהול למטה.</p></div>}
-  </section>;
-}
-
 export function PhoneStudents({ students, query, error }) {
   return <section className="phone-home" aria-label="תלמידים בנייד">
     <header className="phone-heading"><span className="phone-eyebrow">האנשים שבמרכז</span><h1>תלמידים</h1><p>כרטיס אישי, פרטי קשר וכל המידע במקום אחד.</p></header>

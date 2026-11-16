@@ -7894,3 +7894,26 @@ td {
 .attendance-presence-switch:checked::after { transform: translateX(20px); }
 .attendance-presence-switch:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
 .attendance-presence-switch:disabled { opacity: .5; cursor: default; }
+
+/* One meeting browser for desktop and phone. */
+.attendance-list-tabs { display: flex; gap: 6px; padding: 5px; border-radius: 15px; background: #edf2f8; margin-bottom: 20px; }
+.attendance-list-tabs a { flex: 1; padding: 12px 8px; text-align: center; border-radius: 11px; color: #334155; text-decoration: none; font-weight: 600; }
+.attendance-list-tabs a[aria-current="page"] { background: white; color: #174ea6; box-shadow: 0 2px 8px #172c4910; }
+.attendance-list-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.attendance-list-heading h2 { margin: 0; }
+.attendance-search-panel, .attendance-bulk-actions { margin: 16px 0; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.attendance-search-panel summary, .attendance-bulk-actions summary { cursor: pointer; min-height: 28px; font-weight: 600; }
+.attendance-meeting-browser .attendance-session-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.attendance-meeting-browser .attendance-session-link { background: white; padding: 18px; align-content: start; }
+.attendance-meeting-browser .attendance-session-link > a { min-height: 100px; }
+.attendance-meeting-browser .attendance-session-link strong { font-size: 1.05rem; color: #173f72; }
+button.attendance-status-option { color: var(--text); font: inherit; touch-action: manipulation; box-shadow: none; }
+button.attendance-status-option[aria-checked="true"] { background: #0f5fa4; color: white; border-color: #0f5fa4; }
+button.attendance-status-option:disabled { opacity: .6; cursor: not-allowed; }
+button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+@media (max-width: 640px) {
+  .attendance-meeting-browser .attendance-session-list { grid-template-columns: minmax(0, 1fr); }
+  .attendance-list-tabs { position: sticky; top: 0; z-index: 5; }
+  .attendance-list-tabs a { min-height: 44px; display: grid; place-items: center; font-size: 14px; }
+  button.attendance-status-option { min-height: 48px; width: 100%; }
+}

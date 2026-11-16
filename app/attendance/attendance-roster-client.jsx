@@ -593,20 +593,15 @@ export default function AttendanceRosterClient({ sessionId, students, statusOpti
                     </div>
                     <div className="attendance-status-group" role="radiogroup" aria-label={`סטטוס נוכחות עבור ${student.label}`} aria-disabled={locked}>
                       {statusOptions.map(([value, label]) => (
-                        <label
+                        <button
                           key={value}
-                          className={`attendance-status-option${student.status === value ? " active" : ""}${locked ? " disabled" : ""}`}
-                        >
-                          <input
-                            type="radio"
-                            name={`status:${student.id}`}
-                            value={value}
-                            checked={student.status === value}
-                            disabled={locked}
-                            onChange={() => handleStatusChange(student.id, value)}
-                          />
-                          <span>{label}</span>
-                        </label>
+                          type="button"
+                          role="radio"
+                          aria-checked={student.status === value}
+                          className={`attendance-status-option${student.status === value ? " active" : ""}`}
+                          disabled={locked}
+                          onClick={() => handleStatusChange(student.id, value)}
+                        >{label}</button>
                       ))}
                     </div>
                   </td>

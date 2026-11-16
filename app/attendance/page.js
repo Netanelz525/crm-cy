@@ -1,7 +1,6 @@
+import { attendanceListState, attendanceListHref } from "../../lib/attendance-list-view.mjs";
 import AttendanceLockDateField from "./lock-date-field";
 import Link from "next/link";
-import PhoneWorkspace from "../phone-workspace";
-import { PhoneAttendance } from "../phone-workspaces";
 import { redirect } from "next/navigation";
 import {
   ATTENDANCE_SELECTABLE_SESSION_TYPE_ORDER,
@@ -245,41 +244,23 @@ export default async function AttendancePage({ searchParams }) {
   const reportFilters = resolveReportFilters(resolvedSearchParams);
   const sessionListFilters = resolveSessionListFilters(resolvedSearchParams);
   const summaryExportQuery = buildSummaryExportQuery(reportFilters);
-  const responsibleParam = getSearchParamList(resolvedSearchParams?.responsible);
-  const responsibleFilterMode = responsibleParam.includes("all") ? "all" : "selected";
-  const selectedResponsibleIds = responsibleFilterMode === "all"
-    ? []
-    : (responsibleParam.length ? responsibleParam : [clean(currentUser.clerk_user_id)].filter(Boolean));
-  const sessionDateFrom = sessionListFilters.dateFrom || (reportFilters.institution ? reportFilters.start : "");
-  const sessionDateTo = sessionListFilters.dateTo || (reportFilters.institution ? reportFilters.end : "");
-  const sessions = await listAttendanceSessions(
-    reportFilters.institution
-      ? {
-          institution: reportFilters.institution,
-          dateFrom: sessionDateFrom,
-          dateTo: sessionDateTo,
-          responsibleUserIds: selectedResponsibleIds,
-          query: sessionListFilters.query,
-          institutionFilters: sessionListFilters.institutionFilters,
-          classFilters: sessionListFilters.classFilters,
-          registrationFilters: sessionListFilters.registrationFilters,
-          familyStatusFilters: sessionListFilters.familyStatusFilters,
-          tagFilters: sessionListFilters.tagFilters,
-          limit: 1000
-        }
-      : {
-          dateFrom: sessionDateFrom,
-          dateTo: sessionDateTo,
-          responsibleUserIds: selectedResponsibleIds,
-          query: sessionListFilters.query,
-          institutionFilters: sessionListFilters.institutionFilters,
-          classFilters: sessionListFilters.classFilters,
-          registrationFilters: sessionListFilters.registrationFilters,
-          familyStatusFilters: sessionListFilters.familyStatusFilters,
-          tagFilters: sessionListFilters.tagFilters,
-          limit: 1000
-        }
-  );
+  const { archived, selectedResponsibleIds } = attendanceListState(resolvedSearchParams, currentUser.clerk_user_id);
+  const listHref = changes => attendanceListHref(resolvedSearchParams, changes);
+  const sessionDateFrom = sessionListFilters.dateFrom;
+  const sessionDateTo = sessionListFilters.dateTo;
+  const sessions = await listAttendanceSessions({
+    dateFrom: sessionDateFrom,
+    dateTo: sessionDateTo,
+    responsibleUserIds: selectedResponsibleIds,
+    lockState: archived ? "archived" : "active",
+    query: sessionListFilters.query,
+    institutionFilters: sessionListFilters.institutionFilters,
+    classFilters: sessionListFilters.classFilters,
+    registrationFilters: sessionListFilters.registrationFilters,
+    familyStatusFilters: sessionListFilters.familyStatusFilters,
+    tagFilters: sessionListFilters.tagFilters,
+    limit: 1000
+  });
   const [responsibleUsers, availableTags, allStudents] = await Promise.all([
     listAttendanceResponsibleUsers(),
     listStudentTags(),
@@ -309,12 +290,10 @@ export default async function AttendancePage({ searchParams }) {
 
   return (
     <>
-      <PhoneAttendance sessions={sessions} showAll={responsibleFilterMode === "all"} />
-      <PhoneWorkspace label="כלי ניהול, יצירה וסינון">
       <div className="card glass">
-        <h1>נוכחות מוסדית</h1>
+        <h1>מפגשים ונוכחות</h1>
         <p className="muted">
-          יוצרים מפגש לפי מוסד, פותחים את רשימת התלמידים של אותו מוסד, ומזינים את הנוכחות מהתיעוד הקיים.
+          בוחרים מפגש ומסמנים נוכחות. מפגשים נעולים נמצאים בארכיון.
         </p>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/">חזרה לתלמידים</Link>
@@ -322,6 +301,242 @@ export default async function AttendancePage({ searchParams }) {
         </div>
       </div>
 
+      <div className="attendance-management-tools">
+        <details className="card glass attendance-collapsible-panel">
+          <summary className="attendance-collapsible-summary">
+            <div>
+              <h3>יצירת מפגש חדש</h3>
+              <span className="muted">פתיחת מפגש לפי תבנית, אחראים וסינון תלמידים.</span>
+            </div>
+            <span className="attendance-collapsible-action">פתח יצירה</span>
+          </summary>
+          <CreateSessionForm action={createAttendanceSessionAction}>
+            <input type="hidden" name="institution" value="" />
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span className="muted">מבנה ממפגש קודם</span>
+              <select name="templateSessionId" defaultValue="">
+                <option value="">יצירה רגילה ללא העתקת מבנה</option>
+                {sessions.map((session) => (
+                  <option key={`template-${session.id}`} value={session.id}>
+                    {formatSessionLabel(session)}
+                    {session.responsibleDisplayName ? ` | אחראים: ${session.responsibleDisplayName}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <SessionTypeFieldset options={selectableSessionTypes} defaultValue={defaultSessionType} />
+            <label>
+              <span className="muted">קהל המפגש</span>
+              <select name="communicationAudience" defaultValue="student" required>
+                <option value="student">המפגש מיועד לתלמידים</option>
+                <option value="parents">פנייה להורים בנוגע לתלמיד</option>
+                <option value="parent_meeting">פגישה ישירה עם ההורים</option>
+              </select>
+            </label>
+            <div className="attendance-filter-toolbar" style={{ gridColumn: "1 / -1" }}>
+              <span className="muted">אופן בניית הרשימה</span>
+              <label className="attendance-filter-chip active"><input type="radio" name="rosterMode" value="filters" defaultChecked /> לפי המסננים</label>
+              <label className="attendance-filter-chip"><input type="radio" name="rosterMode" value="manual" /> מפגש חופשי</label>
+              <label className="attendance-filter-chip"><input type="radio" name="rosterMode" value="filters_editable" /> לפי מסננים עם עריכה ידנית</label>
+            </div>
+            <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
+            <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
+            <label htmlFor="attendance-source-note">פרטי המפגש ותוכן ההודעה</label>
+            {canManageSessionLock ? <AttendanceLockDateField /> : null}
+
+            <textarea id="attendance-source-note" name="sourceNote" rows={5} placeholder="הטקסט שיופיע גם במייל וגם ב־WhatsApp" />
+            <small className="muted">הטקסט נשמר פעם אחת ומשמש את שני ערוצי ההזמנה.</small>
+            {canUseSessionAudienceFilters ? (
+              <>
+                <ResponsibleUserPicker
+                  users={responsibleUsers}
+                  students={manualStudentOptions}
+                  defaultValues={[currentUser.clerk_user_id]}
+                />
+                <label className="attendance-visibility-toggle">
+                  <input type="checkbox" name="visibleToStudents" value="1" />
+                  <span className="attendance-visibility-box" aria-hidden="true" />
+                  <span>
+                    <strong>גלוי לתלמידים</strong>
+                    <small>כבוי כברירת מחדל. כשהתיבה מסומנת, תלמידים יראו את המפגש בכרטיס האישי.</small>
+                  </span>
+                </label>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div className="muted" style={{ marginBottom: 10 }}>
+                    אפשר ליצור מפגש לפי מסננים, או ליצור מפגש ריק ולהוסיף תלמידים ידנית בחיפוש. אם נבחר מוסד ללא מסננים, ייכללו תלמידי המוסד; בלי מוסד ובלי מסננים המפגש ייפתח ללא תלמידים.
+                  </div>
+                  <div className="email-form-grid">
+                    <FilterCheckboxFieldset legend="מוסדות" name="institutionFilter" options={institutionOptions} helperText="אם לא נבחר מוסד, המפגש יחול על כל המוסדות." />
+                    <FilterCheckboxFieldset legend="שיעורים" name="classFilter" options={classOptions} />
+                    <FilterCheckboxFieldset legend="רישום" name="registrationFilter" options={registrationOptions} />
+                    <FilterCheckboxFieldset legend="סטטוס משפחתי" name="familyStatusFilter" options={familyStatusOptions} />
+                    <FilterCheckboxFieldset legend="תוויות" name="tagFilter" options={tagOptions} helperText="הוסף למפגש רק תלמידים עם אחת מהתוויות שנבחרו" />
+                  </div>
+                </div>
+                <AttendanceStudentPicker students={manualStudentOptions} />
+              </>
+            ) : null}
+          </CreateSessionForm>
+        </details>
+
+
+      </div>
+
+        <section className="card attendance-meeting-browser">
+          <nav className="attendance-list-tabs" aria-label="תצוגת מפגשים">
+            <Link href={listHref({ responsible: null, view: null })} aria-current={!archived && !selectedResponsibleIds.length ? 'page' : undefined}>כל המפגשים</Link>
+            <Link href={listHref({ responsible: 'mine', view: null })} aria-current={!archived && selectedResponsibleIds.length === 1 && selectedResponsibleIds[0] === currentUser.clerk_user_id ? 'page' : undefined}>באחריותי</Link>
+            <Link href={listHref({ responsible: null, view: 'archive' })} aria-current={archived ? 'page' : undefined}>ארכיון</Link>
+          </nav>
+          <div className="attendance-list-heading"><h2>{archived ? 'ארכיון מפגשים' : selectedResponsibleIds.length ? 'מפגשים באחריות שנבחרה' : 'כל המפגשים הפתוחים'}</h2><span>{sessions.length} מפגשים</span></div>
+          <details className="attendance-search-panel"><summary>חיפוש וסינון לפי אחראי{selectedResponsibleIds.length ? ` · ${selectedResponsibleIds.length} נבחרו` : ''}</summary>
+          <form key={JSON.stringify([archived, selectedResponsibleIds, sessionListFilters])} method="get" className="attendance-responsible-filter attendance-session-search">
+            {archived ? <input type="hidden" name="view" value="archive" /> : null}
+            <div className="attendance-responsible-filter-head">
+              <b>חיפוש וסינון מפגשים</b>
+              <span className="muted">ללא בחירת אחראי מוצגים כל המפגשים</span>
+            </div>
+            <div className="attendance-session-search-grid">
+              <label>
+                <span className="muted">שם או תוכן</span>
+                <input name="sessionQuery" defaultValue={sessionListFilters.query} placeholder="חפש לפי שם מפגש, הערה או מזהה" />
+              </label>
+              <label>
+                <span className="muted">מתאריך</span>
+                <input name="sessionDateFrom" type="date" defaultValue={sessionDateFrom} />
+              </label>
+              <label>
+                <span className="muted">עד תאריך</span>
+                <input name="sessionDateTo" type="date" defaultValue={sessionDateTo} />
+              </label>
+            </div>
+            {reportFilters.institution ? (
+              <>
+                <input type="hidden" name="reportInstitution" value={reportFilters.institution} />
+                <input type="hidden" name="reportRange" value={reportFilters.range} />
+                <input type="hidden" name="reportStart" value={reportFilters.start} />
+                <input type="hidden" name="reportEnd" value={reportFilters.end} />
+                <input type="hidden" name="reportSort" value={reportFilters.sort} />
+              </>
+            ) : null}
+            <div className="email-filter-chip-list">
+              {responsibleUsers.map((user) => (
+                <label key={`responsible-filter-${user.id}`} className="email-filter-chip">
+                  <input
+                    type="checkbox"
+                    className="email-filter-chip-input"
+                    name="responsible"
+                    value={user.id}
+                    defaultChecked={selectedResponsibleIds.includes(user.id)}
+                  />
+                  <span>{user.displayName}</span>
+                </label>
+              ))}
+            </div>
+            <details className="attendance-audience-filter-panel">
+              <summary>מסנני קהל יעד של המפגש</summary>
+              <div className="email-form-grid" style={{ marginTop: 10 }}>
+                <FilterCheckboxFieldset
+                  legend="מוסדות"
+                  name="sessionInstitutionFilter"
+                  options={institutionOptions}
+                  defaultValues={sessionListFilters.institutionFilters}
+                  helperText="מצא מפגשים שהוגדרו למוסדות שנבחרו"
+                />
+                <FilterCheckboxFieldset
+                  legend="שיעורים"
+                  name="sessionClassFilter"
+                  options={classOptions}
+                  defaultValues={sessionListFilters.classFilters}
+                  helperText="מצא מפגשים שהוגדרו לשיעורים שנבחרו"
+                />
+                <FilterCheckboxFieldset
+                  legend="רישום"
+                  name="sessionRegistrationFilter"
+                  options={registrationOptions}
+                  defaultValues={sessionListFilters.registrationFilters}
+                />
+                <FilterCheckboxFieldset
+                  legend="סטטוס משפחתי"
+                  name="sessionFamilyStatusFilter"
+                  options={familyStatusOptions}
+                  defaultValues={sessionListFilters.familyStatusFilters}
+                />
+                <FilterCheckboxFieldset
+                  legend="תוויות"
+                  name="sessionTagFilter"
+                  options={tagOptions}
+                  defaultValues={sessionListFilters.tagFilters}
+                  helperText="מצא מפגשים שהוגדרו לתלמידים עם תוויות אלו"
+                />
+              </div>
+            </details>
+            <div className="quick-actions" style={{ marginTop: 8 }}>
+              <button type="submit" className="quick-action-btn quick-action-outline">חפש מפגשים</button>
+              <Link className="quick-action-btn quick-action-primary" href={listHref({ responsible: "mine" })}>באחריותי</Link>
+              <Link className="quick-action-btn quick-action-outline" href={archived ? "/attendance?view=archive" : "/attendance"}>נקה סינון</Link>
+            </div>
+          </form>
+          </details>
+          {canManageSessionLock && sessions.length ? (
+            <details className="attendance-bulk-actions"><summary>פעולות על הרשימה</summary><div className="quick-actions" style={{ marginTop: 10 }}>
+              <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>
+                <input type="hidden" name="locked" value="1" />
+                <input type="hidden" name="returnPath" value={attendanceReturnPath} />
+                {sessions.map((session) => (
+                  <input key={`bulk-lock-${session.id}`} type="hidden" name="sessionIds" value={session.id} />
+                ))}
+                <button type="submit" className="quick-action-btn quick-action-outline">נעל את כל הרשימה</button>
+              </form>
+              <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>
+                <input type="hidden" name="locked" value="0" />
+                <input type="hidden" name="returnPath" value={attendanceReturnPath} />
+                {sessions.map((session) => (
+                  <input key={`bulk-unlock-${session.id}`} type="hidden" name="sessionIds" value={session.id} />
+                ))}
+                <button type="submit" className="quick-action-btn quick-action-primary">פתח את כל הרשימה</button>
+              </form>
+            </div></details>
+          ) : null}
+          {!sessions.length ? (
+            <p className="muted">
+              לא נמצאו מפגשים שתואמים לחיפוש הנוכחי.
+            </p>
+          ) : (
+            <div className="attendance-session-list">
+              {sessions.map((session) => (
+                <div key={session.id} className="attendance-session-link">
+                  <Link href={`/attendance/${session.id}`}>
+                    <strong>{formatSessionLabel(session)}</strong>
+                    {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
+                    <span>נוצר על ידי: {session.createdByDisplayName}</span>
+                    <span>אחראי: {session.responsibleDisplayName || "לא הוגדר"}</span>
+                    <span>{session.isLocked ? "נעול לעדכונים" : "פתוח לעדכונים"}</span>
+                    <span>{session.visibleToStudents ? "גלוי לתלמידים" : "מוסתר מתלמידים"}</span>
+                    {formatSessionAudience(session) ? <span>{formatSessionAudience(session)}</span> : null}
+                    {session.sourceNote ? <span>{session.sourceNote}</span> : null}
+                  </Link>
+                  <details className="attendance-session-actions"><summary>ניהול מפגש</summary>
+                  {canManageSessionLock ? (
+                    <form action={setAttendanceSessionLockAction}>
+                      <input type="hidden" name="sessionId" value={session.id} />
+                      <input type="hidden" name="locked" value={session.isLocked ? "0" : "1"} />
+                      <input type="hidden" name="returnPath" value={attendanceReturnPath} />
+                      <button type="submit" className={session.isLocked ? "quick-action-btn quick-action-primary" : "quick-action-btn quick-action-outline"}>
+                        {session.isLocked ? "פתח נעילה" : "נעל"}
+                      </button>
+                    </form>
+                  ) : null}
+                  <form action={deleteAttendanceSessionAction}>
+                    <input type="hidden" name="sessionId" value={session.id} />
+                    <button type="submit" className="quick-action-btn quick-action-outline">מחק</button>
+                  </form>
+                  </details>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       <details className="card glass attendance-collapsible-panel" open={Boolean(summaryReport)}>
         <summary className="attendance-collapsible-summary">
           <div>
@@ -440,232 +655,7 @@ export default async function AttendancePage({ searchParams }) {
       {lockSaved === "unlocked" ? <div className="ok">נעילת המפגש נפתחה.</div> : null}
       {bulkLockSaved === "locked" ? <div className="ok">ננעלו {bulkLockCount} מפגשים מהרשימה.</div> : null}
       {bulkLockSaved === "unlocked" ? <div className="ok">נפתחה הנעילה עבור {bulkLockCount} מפגשים מהרשימה.</div> : null}
-      <div className="attendance-layout">
-        <details className="card glass attendance-collapsible-panel">
-          <summary className="attendance-collapsible-summary">
-            <div>
-              <h3>יצירת מפגש חדש</h3>
-              <span className="muted">פתיחת מפגש לפי תבנית, אחראים וסינון תלמידים.</span>
-            </div>
-            <span className="attendance-collapsible-action">פתח יצירה</span>
-          </summary>
-          <CreateSessionForm action={createAttendanceSessionAction}>
-            <input type="hidden" name="institution" value="" />
-            <label style={{ gridColumn: "1 / -1" }}>
-              <span className="muted">מבנה ממפגש קודם</span>
-              <select name="templateSessionId" defaultValue="">
-                <option value="">יצירה רגילה ללא העתקת מבנה</option>
-                {sessions.map((session) => (
-                  <option key={`template-${session.id}`} value={session.id}>
-                    {formatSessionLabel(session)}
-                    {session.responsibleDisplayName ? ` | אחראים: ${session.responsibleDisplayName}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <SessionTypeFieldset options={selectableSessionTypes} defaultValue={defaultSessionType} />
-            <label>
-              <span className="muted">קהל המפגש</span>
-              <select name="communicationAudience" defaultValue="student" required>
-                <option value="student">המפגש מיועד לתלמידים</option>
-                <option value="parents">פנייה להורים בנוגע לתלמיד</option>
-                <option value="parent_meeting">פגישה ישירה עם ההורים</option>
-              </select>
-            </label>
-            <div className="attendance-filter-toolbar" style={{ gridColumn: "1 / -1" }}>
-              <span className="muted">אופן בניית הרשימה</span>
-              <label className="attendance-filter-chip active"><input type="radio" name="rosterMode" value="filters" defaultChecked /> לפי המסננים</label>
-              <label className="attendance-filter-chip"><input type="radio" name="rosterMode" value="manual" /> מפגש חופשי</label>
-              <label className="attendance-filter-chip"><input type="radio" name="rosterMode" value="filters_editable" /> לפי מסננים עם עריכה ידנית</label>
-            </div>
-            <input name="title" placeholder="שם חופשי למפגש, למשל: ביקורת ערב" />
-            <input name="sessionDate" type="date" defaultValue={todayInputValue()} required />
-            <label htmlFor="attendance-source-note">פרטי המפגש ותוכן ההודעה</label>
-            {canManageSessionLock ? <AttendanceLockDateField /> : null}
-
-            <textarea id="attendance-source-note" name="sourceNote" rows={5} placeholder="הטקסט שיופיע גם במייל וגם ב־WhatsApp" />
-            <small className="muted">הטקסט נשמר פעם אחת ומשמש את שני ערוצי ההזמנה.</small>
-            {canUseSessionAudienceFilters ? (
-              <>
-                <ResponsibleUserPicker
-                  users={responsibleUsers}
-                  students={manualStudentOptions}
-                  defaultValues={[currentUser.clerk_user_id]}
-                />
-                <label className="attendance-visibility-toggle">
-                  <input type="checkbox" name="visibleToStudents" value="1" />
-                  <span className="attendance-visibility-box" aria-hidden="true" />
-                  <span>
-                    <strong>גלוי לתלמידים</strong>
-                    <small>כבוי כברירת מחדל. כשהתיבה מסומנת, תלמידים יראו את המפגש בכרטיס האישי.</small>
-                  </span>
-                </label>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <div className="muted" style={{ marginBottom: 10 }}>
-                    אפשר ליצור מפגש לפי מסננים, או ליצור מפגש ריק ולהוסיף תלמידים ידנית בחיפוש. אם נבחר מוסד ללא מסננים, ייכללו תלמידי המוסד; בלי מוסד ובלי מסננים המפגש ייפתח ללא תלמידים.
-                  </div>
-                  <div className="email-form-grid">
-                    <FilterCheckboxFieldset legend="מוסדות" name="institutionFilter" options={institutionOptions} helperText="אם לא נבחר מוסד, המפגש יחול על כל המוסדות." />
-                    <FilterCheckboxFieldset legend="שיעורים" name="classFilter" options={classOptions} />
-                    <FilterCheckboxFieldset legend="רישום" name="registrationFilter" options={registrationOptions} />
-                    <FilterCheckboxFieldset legend="סטטוס משפחתי" name="familyStatusFilter" options={familyStatusOptions} />
-                    <FilterCheckboxFieldset legend="תוויות" name="tagFilter" options={tagOptions} helperText="הוסף למפגש רק תלמידים עם אחת מהתוויות שנבחרו" />
-                  </div>
-                </div>
-                <AttendanceStudentPicker students={manualStudentOptions} />
-              </>
-            ) : null}
-          </CreateSessionForm>
-        </details>
-
-        <aside className="card glass">
-          <h3>{reportFilters.institution ? "כל המפגשים לפי הסינון" : "כל המפגשים"}</h3>
-          <form method="get" className="attendance-responsible-filter attendance-session-search">
-            <div className="attendance-responsible-filter-head">
-              <b>חיפוש וסינון מפגשים</b>
-              <span className="muted">ברירת מחדל: מפגשים באחריותי</span>
-            </div>
-            <div className="attendance-session-search-grid">
-              <label>
-                <span className="muted">שם או תוכן</span>
-                <input name="sessionQuery" defaultValue={sessionListFilters.query} placeholder="חפש לפי שם מפגש, הערה או מזהה" />
-              </label>
-              <label>
-                <span className="muted">מתאריך</span>
-                <input name="sessionDateFrom" type="date" defaultValue={sessionDateFrom} />
-              </label>
-              <label>
-                <span className="muted">עד תאריך</span>
-                <input name="sessionDateTo" type="date" defaultValue={sessionDateTo} />
-              </label>
-            </div>
-            {reportFilters.institution ? (
-              <>
-                <input type="hidden" name="reportInstitution" value={reportFilters.institution} />
-                <input type="hidden" name="reportRange" value={reportFilters.range} />
-                <input type="hidden" name="reportStart" value={reportFilters.start} />
-                <input type="hidden" name="reportEnd" value={reportFilters.end} />
-                <input type="hidden" name="reportSort" value={reportFilters.sort} />
-              </>
-            ) : null}
-            <div className="email-filter-chip-list">
-              {responsibleUsers.map((user) => (
-                <label key={`responsible-filter-${user.id}`} className="email-filter-chip">
-                  <input
-                    type="checkbox"
-                    className="email-filter-chip-input"
-                    name="responsible"
-                    value={user.id}
-                    defaultChecked={responsibleFilterMode !== "all" && selectedResponsibleIds.includes(user.id)}
-                  />
-                  <span>{user.displayName}</span>
-                </label>
-              ))}
-            </div>
-            <details className="attendance-audience-filter-panel">
-              <summary>מסנני קהל יעד של המפגש</summary>
-              <div className="email-form-grid" style={{ marginTop: 10 }}>
-                <FilterCheckboxFieldset
-                  legend="מוסדות"
-                  name="sessionInstitutionFilter"
-                  options={institutionOptions}
-                  defaultValues={sessionListFilters.institutionFilters}
-                  helperText="מצא מפגשים שהוגדרו למוסדות שנבחרו"
-                />
-                <FilterCheckboxFieldset
-                  legend="שיעורים"
-                  name="sessionClassFilter"
-                  options={classOptions}
-                  defaultValues={sessionListFilters.classFilters}
-                  helperText="מצא מפגשים שהוגדרו לשיעורים שנבחרו"
-                />
-                <FilterCheckboxFieldset
-                  legend="רישום"
-                  name="sessionRegistrationFilter"
-                  options={registrationOptions}
-                  defaultValues={sessionListFilters.registrationFilters}
-                />
-                <FilterCheckboxFieldset
-                  legend="סטטוס משפחתי"
-                  name="sessionFamilyStatusFilter"
-                  options={familyStatusOptions}
-                  defaultValues={sessionListFilters.familyStatusFilters}
-                />
-                <FilterCheckboxFieldset
-                  legend="תוויות"
-                  name="sessionTagFilter"
-                  options={tagOptions}
-                  defaultValues={sessionListFilters.tagFilters}
-                  helperText="מצא מפגשים שהוגדרו לתלמידים עם תוויות אלו"
-                />
-              </div>
-            </details>
-            <div className="quick-actions" style={{ marginTop: 8 }}>
-              <button type="submit" className="quick-action-btn quick-action-outline">חפש מפגשים</button>
-              <Link className="quick-action-btn quick-action-primary" href="/attendance">באחריותי</Link>
-              <Link className="quick-action-btn quick-action-outline" href="/attendance?responsible=all">כל המפגשים</Link>
-            </div>
-          </form>
-          {canManageSessionLock && sessions.length ? (
-            <div className="quick-actions" style={{ marginTop: 10 }}>
-              <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>
-                <input type="hidden" name="locked" value="1" />
-                <input type="hidden" name="returnPath" value={attendanceReturnPath} />
-                {sessions.map((session) => (
-                  <input key={`bulk-lock-${session.id}`} type="hidden" name="sessionIds" value={session.id} />
-                ))}
-                <button type="submit" className="quick-action-btn quick-action-outline">נעל את כל הרשימה</button>
-              </form>
-              <form action={setAttendanceSessionsBulkLockAction} className="quick-actions" style={{ marginTop: 0 }}>
-                <input type="hidden" name="locked" value="0" />
-                <input type="hidden" name="returnPath" value={attendanceReturnPath} />
-                {sessions.map((session) => (
-                  <input key={`bulk-unlock-${session.id}`} type="hidden" name="sessionIds" value={session.id} />
-                ))}
-                <button type="submit" className="quick-action-btn quick-action-primary">פתח את כל הרשימה</button>
-              </form>
-            </div>
-          ) : null}
-          {!sessions.length ? (
-            <p className="muted">
-              לא נמצאו מפגשים שתואמים לחיפוש הנוכחי.
-            </p>
-          ) : (
-            <div className="attendance-session-list">
-              {sessions.map((session) => (
-                <div key={session.id} className="attendance-session-link">
-                  <Link href={`/attendance/${session.id}`}>
-                    <strong>{formatSessionLabel(session)}</strong>
-                    {formatSessionMeta(session) ? <span>{formatSessionMeta(session)}</span> : null}
-                    <span>נוצר על ידי: {session.createdByDisplayName}</span>
-                    <span>אחראי: {session.responsibleDisplayName || "לא הוגדר"}</span>
-                    <span>{session.isLocked ? "נעול לעדכונים" : "פתוח לעדכונים"}</span>
-                    <span>{session.visibleToStudents ? "גלוי לתלמידים" : "מוסתר מתלמידים"}</span>
-                    {formatSessionAudience(session) ? <span>{formatSessionAudience(session)}</span> : null}
-                    {session.sourceNote ? <span>{session.sourceNote}</span> : <span>{session.id}</span>}
-                  </Link>
-                  {canManageSessionLock ? (
-                    <form action={setAttendanceSessionLockAction}>
-                      <input type="hidden" name="sessionId" value={session.id} />
-                      <input type="hidden" name="locked" value={session.isLocked ? "0" : "1"} />
-                      <input type="hidden" name="returnPath" value={attendanceReturnPath} />
-                      <button type="submit" className={session.isLocked ? "quick-action-btn quick-action-primary" : "quick-action-btn quick-action-outline"}>
-                        {session.isLocked ? "פתח נעילה" : "נעל"}
-                      </button>
-                    </form>
-                  ) : null}
-                  <form action={deleteAttendanceSessionAction}>
-                    <input type="hidden" name="sessionId" value={session.id} />
-                    <button type="submit" className="quick-action-btn quick-action-outline">מחק</button>
-                  </form>
-                </div>
-              ))}
-            </div>
-          )}
-        </aside>
-      </div>
       <div className="card muted">בחר מפגש קיים או צור מפגש חדש כדי להתחיל להזין נוכחות.</div>
-      </PhoneWorkspace>
     </>
   );
 }
