@@ -35,7 +35,7 @@ expired windows do not restart without an explicit user action. Locked meetings,
 meetings for another Israel date and parent meetings are excluded. Existing
 attendance and notes remain protected by the same insert-only synchronizer.
 
-`/api/cron/attendance-presence` uses the existing server-only `CRON_SECRET` and
-Vercel's minute scheduler to claim due meetings atomically. Checks normally start
-within one minute of their due time; provider errors remain visible on the meeting
+`/api/cron/attendance-presence` uses GitHub Actions OIDC (restricted to this repository, main branch and the exact scheduled workflow) and
+a five-minute scheduler to claim due meetings atomically. Checks normally start
+within five minutes of their due time; provider errors remain visible on the meeting
 and the next interval can retry. Scheduling does not depend on an open browser.
