@@ -7918,3 +7918,14 @@ button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outl
   button.attendance-status-option { min-height: 48px; width: 100%; }
 }
 .attendance-wifi-origin { display: inline-flex; padding: 5px 10px; margin: 4px 0 8px; border-radius: 10px; background: #e6f4ff; color: #135d88; font-weight: 600; }
+@media (max-width: 640px) {
+  .attendance-index-header { padding: 16px; }
+  .attendance-index-header h1 { font-size: 24px; line-height: 1.25; margin: 0 0 8px; }
+  .attendance-index-header p { font-size: 14px; line-height: 1.5; margin: 0; }
+  .attendance-index-header .quick-actions { display: none; }
+  .attendance-management-tools .attendance-collapsible-summary .muted { display: none; }
+  .attendance-management-tools .attendance-collapsible-summary { min-height: 52px; padding: 12px 16px; }
+  .attendance-management-tools .attendance-collapsible-summary h3 { margin: 0; font-size: 16px; }
+  .attendance-meeting-browser { padding: 14px; }
+  .attendance-list-heading h2 { font-size: 19px; }
+}
