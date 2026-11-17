@@ -1,3 +1,4 @@
+import MeetingQuickOverview from "./meeting-quick-overview";
 import { attendanceListState, attendanceListHref } from "../../lib/attendance-list-view.mjs";
 import AttendanceLockDateField from "./lock-date-field";
 import Link from "next/link";
@@ -517,6 +518,7 @@ export default async function AttendancePage({ searchParams }) {
                     {formatSessionAudience(session) ? <span>{formatSessionAudience(session)}</span> : null}
                     {session.sourceNote ? <span>{session.sourceNote}</span> : null}
                   </Link>
+                  <MeetingQuickOverview sessionId={session.id} />
                   <details className="attendance-session-actions"><summary>ניהול מפגש</summary>
                   {canManageSessionLock ? (
                     <form action={setAttendanceSessionLockAction}>

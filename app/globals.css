@@ -7931,3 +7931,8 @@ button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outl
 }
 .attendance-contact-filter-panel { border-top: 1px solid var(--line); padding-top: 10px; }
 .attendance-contact-filter-panel > summary { cursor: pointer; font-weight: 600; min-height: 44px; padding: 10px 0; }
+.meeting-quick-overview { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; }
+.meeting-quick-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.meeting-quick-counts > span { border-radius: 8px; background: #edf2f8; padding: 5px 8px; font-size: 13px; }
+.meeting-quick-counts > .is-found { background: #e7f6ed; color: #136a40; }
+.meeting-quick-counts > .is-missing { background: #fff0ec; color: #a73d29; }
