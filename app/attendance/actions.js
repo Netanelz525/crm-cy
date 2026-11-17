@@ -299,6 +299,7 @@ async function persistAttendanceInvitationForm(formData) {
   await requireAttendanceUser();
   const sessionId = clean(formData.get("sessionId"));
   if (!sessionId) throw new Error("Missing attendance session id.");
+  const current=await getAttendanceSessionById(sessionId);
   const file = formData.get("invitationAttachment");
   let attachment = null;
   if (file && typeof file.arrayBuffer === "function" && file.size) {
@@ -321,8 +322,8 @@ async function persistAttendanceInvitationForm(formData) {
     emailSubject: clean(formData.get("invitationEmailSubject")),
     emailBody: clean(formData.get("invitationMessage")),
     emailRecipientRoles: cleanList(formData.getAll("invitationEmailRecipientRoles")),
-    whatsappTemplateName: clean(formData.get("invitationWhatsAppTemplateName")),
-    whatsappTemplateLanguage: clean(formData.get("invitationWhatsAppTemplateLanguage")) || "he",
+    whatsappTemplateName: formData.has("invitationWhatsAppTemplateName") ? clean(formData.get("invitationWhatsAppTemplateName")) : current.invitationWhatsAppTemplateName,
+    whatsappTemplateLanguage: clean(formData.get("invitationWhatsAppTemplateLanguage")) || current.invitationWhatsAppTemplateLanguage || "he",
     // The invitation uses one recipient selection for both channels. WhatsApp
     // should never silently diverge from the email recipients.
     whatsappRecipientRoles: cleanList(formData.getAll("invitationEmailRecipientRoles")),
