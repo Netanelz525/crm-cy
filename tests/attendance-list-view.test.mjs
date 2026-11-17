@@ -24,7 +24,7 @@ test('switching tabs preserves search criteria and clearing a responsibility rem
 test('actual meeting list SQL separates manual and automatic locks before applying the list limit', async () => {
   const db=new PGlite();
   try {
-    await db.exec(`CREATE TABLE attendance_sessions (id TEXT, is_locked BOOLEAN, auto_lock_date DATE, session_date DATE);
+    await db.exec(`CREATE TABLE attendance_sessions (id TEXT PRIMARY KEY, is_locked BOOLEAN, auto_lock_date DATE, session_date DATE);
       CREATE TABLE attendance_records (session_id TEXT);`);
     const sql=async(parts,...values)=>(await db.query(parts.reduce((s,p,i)=>s+(i?`$${i}`:'')+p,''),values)).rows;
     await migrateAttendancePresence(sql);

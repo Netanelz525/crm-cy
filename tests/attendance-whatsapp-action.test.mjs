@@ -10,6 +10,7 @@ const source = file.slice(start, end).replace(/^export /, '');
 async function submit(result, options = {}) {
   let completed = false;
   const calls = [];
+  const saved=[];
   const action = vm.runInNewContext(`(${source})`, {
     URLSearchParams,
     clean: value => String(value || '').trim(),
@@ -18,7 +19,12 @@ async function submit(result, options = {}) {
     redirect: url => { const error = new Error('redirect'); error.url = url; throw error; },
     revalidatePath: () => {},
     after: () => { throw new Error('must wait for provider result'); },
+    savedWhatsAppMedia: async()=>({attachment:null,upload:async()=>''}),
+    recordAttendanceMessagePreset: async(...args)=>saved.push(args),
+    getAttendanceSessionById: async()=>({emailSubject:'kept subject',emailResponseStatuses:['found']}),
+    updateAttendanceSessionMessaging: async()=>{},
     sendAttendanceSessionWhatsApp: async args => {
+      assert.equal(saved.length,1);
       calls.push(args);
       await Promise.resolve();
       completed = true;
@@ -34,7 +40,7 @@ async function submit(result, options = {}) {
   try { await action(form); assert.fail('expected redirect'); }
   catch (error) {
     if (!error.url) throw error;
-    return {query: new URL(error.url, 'https://crm.test').searchParams, completed, calls};
+    return {query: new URL(error.url, 'https://crm.test').searchParams, completed, calls,saved};
   }
 }
 test('form waits for provider and returns success and partial failure counts', async () => {
@@ -45,6 +51,8 @@ test('form waits for provider and returns success and partial failure counts', a
   assert.equal(response.query.get('whatsappMissingPhones'), '3');
   assert.equal(response.query.get('whatsappError'), 'provider failure');
   assert.equal(response.calls[0].personalMessage, 'edited message');
+  assert.equal(response.saved[0][1],'legacy-whatsapp');
+  assert.equal(response.saved[0][2].personalMessage,'edited message');
 });
 test('all provider failures and thrown errors redirect with visible errors, never queued success', async () => {
   for (const response of [

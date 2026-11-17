@@ -1,3 +1,4 @@
+import {listAttendanceMessagePresets} from "../../../lib/attendance";
 import NetworkPresencePanel from "../network-presence-panel";
 import AttendanceLockDateField from "../lock-date-field";
 import { israelDate } from "../../../lib/attendance-presence-policy.mjs";
@@ -20,6 +21,8 @@ import {
   sendAttendanceSessionEmailsAction,
   sendAttendanceSessionWhatsAppAction,
   sendAttendanceSessionWhatsAppApprovedTemplateAction,
+  duplicateAttendanceSessionAction,
+  restoreAttendanceMessagePresetAction,
   sendAttendanceInvitationAction,
   setAttendanceSessionLockAction,
   reconcileAttendanceWhatsAppRepliesAction,
@@ -117,6 +120,10 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
   const invitationRecipientCounts = roster
     ? await getAttendanceInvitationRecipientCounts({ sessionId, roster })
     : { students: 0, email: 0, whatsapp: 0 };
+  const savedMessages = roster ? await listAttendanceMessagePresets(sessionId) : [];
+  const legacyPreset=savedMessages.find(item=>item.id===resolvedSearchParams?.messagePresetId && item.channel==='legacy-whatsapp') || savedMessages.find(item=>item.channel==='legacy-whatsapp');
+  const legacyMessage=legacyPreset?.payload || {};
+  const reusableOtherMessages=savedMessages.filter(item=>['invitation','legacy-whatsapp'].includes(item.channel));
   const invitationSendHistory = roster ? await listAttendanceInvitationSends(sessionId) : [];
   const statusOptions = Array.isArray(roster?.session?.statusOptions) ? roster.session.statusOptions : [];
   const canManageSessionLock = currentUser.is_manager || currentUser.is_super_admin;
@@ -182,6 +189,15 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         <p className="muted">סוג מפגש: {roster.session.sessionTypeLabel} · נוצר: {roster.session.createdAt ? new Date(roster.session.createdAt).toLocaleString('he-IL', {timeZone:'Asia/Jerusalem', dateStyle:'short', timeStyle:'short'}) : '—'}</p>
         <Link className="quick-action-btn quick-action-outline" href="/attendance">חזרה למפגשים</Link>
       </div>
+      <details className="card"><summary>שכפל מפגש זה</summary>
+        <form action={duplicateAttendanceSessionAction} className="grid" style={{marginTop:12}}>
+          <input type="hidden" name="sourceSessionId" value={sessionId}/>
+          <label>שם המפגש החדש<input name="title" defaultValue={`${roster.session.displayTitle} - חדש`} required/></label>
+          <label>תאריך המפגש החדש<input name="sessionDate" type="date" defaultValue={israelDate()} required/></label>
+          <p className="muted">העתקת הגדרות ההודעות, WhatsApp, קבצים שמורים, סטטוסים ייחודיים ורשימת התלמידים למפגש חדש.</p>
+          <button type="submit" className="quick-action-btn quick-action-primary">צור עותק חדש</button>
+        </form>
+      </details>
       {roster.session.isLocked ? <div className="attendance-lock-banner" role="status">
         <strong>המפגש בארכיון ונעול לעדכונים.</strong>
         <p>כדי לשנות נוכחות יש לפתוח את הנעילה.</p>
@@ -353,7 +369,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </div>
           <span className="attendance-message-summary-action">פתח שליחה</span>
         </summary>
-        <AttendanceMessageComposer
+        <AttendanceMessageComposer key={sessionId} savedMessages={savedMessages}
           sessionId={roster.session.id}
           session={roster.session}
           statusOptions={statusOptions}
@@ -365,7 +381,14 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
         />
       </details>
 
-      <AttendanceInvitationConfig
+      {reusableOtherMessages.length ? <details className="card"><summary>נוסחי הזמנות והודעות קודמות לשליחה חוזרת</summary>
+        {reusableOtherMessages.map(item=><form key={item.id} action={restoreAttendanceMessagePresetAction} className="quick-actions">
+          <input type="hidden" name="sessionId" value={sessionId}/><input type="hidden" name="messagePresetId" value={item.id}/>
+          <span>{item.channel==='invitation'?'הזמנה':'WhatsApp'} · {item.payload.title || item.payload.personalMessage?.slice(0,80) || 'הודעה'} · {new Date(item.last_used_at).toLocaleString('he-IL',{timeZone:'Asia/Jerusalem'})}</span>
+          <button type="submit" className="quick-action-btn quick-action-outline">טען לעריכה ולשליחה</button>
+        </form>)}
+      </details> : null}
+      <AttendanceInvitationConfig key={`${sessionId}:${resolvedSearchParams?.messagePresetId || "current"}`}
         session={roster.session}
         templates={invitationTemplates}
         recipientCounts={invitationRecipientCounts}
@@ -452,8 +475,9 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           </div>
           <span className="attendance-message-summary-action">פתח אפשרויות</span>
         </summary>
-        <form className="grid attendance-message-grid">
+        <form key={legacyPreset?.id || sessionId} className="grid attendance-message-grid">
           <input type="hidden" name="sessionId" value={roster.session.id} />
+          <input type="hidden" name="messagePresetId" value={legacyPreset?.id || ""} />
           <label style={{ gridColumn: "1 / -1" }}>
             <span className="muted">נושא המייל</span>
             <input name="emailSubject" defaultValue={roster.session.emailSubject} placeholder="לדוגמה: עדכון נוכחות למפגש מנהל" />
@@ -485,14 +509,14 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
             <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
               {statusOptions.map(([value, label]) => (
                 <label key={`whatsapp-response-${value}`} className="attendance-filter-chip">
-                  <input type="checkbox" name="whatsappResponseStatuses" value={value} style={{ marginInlineEnd: 6 }} />
+                  <input type="checkbox" name="whatsappResponseStatuses" value={value} defaultChecked={legacyMessage.responseStatuses?.includes(value)} style={{ marginInlineEnd: 6 }} />
                   {label}
                 </label>
               ))}
             </div>
           </div>
           <label className="attendance-visibility-toggle" style={{ gridColumn: "1 / -1" }}>
-            <input type="checkbox" name="useGenericWhatsAppTemplate" value="1" />
+            <input type="checkbox" name="useGenericWhatsAppTemplate" value="1" defaultChecked={Boolean(legacyMessage.useGenericTemplate)} />
             <span className="attendance-visibility-box" aria-hidden="true" />
             <span>
               <strong>השתמש בתבנית פנייה כללית</strong>
@@ -502,6 +526,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <label style={{ gridColumn: "1 / -1" }}>
             <span className="muted">תמונה להודעת WhatsApp (אופציונלי, JPG או PNG עד 5MB)</span>
             <input type="file" name="whatsappImage" accept="image/jpeg,image/png" />
+            {legacyMessage.attachment ? <small className="muted">קובץ שמור לשליחה חוזרת: {legacyMessage.attachment.fileName}</small> : null}
             <small className="muted">מתאים לתבנית הפנייה הכללית או לפגישה ישירה עם ההורים.</small>
           </label>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
@@ -533,7 +558,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
                     type="checkbox"
                     name="targetStatuses"
                     value={value}
-                    defaultChecked={value === "missing"}
+                    defaultChecked={(legacyMessage.targetStatuses || ["missing"]).includes(value)}
                     style={{ marginInlineEnd: 6 }}
                   />
                   {label}

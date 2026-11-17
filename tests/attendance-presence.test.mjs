@@ -33,7 +33,7 @@ test('the actual base schema initializes a fresh database and upgrades again wit
   try {
     await initialize();
     assert.equal((await db.query("SELECT version FROM crm_schema_meta WHERE key='schema'")).rows[0].version,'20261006_3');
-    assert.equal((await db.query("SELECT version FROM crm_schema_meta WHERE key='attendance-presence-policy'")).rows[0].version,'20261117_1');
+    assert.equal((await db.query("SELECT version FROM crm_schema_meta WHERE key='attendance-presence-policy'")).rows[0].version,'20261117_2');
     await db.exec("INSERT INTO attendance_sessions(id,institution,session_date,auto_lock_date) VALUES ('old','ALL',CURRENT_DATE-20,CURRENT_DATE+1)");
     await db.exec("INSERT INTO attendance_records(session_id,student_id,student_name,status,note_text) VALUES ('old','s1','Synthetic','found','preserved')");
     await db.exec("UPDATE attendance_sessions SET auto_lock_date=NULL; UPDATE crm_schema_meta SET version='previous-schema'");

@@ -29,6 +29,13 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
   const [confirmError, setConfirmError] = useState("");
   const confirmRef = useRef(false);
   const formRef = useRef(null);
+  const settingsRef = useRef(null);
+  async function sendWithSettings(data){
+    const settings=new FormData(settingsRef.current);
+    for(const key of new Set(settings.keys()))data.delete(key);
+    for(const [key,value] of settings.entries())data.append(key,value);
+    return sendAction(data);
+  }
   const emailCount = Number(recipientCounts.email || 0);
   const whatsappCount = Number(recipientCounts.whatsapp || 0);
   const studentCount = Number(recipientCounts.students || 0);
@@ -59,7 +66,7 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
         </div>
         <span className="attendance-message-summary-action">פתח הגדרות הזמנה</span>
       </summary>
-      <form action={saveAction} encType="multipart/form-data" className="grid attendance-message-grid">
+      <form ref={settingsRef} action={saveAction} encType="multipart/form-data" className="grid attendance-message-grid">
         <input type="hidden" name="sessionId" value={session.id} />
         <label>
           <span className="muted">שם המפגש / שם הרשומה</span>
@@ -116,7 +123,7 @@ export default function AttendanceInvitationConfig({ session, templates = [], te
           <button type="submit" className="quick-action-btn quick-action-outline">שמור הגדרות הזמנה</button>
         </div>
       </form>
-      <form ref={formRef} action={sendAction} onSubmit={requestSend} className="quick-actions" style={{ marginTop: 12 }}>
+      <form ref={formRef} action={sendWithSettings} onSubmit={requestSend} className="quick-actions" style={{ marginTop: 12 }}>
         <input type="hidden" name="sessionId" value={session.id} />
         {sendEmail ? <input type="hidden" name="invitationChannels" value="email" /> : null}
         {sendWhatsApp ? <input type="hidden" name="invitationChannels" value="whatsapp" /> : null}

@@ -1,10 +1,13 @@
 "use server";
+import { meetingCloneInput } from "../../lib/attendance-message-presets.mjs";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import {
   createAttendanceSession,
+  recordAttendanceMessagePreset,
+  getAttendanceMessagePreset,
   deleteAttendanceSession,
   getAttendanceSessionById,
   normalizeAttendanceSessionType,
@@ -25,7 +28,7 @@ import {
 } from "../../lib/attendance";
 import { sendAttendanceSessionEmails } from "../../lib/attendance-email";
 import { sendAttendanceInvitation } from "../../lib/attendance-invitations";
-import { uploadBufferToR2 } from "../../lib/r2";
+import { getObjectBytesFromR2, uploadBufferToR2 } from "../../lib/r2";
 import { listWhatsAppCoexistenceApprovedTemplates, reconcileAttendanceWhatsAppReplies, sendAttendanceSessionWhatsApp, sendAttendanceSessionWhatsAppApprovedTemplate, uploadAttendanceWhatsAppImage } from "../../lib/attendance-whatsapp";
 import { requireAttendanceUser, requireEmailSender } from "../../lib/rbac";
 
@@ -102,6 +105,8 @@ export async function createAttendanceSessionAction(formData) {
     rosterMode: requestedRosterMode || templateSession?.rosterMode || (institutionFilter.length || classFilter.length || registrationFilter.length || familyStatusFilter.length ? "filters" : "manual"),
     responsibleUserIds: responsibleUserIds.length ? responsibleUserIds : (templateSession?.responsibleUserIds?.length ? templateSession.responsibleUserIds : [user.clerk_user_id]),
     visibleToStudents: templateSession ? Boolean(templateSession.visibleToStudents) : (canUseSessionAudienceFilters && clean(formData.get("visibleToStudents")) === "1"),
+    messagePresetSourceId: templateSession?.id || "",
+    excludedStudentIds: templateSession?.excludedStudentIds || [],
     createdByUserId: user.clerk_user_id
   });
 
@@ -285,11 +290,12 @@ export async function saveAttendanceSessionMessagingAction(formData) {
     emailRecipientRoles
   });
 
+  await recordAttendanceMessagePreset(sessionId,'email',{emailSubject,personalMessage,emailResponseStatuses,emailRecipientRoles,targetStatuses:cleanList(formData.getAll('targetStatuses'))});
   revalidatePath(`/attendance/${sessionId}`);
   redirect(`/attendance/${sessionId}?messageSaved=1`);
 }
 
-export async function saveAttendanceSessionInvitationAction(formData) {
+async function persistAttendanceInvitationForm(formData) {
   await requireAttendanceUser();
   const sessionId = clean(formData.get("sessionId"));
   if (!sessionId) throw new Error("Missing attendance session id.");
@@ -323,6 +329,11 @@ export async function saveAttendanceSessionInvitationAction(formData) {
     attachment,
     removeAttachment: clean(formData.get("removeInvitationAttachment")) === "1"
   });
+  return sessionId;
+}
+
+export async function saveAttendanceSessionInvitationAction(formData) {
+  const sessionId=await persistAttendanceInvitationForm(formData);
   revalidatePath(`/attendance/${sessionId}`);
   redirect(`/attendance/${sessionId}?invitationSaved=1`);
 }
@@ -333,6 +344,18 @@ export async function sendAttendanceInvitationAction(formData) {
   const channels = cleanList(formData.getAll("invitationChannels"));
   if (!sessionId) throw new Error("Missing attendance session id.");
   if (!channels.length) redirect(`/attendance/${sessionId}?invitationError=${encodeURIComponent("בחר ערוץ שליחה")}`);
+  if(formData.has('invitationTitle'))await persistAttendanceInvitationForm(formData);
+  const current=await getAttendanceSessionById(sessionId);
+  await recordAttendanceMessagePreset(sessionId,'invitation',{
+    title:current.title,invitationMessage:current.invitationMessage,
+    invitationWhatsAppMessage:current.invitationWhatsAppMessage,
+    emailSubject:current.invitationEmailSubject,emailBody:current.invitationEmailBody,
+    emailRecipientRoles:current.invitationEmailRecipientRoles,
+    whatsappTemplateName:current.invitationWhatsAppTemplateName,
+    whatsappTemplateLanguage:current.invitationWhatsAppTemplateLanguage,
+    whatsappRecipientRoles:current.invitationWhatsAppRecipientRoles,
+    attachment:current.invitationAttachment,channels
+  });
   after(async () => {
     try {
       await sendAttendanceInvitation({ sessionId, channels });
@@ -367,6 +390,7 @@ export async function sendAttendanceSessionEmailsAction(formData) {
       emailResponseStatuses,
       emailRecipientRoles
     });
+    await recordAttendanceMessagePreset(sessionId,'email',{emailSubject,personalMessage,emailResponseStatuses,emailRecipientRoles,targetStatuses});
   } catch (error) {
     revalidatePath(`/attendance/${sessionId}`);
     redirect(`/attendance/${sessionId}?mailError=${encodeURIComponent(clean(error?.message) || "שליחת המיילים נכשלה")}`);
@@ -434,9 +458,12 @@ export async function sendAttendanceSessionWhatsAppAction(formData) {
   }
   let result;
   try {
-    const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
-      ? await uploadAttendanceWhatsAppImage(imageFile)
-      : "";
+    const media=await savedWhatsAppMedia(formData,sessionId,'whatsappImage','legacy-whatsapp');
+    const personalMessage=clean(formData.get('personalMessage'));
+    await recordAttendanceMessagePreset(sessionId,'legacy-whatsapp',{personalMessage,responseStatuses,targetStatuses,recipientRoles,useGenericTemplate,attachment:media.attachment||null});
+    const current=await getAttendanceSessionById(sessionId);
+    await updateAttendanceSessionMessaging(sessionId,{emailSubject:current.emailSubject,personalMessage,emailResponseStatuses:current.emailResponseStatuses,emailRecipientRoles:recipientRoles});
+    const imageId=await media.upload();
     result = await sendAttendanceSessionWhatsApp({
       sessionId,
       personalMessage: clean(formData.get("personalMessage")),
@@ -479,9 +506,9 @@ export async function sendAttendanceSessionWhatsAppApprovedTemplateAction(formDa
     if (!templateName) throw new Error("יש לבחור תבנית WhatsApp מאושרת.");
     if (!recipientRoles.length) throw new Error("יש לבחור לפחות סוג נמען אחד לשליחת WhatsApp.");
     const templates = await listWhatsAppCoexistenceApprovedTemplates();
-    const imageId = imageFile && typeof imageFile.arrayBuffer === "function" && imageFile.size
-      ? await uploadAttendanceWhatsAppImage(imageFile)
-      : "";
+    const media=await savedWhatsAppMedia(formData,sessionId,'whatsappTemplateImage','whatsapp',templateName);
+    await recordAttendanceMessagePreset(sessionId,'whatsapp',{templateName,templateLanguage,recipientRoles,targetStatuses,responseStatuses,templateValues,attachment:media.attachment||null});
+    const imageId=await media.upload();
     const result = await sendAttendanceSessionWhatsAppApprovedTemplate({
       sessionId,
       templateName,
@@ -541,4 +568,53 @@ export async function refreshAttendancePresenceAutomaticAction(sessionId) {
   const id = clean(sessionId);
   if (!id) throw new Error('Missing attendance session id.');
   await runAttendancePresenceAutomatic(id);
+}
+
+export async function duplicateAttendanceSessionAction(formData) {
+  const user=await requireAttendanceUser();
+  const source=await getAttendanceSessionById(clean(formData.get('sourceSessionId')));
+  if(!source)throw new Error('המפגש המקורי לא נמצא.');
+  const session=await createAttendanceSession(meetingCloneInput(source,{
+    id:crypto.randomUUID(),title:clean(formData.get('title'))||`${source.displayTitle} - חדש`,
+    sessionDate:clean(formData.get('sessionDate')),createdByUserId:user.clerk_user_id
+  }));
+  revalidatePath('/attendance');
+  redirect(`/attendance/${session.id}?created=1`);
+}
+
+async function savedWhatsAppMedia(formData,sessionId,field,channel,templateName='') {
+  const file=formData.get(field);
+  let attachment;
+  if(file && typeof file.arrayBuffer==='function' && file.size) {
+    const type=clean(file.type).toLowerCase();
+    if(!['image/jpeg','image/png'].includes(type)||file.size>5*1024*1024)throw Error('אפשר לצרף JPG או PNG עד 5MB.');
+    const key=`attendance-messages/${sessionId}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+    const bytes=Buffer.from(await file.arrayBuffer());
+    await uploadBufferToR2({key,buffer:bytes,contentType:type});
+    attachment={objectKey:key,fileName:safeFileName(file.name),contentType:type,sizeBytes:file.size};
+  } else {
+    const preset=await getAttendanceMessagePreset(sessionId,clean(formData.get('messagePresetId')));
+    if(preset?.channel===channel && (!templateName||preset.payload.templateName===templateName))attachment=preset.payload.attachment;
+  }
+  return {attachment, async upload(){
+    if(!attachment)return '';
+    const {bytes}=await getObjectBytesFromR2(attachment.objectKey);
+    return uploadAttendanceWhatsAppImage(new File([bytes],attachment.fileName,{type:attachment.contentType}));
+  }};
+}
+
+export async function restoreAttendanceMessagePresetAction(formData) {
+  await requireAttendanceUser();
+  const sessionId=clean(formData.get('sessionId'));
+  const preset=await getAttendanceMessagePreset(sessionId,clean(formData.get('messagePresetId')));
+  if(!preset)throw Error('הנוסח השמור לא נמצא במפגש.');
+  const current=await getAttendanceSessionById(sessionId);
+  if(preset.channel==='invitation') {
+    await updateAttendanceSessionInvitation(sessionId,{...preset.payload,title:current.title,removeAttachment:!preset.payload.attachment});
+  } else if(preset.channel==='legacy-whatsapp') {
+    await updateAttendanceSessionMessaging(sessionId,{emailSubject:current.emailSubject,personalMessage:preset.payload.personalMessage,
+      emailResponseStatuses:current.emailResponseStatuses,emailRecipientRoles:preset.payload.recipientRoles});
+  }
+  revalidatePath(`/attendance/${sessionId}`);
+  redirect(`/attendance/${sessionId}?messagePresetId=${encodeURIComponent(preset.id)}`);
 }

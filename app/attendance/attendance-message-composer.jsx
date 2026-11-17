@@ -13,7 +13,16 @@ function SubmitButton({ children, formAction, primary = false }) {
   );
 }
 
-export default function AttendanceMessageComposer({
+export default function AttendanceMessageComposer(props) {
+  const [selected,setSelected]=useState('');
+  const messages=(props.savedMessages||[]).filter(item=>['email','whatsapp'].includes(item.channel));
+  const preset=messages.find(item=>item.id===selected);
+  return <><p className="muted">כל שליחה שומרת אוטומטית את הנוסח, התבנית והבחירות לשליחה חוזרת.</p>
+    {messages.length ? <label>נוסחים שמורים לשליחה חוזרת<select value={selected} onChange={event=>setSelected(event.target.value)}><option value="">הנוסחים האחרונים</option>{messages.map(item=><option key={item.id} value={item.id}>{item.channel==='email'?'מייל':'WhatsApp'} · {item.payload.emailSubject || item.payload.templateName || 'הודעה'} · {new Date(item.last_used_at).toLocaleString('he-IL',{timeZone:'Asia/Jerusalem'})}</option>)}</select></label> : null}
+    <MessageComposerForm key={selected || 'latest'} {...props} preset={preset}/></>;
+}
+
+function MessageComposerForm({
   sessionId,
   session,
   statusOptions,
@@ -21,13 +30,16 @@ export default function AttendanceMessageComposer({
   saveAction,
   emailAction,
   whatsappAction,
-  whatsappOnly = false
+  whatsappOnly = false, preset = null, savedMessages = []
 }) {
-  const [channel, setChannel] = useState(whatsappOnly ? "whatsapp" : "email");
-  const [templateName, setTemplateName] = useState(templates?.[0]?.name || "");
-  const selectedTemplate = templates?.find((item) => item.name === templateName);
-  const [templateValues, setTemplateValues] = useState({});
-  const [responseStatusValues, setResponseStatusValues] = useState([]);
+  const emailDraft=preset?.channel==='email' ? preset.payload : {targetStatuses:savedMessages.find(item=>item.channel==='email')?.payload?.targetStatuses};
+  const waDraft=(preset?.channel==='whatsapp'?preset:savedMessages.find(item=>item.channel==='whatsapp'))?.payload||{};
+  const waPreset=preset?.channel==='whatsapp'?preset:savedMessages.find(item=>item.channel==='whatsapp');
+  const [channel, setChannel] = useState(whatsappOnly || preset?.channel==='whatsapp' ? 'whatsapp' : 'email');
+  const [templateName, setTemplateName] = useState(waDraft.templateName || templates?.[0]?.name || "");
+  const selectedTemplate = templates?.find((item) => item.name === templateName && item.language === waDraft.templateLanguage) || templates?.find((item) => item.name === templateName);
+  const [templateValues, setTemplateValues] = useState(waDraft.templateValues || {});
+  const [responseStatusValues, setResponseStatusValues] = useState(waDraft.responseStatuses || []);
   const defaultRecipients = session?.emailRecipientRoles?.length ? session.emailRecipientRoles : ["father", "mother", "student"];
 
   useEffect(() => {
@@ -37,11 +49,13 @@ export default function AttendanceMessageComposer({
     ));
   }, [selectedTemplate?.name, selectedTemplate?.parameterCount]);
   useEffect(() => {
+    if(selectedTemplate?.name===waDraft.templateName && waDraft.responseStatuses?.length){setResponseStatusValues(waDraft.responseStatuses);return;}
     setResponseStatusValues((selectedTemplate?.buttonLabels || []).map((label, index) => statusOptions.find(([, statusLabel]) => statusLabel === label)?.[0] || ""));
   }, [selectedTemplate?.name]);
   return (
     <form className="grid attendance-message-grid" encType="multipart/form-data">
       <input type="hidden" name="sessionId" value={sessionId} />
+      <input type="hidden" name="messagePresetId" value={waPreset?.id || ""} />
       {!whatsappOnly ? <div className="attendance-channel-switch" style={{ gridColumn: "1 / -1" }}>
         <b>ערוץ שליחה</b>
         <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>
@@ -56,14 +70,14 @@ export default function AttendanceMessageComposer({
 
       {channel === "email" ? (
         <>
-          <label style={{ gridColumn: "1 / -1" }}><span className="muted">נושא המייל</span><input name="emailSubject" defaultValue={session?.emailSubject || ""} placeholder="לדוגמה: עדכון נוכחות למפגש מנהל" /></label>
-          <label style={{ gridColumn: "1 / -1" }}><span className="muted">טקסט ההודעה</span><textarea name="personalMessage" rows={4} defaultValue={session?.personalMessage || ""} placeholder="טקסט חופשי למייל" /></label>
+          <label style={{ gridColumn: "1 / -1" }}><span className="muted">נושא המייל</span><input name="emailSubject" defaultValue={emailDraft.emailSubject ?? session?.emailSubject ?? ""} placeholder="לדוגמה: עדכון נוכחות למפגש מנהל" /></label>
+          <label style={{ gridColumn: "1 / -1" }}><span className="muted">טקסט ההודעה</span><textarea name="personalMessage" rows={4} defaultValue={emailDraft.personalMessage ?? session?.personalMessage ?? ""} placeholder="טקסט חופשי למייל" /></label>
           <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
             <b>סטטוסים שאפשר לעדכן מתוך ההודעה</b>
-            <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`email-status-${value}`} className="attendance-filter-chip"><input type="checkbox" name="emailResponseStatuses" value={value} defaultChecked={session?.emailResponseStatuses?.includes(value)} />{label}</label>)}</div>
+            <div className="attendance-filter-toolbar" style={{ marginTop: 0 }}>{statusOptions.map(([value, label]) => <label key={`email-status-${value}`} className="attendance-filter-chip"><input type="checkbox" name="emailResponseStatuses" value={value} defaultChecked={(emailDraft.emailResponseStatuses || session?.emailResponseStatuses)?.includes(value)} />{label}</label>)}</div>
           </div>
-          <RecipientRoles defaultValues={defaultRecipients} name="emailRecipientRoles" />
-          <TargetStatuses statusOptions={statusOptions} />
+          <RecipientRoles defaultValues={emailDraft.emailRecipientRoles || defaultRecipients} name="emailRecipientRoles" />
+          <TargetStatuses statusOptions={statusOptions} defaultValues={emailDraft.targetStatuses || ["missing"]} />
           <div className="quick-actions"><SubmitButton formAction={saveAction}>שמור הודעה</SubmitButton><SubmitButton formAction={emailAction} primary>שלח מיילים למפגש</SubmitButton></div>
         </>
       ) : (
@@ -94,13 +108,14 @@ export default function AttendanceMessageComposer({
           {selectedTemplate?.headerFormat === "IMAGE" ? (
             <label style={{ gridColumn: "1 / -1" }}>
               <span className="muted">תמונה לצירוף לתבנית</span>
-              <input type="file" name="whatsappTemplateImage" accept="image/jpeg,image/png" required />
+              <input type="file" name="whatsappTemplateImage" accept="image/jpeg,image/png" required={!(waDraft.attachment && waDraft.templateName===templateName)} />
+              {waDraft.attachment && waDraft.templateName===templateName ? <small className="muted">הקובץ השמור יישלח שוב: {waDraft.attachment.fileName}. אפשר לבחור תמונה אחרת.</small> : null}
               <small className="muted">התבנית מאושרת לקבלת תמונת JPG או PNG עד 5MB.</small>
             </label>
           ) : null}
           <input type="hidden" name="whatsappTemplateLanguage" value={selectedTemplate?.language || "he"} />
-          <RecipientRoles defaultValues={defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
-          <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" />
+          <RecipientRoles defaultValues={waDraft.recipientRoles || defaultRecipients} name="whatsappRecipientRoles" whatsappOnly />
+          <TargetStatuses statusOptions={statusOptions} name="whatsappTargetStatuses" defaultValues={waDraft.targetStatuses || ["missing"]} />
           {selectedTemplate?.buttonLabels?.length ? <ResponseStatuses statusOptions={statusOptions} buttonLabels={selectedTemplate.buttonLabels} selectedValues={responseStatusValues} onChange={setResponseStatusValues} /> : <div className="muted" style={{ gridColumn: "1 / -1" }}>לתבנית הזו אין כפתורי תגובה.</div>}
           <div style={{ gridColumn: "1 / -1" }} className="attendance-whatsapp-note">כל כפתור מקושר אוטומטית למפגש הזה ולנמען, גם בתבנית ללא משתנים. כפתור מעדכן את סטטוס הנוכחות הקיים במפגש. תגובת טקסט משויכת להודעה שעליה ענו, או להודעה האחרונה, עד חמש שעות מהשליחה. מפגש נעול אינו משתנה.</div>
           <div className="quick-actions"><AttendanceWhatsAppSendSubmit formAction={whatsappAction}>שלח WhatsApp לפי התבנית</AttendanceWhatsAppSendSubmit></div>
