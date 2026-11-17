@@ -10,7 +10,7 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const db = new PGlite();
  t.after(() => db.close());
  await db.exec(`CREATE TABLE app_users(clerk_user_id text primary key, linked_student_id text, access_status text, role text, display_name text,can_call_attendance boolean default true,linked_student_class text);
- CREATE TABLE attendance_sessions(id text primary key,title text,session_type text,session_date date,responsible_user_ids text[],responsible_user_id text,created_at timestamptz default now(),updated_at timestamptz default '2026-09-08T00:00:00.123456Z',is_locked boolean default false);
+ CREATE TABLE attendance_sessions(id text primary key,title text,session_type text,session_date date DEFAULT CURRENT_DATE,responsible_user_ids text[],responsible_user_id text,created_at timestamptz default now(),updated_at timestamptz default '2026-09-08T00:00:00.123456Z',is_locked boolean default false);
  CREATE TABLE neon_students(student_id text primary key,full_name text,first_name text,last_name text,tznum text,class text,current_institution text,registration text,primary_email text,father_email text,mother_email text,student_phone text,father_phone text,mother_phone text,age_years int,children_count int,payload jsonb,synced_at timestamptz default now());
  CREATE TABLE attendance_records(session_id text,student_id text,student_name text,student_class text,status text,note_text text,marked_by_user_id text,marked_at timestamptz,updated_at timestamptz,primary key(session_id,student_id));
  CREATE TABLE student_contact_logs(id text primary key,student_id text,contact_date date,note_text text,created_by_user_id text,created_at timestamptz default now());
@@ -31,6 +31,7 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  const getStudent=async id=>{const row=(await db.query('SELECT * FROM neon_students WHERE student_id=$1',[id])).rows[0];return row?{...row.payload,id,childrenCount:row.children_count}:null;};
  const deps={buildAttendanceDashboard,sql,initDb:async()=>{},getAttendanceRoster:async()=>roster(),listAllNeonStudents:async()=>[{id:'caller-a'},{id:'caller-b'}],randomUUID,randomBytes,createHash,getNeonStudentById:getStudent,buildStudentMirrorRecord:mirror,...fieldHelpers};
  const api=new Function('deps', 'const {'+Object.keys(deps).join(',')+'}=deps;'+source+'\nreturn {publicCallAction,publicCallState,publicCallSettings,setPublicCallLink,claimAttendanceCall,finishAttendanceCall,saveCallTeam,listMyCallSessions,canAccessCallDesk,filterCallRoster,getAttendanceCallDashboard,listAttendanceCalls,searchAttendanceCalls,getAttendanceCallStudent,updateAttendanceCallStudent};')(deps);
+ await (await import('../../lib/attendance-presence-policy.mjs')).migrateAttendancePresence(sql);
  const manager={clerk_user_id:'manager',is_manager:true,access_status:'approved',can_call_attendance:true};
  const a={clerk_user_id:'a',linked_student_id:'caller-a',access_status:'approved',can_call_attendance:true};
  const b={clerk_user_id:'b',linked_student_id:'caller-b',access_status:'approved',can_call_attendance:true};
