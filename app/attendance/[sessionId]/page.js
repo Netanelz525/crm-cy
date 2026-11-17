@@ -1,3 +1,4 @@
+import DuplicateMeetingSubmit from "../duplicate-meeting-submit";
 import {listAttendanceMessagePresets} from "../../../lib/attendance";
 import NetworkPresencePanel from "../network-presence-panel";
 import AttendanceLockDateField from "../lock-date-field";
@@ -195,7 +196,7 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <label>שם המפגש החדש<input name="title" defaultValue={`${roster.session.displayTitle} - חדש`} required/></label>
           <label>תאריך המפגש החדש<input name="sessionDate" type="date" defaultValue={israelDate()} required/></label>
           <p className="muted">העתקת הגדרות ההודעות, WhatsApp, קבצים שמורים, סטטוסים ייחודיים ורשימת התלמידים למפגש חדש.</p>
-          <button type="submit" className="quick-action-btn quick-action-primary">צור עותק חדש</button>
+          <DuplicateMeetingSubmit/>
         </form>
       </details>
       {roster.session.isLocked ? <div className="attendance-lock-banner" role="status">
