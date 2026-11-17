@@ -192,6 +192,8 @@ export default async function AttendanceSessionPage({ params, searchParams }) {
           <button type="submit" className="quick-action-btn quick-action-primary">פתח מפגש לעדכון נוכחות</button>
         </form> : <p>יש לפנות למנהל לפתיחת המפגש.</p>}
       </div> : null}
+      {resolvedSearchParams?.created && roster.session.launchResult?.status === 'complete' ? <div className="ok" role="status">החפ״ק נפתח. פרטי המפגש וקישור המסונן ל״לא נמצא״ נשלחו לסופר־אדמינים בטלגרם.</div> : null}
+      {resolvedSearchParams?.created && roster.session.launchResult && !['complete','already_initialized'].includes(roster.session.launchResult.status) ? <div className="attendance-lock-banner" role="status">{roster.session.launchResult.status === 'failed' ? 'המפגש נוצר, אך פתיחת החפ״ק או שליחת הטלגרם לא הושלמו. אפשר ליצור קישור בחלק ניהול המפגש.' : 'החפ״ק נפתח, אך הודעת הטלגרם לא נשלחה לכל הסופר־אדמינים. ודאו שחובר להם חשבון טלגרם פעיל. אפשר ליצור ולשלוח קישור חדש מניהול המפגש.'}</div> : null}
       {resolvedSearchParams?.whatsappSent != null ? <div className="ok" role="status" aria-live="polite"><b>שליחת ה־WhatsApp הושלמה.</b> ספק WhatsApp אישר שליחת {clean(resolvedSearchParams.whatsappSent)} הודעות. נכשלו: {clean(resolvedSearchParams.whatsappFailed) || "0"}. תלמידים ללא מספר תקין: {clean(resolvedSearchParams.whatsappMissingPhones) || "0"}. אין צורך ללחוץ שוב על שליחה.</div> : null}
       {resolvedSearchParams?.whatsappError ? <div className="error" role="alert">{clean(resolvedSearchParams.whatsappError)}</div> : null}
       {whatsappTemplateSent ? <div className="ok">הודעות WhatsApp נשלחו לפי התבנית המאושרת.</div> : null}
