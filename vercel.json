@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
+      "path": "/api/cron/nedarim-transactions",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/cron/weekly-backup",
       "schedule": "0 19 * * 4"
     },
