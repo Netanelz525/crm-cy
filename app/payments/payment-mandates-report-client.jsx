@@ -503,7 +503,7 @@ export default function PaymentMandatesReportClient({
           <div className="payments-report-list">
             {visibleMandates.map((item) => (
               <details
-                key={`${item.provider}-${item.id}`}
+                key={`${item.provider}-${item.connectionId}-${item.id}`}
                 className={`payments-report-item${item.status === "issues" ? " payments-report-item-issue" : ""}${item.status === "completed" ? " payments-report-item-completed" : ""}`}
                 onToggle={(event) => {
                   if (event.currentTarget.open) {
@@ -515,6 +515,11 @@ export default function PaymentMandatesReportClient({
                   <div className="payments-report-summary-main">
                     <strong>{formatDateTime(item.nextChargeDate || item.createdAt)}</strong>
                     <span>{item.customerName || "ללא שם"}</span>
+                    {item.provider === "nederim" ? <span>
+                      חיוב מוצלח אחרון: {item.lastSuccessfulChargeDate
+                        ? item.lastSuccessfulChargeDate.split("-").reverse().join(".")
+                        : item.chargeHistoryKnown ? "לא נמצא" : "אין נתונים"}
+                    </span> : null}
                   </div>
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{item.connectionLabel}</span>
