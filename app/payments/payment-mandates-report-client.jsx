@@ -520,6 +520,9 @@ export default function PaymentMandatesReportClient({
                         ? item.lastSuccessfulChargeDate.split("-").reverse().join(".")
                         : item.chargeHistoryKnown ? "לא נמצא" : "אין נתונים"}
                     </span> : null}
+                    {item.chargeHistorySyncedAt ? <span className="muted">
+                      סנכרון אחרון {formatDateTime(item.chargeHistorySyncedAt)}
+                    </span> : null}
                   </div>
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{item.connectionLabel}</span>
