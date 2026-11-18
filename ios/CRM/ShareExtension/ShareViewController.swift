@@ -23,12 +23,18 @@ final class ShareViewController: UIViewController {
         actions.addArrangedSubview(cancel)
         guard let items = extensionContext?.inputItems as? [NSExtensionItem],
               let provider = items.flatMap({ $0.attachments ?? [] }).first else { message.text = "לא התקבל תוכן לשיתוף."; return }
+        let fileTypes = provider.registeredTypeIdentifiers.filter { identifier in
+            guard let type = UTType(identifier) else { return false }
+            return type != .fileURL && type != .url && !type.conforms(to: .plainText)
+                && (type.conforms(to: .data) || type.conforms(to: .content))
+        }
         if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            loadFile(provider, type: UTType.fileURL.identifier)
-        } else if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
-            loadFile(provider, type: UTType.pdf.identifier)
-        } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-            loadFile(provider, type: UTType.image.identifier)
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { [weak self] item, _ in
+                if let url = item as? URL, url.isFileURL, self?.readFile(url, provider: provider) == true { return }
+                self?.loadFile(provider, types: fileTypes)
+            }
+        } else if !fileTypes.isEmpty && !provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+            loadFile(provider, types: fileTypes)
         } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
             provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] item, _ in
                 let text = (item as? String) ?? (item as? NSAttributedString)?.string ?? ""
@@ -36,25 +42,40 @@ final class ShareViewController: UIViewController {
             }
         } else { message.text = "ניתן לשתף קובץ, תמונה או טקסט." }
     }
-    private func loadFile(_ provider: NSItemProvider, type: String) {
-        provider.loadFileRepresentation(forTypeIdentifier: type) { [weak self] url, _ in
-            guard let url else { DispatchQueue.main.async { self?.message.text = "קריאת הקובץ נכשלה." }; return }
-            do {
-                let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                guard size > 0, size <= 10 * 1024 * 1024 else { throw NSError(domain: "size", code: 1) }
-                let data = try Data(contentsOf: url)
-                let name = provider.suggestedName ?? url.lastPathComponent
-                let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-                DispatchQueue.main.async {
-                    self?.payload = ["name": name, "type": mime, "data": data.base64EncodedString()]
-                    self?.message.text = name + "\nבחרו פעולה. התוכן ימתין באפליקציה להשלמת הפרטים."
-                    self?.addAction("הדפסה", destination: "print")
-                    if ["application/pdf", "image/png", "image/jpeg", "image/webp"].contains(mime) {
-                        self?.addAction("שיוך לתלמיד", destination: "student")
-                    }
-                }
-            } catch { DispatchQueue.main.async { self?.message.text = "לא ניתן לקרוא את הקובץ. ניתן לשתף קובץ אחד עד 10MB." } }
+
+    private func loadFile(_ provider: NSItemProvider, types: [String]) {
+        guard let identifier = types.first else {
+            DispatchQueue.main.async { self.message.text = "לא ניתן לקרוא את הקובץ. ניתן לשתף קובץ אחד עד 10MB." }
+            return
         }
+        provider.loadFileRepresentation(forTypeIdentifier: identifier) { [weak self] url, _ in
+            if let url, self?.readFile(url, provider: provider, type: UTType(identifier)) == true { return }
+            self?.loadFile(provider, types: Array(types.dropFirst()))
+        }
+    }
+
+    private func readFile(_ url: URL, provider: NSItemProvider, type: UTType? = nil) -> Bool {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+              size > 0, size <= 10 * 1024 * 1024,
+              let data = try? Data(contentsOf: url), data.count == size else { return false }
+        let kind = UTType(filenameExtension: url.pathExtension) ?? type
+        let mime = kind?.preferredMIMEType ?? "application/octet-stream"
+        var name = provider.suggestedName ?? url.lastPathComponent
+        if URL(fileURLWithPath: name).pathExtension.isEmpty,
+           let suffix = kind?.preferredFilenameExtension { name += "." + suffix }
+        let fileName = name
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.payload = ["name": fileName, "type": mime, "data": data.base64EncodedString()]
+            self.message.text = fileName + "\nבחרו מה לעשות עם הקובץ ב־CRM CY."
+            self.addAction("הדפסה", destination: "print")
+            if ["application/pdf", "image/png", "image/jpeg", "image/webp"].contains(mime) {
+                self.addAction("שיוך לתלמיד", destination: "student")
+            }
+        }
+        return true
     }
     private func loadedText(_ text: String) {
         guard !text.isEmpty, text.utf8.count <= 100_000 else { message.text = "הטקסט ריק או ארוך מדי (עד 100KB)."; return }
@@ -81,7 +102,7 @@ final class ShareViewController: UIViewController {
             let bytes = try JSONSerialization.data(withJSONObject: payload)
             try bytes.write(to: manifest, options: [.atomic, .completeFileProtection])
             actions.arrangedSubviews.forEach { $0.isHidden = true }
-            message.text = "נשמר. פתחו את CRM CY כדי לבחור תלמיד או תבנית ולאשר את הפעולה. שום קובץ עדיין לא נשלח להדפסה או הועלה למערכת."
+            message.text = "נשמר. פתחו את CRM CY ממסך הבית כדי להמשיך לתבנית, להדפסה או לשיוך לתלמיד."
             let done = UIButton(type: .system); done.setTitle("סיום", for: .normal)
             done.addAction(UIAction { [weak self] _ in self?.extensionContext?.completeRequest(returningItems: nil) }, for: .touchUpInside)
             actions.addArrangedSubview(done)

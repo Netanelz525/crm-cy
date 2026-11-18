@@ -39,6 +39,8 @@ function SubmitButton({ outputMode }) {
 export default function AnnouncementGeneratorClient({ templates, signatures = [], action, initialTemplateId = "", canUseColor = false, sharedText = "" }) {
   const formRef = useRef(null);
   const [sharedField, setSharedField] = useState("");
+  const [replaceSharedField, setReplaceSharedField] = useState("");
+  const [sharedTextNotice, setSharedTextNotice] = useState("");
   const printPlans = canUseColor ? [...BW_PRINT_PLANS, ...COLOR_PRINT_PLANS] : BW_PRINT_PLANS;
   const initialSelectedId = templates.some((template) => template.id === initialTemplateId)
     ? initialTemplateId
@@ -133,7 +135,7 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
       {sharedText && <section className="card" style={{display:'grid',gap:12}}>
         <label>הטקסט ששיתפתם<textarea readOnly value={sharedText} rows={5}/></label>
         <label>לאיזה שדה בתבנית להכניס את הטקסט?
-          <select value={sharedField} onChange={e=>setSharedField(e.target.value)}>
+          <select value={sharedField} onChange={e=>{ setSharedField(e.target.value); setReplaceSharedField(""); setSharedTextNotice(""); }}>
             <option value="">בחרו שדה</option>
             {(selectedTemplate?.fields || []).filter(field=>field.type!=='image').map(field=><option key={field.key} value={field.key}>{field.label}</option>)}
           </select>
@@ -141,11 +143,23 @@ export default function AnnouncementGeneratorClient({ templates, signatures = []
         <button type="button" className="btn" disabled={!sharedField} onClick={()=>{
           const input = formRef.current?.elements.namedItem(`field:${sharedField}`);
           if (!input || !('value' in input)) return;
-          if (input.value && !window.confirm('להחליף את הטקסט הקיים בשדה?')) return;
+          if (input.maxLength > 0 && sharedText.length > input.maxLength) {
+            setSharedTextNotice(`השדה מאפשר עד ${input.maxLength} תווים. בחרו שדה אחר או שתפו טקסט קצר יותר.`);
+            return;
+          }
+          const fieldId = `${selectedId}:${sharedField}`;
+          if (input.value && replaceSharedField !== fieldId) {
+            setReplaceSharedField(fieldId);
+            setSharedTextNotice("כבר יש טקסט בשדה. לחצו שוב כדי להחליף אותו.");
+            return;
+          }
+          setReplaceSharedField("");
+          setSharedTextNotice("הטקסט הוכנס לשדה שבחרתם.");
           input.value = sharedText;
           input.dispatchEvent(new Event('input',{bubbles:true}));
           input.focus();
-        }}>הכנס את הטקסט לשדה הנבחר</button>
+        }}>{replaceSharedField === `${selectedId}:${sharedField}` ? "החלף את הטקסט בשדה" : "הכנס את הטקסט לשדה הנבחר"}</button>
+        {sharedTextNotice && <p role="status">{sharedTextNotice}</p>}
       </section>}
 
       <div className="announcement-template-picker">
