@@ -66,3 +66,47 @@ test('redemption rejects foreign origins and never asks Clerk for an unverified 
   assert.equal((await route.POST(request({code:'valid',verifier:'proof'}))).status,409);
   assert.equal(minted,1);
 });
+
+test('share session exchange requires an approved login, protected token and a still-active source session', async () => {
+  const db = new PGlite();
+  let approved = true, sessionStatus = 'active', minted = 0;
+  try {
+    const sql = async (strings, ...values) => (await db.query(
+      strings.reduce((query, part, i) => query + (i ? `$${i}` : '') + part, ''), values
+    )).rows;
+    const route = await load('../app/api/mobile/share-session/route.js', {
+      'node:crypto': crypto,
+      '@clerk/nextjs/server': {
+        auth: async () => ({ sessionId: 'source' }),
+        clerkClient: async () => ({
+          sessions: { getSession: async () => ({ status: sessionStatus, userId: 'owner' }) },
+          signInTokens: { createSignInToken: async ({ userId, expiresInSeconds }) => {
+            assert.equal(userId, 'owner'); assert.equal(expiresInSeconds, 30);
+            minted++; return { token: 'ticket' };
+          } }
+        })
+      },
+      '../../../../lib/rbac': { getCurrentAppUser: async () => ({ access_status: approved ? 'approved' : 'pending', clerk_user_id: 'owner' }) },
+      '../../../../lib/db': { sql, ensureDbFeature: async (_key, _version, migrate) => migrate() }
+    });
+    const request = (body, origin = 'https://crm.example') => new Request('https://crm.example/api/mobile/share-session', {
+      method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    assert.equal((await route.POST(request({ kind: 'issue' }, 'https://foreign.example'))).status, 403);
+    approved = false;
+    assert.equal((await route.POST(request({ kind: 'issue' }))).status, 401);
+    approved = true;
+    const issue = await (await route.POST(request({ kind: 'issue' }))).json();
+    const row = (await db.query('SELECT token_hash FROM mobile_share_sessions')).rows[0];
+    assert.notEqual(row.token_hash, issue.token);
+    assert.equal((await route.POST(request({ token: 'bad' }))).status, 401);
+    assert.equal(minted, 0);
+    assert.equal((await route.POST(request({ token: issue.token }))).status, 200);
+    sessionStatus = 'revoked';
+    assert.equal((await route.POST(request({ token: issue.token }))).status, 401);
+    sessionStatus = 'active';
+    await db.query("UPDATE mobile_share_sessions SET expires_at=NOW()-INTERVAL '1 second'");
+    assert.equal((await route.POST(request({ token: issue.token }))).status, 401);
+    assert.equal(minted, 1);
+  } finally { await db.close(); }
+});

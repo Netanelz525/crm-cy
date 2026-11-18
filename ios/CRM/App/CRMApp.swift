@@ -202,6 +202,14 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame,
               message.frameInfo.securityOrigin.host == baseURL.host else { return }
+        if let value = message.body as? [String: Any],
+           value["kind"] as? String == "shareSession",
+           let token = value["token"] as? String, token.count == 64,
+           let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.il.co.yeshivatcy.crm"),
+           let bytes = try? JSONSerialization.data(withJSONObject: value) {
+            try? bytes.write(to: root.appendingPathComponent("ShareSession.json"), options: [.atomic, .completeFileProtection])
+            return
+        }
         if webView.url?.path == "/mobile/import" {
             if message.body as? String == "importReady", let payload = importedPayload {
                 webView.callAsyncJavaScript("window.dispatchEvent(new CustomEvent('crm-mobile-import',{detail:payload}));",
@@ -325,6 +333,15 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { loading = true; error = nil }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         loading = false; canGoBack = webView.canGoBack
+        if webView.url?.host == baseURL.host && !["/sign-in", "/mobile/share-connect"].contains(webView.url?.path ?? "") {
+            webView.evaluateJavaScript("""
+                fetch('/api/mobile/share-session', {method:'POST',headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({kind:'issue'})}).then(r=>r.ok?r.json():null).then(value=>{
+                    if(value) window.webkit.messageHandlers.mobileAuth.postMessage({...value,kind:'shareSession'});
+                  }).catch(()=>{});
+                """, completionHandler: nil)
+        }
+
         if webView.url?.path != "/mobile/finish" && webView.url?.path != "/mobile/import" {
             if activeImport != nil && importedPayload != nil {
                 // Resume a pending share after a system authentication round trip.

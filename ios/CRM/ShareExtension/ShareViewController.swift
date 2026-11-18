@@ -1,7 +1,12 @@
 import UIKit
 import UniformTypeIdentifiers
+import WebKit
 
-final class ShareViewController: UIViewController {
+final class ShareViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler, WKDownloadDelegate {
+    private var webView: WKWebView?
+    private var shareToken = ""
+    private var downloads: [ObjectIdentifier: URL] = [:]
+    private let baseURL = URL(string: "https://crm-cy-nu.vercel.app")!
     private var payload: [String: String] = [:]
     private let message = UILabel()
     private let actions = UIStackView()
@@ -91,21 +96,95 @@ final class ShareViewController: UIViewController {
         actions.insertArrangedSubview(button, at: 0)
     }
     private func save(destination: String) {
-        guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.il.co.yeshivatcy.crm") else {
-            message.text = "השיתוף אינו מוגדר בבנייה זו."; return
+        guard webView == nil else { return }
+        guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.il.co.yeshivatcy.crm"),
+              let bytes = try? Data(contentsOf: root.appendingPathComponent("ShareSession.json")),
+              let session = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+              let token = session["token"] as? String,
+              let expiry = session["expiresAt"] as? Double, expiry > Date().timeIntervalSince1970 * 1000 else {
+            message.text = "פתחו את CRM CY פעם אחת כדי להפעיל את ההתחברות לשיתוף, ואז שתפו שוב."
+            return
         }
+        shareToken = token
+        payload["destination"] = destination
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.userContentController.add(self, name: "mobileAuth")
+        let browser = WKWebView(frame: .zero, configuration: configuration)
+        browser.navigationDelegate = self
+        browser.translatesAutoresizingMaskIntoConstraints = false
+        webView = browser
+        view.addSubview(browser)
+        let close = UIButton(type: .system)
+        close.setTitle("סיום", for: .normal)
+        close.addAction(UIAction { [weak self] _ in self?.extensionContext?.completeRequest(returningItems: nil) }, for: .touchUpInside)
+        close.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(close)
+        NSLayoutConstraint.activate([
+            close.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            close.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            close.heightAnchor.constraint(equalToConstant: 44),
+            browser.topAnchor.constraint(equalTo: close.bottomAnchor, constant: 8),
+            browser.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            browser.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            browser.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
+        browser.load(URLRequest(url: baseURL.appendingPathComponent("mobile/share-connect")))
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.host == baseURL.host,
+              let browser = webView else { return }
+        if message.body as? String == "shareConnectReady", browser.url?.path == "/mobile/share-connect" {
+            browser.callAsyncJavaScript("window.dispatchEvent(new CustomEvent('crm-share-connect',{detail:{token}}));",
+                arguments: ["token": shareToken], in: nil, in: .page, completionHandler: nil)
+        }
+        if message.body as? String == "importReady", browser.url?.path == "/mobile/import" {
+            browser.callAsyncJavaScript("window.dispatchEvent(new CustomEvent('crm-mobile-import',{detail:payload}));",
+                arguments: ["payload": payload], in: nil, in: .page, completionHandler: nil)
+        }
+        if message.body as? String == "importCompleted" { payload = [:] }
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let url = action.request.url else { decisionHandler(.cancel); return }
+        if action.targetFrame?.isMainFrame == false {
+            decisionHandler(url.scheme == "https" || url.scheme == "about" ? .allow : .cancel)
+        } else {
+            decisionHandler(url.scheme == "https" && (url.host == baseURL.host || url.host?.hasSuffix(".accounts.dev") == true) ? .allow : .cancel)
+        }
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
+                 decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        let disposition = (response.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition") ?? ""
+        decisionHandler(!response.canShowMIMEType || disposition.lowercased().contains("attachment") ? .download : .allow)
+    }
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) { download.delegate = self }
+    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String,
+                  completionHandler: @escaping (URL?) -> Void) {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         do {
-            let folder = root.appendingPathComponent("SharedInbox", isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let manifest = folder.appendingPathComponent(UUID().uuidString + ".json")
-            payload["destination"] = destination
-            let bytes = try JSONSerialization.data(withJSONObject: payload)
-            try bytes.write(to: manifest, options: [.atomic, .completeFileProtection])
-            actions.arrangedSubviews.forEach { $0.isHidden = true }
-            message.text = "נשמר. פתחו את CRM CY ממסך הבית כדי להמשיך לתבנית, להדפסה או לשיוך לתלמיד."
-            let done = UIButton(type: .system); done.setTitle("סיום", for: .normal)
-            done.addAction(UIAction { [weak self] _ in self?.extensionContext?.completeRequest(returningItems: nil) }, for: .touchUpInside)
-            actions.addArrangedSubview(done)
-        } catch { message.text = "שמירת השיתוף נכשלה. נסו שוב." }
+            let url = folder.appendingPathComponent(URL(fileURLWithPath: suggestedFilename).lastPathComponent)
+            downloads[ObjectIdentifier(download)] = url
+            completionHandler(url)
+        } catch { completionHandler(nil) }
+    }
+    func downloadDidFinish(_ download: WKDownload) {
+        guard let url = downloads.removeValue(forKey: ObjectIdentifier(download)) else { return }
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        sheet.popoverPresentationController?.sourceView = view
+        sheet.completionWithItemsHandler = { _, _, _, _ in try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        present(sheet, animated: true)
+    }
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        if let url = downloads.removeValue(forKey: ObjectIdentifier(download)) {
+            try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        }
+        let alert = UIAlertController(title: "ההורדה נכשלה", message: "נסו שוב מתוך חלון השיתוף.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "אישור", style: .default))
+        present(alert, animated: true)
     }
 }
