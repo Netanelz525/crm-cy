@@ -515,7 +515,7 @@ export default function PaymentMandatesReportClient({
                   <div className="payments-report-summary-main">
                     <strong>{formatDateTime(item.nextChargeDate || item.createdAt)}</strong>
                     <span>{item.customerName || "ללא שם"}</span>
-                    {item.provider === "nederim" ? <span>
+                    {["nederim", "stripe"].includes(item.provider) ? <span>
                       חיוב מוצלח אחרון: {item.lastSuccessfulChargeDate
                         ? item.lastSuccessfulChargeDate.split("-").reverse().join(".")
                         : item.chargeHistoryKnown ? "לא נמצא" : "אין נתונים"}
