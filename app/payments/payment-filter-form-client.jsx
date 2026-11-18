@@ -22,7 +22,6 @@ export default function PaymentFilterFormClient({
   const [selectedIds, setSelectedIds] = useState(
     selectedConnectionIds.length ? selectedConnectionIds : allConnectionIds
   );
-  const [selectedReportType, setSelectedReportType] = useState(reportType);
   const [selectedMandateStatus, setSelectedMandateStatus] = useState(mandateStatus);
 
   useEffect(() => {
@@ -30,15 +29,11 @@ export default function PaymentFilterFormClient({
   }, [selectedConnectionIds, allConnectionIds]);
 
   useEffect(() => {
-    setSelectedReportType(reportType);
-  }, [reportType]);
-
-  useEffect(() => {
     setSelectedMandateStatus(mandateStatus || "active");
   }, [mandateStatus]);
 
   const allSelected = allConnectionIds.length > 0 && selectedIds.length === allConnectionIds.length;
-  const hideDates = selectedReportType === "mandates";
+  const hideDates = reportType === "mandates";
 
   function toggleAll() {
     setSelectedIds((current) => (current.length === allConnectionIds.length ? [] : allConnectionIds));
@@ -55,16 +50,7 @@ export default function PaymentFilterFormClient({
   return (
     <form method="get" style={{ display: "grid", gap: 16 }}>
       <input type="hidden" name="run" value="1" />
-      <div className="grid">
-        <select
-          name="reportType"
-          value={selectedReportType}
-          onChange={(event) => setSelectedReportType(clean(event.target.value) === "mandates" ? "mandates" : "transactions")}
-        >
-          <option value="transactions">דוח עסקאות</option>
-          <option value="mandates">דוח הוראות קבע</option>
-        </select>
-      </div>
+      <input type="hidden" name="reportType" value={reportType} />
       {!hideDates ? (
         <div className="grid">
           <input type="date" name="dateFrom" defaultValue={dateFrom} required />
@@ -119,7 +105,7 @@ export default function PaymentFilterFormClient({
       </div>
 
       <button type="submit" disabled={!selectedIds.length}>
-        {selectedReportType === "mandates" ? "הפק דוח הוראות קבע" : "הפק דוח עסקאות"}
+        {reportType === "mandates" ? "הפק דוח הוראות קבע" : "הפק דוח עסקאות"}
       </button>
     </form>
   );

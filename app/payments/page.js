@@ -68,6 +68,15 @@ export default async function PaymentsPage({ searchParams }) {
       : { transactions: [], errors: [], connections: [], summary: { totalAmount: 0, totalNetAmount: 0, totalFees: 0 } };
   const externalMandates = reportType === "mandates" ? await listExternalMandatesSafe() : [];
 
+  function reportHref(type) {
+    const params = new URLSearchParams({ reportType: type });
+    for (const id of requestedConnectionIds) {
+      if (selectedConnectionIds.includes(id)) params.append("connectionId", id);
+    }
+    return `/payments?${params}#payment-report-filters`;
+  }
+
+
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <section className="card glass">
@@ -75,6 +84,22 @@ export default async function PaymentsPage({ searchParams }) {
         <p className="muted" style={{ marginBottom: 0 }}>
           דוחות מאוחדים מכל המוסדות והחשבונות שחוברו למערכת, כולל עסקאות והוראות קבע מנדרים פלוס ו־Stripe.
         </p>
+        <nav className="quick-actions" aria-label="בחירת סוג הדוח">
+          {[
+            ["mandates", "דוח הוראות קבע"],
+            ["transactions", "דוח עסקאות"]
+          ].map(([type, label]) => (
+            <Link
+              key={type}
+              href={reportHref(type)}
+              prefetch={false}
+              aria-current={reportType === type ? "page" : undefined}
+              className={`quick-action-btn ${reportType === type ? "quick-action-primary" : "quick-action-outline"}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
         <div className="quick-actions">
           <Link className="quick-action-btn quick-action-outline" href="/neon">חזרה לתלמידים</Link>
           {currentUser.is_super_admin ? (
@@ -97,8 +122,8 @@ export default async function PaymentsPage({ searchParams }) {
         </details>
       ) : null}
 
-      <section className="card">
-        <h2 style={{ marginTop: 0 }}>סינון הדוח</h2>
+      <section className="card" id="payment-report-filters">
+        <h2 style={{ marginTop: 0 }}>{reportType === "mandates" ? "סינון הוראות קבע" : "סינון עסקאות"}</h2>
         {notice ? <div className="ok">{notice}</div> : null}
         {error ? <div className="error">{error}</div> : null}
         {!activeConnections.length ? (
