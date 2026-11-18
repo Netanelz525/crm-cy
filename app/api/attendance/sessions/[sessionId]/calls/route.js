@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
     }
     if (body.kind === "manage_attempt" || body.kind === "requeue") return NextResponse.json(await manageAttendanceCall(sessionId, body, user));
     if (body.kind === "claim") return NextResponse.json(await claimAttendanceCall(sessionId, user, body.studentId, body.attendanceStatus));
-    if (body.kind === "dashboard") return NextResponse.json(await getAttendanceCallDashboard(sessionId, user));
+    if (body.kind === "dashboard") return NextResponse.json(await getAttendanceCallDashboard(sessionId, user, body.namesForStatus));
     if (body.kind === "list") return NextResponse.json(await listAttendanceCalls(sessionId, user));
     if (body.kind === "search") return NextResponse.json(await searchAttendanceCalls(sessionId, body.query, user, body.attendanceStatus));
     if (body.kind === "details") return NextResponse.json(await getAttendanceCallStudent(sessionId, body, user));
