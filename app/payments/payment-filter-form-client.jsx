@@ -82,7 +82,7 @@ export default function PaymentFilterFormClient({
               <option value="active">הצג הוראות קבע פעילות</option>
               <option value="ending_soon">הצג הוראות קבע לקראת סיום</option>
               <option value="issues">הצג הוראות קבע עם תקלות</option>
-              <option value="completedNoRemaining">הצג הוראות שהסתיימו התשלומים שלהן</option>
+              <option value="completed">הצג הוראות קבע שהסתיימו</option>
               <option value="external">הצג הוראות קבע ממערכת חיצונית</option>
               <option value="all">הצג את כל הוראות הקבע</option>
             </select>
