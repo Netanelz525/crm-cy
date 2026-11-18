@@ -195,8 +195,14 @@ test('attendance calls: SQL queue, leases, authorization, outcomes and atomic wr
  assert.equal(ownRow.inCall,true);assert.equal(ownRow.busy,false);
  students=originalStudents;
  for(const kind of ['details','update_student','invitation','team'])await assert.rejects(api.publicCallAction(open.token,w1,{kind}),e=>e.status===403);
+ const attendance=await api.publicCallAction(open.token,w1,{kind:'attendance_list'});
+ assert.equal(attendance.students.length,students.length);
+ await assert.rejects(api.publicCallAction(open.token,w1,{kind:'attendance_update',studentId:'not-in-meeting',status:'missing'}),e=>e.status===403);
+ await api.publicCallAction(open.token,w1,{kind:'attendance_update',studentId:guest1.lead.studentId,status:'missing'});
+ const mark=(await db.query('SELECT status,note_text FROM attendance_records WHERE student_id=$1',[guest1.lead.studentId])).rows[0];
+ assert.deepEqual(mark,{status:'missing',note_text:'Public test'});
  const rotated=await api.setPublicCallLink('meeting',true,manager);await assert.rejects(api.publicCallAction(open.token,w1,{kind:'claim'}),e=>e.status===403);
- for(const kind of ['list','search','dashboard'])await assert.rejects(api.publicCallAction(open.token,w1,{kind,query:'Lead'}),e=>e.status===403);
+ for(const kind of ['list','search','dashboard','attendance_list','attendance_update'])await assert.rejects(api.publicCallAction(open.token,w1,{kind,query:'Lead'}),e=>e.status===403);
  assert.equal((await db.query("SELECT * FROM attendance_call_leads WHERE caller_key LIKE 'public:%'")).rows.length,0);
  assert((await api.publicCallState(rotated.token)).sessionId==='meeting');await api.setPublicCallLink('meeting',false,manager);await assert.rejects(api.publicCallState(rotated.token),e=>e.status===403);
  // No-answer remains claimable when all other leads are completed, even for

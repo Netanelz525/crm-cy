@@ -7972,3 +7972,32 @@ button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outl
   padding-inline-start: 1.5rem;
   line-height: 1.8;
 }
+
+.call-attendance-roster-filters,
+.call-attendance-roster-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: end;
+}
+
+.call-attendance-roster-filters label {
+  flex: 1 1 12rem;
+}
+
+.call-attendance-roster-list {
+  list-style: none;
+  padding: 0;
+}
+
+.call-attendance-roster-list li {
+  justify-content: space-between;
+  align-items: center;
+  border-block-end: 1px solid var(--line);
+  padding: .65rem 0;
+}
+
+.call-attendance-roster-list select {
+  width: auto;
+  min-height: 44px;
+}

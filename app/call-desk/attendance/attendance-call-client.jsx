@@ -3,6 +3,7 @@ import {callPhone as phoneNumber} from "../../../lib/call-phone";
 import Link from "next/link";
 import { callDeskFilterKey, resolveCallDeskFilter } from "../../../lib/call-desk-preferences.mjs";
 import { useEffect, useMemo, useRef, useState } from "react";
+import CallAttendanceRoster from "./call-attendance-roster";
 import CallStudentEditor from "./call-student-editor";
 
 function ContactDetails({ label, name, phone, email, active }) {
@@ -96,6 +97,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     });
     return { rows, callCounts, attendanceCounts: [...attendanceCounts].sort(([a], [b]) => String(a).localeCompare(String(b), "he")) };
   }, [matches, listStatus, listOutcome, listSort]);
+  const [attendanceMode, setAttendanceMode] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [dashboardError, setDashboardError] = useState("");
   const publicWindow=useRef("");
@@ -228,9 +230,16 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     } finally { setInvitationBusy(false); }
   }
   if(closed)return <section className="card"><h1>החפ״ק נסגר</h1><p>יש לפנות למנהל לקבלת קישור פעיל.</p></section>;
+  if (attendanceMode) return <CallAttendanceRoster
+    title={data?.session?.title || title} request={request}
+    initialStatus={initialStatus}
+    onBack={() => setAttendanceMode(false)}
+  />;
   return <div className="call-desk-layout"><section className="card call-desk">
     {!publicToken&&<Link href="/call-desk">חזרה לאזור השיחות שלי</Link>}
     <h1>{data?.session?.title || title}</h1>
+    {!locked && <button type="button" className="quick-action-btn quick-action-primary"
+      onClick={() => setAttendanceMode(true)}>ניהול נוכחות במפגש</button>}
     <p className="muted">כל תלמיד מוקצה לך לחמש דקות. לאחר טיפול, דחייה או אי־מענה עוברים לתלמיד הבא.</p>
     <details className="call-status-picker">
       <summary className="call-status-picker-heading"><span><b>מתקשרים לסטטוסים:</b> <strong>{selectedStatusLabel}</strong></span><span className="muted">לחץ לשינוי ▾</span></summary>
