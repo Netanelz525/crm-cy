@@ -26,7 +26,8 @@ export default async function PaymentsPage({ searchParams }) {
 
   const resolvedSearchParams = await searchParams;
   const defaults = getDefaultPaymentDateRange();
-  const reportType = clean(resolvedSearchParams?.reportType) === "mandates" ? "mandates" : "transactions";
+  const requestedReportType = clean(resolvedSearchParams?.reportType);
+  const reportType = requestedReportType === "transactions" ? "transactions" : "mandates";
   const mandateStatus = reportType === "mandates"
     ? (["ongoing", "active", "ending_soon", "issues", "completed", "completedNoRemaining", "external", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
       ? (clean(resolvedSearchParams?.mandateStatus) === "completedNoRemaining" ? "completed" : clean(resolvedSearchParams?.mandateStatus))
@@ -42,7 +43,7 @@ export default async function PaymentsPage({ searchParams }) {
   const error = clean(resolvedSearchParams?.error);
   const linkingCompleted = clean(resolvedSearchParams?.linkingCompleted) === "1";
   const linkingError = clean(resolvedSearchParams?.linkingError);
-  const shouldRunReport = clean(resolvedSearchParams?.run) === "1";
+  const shouldRunReport = !requestedReportType || clean(resolvedSearchParams?.run) === "1";
   const activeConnections = await listPaymentConnections({ activeOnly: true });
   const requestedConnectionIds = Array.isArray(resolvedSearchParams?.connectionId)
     ? resolvedSearchParams.connectionId.map(clean).filter(Boolean)
