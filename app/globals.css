@@ -7936,3 +7936,14 @@ button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outl
 .meeting-quick-counts > span { border-radius: 8px; background: #edf2f8; padding: 5px 8px; font-size: 13px; }
 .meeting-quick-counts > .is-found { background: #e7f6ed; color: #136a40; }
 .meeting-quick-counts > .is-missing { background: #fff0ec; color: #a73d29; }
+
+.payments-report-item-warning {
+  border-color: #fdba74;
+  background: #fff7ed;
+}
+
+.meta-chip.meta-chip-warning {
+  border-color: #fdba74;
+  background: #ffedd5;
+  color: #9a3412;
+}
