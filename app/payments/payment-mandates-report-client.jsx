@@ -504,7 +504,7 @@ export default function PaymentMandatesReportClient({
             {visibleMandates.map((item) => (
               <details
                 key={`${item.provider}-${item.connectionId}-${item.id}`}
-                className={`payments-report-item${item.status === "issues" ? " payments-report-item-issue" : ""}${item.status === "completed" ? " payments-report-item-completed" : ""}`}
+                className={`payments-report-item${item.issueKind === "payment_failure_monitoring" ? " payments-report-item-warning" : ""}${item.status === "issues" ? " payments-report-item-issue" : ""}${item.status === "completed" ? " payments-report-item-completed" : ""}`}
                 onToggle={(event) => {
                   if (event.currentTarget.open) {
                     loadMandateDetails(item);
@@ -527,7 +527,7 @@ export default function PaymentMandatesReportClient({
                   <div className="payments-report-summary-meta">
                     <span className="meta-chip">{item.connectionLabel}</span>
                     <span className="meta-chip">{item.providerLabel}</span>
-                    <span className={`meta-chip ${statusChipClass(item.status)}`}>
+                    <span className={`meta-chip ${item.issueKind === "payment_failure_monitoring" ? "meta-chip-warning" : statusChipClass(item.status)}`}>
                       {item.statusLabel || item.status || "-"}
                     </span>
                     {isNoRemainingPaymentsMandate(item) ? (
