@@ -29,6 +29,9 @@ struct CRMRootView: View {
                     .disabled(!browser.canGoBack).accessibilityLabel("חזרה למסך הקודם")
                 Button { browser.reload() } label: { Image(systemName: "arrow.clockwise") }
                     .accessibilityLabel("רענון")
+                if browser.hasPendingShare {
+                    Button("שיתוף ממתין", action: browser.showSharedImport)
+                }
                 Menu {
                     Button("התחברות מחדש", action: browser.restartSignIn)
                     Button("שיתוף שממתין לטיפול", action: browser.showSharedImport)
@@ -77,6 +80,7 @@ struct CRMWebView: UIViewRepresentable {
 @MainActor
 final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler, WKDownloadDelegate, ASWebAuthenticationPresentationContextProviding {
+    @Published private(set) var hasPendingShare = false
     @Published var loading = false
     @Published var canGoBack = false
     @Published var selectedPath = "/attendance"
@@ -204,14 +208,14 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
                     arguments: ["payload": payload], in: nil, in: .page, completionHandler: nil)
             } else if message.body as? String == "importCompleted" {
                 if let activeImport { try? FileManager.default.removeItem(at: activeImport) }
-                activeImport = nil; importedPayload = nil
+                activeImport = nil; importedPayload = nil; hasPendingShare = false
             }
             return
         }
         // Print upload completion is accepted only from its authorized web workflow.
         if message.body as? String == "importCompleted", webView.url?.path == "/print" {
             if let activeImport { try? FileManager.default.removeItem(at: activeImport) }
-            activeImport = nil; importedPayload = nil; return
+            activeImport = nil; importedPayload = nil; hasPendingShare = false; return
         }
         if webView.url?.path == "/mobile/finish", let stage = message.body as? String,
            ["exchange-start", "exchange-ok", "session-active", "exchange-failed"].contains(stage) {
@@ -228,7 +232,12 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
             })
     }
     func showSharedImport() {
-        if activeImport != nil { navigate("/mobile/import") } else { checkSharedInbox() }
+        if activeImport != nil {
+            if webView.url?.path == "/mobile/import" { reload() } else { navigate("/mobile/import") }
+        } else {
+            checkSharedInbox()
+            if activeImport == nil { error = "אין שיתוף ממתין. בחרו CRM CY בתפריט השיתוף ואשרו את הפעולה." }
+        }
     }
     func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
                  decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
@@ -272,7 +281,7 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
                   (values.fileSize ?? 0) < 15_000_000 else { try? FileManager.default.removeItem(at: url); continue }
             guard let bytes = try? Data(contentsOf: url),
                   let payload = try? JSONSerialization.jsonObject(with: bytes) as? [String: String] else { continue }
-            activeImport = url; importedPayload = payload
+            activeImport = url; importedPayload = payload; hasPendingShare = true
             navigate("/mobile/import"); return
         }
     }

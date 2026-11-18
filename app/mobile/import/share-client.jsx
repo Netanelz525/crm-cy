@@ -14,10 +14,13 @@ export default function MobileImportClient({ canPrint, canAssign, templates, sig
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
+    let received = false;
     function receive(event) {
+      if (received) return;
       try {
         const data = event.detail;
         if (!data || (data.text?.length || 0) > 100000 || (data.data?.length || 0) > 14000000) throw new Error();
+        received = true;
         setPayload(data); setMode(data.destination || (data.text ? 'template' : 'print'));
         if (data.data) {
           const bytes = Uint8Array.from(atob(data.data), c => c.charCodeAt(0));
@@ -26,8 +29,13 @@ export default function MobileImportClient({ canPrint, canAssign, templates, sig
       } catch { setError('לא ניתן לקרוא את השיתוף. נסו לשתף מחדש.'); }
     }
     window.addEventListener('crm-mobile-import', receive);
-    window.webkit?.messageHandlers?.mobileAuth?.postMessage('importReady');
-    return () => window.removeEventListener('crm-mobile-import', receive);
+    const bridge = window.webkit?.messageHandlers?.mobileAuth;
+    bridge?.postMessage('importReady');
+    const retry = bridge && setTimeout(() => bridge.postMessage('importReady'), 1000);
+    return () => {
+      clearTimeout(retry);
+      window.removeEventListener('crm-mobile-import', receive);
+    };
   }, []);
   useEffect(() => {
     if (query.trim().length < 2 || !canAssign) { setStudents([]); return; }
