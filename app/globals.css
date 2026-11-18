@@ -7947,3 +7947,28 @@ button.attendance-status-option:focus-visible { outline: 3px solid #93c5fd; outl
   background: #ffedd5;
   color: #9a3412;
 }
+
+.call-attendance-status-toggle {
+  display: block;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 8px 0;
+}
+
+.call-attendance-status-toggle > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.call-attendance-status-toggle:focus-visible {
+  outline: 3px solid #1764a8;
+  outline-offset: 3px;
+}
+
+.call-attendance-name-list {
+  max-height: 15rem;
+  overflow-y: auto;
+  padding-inline-start: 1.5rem;
+  line-height: 1.8;
+}

@@ -19,6 +19,56 @@ function ContactDetails({ label, name, phone, email, active }) {
   </section>;
 }
 
+async function copyNames(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const field = document.createElement('textarea');
+    field.value = text; field.setAttribute('readonly', '');
+    field.style.position = 'fixed'; field.style.opacity = '0';
+    document.body.appendChild(field);
+    try {
+      field.select(); field.setSelectionRange(0, text.length);
+      if (!document.execCommand('copy')) throw new Error('Copy failed');
+    } finally { field.remove(); }
+  }
+}
+
+function AttendanceStatusNames({ item, total, request }) {
+  const [names, setNames] = useState(null);
+  const [message, setMessage] = useState("");
+  async function load() {
+    setNames(null);
+    setMessage("");
+    try {
+      const result = await request({ kind: "dashboard", namesForStatus: item.value });
+      setNames(result.names);
+    } catch {
+      setMessage("לא ניתן לטעון את השמות. סגור ופתח את השורה כדי לנסות שוב.");
+    }
+  }
+  const tone = ["found", "missing"].includes(item.value) ? item.value : "other";
+  return <details className={`call-attendance-status call-attendance-status-${tone}`}
+    onToggle={(event) => { if (event.currentTarget.open) void load(); }}>
+    <summary className="call-attendance-status-toggle">
+      <div><b>{item.label}</b><strong>{item.percentage}%</strong></div>
+      <progress max="100" value={item.percentage} aria-label={`${item.label}: ${item.percentage}%`} />
+      <div><small>{item.count} מתוך {total} מוזמנים</small><small>שמות ▾</small></div>
+    </summary>
+    {names?.length ? <>
+      <button type="button" className="quick-action-btn quick-action-outline" onClick={async () => {
+        try {
+          await copyNames(names.join("\n"));
+          setMessage(`${names.length} שמות הועתקו`);
+        } catch {
+          setMessage("ההעתקה לא הצליחה. אפשר לסמן ולהעתיק את השמות מהרשימה.");
+        }
+      }}>העתק שמות ({names.length})</button>
+      <ul className="call-attendance-name-list">{names.map((name, index) => <li key={index}>{name}</li>)}</ul>
+    </> : null}
+    <p role="status">{message || (names === null ? "טוען שמות…" : names.length === 0 ? "אין מוזמנים בסטטוס הזה." : "")}</p>
+  </details>;
+}
+
 const labels = { in_call:"בשיחה כעת", pending:"ממתין", completed:"טופל", deferred:"נדחה", no_answer:"לא ענה" };
 export default function AttendanceCallClient({ sessionId, title, locked, statusOptions=[], publicToken="", initialStatus="" }) {
   const [data,setData] = useState(null), [note,setNote] = useState(""), [status,setStatus] = useState("");
@@ -102,17 +152,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     if (!text) return;
     setError(''); setNotice('');
     try {
-      try { await navigator.clipboard.writeText(text); }
-      catch {
-        const field = document.createElement('textarea');
-        field.value = text; field.setAttribute('readonly', '');
-        field.style.position = 'fixed'; field.style.opacity = '0';
-        document.body.appendChild(field);
-        try {
-          field.select(); field.setSelectionRange(0, text.length);
-          if (!document.execCommand('copy')) throw new Error('Copy failed');
-        } finally { field.remove(); }
-      }
+      await copyNames(text);
       setNotice(`${directory.rows.length} שמות מהסינון הנוכחי הועתקו.`);
     } catch { setError('לא ניתן להעתיק את השמות. נסה שוב.'); }
   }
@@ -286,11 +326,8 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     {dashboard ? <>
       <div className="call-attendance-total"><strong>{dashboard.total}</strong><span>מוזמנים במפגש</span></div>
       {dashboard.total === 0 ? <p>עדיין אין מוזמנים במפגש.</p> : null}
-      {dashboard.statuses.map(item=><div className={`call-attendance-status call-attendance-status-${item.value === "found" ? "found" : item.value === "missing" ? "missing" : "other"}`} key={item.value}>
-        <div><b>{item.label}</b><strong>{item.percentage}%</strong></div>
-        <progress max="100" value={item.percentage} aria-label={`${item.label}: ${item.percentage}%`} />
-        <small>{item.count} מתוך {dashboard.total} מוזמנים</small>
-      </div>)}
+      {dashboard.statuses.map((item) => <AttendanceStatusNames key={item.value}
+        item={item} total={dashboard.total} request={request} />)}
       <small className="muted">עודכן ב־{new Date(dashboard.updatedAt).toLocaleTimeString("he-IL",{timeZone:"Asia/Jerusalem"})} · מתרענן כל 15 שניות</small>
     </> : !dashboardError ? <p role="status">טוען את מצב המפגש…</p> : null}
     {dashboardError ? <p role="alert" className="error">לא ניתן לרענן את הדשבורד. {dashboard ? "מוצגים הנתונים מהעדכון האחרון." : dashboardError}</p> : null}
