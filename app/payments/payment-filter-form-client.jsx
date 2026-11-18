@@ -10,7 +10,7 @@ export default function PaymentFilterFormClient({
   reportType = "transactions",
   dateFrom,
   dateTo,
-  mandateStatus = "active",
+  mandateStatus = "ongoing",
   connections = [],
   selectedConnectionIds = []
 }) {
@@ -29,7 +29,7 @@ export default function PaymentFilterFormClient({
   }, [selectedConnectionIds, allConnectionIds]);
 
   useEffect(() => {
-    setSelectedMandateStatus(mandateStatus || "active");
+    setSelectedMandateStatus(mandateStatus || "ongoing");
   }, [mandateStatus]);
 
   const allSelected = allConnectionIds.length > 0 && selectedIds.length === allConnectionIds.length;
@@ -65,7 +65,8 @@ export default function PaymentFilterFormClient({
               value={selectedMandateStatus}
               onChange={(event) => setSelectedMandateStatus(clean(event.target.value) || "active")}
             >
-              <option value="active">הצג הוראות קבע פעילות</option>
+              <option value="ongoing">כל ההוראות הפעילות, כולל תקלות</option>
+              <option value="active">הוראות פעילות ללא תקלות הדורשות טיפול</option>
               <option value="ending_soon">הצג הוראות קבע לקראת סיום</option>
               <option value="issues">הצג הוראות קבע עם תקלות</option>
               <option value="completed">הצג הוראות קבע שהסתיימו</option>

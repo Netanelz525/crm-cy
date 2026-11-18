@@ -246,7 +246,7 @@ export default function PaymentMandatesReportClient({
   const [selectedConnectionIds, setSelectedConnectionIds] = useState(
     initialSelectedConnectionIds.length ? initialSelectedConnectionIds : connections.map((connection) => connection.id)
   );
-  const [mandateStatus, setMandateStatus] = useState(initialMandateStatus || "active");
+  const [mandateStatus, setMandateStatus] = useState(initialMandateStatus || "ongoing");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
@@ -277,9 +277,9 @@ export default function PaymentMandatesReportClient({
   );
 
   const visibleExternalMandates = useMemo(() => {
-    if (!["all", "external", "ending_soon", "completed"].includes(mandateStatus)) return [];
+    if (!["all", "external", "ending_soon", "completed", "ongoing"].includes(mandateStatus)) return [];
     const query = clean(searchTerm).toLowerCase();
-    return externalItems.filter((item) => (mandateStatus === "all" || mandateStatus === "external" || item.status === mandateStatus) && (!query || JSON.stringify(item).toLowerCase().includes(query)));
+    return externalItems.filter((item) => (mandateStatus === "all" || mandateStatus === "external" || (mandateStatus === "ongoing" && ["active", "issues", "ending_soon"].includes(item.status)) || item.status === mandateStatus) && (!query || JSON.stringify(item).toLowerCase().includes(query)));
   }, [externalItems, mandateStatus, searchTerm]);
 
   async function saveExternalMandate(event) {
@@ -428,8 +428,9 @@ export default function PaymentMandatesReportClient({
             value={searchTerm}
             onChange={(event) => setSearchTerm(clean(event.target.value))}
           />
-          <select value={mandateStatus} onChange={(event) => setMandateStatus(clean(event.target.value) || "active")}>
-            <option value="active">הצג הוראות קבע פעילות</option>
+          <select value={mandateStatus} onChange={(event) => setMandateStatus(clean(event.target.value) || "ongoing")}>
+            <option value="ongoing">כל ההוראות הפעילות, כולל תקלות</option>
+              <option value="active">הוראות פעילות ללא תקלות הדורשות טיפול</option>
             <option value="ending_soon">הצג הוראות קבע לקראת סיום</option>
             <option value="issues">הצג הוראות קבע עם תקלות</option>
             <option value="completed">הצג הוראות קבע שהסתיימו</option>
