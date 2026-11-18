@@ -57,13 +57,13 @@ function AttendanceStatusNames({ item, total, request }) {
     {names?.length ? <>
       <button type="button" className="quick-action-btn quick-action-outline" onClick={async () => {
         try {
-          await copyNames(names.join("\n"));
+          await copyNames(names.map((name, index) => `${index + 1}. ${name}`).join("\n"));
           setMessage(`${names.length} שמות הועתקו`);
         } catch {
           setMessage("ההעתקה לא הצליחה. אפשר לסמן ולהעתיק את השמות מהרשימה.");
         }
       }}>העתק שמות ({names.length})</button>
-      <ul className="call-attendance-name-list">{names.map((name, index) => <li key={index}>{name}</li>)}</ul>
+      <ol className="call-attendance-name-list">{names.map((name, index) => <li key={index}>{name}</li>)}</ol>
     </> : null}
     <p role="status">{message || (names === null ? "טוען שמות…" : names.length === 0 ? "אין מוזמנים בסטטוס הזה." : "")}</p>
   </details>;
