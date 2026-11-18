@@ -22,7 +22,7 @@ xcodebuild -project ios/CRM/CRM.xcodeproj -scheme CRMCY \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-For distribution, create an unsigned Release archive and export with the Apple Distribution certificate in the **nz** keychain. Explicitly set `signingCertificate` in ExportOptions; automatic archive signing otherwise selects Apple Development. No signing key is stored in the repository.
+For distribution, sign both the share extension and app with their App Group entitlements using the Apple Distribution certificate in the **nz** keychain before exporting. An unsigned archive exported directly can lose the App Group entitlement. Verify `com.apple.security.application-groups` in the signed entitlements of both bundles before upload. Explicitly set `signingCertificate` in ExportOptions; automatic archive signing otherwise selects Apple Development. No signing key is stored in the repository.
 
 ## Server security checks
 
