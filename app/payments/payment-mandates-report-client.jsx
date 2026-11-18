@@ -277,7 +277,7 @@ export default function PaymentMandatesReportClient({
   );
 
   const visibleExternalMandates = useMemo(() => {
-    if (!["all", "external", "ending_soon"].includes(mandateStatus)) return [];
+    if (!["all", "external", "ending_soon", "completed"].includes(mandateStatus)) return [];
     const query = clean(searchTerm).toLowerCase();
     return externalItems.filter((item) => (mandateStatus === "all" || mandateStatus === "external" || item.status === mandateStatus) && (!query || JSON.stringify(item).toLowerCase().includes(query)));
   }, [externalItems, mandateStatus, searchTerm]);
@@ -432,7 +432,7 @@ export default function PaymentMandatesReportClient({
             <option value="active">הצג הוראות קבע פעילות</option>
             <option value="ending_soon">הצג הוראות קבע לקראת סיום</option>
             <option value="issues">הצג הוראות קבע עם תקלות</option>
-            <option value="completedNoRemaining">הצג הוראות שהסתיימו התשלומים שלהן</option>
+            <option value="completed">הצג הוראות קבע שהסתיימו</option>
             <option value="external">הצג הוראות קבע ממערכת חיצונית</option>
             <option value="all">הצג את כל הוראות הקבע</option>
           </select>

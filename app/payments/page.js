@@ -28,8 +28,8 @@ export default async function PaymentsPage({ searchParams }) {
   const defaults = getDefaultPaymentDateRange();
   const reportType = clean(resolvedSearchParams?.reportType) === "mandates" ? "mandates" : "transactions";
   const mandateStatus = reportType === "mandates"
-    ? (["active", "ending_soon", "issues", "completedNoRemaining", "external", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
-      ? clean(resolvedSearchParams?.mandateStatus)
+    ? (["active", "ending_soon", "issues", "completed", "completedNoRemaining", "external", "all"].includes(clean(resolvedSearchParams?.mandateStatus))
+      ? (clean(resolvedSearchParams?.mandateStatus) === "completedNoRemaining" ? "completed" : clean(resolvedSearchParams?.mandateStatus))
       : "active")
     : "";
   const dateFrom = reportType === "mandates"

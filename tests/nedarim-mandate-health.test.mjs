@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { nedarimDate, nedarimMandateHealth } from "../lib/nedarim-mandate-health.mjs";
+import { isConfirmedNedarimCharge, nedarimDate, nedarimMandateHealth } from "../lib/nedarim-mandate-health.mjs";
 
 const health = (last, today, errorText = "", known = true, createdAt = "04/01/2025") =>
   nedarimMandateHealth({ createdAt, errorText }, last, today, known);
@@ -28,4 +28,21 @@ test("unavailable history is not a missed charge; blocked or stolen cards are ur
   for (const error of ["כרטיס חסום", "הכרטיס דווח כגנוב", "stolen_card"]) {
     assert.equal(health("", "2026-11-17", error, false).issueKind, "card_requires_action");
   }
+});
+
+test("declines and missing approvals cannot count as successful Nedarim charges", () => {
+  for (const approval of ["", "0000", "סירוב"]) {
+    assert.equal(isConfirmedNedarimCharge({ 'מספר אישור': approval }), false);
+  }
+  assert.equal(isConfirmedNedarimCharge({ 'מספר אישור': "12345", "סטטוס עסקה": "סורב" }), false);
+  assert.equal(isConfirmedNedarimCharge({ 'מספר אישור': "12345" }), true);
+});
+
+test("completed mandates stay completed even when historical charges are missing", () => {
+  const result = nedarimMandateHealth({
+    status: "completed", issueKind: "no_remaining_payments",
+    createdAt: "04/01/2025", errorText: "כרטיס חסום"
+  }, "", "2026-11-18", true);
+  assert.equal(result.status, "completed");
+  assert.equal(result.issueKind, "no_remaining_payments");
 });
