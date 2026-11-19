@@ -4,8 +4,17 @@ import AuthenticationServices
 import CryptoKit
 import Security
 
+final class CRMAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
+                     completionHandler: @escaping () -> Void) {
+        NativeShareQueue.shared.backgroundCompletion = completionHandler
+        NativeShareQueue.shared.resume()
+    }
+}
+
 @main
 struct CRMApp: App {
+    @UIApplicationDelegateAdaptor(CRMAppDelegate.self) var appDelegate
     var body: some Scene {
         WindowGroup { CRMRootView().environment(\.layoutDirection, .rightToLeft) }
     }
@@ -13,6 +22,7 @@ struct CRMApp: App {
 
 struct CRMRootView: View {
     @StateObject private var browser = CRMBrowser()
+    @State private var showPendingShares = false
     @Environment(\.scenePhase) private var scenePhase
     private let tabs: [(String, String, String)] = [
         ("/attendance", "נוכחות", "checkmark.circle"),
@@ -33,6 +43,7 @@ struct CRMRootView: View {
                     Button("שיתוף ממתין", action: browser.showSharedImport)
                 }
                 Menu {
+                    Button("שליחות ממתינות") { showPendingShares = true }
                     Button("התחברות מחדש", action: browser.restartSignIn)
                     Button("שיתוף שממתין לטיפול", action: browser.showSharedImport)
                     Button("פתיחה ב־Safari", action: browser.openInSafari)
@@ -67,6 +78,7 @@ struct CRMRootView: View {
             }.padding(.horizontal, 8).padding(.top, 6).background(.bar)
         }
         .onChange(of: scenePhase) { _, phase in if phase == .active { browser.checkSharedInbox() } }
+        .sheet(isPresented: $showPendingShares) { NavigationStack { NativeSharePendingView() } }
         .tint(Color(red: 0.09, green: 0.30, blue: 0.65))
     }
 }
@@ -207,7 +219,8 @@ final class CRMBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
            let token = value["token"] as? String, token.count == 64,
            let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.il.co.yeshivatcy.crm"),
            let bytes = try? JSONSerialization.data(withJSONObject: value) {
-            try? bytes.write(to: root.appendingPathComponent("ShareSession.json"), options: [.atomic, .completeFileProtection])
+            try? bytes.write(to: root.appendingPathComponent("ShareSession.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            NativeShareQueue.shared.resume()
             return
         }
         if webView.url?.path == "/mobile/import" {

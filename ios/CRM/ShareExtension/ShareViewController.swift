@@ -1,6 +1,7 @@
 import UIKit
 import UniformTypeIdentifiers
 import WebKit
+import SwiftUI
 
 final class ShareViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler, WKDownloadDelegate {
     private var webView: WKWebView?
@@ -96,6 +97,23 @@ final class ShareViewController: UIViewController, WKNavigationDelegate, WKScrip
         actions.insertArrangedSubview(button, at: 0)
     }
     private func save(destination: String) {
+        if destination != "student" {
+            let controller = UIHostingController(rootView: NativeShareForm(
+                payload: payload, initialDestination: destination,
+                onDone: { [weak self] in self?.extensionContext?.completeRequest(returningItems: nil) }
+            ))
+            addChild(controller)
+            controller.view.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(controller.view)
+            NSLayoutConstraint.activate([
+                controller.view.topAnchor.constraint(equalTo: view.topAnchor),
+                controller.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+                controller.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                controller.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            ])
+            controller.didMove(toParent: self)
+            return
+        }
         guard webView == nil else { return }
         guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.il.co.yeshivatcy.crm"),
               let bytes = try? Data(contentsOf: root.appendingPathComponent("ShareSession.json")),

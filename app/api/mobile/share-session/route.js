@@ -1,6 +1,8 @@
+import { listAnnouncementTemplates } from "../../../../lib/announcements";
 import { randomBytes, createHash } from "node:crypto";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { getCurrentAppUser } from "../../../../lib/rbac";
+import { canAccessPrintFeature, canUseColorPrint, PRINT_PLAN_LABELS, getPrintCreditBalance, hasUnlimitedPrintCredit } from "../../../../lib/print-jobs";
+import { getCurrentAppUser, assertStudentAccess } from "../../../../lib/rbac";
 import { ensureDbFeature, sql } from "../../../../lib/db";
 
 export const runtime = "nodejs";
@@ -28,7 +30,20 @@ export async function POST(request) {
       await sql`DELETE FROM mobile_share_sessions WHERE expires_at < NOW()`;
       await sql`INSERT INTO mobile_share_sessions(token_hash,user_id,session_id,expires_at)
         VALUES(${hash(token)},${user.clerk_user_id},${sessionId},NOW()+INTERVAL '1 day')`;
-      return Response.json({ token, expiresAt: Date.now() + 86400000 }, { headers });
+      const canAssign = Boolean(user.is_team_member || user.is_manager || user.is_super_admin);
+      const students = canAssign ? await sql`SELECT student_id AS id,full_name AS name
+        FROM neon_students ORDER BY full_name` : [];
+      return Response.json({
+        token, expiresAt: Date.now() + 86400000, userId: user.clerk_user_id,
+        canPrint: canAccessPrintFeature(user), canAssign,
+        templates: user.can_use_announcement_templates && canAccessPrintFeature(user) ? (await listAnnouncementTemplates({ user }))
+          .filter((template) => template.docxObjectKey && !(template.fields || []).some((field) => field.type === "image"))
+          .map((template) => ({ id: template.id, name: template.name, fields: template.fields })) : [],
+        plans: Object.entries(PRINT_PLAN_LABELS).filter(([id]) => !id.endsWith("-color") || canUseColorPrint(user))
+          .map(([id, name]) => ({ id, name })),
+        students: students.filter((student) => assertStudentAccess(user, student.id)),
+        creditBalance: canAccessPrintFeature(user) && !hasUnlimitedPrintCredit(user) ? await getPrintCreditBalance(user.clerk_user_id) : null
+      }, { headers });
     }
     if (!/^[a-f0-9]{64}$/.test(body.token || "")) throw new Error("Unauthorized");
     const rows = await sql`SELECT user_id,session_id FROM mobile_share_sessions

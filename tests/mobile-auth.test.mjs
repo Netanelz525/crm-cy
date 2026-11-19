@@ -86,7 +86,15 @@ test('share session exchange requires an approved login, protected token and a s
           } }
         })
       },
-      '../../../../lib/rbac': { getCurrentAppUser: async () => ({ access_status: approved ? 'approved' : 'pending', clerk_user_id: 'owner' }) },
+      '../../../../lib/rbac': {
+        getCurrentAppUser: async () => ({ access_status: approved ? 'approved' : 'pending', clerk_user_id: 'owner' }),
+        assertStudentAccess: () => false
+      },
+      '../../../../lib/announcements': { listAnnouncementTemplates: async () => [] },
+      '../../../../lib/print-jobs': {
+        canAccessPrintFeature: () => false, canUseColorPrint: () => false, PRINT_PLAN_LABELS: {},
+        getPrintCreditBalance: async () => 0, hasUnlimitedPrintCredit: () => false
+      },
       '../../../../lib/db': { sql, ensureDbFeature: async (_key, _version, migrate) => migrate() }
     });
     const request = (body, origin = 'https://crm.example') => new Request('https://crm.example/api/mobile/share-session', {
@@ -109,4 +117,41 @@ test('share session exchange requires an approved login, protected token and a s
     assert.equal((await route.POST(request({ token: issue.token }))).status, 401);
     assert.equal(minted, 1);
   } finally { await db.close(); }
+});
+
+test('native offline upload retries return the same completion without printing twice', async () => {
+  const db = new PGlite();
+  let prints = 0;
+  try {
+    const token = 'a'.repeat(64);
+    const sql = async (strings,...values) => (await db.query(
+      strings.reduce((q,p,i)=>q+(i?`$${i}`:'')+p,''),values
+    )).rows;
+    await db.exec('CREATE TABLE mobile_share_sessions(token_hash text,user_id text,session_id text,expires_at timestamptz)');
+    await db.query("INSERT INTO mobile_share_sessions VALUES($1,'owner','source',NOW()+INTERVAL '1 day')",
+      [crypto.createHash('sha256').update(token).digest('hex')]);
+    const route = await load('../app/api/mobile/native-share/route.js', {
+      'node:crypto': crypto,
+      '@clerk/nextjs/server': { clerkClient: async () => ({ sessions: { getSession: async () => ({status:'active',userId:'owner'}) } }) },
+      '../../../../lib/db': { sql, ensureDbFeature: async (_key,_version,migrate) => migrate() },
+      '../../../../lib/rbac': { getAppUserByClerkUserId: async () => ({clerk_user_id:'owner',access_status:'approved'}) },
+      '../../../../lib/print-jobs': { canAccessPrintFeature: () => true, createPrintJobFromBuffer: async ({buffer}) => {
+        assert.equal(buffer.toString(),'synthetic-file'); prints++; return {id:'print'};
+      } },
+      '../../../../lib/announcements': { getAnnouncementTemplateById: async()=>null, canUseAnnouncementTemplate:()=>false,
+        createAnnouncement:async()=>{}, markAnnouncementPrintQueued:async()=>{} },
+      '../../../../lib/announcement-pdf': { renderAnnouncementDocx:async()=>{} },
+      '../../../../lib/announcement-converter': { convertAnnouncementDocxToPdf:async()=>{} }
+    });
+    const body={id:'00000000-0000-4000-8000-000000000001',destination:'print',name:'file.pdf',type:'application/pdf',size:14,parts:1,copies:1,printPlan:'single-a4-bw'};
+    const request = (data,credential=token) => new Request('https://crm.example/api/mobile/native-share',{
+      method:'POST',headers:{Authorization:'Bearer '+credential,'Content-Type':'application/json'},body:JSON.stringify(data)
+    });
+    assert.equal((await route.POST(request(body,'bad'))).status,401);
+    assert.equal((await route.POST(request({...body,action:'chunk',part:0,data:Buffer.from('synthetic-file').toString('base64')}))).status,200);
+    assert.equal((await route.POST(request({...body,action:'finish'}))).status,200);
+    assert.equal((await route.POST(request({...body,action:'finish'}))).status,200);
+    assert.equal(prints,1);
+    assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM native_share_chunks')).rows[0].n,0);
+  } finally {await db.close();}
 });
