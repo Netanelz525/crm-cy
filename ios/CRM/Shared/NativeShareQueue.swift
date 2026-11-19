@@ -29,9 +29,9 @@ final class NativeShareQueue: NSObject, URLSessionDataDelegate, URLSessionTaskDe
         guard let url = manifest(id) else { throw NSError(domain: "SharedContainer", code: 1) }
         try JSONSerialization.data(withJSONObject: job).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
-    func enqueue(payload: [String: String], destination: String, templateId: String, plan: String, copies: Int) throws {
+    func enqueue(payload: [String: String], destination: String, templateId: String, plan: String, copies: Int, expectedUserId: String) throws {
         guard let folder = Self.folder, let config = Self.configuration(),
-              let user = config["userId"] as? String, let encoded = payload["data"],
+              let user = config["userId"] as? String, user == expectedUserId, let encoded = payload["data"],
               let data = Data(base64Encoded: encoded) else { throw NSError(domain: "ShareConfiguration", code: 1) }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let id = UUID().uuidString
@@ -155,6 +155,8 @@ struct NativeShareForm: View {
                     }
                 } else if config["userId"] == nil {
                     Text("פתחו את CRM CY פעם אחת כדי להוריד את אפשרויות השיתוף למכשיר.")
+                } else if config["canPrint"] as? Bool != true {
+                    Text("לחשבון הזה אין הרשאת הדפסה. ניתן לשייך קבצים לתלמיד מתוך אפשרות השיוך.")
                 } else {
                     Section("פעולה") {
                         Picker("מה לעשות עם הקובץ?", selection: $destination) {
@@ -219,7 +221,7 @@ struct NativeShareForm: View {
                                 content = ["name": "template.json", "type": "application/json", "data": data.base64EncodedString()]
                             }
                             try NativeShareQueue.shared.enqueue(payload: content, destination: destination,
-                                templateId: templateId, plan: plan, copies: copies)
+                                templateId: templateId, plan: plan, copies: copies, expectedUserId: config["userId"] as? String ?? "")
                             saved = true
                         } catch { self.error = "השמירה במכשיר נכשלה. נסו שוב." }
                     }.disabled(destination.isEmpty || (destination == "template" && templateId.isEmpty))
@@ -230,7 +232,7 @@ struct NativeShareForm: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("סגירה", action: onDone) } }
             .environment(\.layoutDirection, .rightToLeft)
             .onAppear {
-                destination = initialDestination
+                destination = config["canPrint"] as? Bool == true ? initialDestination : ""
                 plan = plans.first?["id"] ?? ""
                 templateId = templates.first?["id"] as? String ?? ""
             }
@@ -243,9 +245,12 @@ struct NativeSharePendingView: View {
     private func refresh() {
         guard let folder = NativeShareQueue.folder,
               let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { return }
+        let userId = NativeShareQueue.configuration()?["userId"] as? String
         jobs = urls.filter { $0.pathExtension == "json" }.compactMap {
             guard let data = try? Data(contentsOf: $0) else { return nil }
-            return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            guard let job = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  job["userId"] as? String == userId else { return nil }
+            return job
         }
     }
     var body: some View {
