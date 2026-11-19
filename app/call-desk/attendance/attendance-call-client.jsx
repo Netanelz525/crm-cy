@@ -98,6 +98,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     return { rows, callCounts, attendanceCounts: [...attendanceCounts].sort(([a], [b]) => String(a).localeCompare(String(b), "he")) };
   }, [matches, listStatus, listOutcome, listSort]);
   const [attendanceMode, setAttendanceMode] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [dashboardError, setDashboardError] = useState("");
   const publicWindow=useRef("");
@@ -169,7 +170,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     return result;
   }
   useEffect(() => {
-    if (closed) return;
+    if (closed || !dashboardOpen || attendanceMode) return;
     let cancelled = false, loading = false;
     async function refresh() {
       if (loading || document.visibilityState === "hidden") return;
@@ -185,7 +186,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
-  }, [sessionId, publicToken, closed]);
+  }, [sessionId, publicToken, closed, dashboardOpen, attendanceMode]);
 
   async function next(outcome, requestedStudentId = "") {
     if (inFlight.current || !filterReady) return;
@@ -329,7 +330,7 @@ export default function AttendanceCallClient({ sessionId, title, locked, statusO
     </div>}
   </section>
   <aside className="card call-attendance-dashboard" aria-label="דשבורד מצב נוכחות במפגש">
-    <details>
+    <details onToggle={(event) => setDashboardOpen(event.currentTarget.open)}>
     <summary className="call-attendance-summary"><b>אחוזי נוכחות במפגש</b><span className="muted">לחץ לפתיחה ▾</span></summary>
     <p className="muted">כל מוזמני המפגש · ללא סינון</p>
     {dashboard ? <>
